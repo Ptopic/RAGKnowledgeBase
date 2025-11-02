@@ -1,0 +1,33 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
+	"files": {
+		"includes": [
+			"src/**/*.{js,ts,jsx,tsx,json,md}",
+			"app/**/*.{js,ts,jsx,tsx,json,md}",
+			"components/**/*.{js,ts,jsx,tsx,json,md}",
+			"*.{js,ts,jsx,tsx,json,md}",
+			"!node_modules/**/*",
+			"!dist/**/*",
+			"!public/**/*",
+			"!src/seed/**/*"
+		]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"complexity": {
+				"noStaticOnlyClass": "off"
+			},
+			"a11y": {
+				"noSvgWithoutTitle": "off",
+				"useButtonType": "off"
+			},
+			"correctness": {
+				"useUniqueElementIds": "off"
+			}
+		}
+	},
+	"formatter": {
+		"enabled": true
+	}
+}

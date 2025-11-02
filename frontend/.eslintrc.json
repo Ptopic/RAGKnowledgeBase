@@ -1,0 +1,22 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:jsx-a11y/strict",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@tanstack/eslint-plugin-query/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint", "@tanstack/query"],
+  "rules": {
+    "react/react-in-jsx-scope": 0,
+    "react/jsx-uses-react": 0,
+    "no-duplicate-imports": 2,
+    "no-console": "error",
+    "react-hooks/exhaustive-deps": 2,
+    "jsx-a11y/no-noninteractive-element-interactions": 0,
+    "jsx-a11y/click-events-have-key-events": 0,
+    "@tanstack/query/exhaustive-deps": 0,
+    "@tanstack/query/no-rest-destructuring": 1,
+    "@tanstack/query/stable-query-client": 2
+  }
+}

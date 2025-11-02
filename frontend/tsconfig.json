@@ -1,0 +1,82 @@
+{
+  "compilerOptions": 
+  {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": "./src",
+    "paths": {
+      "@components/*": [
+        "components/*"
+      ],
+      "@components": [
+        "components/"
+      ],
+      "@assets/*": [
+        "assets/*"
+      ],
+      "@shared/*": [
+        "shared/*"
+      ],
+      "@styles/*": [
+        "styles/*"
+      ],
+      "@features/*": [
+        "features/*"
+      ],
+      "@contracts/*": [
+        "contracts/*"
+      ],
+      "@contracts": [
+        "contracts/"
+      ],
+      "@api/*": [
+        "api/*"
+      ],
+      "@app/*": [
+        "app/*"
+      ],
+      "@context/*": [
+        "context/*"
+      ],
+      "@blockchains/*": [
+        "blockchains/*"
+      ],
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "src/api/baseAxios.ts",
+    "src/middleware.ts",
+    "tailwind.config.ts",
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
