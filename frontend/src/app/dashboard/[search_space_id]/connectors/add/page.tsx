@@ -9,12 +9,20 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+	Card,
+	CardContent,
+	CardFooter,
+	CardHeader,
+} from "@/components/ui/card";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 
@@ -64,7 +72,10 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "elasticsearch-connector",
 				title: "Elasticsearch",
 				description: "elasticsearch_desc",
-				icon: getConnectorIcon(EnumConnectorName.ELASTICSEARCH_CONNECTOR, "h-6 w-6"),
+				icon: getConnectorIcon(
+					EnumConnectorName.ELASTICSEARCH_CONNECTOR,
+					"h-6 w-6",
+				),
 				status: "available",
 			},
 			{
@@ -152,7 +163,10 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "confluence-connector",
 				title: "Confluence",
 				description: "confluence_desc",
-				icon: getConnectorIcon(EnumConnectorName.CONFLUENCE_CONNECTOR, "h-6 w-6"),
+				icon: getConnectorIcon(
+					EnumConnectorName.CONFLUENCE_CONNECTOR,
+					"h-6 w-6",
+				),
 				status: "available",
 			},
 			{
@@ -179,14 +193,20 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "google-calendar-connector",
 				title: "Google Calendar",
 				description: "calendar_desc",
-				icon: getConnectorIcon(EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR, "h-6 w-6"),
+				icon: getConnectorIcon(
+					EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
+					"h-6 w-6",
+				),
 				status: "available",
 			},
 			{
 				id: "google-gmail-connector",
 				title: "Gmail",
 				description: "gmail_desc",
-				icon: getConnectorIcon(EnumConnectorName.GOOGLE_GMAIL_CONNECTOR, "h-6 w-6"),
+				icon: getConnectorIcon(
+					EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
+					"h-6 w-6",
+				),
 				status: "available",
 			},
 			{
@@ -229,7 +249,8 @@ const cardVariants: Variants = {
 	},
 	hover: {
 		scale: 1.02,
-		boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+		boxShadow:
+			"0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
 		transition: {
 			type: "spring",
 			stiffness: 400,
@@ -239,7 +260,6 @@ const cardVariants: Variants = {
 };
 
 export default function ConnectorsPage() {
-	const t = useTranslations("add_connector");
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [expandedCategories, setExpandedCategories] = useState<string[]>([
@@ -252,7 +272,9 @@ export default function ConnectorsPage() {
 
 	const toggleCategory = (categoryId: string) => {
 		setExpandedCategories((prev) =>
-			prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
+			prev.includes(categoryId)
+				? prev.filter((id) => id !== categoryId)
+				: [...prev, categoryId],
 		);
 	};
 
@@ -268,9 +290,11 @@ export default function ConnectorsPage() {
 				className="mb-12 text-center"
 			>
 				<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-					{t("title")}
+					Add Connector
 				</h1>
-				<p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">{t("subtitle")}</p>
+				<p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">
+					Connect your favorite tools and services to your knowledge base
+				</p>
 			</motion.div>
 
 			<motion.div
@@ -291,12 +315,22 @@ export default function ConnectorsPage() {
 							className="w-full"
 						>
 							<div className="flex items-center justify-between space-x-4 p-4">
-								<h3 className="text-xl font-semibold">{t(category.title)}</h3>
+								<h3 className="text-xl font-semibold">
+									{category.title
+										.replace(/_/g, " ")
+										.replace(/\b\w/g, (l) => l.toUpperCase())}
+								</h3>
 								<CollapsibleTrigger asChild>
-									<Button variant="ghost" size="sm" className="w-9 p-0 hover:bg-muted">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="w-9 p-0 hover:bg-muted"
+									>
 										<motion.div
 											animate={{
-												rotate: expandedCategories.includes(category.id) ? 180 : 0,
+												rotate: expandedCategories.includes(category.id)
+													? 180
+													: 0,
 											}}
 											transition={{ duration: 0.3, ease: "easeInOut" }}
 										>
@@ -335,13 +369,15 @@ export default function ConnectorsPage() {
 														</div>
 														<div>
 															<div className="flex items-center gap-2">
-																<h3 className="font-medium">{connector.title}</h3>
+																<h3 className="font-medium">
+																	{connector.title}
+																</h3>
 																{connector.status === "coming-soon" && (
 																	<Badge
 																		variant="outline"
 																		className="text-xs bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800"
 																	>
-																		{t("coming_soon")}
+																		Coming Soon
 																	</Badge>
 																)}
 																{connector.status === "connected" && (
@@ -349,7 +385,7 @@ export default function ConnectorsPage() {
 																		variant="outline"
 																		className="text-xs bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
 																	>
-																		{t("connected")}
+																		Connected
 																	</Badge>
 																)}
 															</div>
@@ -358,7 +394,9 @@ export default function ConnectorsPage() {
 
 													<CardContent className="pb-4">
 														<p className="text-sm text-muted-foreground">
-															{t(connector.description)}
+															{connector.description
+																.replace(/_/g, " ")
+																.replace(/\b\w/g, (l) => l.toUpperCase())}
 														</p>
 													</CardContent>
 
@@ -368,8 +406,11 @@ export default function ConnectorsPage() {
 																href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
 																className="w-full"
 															>
-																<Button variant="default" className="w-full group">
-																	<span>{t("connect")}</span>
+																<Button
+																	variant="default"
+																	className="w-full group"
+																>
+																	<span>Connect</span>
 																	<motion.div
 																		className="ml-1"
 																		initial={{ x: 0 }}
@@ -386,8 +427,12 @@ export default function ConnectorsPage() {
 															</Link>
 														)}
 														{connector.status === "coming-soon" && (
-															<Button variant="outline" disabled className="w-full opacity-70">
-																{t("coming_soon")}
+															<Button
+																variant="outline"
+																disabled
+																className="w-full opacity-70"
+															>
+																Coming Soon
 															</Button>
 														)}
 														{connector.status === "connected" && (
@@ -395,7 +440,7 @@ export default function ConnectorsPage() {
 																variant="outline"
 																className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
 															>
-																{t("manage")}
+																Manage
 															</Button>
 														)}
 													</CardFooter>

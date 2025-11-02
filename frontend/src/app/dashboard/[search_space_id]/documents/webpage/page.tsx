@@ -3,7 +3,6 @@
 import { type Tag, TagInput } from "emblor";
 import { Globe, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,6 @@ import { Label } from "@/components/ui/label";
 const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
 
 export default function WebpageCrawler() {
-	const t = useTranslations("add_webpage");
 	const params = useParams();
 	const router = useRouter();
 	const search_space_id = params.search_space_id as string;
@@ -40,14 +38,16 @@ export default function WebpageCrawler() {
 	const handleSubmit = async () => {
 		// Validate that we have at least one URL
 		if (urlTags.length === 0) {
-			setError(t("error_no_url"));
+			setError("Please add at least one URL");
 			return;
 		}
 
 		// Validate all URLs
 		const invalidUrls = urlTags.filter((tag) => !isValidUrl(tag.text));
 		if (invalidUrls.length > 0) {
-			setError(t("error_invalid_urls", { urls: invalidUrls.map((tag) => tag.text).join(", ") }));
+			setError(
+				`Invalid URLs: ${invalidUrls.map((tag) => tag.text).join(", ")}`,
+			);
 			return;
 		}
 
@@ -55,8 +55,8 @@ export default function WebpageCrawler() {
 		setIsSubmitting(true);
 
 		try {
-			toast(t("crawling_toast"), {
-				description: t("crawling_toast_desc"),
+			toast("Crawling webpages", {
+				description: "Your URLs are being crawled...",
 			});
 
 			// Extract URLs from tags
@@ -76,7 +76,7 @@ export default function WebpageCrawler() {
 						content: urls,
 						search_space_id: parseInt(search_space_id),
 					}),
-				}
+				},
 			);
 
 			if (!response.ok) {
@@ -85,16 +85,16 @@ export default function WebpageCrawler() {
 
 			await response.json();
 
-			toast(t("success_toast"), {
-				description: t("success_toast_desc"),
+			toast("Success", {
+				description: "Webpages crawled successfully",
 			});
 
 			// Redirect to documents page
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
-			setError(error.message || t("error_generic"));
-			toast(t("error_toast"), {
-				description: `${t("error_toast_desc")}: ${error.message}`,
+			setError(error.message || "An error occurred");
+			toast("Error", {
+				description: `Failed to crawl URLs: ${error.message}`,
 			});
 		} finally {
 			setIsSubmitting(false);
@@ -105,16 +105,16 @@ export default function WebpageCrawler() {
 	const handleAddTag = (text: string) => {
 		// Basic URL validation
 		if (!isValidUrl(text)) {
-			toast(t("invalid_url_toast"), {
-				description: t("invalid_url_toast_desc"),
+			toast("Invalid URL", {
+				description: "Please enter a valid URL",
 			});
 			return;
 		}
 
 		// Check for duplicates
 		if (urlTags.some((tag) => tag.text === text)) {
-			toast(t("duplicate_url_toast"), {
-				description: t("duplicate_url_toast_desc"),
+			toast("Duplicate URL", {
+				description: "This URL has already been added",
 			});
 			return;
 		}
@@ -134,24 +134,27 @@ export default function WebpageCrawler() {
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
 						<Globe className="h-5 w-5" />
-						{t("title")}
+						Add Webpages
 					</CardTitle>
-					<CardDescription>{t("subtitle")}</CardDescription>
+					<CardDescription>
+						Crawl webpages and add them to your knowledge base
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="url-input">{t("label")}</Label>
+							<Label htmlFor="url-input">Webpage URLs</Label>
 							<TagInput
 								id="url-input"
 								tags={urlTags}
 								setTags={setUrlTags}
-								placeholder={t("placeholder")}
+								placeholder="Enter webpage URL (e.g., https://example.com)"
 								onAddTag={handleAddTag}
 								styleClasses={{
 									inlineTagsContainer:
 										"border-input rounded-lg bg-background shadow-sm shadow-black/5 transition-shadow focus-within:border-ring focus-within:outline-none focus-within:ring-[3px] focus-within:ring-ring/20 p-1 gap-1",
-									input: "w-full min-w-[80px] focus-visible:outline-none shadow-none px-2 h-7",
+									input:
+										"w-full min-w-[80px] focus-visible:outline-none shadow-none px-2 h-7",
 									tag: {
 										body: "h-7 relative bg-background border border-input hover:bg-background rounded-md font-medium text-xs ps-2 pe-7 flex",
 										closeButton:
@@ -161,18 +164,20 @@ export default function WebpageCrawler() {
 								activeTagIndex={activeTagIndex}
 								setActiveTagIndex={setActiveTagIndex}
 							/>
-							<p className="text-xs text-muted-foreground mt-1">{t("hint")}</p>
+							<p className="text-xs text-muted-foreground mt-1">
+								Paste URLs and press Enter to add them
+							</p>
 						</div>
 
 						{error && <div className="text-sm text-red-500 mt-2">{error}</div>}
 
 						<div className="bg-muted/50 rounded-lg p-4 text-sm">
-							<h4 className="font-medium mb-2">{t("tips_title")}</h4>
+							<h4 className="font-medium mb-2">Tips</h4>
 							<ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-								<li>{t("tip_1")}</li>
-								<li>{t("tip_2")}</li>
-								<li>{t("tip_3")}</li>
-								<li>{t("tip_4")}</li>
+								<li>Use full URLs starting with http:// or https://</li>
+								<li>You can add multiple URLs at once</li>
+								<li>Webpages will be crawled in the background</li>
+								<li>Check the documents page to see crawling status</li>
 							</ul>
 						</div>
 					</div>
@@ -180,18 +185,23 @@ export default function WebpageCrawler() {
 				<CardFooter className="flex justify-between">
 					<Button
 						variant="outline"
-						onClick={() => router.push(`/dashboard/${search_space_id}/documents`)}
+						onClick={() =>
+							router.push(`/dashboard/${search_space_id}/documents`)
+						}
 					>
-						{t("cancel")}
+						Cancel
 					</Button>
-					<Button onClick={handleSubmit} disabled={isSubmitting || urlTags.length === 0}>
+					<Button
+						onClick={handleSubmit}
+						disabled={isSubmitting || urlTags.length === 0}
+					>
 						{isSubmitting ? (
 							<>
 								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								{t("submitting")}
+								Crawling
 							</>
 						) : (
-							t("submit")
+							"Add Webpages"
 						)}
 					</Button>
 				</CardFooter>

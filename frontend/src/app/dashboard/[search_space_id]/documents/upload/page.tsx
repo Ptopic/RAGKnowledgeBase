@@ -3,14 +3,19 @@
 import { CheckCircle2, FileType, Info, Tag, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
@@ -33,14 +38,13 @@ function GridPattern() {
 							}`}
 						/>
 					);
-				})
+				}),
 			)}
 		</div>
 	);
 }
 
 export default function FileUploader() {
-	const t = useTranslations("upload_documents");
 	const params = useParams();
 	const search_space_id = params.search_space_id as string;
 
@@ -68,16 +72,21 @@ export default function FileUploader() {
 				// LlamaCloud supported file types
 				"application/pdf": [".pdf"],
 				"application/msword": [".doc"],
-				"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+					[".docx"],
 				"application/vnd.ms-word.document.macroEnabled.12": [".docm"],
 				"application/msword-template": [".dot"],
 				"application/vnd.ms-word.template.macroEnabled.12": [".dotm"],
 				"application/vnd.ms-powerpoint": [".ppt"],
 				"application/vnd.ms-powerpoint.template.macroEnabled.12": [".pptm"],
-				"application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+				"application/vnd.openxmlformats-officedocument.presentationml.presentation":
+					[".pptx"],
 				"application/vnd.ms-powerpoint.template": [".pot"],
-				"application/vnd.openxmlformats-officedocument.presentationml.template": [".potx"],
-				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+				"application/vnd.openxmlformats-officedocument.presentationml.template":
+					[".potx"],
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+					".xlsx",
+				],
 				"application/vnd.ms-excel": [".xls"],
 				"application/vnd.ms-excel.sheet.macroEnabled.12": [".xlsm"],
 				"application/vnd.ms-excel.sheet.binary.macroEnabled.12": [".xlsb"],
@@ -162,9 +171,13 @@ export default function FileUploader() {
 			return {
 				// Docling supported file types
 				"application/pdf": [".pdf"],
-				"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
-				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-				"application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+					[".docx"],
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+					".xlsx",
+				],
+				"application/vnd.openxmlformats-officedocument.presentationml.presentation":
+					[".pptx"],
 				"text/asciidoc": [".adoc", ".asciidoc"],
 				"text/html": [".html", ".htm", ".xhtml"],
 				"text/csv": [".csv"],
@@ -182,7 +195,8 @@ export default function FileUploader() {
 				"image/bmp": [".bmp"],
 				"text/csv": [".csv"],
 				"application/msword": [".doc"],
-				"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+					[".docx"],
 				"message/rfc822": [".eml"],
 				"application/epub+zip": [".epub"],
 				"image/heic": [".heic"],
@@ -195,13 +209,16 @@ export default function FileUploader() {
 				"application/pkcs7-signature": [".p7s"],
 				"application/pdf": [".pdf"],
 				"application/vnd.ms-powerpoint": [".ppt"],
-				"application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+				"application/vnd.openxmlformats-officedocument.presentationml.presentation":
+					[".pptx"],
 				"text/x-rst": [".rst"],
 				"application/rtf": [".rtf"],
 				"image/tiff": [".tiff"],
 				"text/tab-separated-values": [".tsv"],
 				"application/vnd.ms-excel": [".xls"],
-				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+					".xlsx",
+				],
 				"application/xml": [".xml"],
 				// Audio files (always supported)
 				...audioFileTypes,
@@ -210,7 +227,9 @@ export default function FileUploader() {
 	};
 
 	const acceptedFileTypes = getAcceptedFileTypes();
-	const supportedExtensions = Array.from(new Set(Object.values(acceptedFileTypes).flat())).sort();
+	const supportedExtensions = Array.from(
+		new Set(Object.values(acceptedFileTypes).flat()),
+	).sort();
 
 	const onDrop = useCallback((acceptedFiles: File[]) => {
 		setFiles((prevFiles) => [...prevFiles, ...acceptedFiles]);
@@ -264,7 +283,7 @@ export default function FileUploader() {
 						Authorization: `Bearer ${window.localStorage.getItem("surfsense_bearer_token")}`,
 					},
 					body: formData,
-				}
+				},
 			);
 
 			clearInterval(progressInterval);
@@ -276,16 +295,16 @@ export default function FileUploader() {
 
 			await response.json();
 
-			toast(t("upload_initiated"), {
-				description: t("upload_initiated_desc"),
+			toast("Upload initiated", {
+				description: "Your files are being processed...",
 			});
 
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
 			setIsUploading(false);
 			setUploadProgress(0);
-			toast(t("upload_error"), {
-				description: `${t("upload_error_desc")}: ${error.message}`,
+			toast("Upload error", {
+				description: `Failed to upload files: ${error.message}`,
 			});
 		}
 	};
@@ -332,14 +351,18 @@ export default function FileUploader() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Upload className="h-5 w-5" />
-								{t("title")}
+								Upload Documents
 							</CardTitle>
-							<CardDescription>{t("subtitle")}</CardDescription>
+							<CardDescription>
+								Upload files to add them to your knowledge base
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Alert>
 								<Info className="h-4 w-4" />
-								<AlertDescription>{t("file_size_limit")}</AlertDescription>
+								<AlertDescription>
+									Maximum file size: 50MB per file
+								</AlertDescription>
 							</Alert>
 						</CardContent>
 					</Card>
@@ -367,7 +390,9 @@ export default function FileUploader() {
 										className="flex flex-col items-center gap-4"
 									>
 										<Upload className="h-12 w-12 text-primary" />
-										<p className="text-lg font-medium text-primary">{t("drop_files")}</p>
+										<p className="text-lg font-medium text-primary">
+											Drop files here
+										</p>
 									</motion.div>
 								) : (
 									<motion.div
@@ -377,8 +402,12 @@ export default function FileUploader() {
 									>
 										<Upload className="h-12 w-12 text-muted-foreground" />
 										<div className="text-center">
-											<p className="text-lg font-medium">{t("drag_drop")}</p>
-											<p className="text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
+											<p className="text-lg font-medium">
+												Drag and drop files here
+											</p>
+											<p className="text-sm text-muted-foreground mt-1">
+												or browse to select
+											</p>
 										</div>
 									</motion.div>
 								)}
@@ -391,12 +420,12 @@ export default function FileUploader() {
 										onClick={(e) => {
 											e.stopPropagation();
 											const input = document.querySelector(
-												'input[type="file"]'
+												'input[type="file"]',
 											) as HTMLInputElement;
 											if (input) input.click();
 										}}
 									>
-										{t("browse_files")}
+										Browse Files
 									</Button>
 								</div>
 							</div>
@@ -418,9 +447,9 @@ export default function FileUploader() {
 								<CardHeader>
 									<div className="flex items-center justify-between">
 										<div>
-											<CardTitle>{t("selected_files", { count: files.length })}</CardTitle>
+											<CardTitle>Selected Files ({files.length})</CardTitle>
 											<CardDescription>
-												{t("total_size")}: {formatFileSize(getTotalFileSize())}
+												Total size: {formatFileSize(getTotalFileSize())}
 											</CardDescription>
 										</div>
 										<Button
@@ -429,7 +458,7 @@ export default function FileUploader() {
 											onClick={() => setFiles([])}
 											disabled={isUploading}
 										>
-											{t("clear_all")}
+											Clear All
 										</Button>
 									</div>
 								</CardHeader>
@@ -450,7 +479,9 @@ export default function FileUploader() {
 															<FileType className="h-5 w-5 text-muted-foreground" />
 														</div>
 														<div className="flex-1 min-w-0">
-															<p className="font-medium truncate">{file.name}</p>
+															<p className="font-medium truncate">
+																{file.name}
+															</p>
 															<div className="flex items-center gap-2 mt-1">
 																<Badge variant="secondary" className="text-xs">
 																	{formatFileSize(file.size)}
@@ -486,7 +517,7 @@ export default function FileUploader() {
 											<Separator />
 											<div className="space-y-2">
 												<div className="flex items-center justify-between text-sm">
-													<span>{t("uploading_files")}</span>
+													<span>Uploading files...</span>
 													<span>{Math.round(uploadProgress)}%</span>
 												</div>
 												<Progress value={uploadProgress} className="h-2" />
@@ -513,11 +544,15 @@ export default function FileUploader() {
 												>
 													<motion.div
 														animate={{ rotate: 360 }}
-														transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+														transition={{
+															duration: 1,
+															repeat: Infinity,
+															ease: "linear",
+														}}
 													>
 														<Upload className="h-5 w-5" />
 													</motion.div>
-													<span>{t("uploading")}</span>
+													<span>Uploading...</span>
 												</motion.div>
 											) : (
 												<motion.div
@@ -526,7 +561,10 @@ export default function FileUploader() {
 													whileTap={{ scale: 0.98 }}
 												>
 													<CheckCircle2 className="h-5 w-5" />
-													<span>{t("upload_button", { count: files.length })}</span>
+													<span>
+														Upload {files.length}{" "}
+														{files.length === 1 ? "file" : "files"}
+													</span>
 												</motion.div>
 											)}
 										</Button>
@@ -543,9 +581,12 @@ export default function FileUploader() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Tag className="h-5 w-5" />
-								{t("supported_file_types")}
+								Supported File Types
 							</CardTitle>
-							<CardDescription>{t("file_types_desc")}</CardDescription>
+							<CardDescription>
+								Upload documents in various formats supported by your ETL
+								service
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div className="flex flex-wrap gap-2">

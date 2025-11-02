@@ -1,28 +1,42 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Bot, CheckCircle, Sparkles } from "lucide-react";
+import {
+	ArrowLeft,
+	ArrowRight,
+	Bot,
+	CheckCircle,
+	Sparkles,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { AddProviderStep } from "@/components/onboard/add-provider-step";
 import { AssignRolesStep } from "@/components/onboard/assign-roles-step";
 import { CompletionStep } from "@/components/onboard/completion-step";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
 const TOTAL_STEPS = 3;
 
 const OnboardPage = () => {
-	const t = useTranslations("onboard");
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const { llmConfigs, loading: configsLoading, refreshConfigs } = useLLMConfigs(searchSpaceId);
+	const {
+		llmConfigs,
+		loading: configsLoading,
+		refreshConfigs,
+	} = useLLMConfigs(searchSpaceId);
 	const {
 		preferences,
 		loading: preferencesLoading,
@@ -51,7 +65,12 @@ const OnboardPage = () => {
 	// Redirect to dashboard if onboarding is already complete and user hasn't progressed (fresh page load)
 	// But only check once to avoid redirect loops
 	useEffect(() => {
-		if (!preferencesLoading && !configsLoading && isOnboardingComplete() && !hasUserProgressed) {
+		if (
+			!preferencesLoading &&
+			!configsLoading &&
+			isOnboardingComplete() &&
+			!hasUserProgressed
+		) {
 			// Small delay to ensure the check is stable
 			const timer = setTimeout(() => {
 				router.push(`/dashboard/${searchSpaceId}`);
@@ -69,12 +88,12 @@ const OnboardPage = () => {
 
 	const progress = (currentStep / TOTAL_STEPS) * 100;
 
-	const stepTitles = [t("add_llm_provider"), t("assign_llm_roles"), t("setup_complete")];
+	const stepTitles = ["Add LLM Provider", "Assign LLM Roles", "Setup Complete"];
 
 	const stepDescriptions = [
-		t("configure_first_provider"),
-		t("assign_specific_roles"),
-		t("all_set"),
+		"Configure your first LLM provider",
+		"Assign specific roles to each LLM",
+		"All set! You're ready to go",
 	];
 
 	const canProceedToStep2 = !configsLoading && llmConfigs.length > 0;
@@ -106,7 +125,9 @@ const OnboardPage = () => {
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardContent className="flex flex-col items-center justify-center py-12">
 						<Bot className="h-12 w-12 text-primary animate-pulse mb-4" />
-						<p className="text-sm text-muted-foreground">{t("loading_config")}</p>
+						<p className="text-sm text-muted-foreground">
+							Loading configuration...
+						</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -125,9 +146,11 @@ const OnboardPage = () => {
 				<div className="text-center mb-8">
 					<div className="flex items-center justify-center mb-4">
 						<Logo className="w-12 h-12 mr-3 rounded-full" />
-						<h1 className="text-3xl font-bold">{t("welcome_title")}</h1>
+						<h1 className="text-3xl font-bold">Welcome to Your Dashboard</h1>
 					</div>
-					<p className="text-muted-foreground text-lg">{t("welcome_subtitle")}</p>
+					<p className="text-muted-foreground text-lg">
+						Let's get you set up in just a few steps
+					</p>
 				</div>
 
 				{/* Progress */}
@@ -135,10 +158,10 @@ const OnboardPage = () => {
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between mb-4">
 							<div className="text-sm font-medium">
-								{t("step_of", { current: currentStep, total: TOTAL_STEPS })}
+								Step {currentStep} of {TOTAL_STEPS}
 							</div>
 							<div className="text-sm text-muted-foreground">
-								{t("percent_complete", { percent: Math.round(progress) })}
+								{Math.round(progress)}% complete
 							</div>
 						</div>
 						<Progress value={progress} className="mb-4" />
@@ -159,12 +182,18 @@ const OnboardPage = () => {
 														: "bg-muted text-muted-foreground"
 											}`}
 										>
-											{isCompleted ? <CheckCircle className="w-4 h-4" /> : stepNum}
+											{isCompleted ? (
+												<CheckCircle className="w-4 h-4" />
+											) : (
+												stepNum
+											)}
 										</div>
 										<div className="flex-1 min-w-0">
 											<p
 												className={`text-sm font-medium truncate ${
-													isCurrent ? "text-foreground" : "text-muted-foreground"
+													isCurrent
+														? "text-foreground"
+														: "text-muted-foreground"
 												}`}
 											>
 												{stepTitles[i]}
@@ -212,7 +241,9 @@ const OnboardPage = () => {
 										onPreferencesUpdated={refreshPreferences}
 									/>
 								)}
-								{currentStep === 3 && <CompletionStep searchSpaceId={searchSpaceId} />}
+								{currentStep === 3 && (
+									<CompletionStep searchSpaceId={searchSpaceId} />
+								)}
 							</motion.div>
 						</AnimatePresence>
 					</CardContent>
@@ -227,7 +258,7 @@ const OnboardPage = () => {
 						className="flex items-center gap-2"
 					>
 						<ArrowLeft className="w-4 h-4" />
-						{t("previous")}
+						Previous
 					</Button>
 
 					<div className="flex gap-2">
@@ -240,14 +271,17 @@ const OnboardPage = () => {
 								}
 								className="flex items-center gap-2"
 							>
-								{t("next")}
+								Next
 								<ArrowRight className="w-4 h-4" />
 							</Button>
 						)}
 
 						{currentStep === TOTAL_STEPS && (
-							<Button onClick={handleComplete} className="flex items-center gap-2">
-								{t("complete_setup")}
+							<Button
+								onClick={handleComplete}
+								className="flex items-center gap-2"
+							>
+								Complete Setup
 								<CheckCircle className="w-4 h-4" />
 							</Button>
 						)}

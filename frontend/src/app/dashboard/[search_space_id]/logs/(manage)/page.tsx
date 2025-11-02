@@ -1,5 +1,4 @@
 "use client";
-
 import {
 	type ColumnDef,
 	type ColumnFiltersState,
@@ -43,7 +42,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import React, { useContext, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
@@ -72,8 +70,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+} from "@/components/ui/pagination";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -89,7 +95,13 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { type Log, type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
+import {
+	type Log,
+	type LogLevel,
+	type LogStatus,
+	useLogs,
+	useLogsSummary,
+} from "@/hooks/use-logs";
 import { cn } from "@/lib/utils";
 
 // Define animation variants for reuse
@@ -111,7 +123,11 @@ const fadeInScale: Variants = {
 const logLevelConfig = {
 	DEBUG: { icon: Bug, color: "text-muted-foreground", bgColor: "bg-muted/50" },
 	INFO: { icon: Info, color: "text-blue-600", bgColor: "bg-blue-50" },
-	WARNING: { icon: AlertTriangle, color: "text-yellow-600", bgColor: "bg-yellow-50" },
+	WARNING: {
+		icon: AlertTriangle,
+		color: "text-yellow-600",
+		bgColor: "bg-yellow-50",
+	},
 	ERROR: { icon: AlertCircle, color: "text-red-600", bgColor: "bg-red-50" },
 	CRITICAL: { icon: Zap, color: "text-purple-600", bgColor: "bg-purple-50" },
 } as const;
@@ -119,7 +135,11 @@ const logLevelConfig = {
 // Log status icons and colors
 const logStatusConfig = {
 	IN_PROGRESS: { icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50" },
-	SUCCESS: { icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50" },
+	SUCCESS: {
+		icon: CheckCircle2,
+		color: "text-green-600",
+		bgColor: "bg-green-50",
+	},
 	FAILED: { icon: X, color: "text-red-600", bgColor: "bg-red-50" },
 } as const;
 
@@ -172,13 +192,14 @@ function MessageDetails({
 	);
 }
 
-const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
+const createColumns = (): ColumnDef<Log>[] => [
 	{
 		id: "select",
 		header: ({ table }) => (
 			<Checkbox
 				checked={
-					table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")
+					table.getIsAllPageRowsSelected() ||
+					(table.getIsSomePageRowsSelected() && "indeterminate")
 				}
 				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
 				aria-label="Select all"
@@ -196,7 +217,7 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 		enableHiding: false,
 	},
 	{
-		header: t("level"),
+		header: "Level",
 		accessorKey: "level",
 		cell: ({ row }) => {
 			const level = row.getValue("level") as LogLevel;
@@ -209,18 +230,23 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 					transition={{ type: "spring", stiffness: 300 }}
 				>
 					<div
-						className={cn("flex h-7 w-7 items-center justify-center rounded-full", config.bgColor)}
+						className={cn(
+							"flex h-7 w-7 items-center justify-center rounded-full",
+							config.bgColor,
+						)}
 					>
 						<Icon size={16} className={config.color} />
 					</div>
-					<span className={cn("font-medium text-xs", config.color)}>{level}</span>
+					<span className={cn("font-medium text-xs", config.color)}>
+						{level}
+					</span>
 				</motion.div>
 			);
 		},
 		size: 120,
 	},
 	{
-		header: t("status"),
+		header: "Status",
 		accessorKey: "status",
 		cell: ({ row }) => {
 			const status = row.getValue("status") as LogStatus;
@@ -233,7 +259,10 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 					transition={{ type: "spring", stiffness: 300 }}
 				>
 					<div
-						className={cn("flex h-6 w-6 items-center justify-center rounded-full", config.bgColor)}
+						className={cn(
+							"flex h-6 w-6 items-center justify-center rounded-full",
+							config.bgColor,
+						)}
 					>
 						<Icon size={14} className={config.color} />
 					</div>
@@ -246,7 +275,7 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 		size: 140,
 	},
 	{
-		header: t("source"),
+		header: "Source",
 		accessorKey: "source",
 		cell: ({ row }) => {
 			const source = row.getValue("source") as string;
@@ -257,14 +286,14 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 					transition={{ type: "spring", stiffness: 300 }}
 				>
 					<Terminal size={14} className="text-muted-foreground" />
-					<span className="text-sm font-mono">{source || t("system")}</span>
+					<span className="text-sm font-mono">{source || "System"}</span>
 				</motion.div>
 			);
 		},
 		size: 150,
 	},
 	{
-		header: t("message"),
+		header: "Message",
 		accessorKey: "message",
 		cell: ({ row }) => {
 			const message = row.getValue("message") as string;
@@ -288,7 +317,9 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 							</div>
 						)}
 						<div className="text-sm truncate" title={message}>
-							{message.length > 100 ? `${message.substring(0, 100)}...` : message}
+							{message.length > 100
+								? `${message.substring(0, 100)}...`
+								: message}
 						</div>
 					</div>
 				</MessageDetails>
@@ -297,14 +328,16 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 		size: 400,
 	},
 	{
-		header: t("created_at"),
+		header: "Created At",
 		accessorKey: "created_at",
 		cell: ({ row }) => {
 			const date = new Date(row.getValue("created_at"));
 			return (
 				<div className="flex flex-col gap-1 text-xs">
 					<div>{date.toLocaleDateString()}</div>
-					<div className="text-muted-foreground">{date.toLocaleTimeString()}</div>
+					<div className="text-muted-foreground">
+						{date.toLocaleTimeString()}
+					</div>
 				</div>
 			);
 		},
@@ -312,15 +345,15 @@ const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 	},
 	{
 		id: "actions",
-		header: () => <span className="sr-only">{t("actions")}</span>,
-		cell: ({ row }) => <LogRowActions row={row} t={t} />,
+		header: () => <span className="sr-only">Actions</span>,
+		cell: ({ row }) => <LogRowActions row={row} />,
 		size: 60,
 		enableHiding: false,
 	},
 ];
 
 // Default columns for backward compatibility
-const columns: ColumnDef<Log>[] = createColumns((key) => key);
+const columns: ColumnDef<Log>[] = createColumns();
 
 // Create a context to share functions
 const LogsContext = React.createContext<{
@@ -329,7 +362,6 @@ const LogsContext = React.createContext<{
 } | null>(null);
 
 export default function LogsManagePage() {
-	const t = useTranslations("logs");
 	const id = useId();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
@@ -363,12 +395,12 @@ export default function LogsManagePage() {
 
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// Create translated columns
-	const translatedColumns = useMemo(() => createColumns(t), [t]);
+	// Create columns
+	const tableColumns = useMemo(() => createColumns(), []);
 
 	const table = useReactTable({
 		data: logs,
-		columns: translatedColumns,
+		columns: tableColumns,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		onSortingChange: setSorting,
@@ -408,7 +440,9 @@ export default function LogsManagePage() {
 			return;
 		}
 
-		const deletePromises = selectedRows.map((row) => deleteLog(row.original.id));
+		const deletePromises = selectedRows.map((row) =>
+			deleteLog(row.original.id),
+		);
 
 		try {
 			const results = await Promise.all(deletePromises);
@@ -462,12 +496,12 @@ export default function LogsManagePage() {
 					transition={{ delay: 0.1 }}
 				>
 					<div>
-						<h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-						<p className="text-muted-foreground">{t("subtitle")}</p>
+						<h2 className="text-2xl font-bold tracking-tight">Logs</h2>
+						<p className="text-muted-foreground">View and manage system logs</p>
 					</div>
 					<Button onClick={handleRefresh} variant="outline" size="sm">
 						<RefreshCw className="w-4 h-4 mr-2" />
-						{t("refresh")}
+						Refresh
 					</Button>
 				</motion.div>
 
@@ -491,8 +525,12 @@ export default function LogsManagePage() {
 						<AlertDialog>
 							<AlertDialogTrigger asChild>
 								<Button variant="outline">
-									<Trash className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
-									{t("delete_selected")}
+									<Trash
+										className="-ms-1 me-2 opacity-60"
+										size={16}
+										strokeWidth={2}
+									/>
+									Delete Selected
 									<span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
 										{table.getSelectedRowModel().rows.length}
 									</span>
@@ -501,18 +539,26 @@ export default function LogsManagePage() {
 							<AlertDialogContent>
 								<div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
 									<div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border">
-										<CircleAlert className="opacity-80" size={16} strokeWidth={2} />
+										<CircleAlert
+											className="opacity-80"
+											size={16}
+											strokeWidth={2}
+										/>
 									</div>
 									<AlertDialogHeader>
-										<AlertDialogTitle>{t("confirm_title")}</AlertDialogTitle>
+										<AlertDialogTitle>Are you sure?</AlertDialogTitle>
 										<AlertDialogDescription>
-											{t("confirm_delete_desc", { count: table.getSelectedRowModel().rows.length })}
+											This will permanently delete{" "}
+											{table.getSelectedRowModel().rows.length} selected log(s).
+											This action cannot be undone.
 										</AlertDialogDescription>
 									</AlertDialogHeader>
 								</div>
 								<AlertDialogFooter>
-									<AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-									<AlertDialogAction onClick={handleDeleteRows}>{t("delete")}</AlertDialogAction>
+									<AlertDialogCancel>Cancel</AlertDialogCancel>
+									<AlertDialogAction onClick={handleDeleteRows}>
+										Delete
+									</AlertDialogAction>
 								</AlertDialogFooter>
 							</AlertDialogContent>
 						</AlertDialog>
@@ -527,7 +573,6 @@ export default function LogsManagePage() {
 					error={logsError}
 					onRefresh={refreshLogs}
 					id={id}
-					t={t}
 				/>
 			</motion.div>
 		</LogsContext.Provider>
@@ -546,7 +591,6 @@ function LogsSummaryDashboard({
 	error: string | null;
 	onRefresh: () => void;
 }) {
-	const t = useTranslations("logs");
 	if (loading) {
 		return (
 			<motion.div
@@ -574,9 +618,9 @@ function LogsSummaryDashboard({
 				<CardContent className="flex items-center justify-center h-32">
 					<div className="flex flex-col items-center gap-2">
 						<AlertCircle className="h-8 w-8 text-destructive" />
-						<p className="text-sm text-destructive">{t("failed_load_summary")}</p>
+						<p className="text-sm text-destructive">Failed to load summary</p>
 						<Button variant="outline" size="sm" onClick={onRefresh}>
-							{t("retry")}
+							Retry
 						</Button>
 					</div>
 				</CardContent>
@@ -595,13 +639,13 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">{t("total_logs")}</CardTitle>
+						<CardTitle className="text-sm font-medium">Total Logs</CardTitle>
 						<Activity className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">{summary.total_logs}</div>
 						<p className="text-xs text-muted-foreground">
-							{t("last_hours", { hours: summary.time_window_hours })}
+							Last {summary.time_window_hours} hours
 						</p>
 					</CardContent>
 				</Card>
@@ -611,14 +655,14 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">{t("active_tasks")}</CardTitle>
+						<CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
 						<Clock className="h-4 w-4 text-blue-600" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold text-blue-600">
 							{summary.active_tasks?.length || 0}
 						</div>
-						<p className="text-xs text-muted-foreground">{t("currently_running")}</p>
+						<p className="text-xs text-muted-foreground">Currently running</p>
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -627,18 +671,21 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">{t("success_rate")}</CardTitle>
+						<CardTitle className="text-sm font-medium">Success Rate</CardTitle>
 						<CheckCircle2 className="h-4 w-4 text-green-600" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold text-green-600">
 							{summary.total_logs > 0
-								? Math.round(((summary.by_status?.SUCCESS || 0) / summary.total_logs) * 100)
+								? Math.round(
+										((summary.by_status?.SUCCESS || 0) / summary.total_logs) *
+											100,
+									)
 								: 0}
 							%
 						</div>
 						<p className="text-xs text-muted-foreground">
-							{summary.by_status?.SUCCESS || 0} {t("successful")}
+							{summary.by_status?.SUCCESS || 0} successful
 						</p>
 					</CardContent>
 				</Card>
@@ -648,14 +695,16 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">{t("recent_failures")}</CardTitle>
+						<CardTitle className="text-sm font-medium">
+							Recent Failures
+						</CardTitle>
 						<AlertCircle className="h-4 w-4 text-red-600" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold text-red-600">
 							{summary.recent_failures?.length || 0}
 						</div>
-						<p className="text-xs text-muted-foreground">{t("need_attention")}</p>
+						<p className="text-xs text-muted-foreground">Need attention</p>
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -677,7 +726,6 @@ function LogsFilters({
 	inputRef: React.RefObject<HTMLInputElement | null>;
 	id: string;
 }) {
-	const t = useTranslations("logs");
 	return (
 		<motion.div
 			className="flex flex-wrap items-center justify-between gap-3"
@@ -692,11 +740,15 @@ function LogsFilters({
 						ref={inputRef}
 						className={cn(
 							"peer min-w-60 ps-9",
-							Boolean(table.getColumn("message")?.getFilterValue()) && "pe-9"
+							Boolean(table.getColumn("message")?.getFilterValue()) && "pe-9",
 						)}
-						value={(table.getColumn("message")?.getFilterValue() ?? "") as string}
-						onChange={(e) => table.getColumn("message")?.setFilterValue(e.target.value)}
-						placeholder={t("filter_by_message")}
+						value={
+							(table.getColumn("message")?.getFilterValue() ?? "") as string
+						}
+						onChange={(e) =>
+							table.getColumn("message")?.setFilterValue(e.target.value)
+						}
+						placeholder="Filter by message..."
 						type="text"
 					/>
 					<div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80">
@@ -719,32 +771,34 @@ function LogsFilters({
 
 				{/* Level Filter */}
 				<FilterDropdown
-					title={t("level")}
+					title="Level"
 					column={table.getColumn("level")}
 					options={uniqueLevels}
 					id={`${id}-level`}
-					t={t}
 				/>
 
 				{/* Status Filter */}
 				<FilterDropdown
-					title={t("status")}
+					title="Status"
 					column={table.getColumn("status")}
 					options={uniqueStatuses}
 					id={`${id}-status`}
-					t={t}
 				/>
 
 				{/* Column Visibility */}
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button variant="outline">
-							<Columns3 className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
-							{t("view")}
+							<Columns3
+								className="-ms-1 me-2 opacity-60"
+								size={16}
+								strokeWidth={2}
+							/>
+							View
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>{t("toggle_columns")}</DropdownMenuLabel>
+						<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
 						{table
 							.getAllColumns()
 							.filter((column: any) => column.getCanHide())
@@ -772,13 +826,11 @@ function FilterDropdown({
 	column,
 	options,
 	id,
-	t,
 }: {
 	title: string;
 	column: any;
 	options: string[];
 	id: string;
-	t: (key: string) => string;
 }) {
 	const selectedValues = useMemo(() => {
 		const filterValue = column?.getFilterValue() as string[];
@@ -817,7 +869,7 @@ function FilterDropdown({
 			<PopoverContent className="min-w-36 p-3" align="start">
 				<div className="space-y-3">
 					<div className="text-xs font-medium text-muted-foreground">
-						{t("filter_by")} {title}
+						Filter by {title}
 					</div>
 					<div className="space-y-2">
 						{options.map((value, i) => (
@@ -825,7 +877,9 @@ function FilterDropdown({
 								<Checkbox
 									id={`${id}-${i}`}
 									checked={selectedValues.includes(value)}
-									onCheckedChange={(checked: boolean) => handleValueChange(checked, value)}
+									onCheckedChange={(checked: boolean) =>
+										handleValueChange(checked, value)
+									}
 								/>
 								<Label htmlFor={`${id}-${i}`} className="text-sm font-normal">
 									{value}
@@ -847,7 +901,6 @@ function LogsTable({
 	error,
 	onRefresh,
 	id,
-	t,
 }: {
 	table: any;
 	logs: Log[];
@@ -855,7 +908,6 @@ function LogsTable({
 	error: string | null;
 	onRefresh: () => void;
 	id: string;
-	t: (key: string, params?: any) => string;
 }) {
 	if (loading) {
 		return (
@@ -904,7 +956,7 @@ function LogsTable({
 				<div className="flex h-[400px] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-2">
 						<Terminal className="h-8 w-8 text-muted-foreground" />
-						<p className="text-sm text-muted-foreground">{t("no_logs")}</p>
+						<p className="text-sm text-muted-foreground">No logs found</p>
 					</div>
 				</div>
 			</motion.div>
@@ -930,7 +982,9 @@ function LogsTable({
 										className={cn(
 											"h-12 px-4 py-3",
 											// keep Created At header from wrapping and align it
-											header.column.id === "created_at" ? "whitespace-nowrap text-right" : ""
+											header.column.id === "created_at"
+												? "whitespace-nowrap text-right"
+												: "",
 										)}
 									>
 										{header.isPlaceholder ? null : header.column.getCanSort() ? (
@@ -938,18 +992,34 @@ function LogsTable({
 												variant="ghost"
 												size="sm"
 												className={cn(
-													"flex h-full cursor-pointer select-none items-center justify-between gap-2"
+													"flex h-full cursor-pointer select-none items-center justify-between gap-2",
 												)}
 												onClick={header.column.getToggleSortingHandler()}
 											>
-												{flexRender(header.column.columnDef.header, header.getContext())}
+												{flexRender(
+													header.column.columnDef.header,
+													header.getContext(),
+												)}
 												{{
-													asc: <ChevronUp className="shrink-0 opacity-60" size={16} />,
-													desc: <ChevronDown className="shrink-0 opacity-60" size={16} />,
+													asc: (
+														<ChevronUp
+															className="shrink-0 opacity-60"
+															size={16}
+														/>
+													),
+													desc: (
+														<ChevronDown
+															className="shrink-0 opacity-60"
+															size={16}
+														/>
+													),
 												}[header.column.getIsSorted() as string] ?? null}
 											</Button>
 										) : (
-											flexRender(header.column.columnDef.header, header.getContext())
+											flexRender(
+												header.column.columnDef.header,
+												header.getContext(),
+											)
 										)}
 									</TableHead>
 								))}
@@ -976,7 +1046,7 @@ function LogsTable({
 										exit={{ opacity: 0, y: -10 }}
 										className={cn(
 											"border-b transition-colors hover:bg-muted/50",
-											row.getIsSelected() ? "bg-muted/50" : ""
+											row.getIsSelected() ? "bg-muted/50" : "",
 										)}
 									>
 										{row.getVisibleCells().map((cell: any) => {
@@ -990,10 +1060,13 @@ function LogsTable({
 														isCreatedAt
 															? "whitespace-nowrap text-xs text-muted-foreground text-right"
 															: "",
-														isMessage ? "overflow-hidden" : ""
+														isMessage ? "overflow-hidden" : "",
 													)}
 												>
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
 												</TableCell>
 											);
 										})}
@@ -1001,8 +1074,11 @@ function LogsTable({
 								))
 							) : (
 								<TableRow>
-									<TableCell colSpan={columns.length} className="h-24 text-center">
-										{t("no_logs")}
+									<TableCell
+										colSpan={columns.length}
+										className="h-24 text-center"
+									>
+										No logs found
 									</TableCell>
 								</TableRow>
 							)}
@@ -1012,13 +1088,13 @@ function LogsTable({
 			</motion.div>
 
 			{/* Pagination */}
-			<LogsPagination table={table} id={id} t={t} />
+			<LogsPagination table={table} id={id} />
 		</>
 	);
 }
 
 // Pagination Component
-function LogsPagination({ table, id, t }: { table: any; id: string; t: (key: string) => string }) {
+function LogsPagination({ table, id }: { table: any; id: string }) {
 	return (
 		<div className="flex items-center justify-between gap-8 mt-6">
 			<motion.div
@@ -1027,7 +1103,7 @@ function LogsPagination({ table, id, t }: { table: any; id: string; t: (key: str
 				animate={{ opacity: 1, x: 0 }}
 			>
 				<Label htmlFor={id} className="max-sm:sr-only">
-					{t("rows_per_page")}
+					Rows per page
 				</Label>
 				<Select
 					value={table.getState().pagination.pageSize.toString()}
@@ -1054,11 +1130,15 @@ function LogsPagination({ table, id, t }: { table: any; id: string; t: (key: str
 			>
 				<p className="whitespace-nowrap text-sm text-muted-foreground">
 					<span className="text-foreground">
-						{table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-
+						{table.getState().pagination.pageIndex *
+							table.getState().pagination.pageSize +
+							1}
+						-
 						{Math.min(
-							table.getState().pagination.pageIndex * table.getState().pagination.pageSize +
+							table.getState().pagination.pageIndex *
+								table.getState().pagination.pageSize +
 								table.getState().pagination.pageSize,
-							table.getRowCount()
+							table.getRowCount(),
 						)}
 					</span>{" "}
 					of <span className="text-foreground">{table.getRowCount()}</span>
@@ -1116,7 +1196,7 @@ function LogsPagination({ table, id, t }: { table: any; id: string; t: (key: str
 }
 
 // Row Actions Component
-function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }) {
+function LogRowActions({ row }: { row: Row<Log> }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const { deleteLog, refreshLogs } = useContext(LogsContext)!;
@@ -1126,11 +1206,11 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 		setIsDeleting(true);
 		try {
 			await deleteLog(log.id);
-			toast.success(t("log_deleted_success"));
+			toast.success("Log deleted successfully");
 			await refreshLogs();
 		} catch (error) {
 			console.error("Error deleting log:", error);
-			toast.error(t("log_deleted_error"));
+			toast.error("Failed to delete log");
 		} finally {
 			setIsDeleting(false);
 			setIsOpen(false);
@@ -1151,7 +1231,7 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 						metadata={log.log_metadata}
 						trigger={
 							<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-								{t("view_metadata")}
+								View Metadata
 							</DropdownMenuItem>
 						}
 					/>
@@ -1165,18 +1245,21 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 									setIsOpen(true);
 								}}
 							>
-								{t("delete")}
+								Delete
 							</DropdownMenuItem>
 						</AlertDialogTrigger>
 						<AlertDialogContent>
 							<AlertDialogHeader>
-								<AlertDialogTitle>{t("confirm_delete_log_title")}</AlertDialogTitle>
-								<AlertDialogDescription>{t("confirm_delete_log_desc")}</AlertDialogDescription>
+								<AlertDialogTitle>Delete Log</AlertDialogTitle>
+								<AlertDialogDescription>
+									Are you sure you want to delete this log? This action cannot
+									be undone.
+								</AlertDialogDescription>
 							</AlertDialogHeader>
 							<AlertDialogFooter>
-								<AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
 								<AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-									{isDeleting ? t("deleting") : t("delete")}
+									{isDeleting ? "Deleting..." : "Delete"}
 								</AlertDialogAction>
 							</AlertDialogFooter>
 						</AlertDialogContent>

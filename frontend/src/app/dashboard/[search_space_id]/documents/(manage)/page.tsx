@@ -2,16 +2,18 @@
 
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocuments } from "@/hooks/use-documents";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
-import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
+import {
+	DocumentsTableShell,
+	type SortKey,
+} from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
-import type { ColumnVisibility, Document } from "./components/types";
+import type { ColumnVisibility } from "./components/types";
 
 function useDebounced<T>(value: T, delay = 250) {
 	const [debounced, setDebounced] = useState(value);
@@ -23,7 +25,6 @@ function useDebounced<T>(value: T, delay = 250) {
 }
 
 export default function DocumentsTable() {
-	const t = useTranslations("documents");
 	const id = useId();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
@@ -75,11 +76,15 @@ export default function DocumentsTable() {
 					debouncedSearch,
 					pageIndex,
 					pageSize,
-					activeTypes.length > 0 ? activeTypes : undefined
+					activeTypes.length > 0 ? activeTypes : undefined,
 				);
 			} else {
 				// Use regular fetch if no search
-				fetchDocuments?.(pageIndex, pageSize, activeTypes.length > 0 ? activeTypes : undefined);
+				fetchDocuments?.(
+					pageIndex,
+					pageSize,
+					activeTypes.length > 0 ? activeTypes : undefined,
+				);
 			}
 		}
 	}, [
@@ -99,7 +104,9 @@ export default function DocumentsTable() {
 	const pageEnd = Math.min(pageStart + pageSize, displayTotal);
 
 	const onToggleType = (type: string, checked: boolean) => {
-		setActiveTypes((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
+		setActiveTypes((prev) =>
+			checked ? [...prev, type] : prev.filter((t) => t !== type),
+		);
 		setPageIndex(0);
 	};
 
@@ -113,37 +120,54 @@ export default function DocumentsTable() {
 				debouncedSearch,
 				pageIndex,
 				pageSize,
-				activeTypes.length > 0 ? activeTypes : undefined
+				activeTypes.length > 0 ? activeTypes : undefined,
 			);
 		} else {
-			await fetchDocuments?.(pageIndex, pageSize, activeTypes.length > 0 ? activeTypes : undefined);
+			await fetchDocuments?.(
+				pageIndex,
+				pageSize,
+				activeTypes.length > 0 ? activeTypes : undefined,
+			);
 		}
-	}, [debouncedSearch, pageIndex, pageSize, activeTypes, searchDocuments, fetchDocuments]);
+	}, [
+		debouncedSearch,
+		pageIndex,
+		pageSize,
+		activeTypes,
+		searchDocuments,
+		fetchDocuments,
+	]);
 
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
-			toast.error(t("no_rows_selected"));
+			toast.error("No rows selected");
 			return;
 		}
 		try {
-			const results = await Promise.all(Array.from(selectedIds).map((id) => deleteDocument?.(id)));
+			const results = await Promise.all(
+				Array.from(selectedIds).map((id) => deleteDocument?.(id)),
+			);
 			const okCount = results.filter((r) => r === true).length;
 			if (okCount === selectedIds.size)
-				toast.success(t("delete_success_count", { count: okCount }));
-			else toast.error(t("delete_partial_failed"));
+				toast.success(`Successfully deleted ${okCount} document(s)`);
+			else toast.error("Some documents could not be deleted");
 			// Refetch the current page with appropriate method
 			await refreshCurrentView();
 			setSelectedIds(new Set());
 		} catch (e) {
 			console.error(e);
-			toast.error(t("delete_error"));
+			toast.error("Error deleting documents");
 		}
 	};
 
 	useEffect(() => {
 		const mq = window.matchMedia("(max-width: 768px)");
 		const apply = (isSmall: boolean) => {
-			setColumnVisibility((prev) => ({ ...prev, content: !isSmall, created_at: !isSmall }));
+			setColumnVisibility((prev) => ({
+				...prev,
+				content: !isSmall,
+				created_at: !isSmall,
+			}));
 		};
 		apply(mq.matches);
 		const onChange = (e: MediaQueryListEvent) => apply(e.matches);
@@ -201,7 +225,9 @@ export default function DocumentsTable() {
 				onFirst={() => setPageIndex(0)}
 				onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
 				onNext={() => setPageIndex((i) => (pageEnd < displayTotal ? i + 1 : i))}
-				onLast={() => setPageIndex(Math.max(0, Math.ceil(displayTotal / pageSize) - 1))}
+				onLast={() =>
+					setPageIndex(Math.max(0, Math.ceil(displayTotal / pageSize) - 1))
+				}
 				canPrev={pageIndex > 0}
 				canNext={pageEnd < displayTotal}
 				id={id}

@@ -1,7 +1,6 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
 import type * as React from "react";
 import { useMemo } from "react";
 
@@ -25,14 +24,12 @@ export function NavSecondary({
 }: {
 	items: NavSecondaryItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
-	const t = useTranslations("sidebar");
-
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
 
 	return (
 		<SidebarGroup {...props}>
-			<SidebarGroupLabel>{t("search_space")}</SidebarGroupLabel>
+			<SidebarGroupLabel>Search Space</SidebarGroupLabel>
 			<SidebarMenu>
 				{memoizedItems.map((item, index) => (
 					<SidebarMenuItem key={`${item.title}-${index}`}>

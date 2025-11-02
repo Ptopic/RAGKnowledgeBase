@@ -1,8 +1,14 @@
 "use client";
 
-import { CircleAlert, CircleX, Columns3, Filter, ListFilter, Trash } from "lucide-react";
+import {
+	CircleAlert,
+	CircleX,
+	Columns3,
+	Filter,
+	ListFilter,
+	Trash,
+} from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
-import { useTranslations } from "next-intl";
 import React, { useMemo, useRef } from "react";
 import {
 	AlertDialog,
@@ -26,12 +32,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import type { ColumnVisibility } from "./types";
 
 const fadeInScale: Variants = {
 	hidden: { opacity: 0, scale: 0.95 },
-	visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 300, damping: 30 } },
+	visible: {
+		opacity: 1,
+		scale: 1,
+		transition: { type: "spring", stiffness: 300, damping: 30 },
+	},
 	exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
 };
 
@@ -56,7 +70,6 @@ export function DocumentsFilters({
 	columnVisibility: ColumnVisibility;
 	onToggleColumn: (id: keyof ColumnVisibility, checked: boolean) => void;
 }) {
-	const t = useTranslations("documents");
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -92,9 +105,9 @@ export function DocumentsFilters({
 						className="peer min-w-60 ps-9"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
-						placeholder={t("filter_placeholder")}
+						placeholder="Search documents..."
 						type="text"
-						aria-label={t("filter_placeholder")}
+						aria-label="Search documents"
 					/>
 					<motion.div
 						className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50"
@@ -151,9 +164,16 @@ export function DocumentsFilters({
 						</motion.div>
 					</PopoverTrigger>
 					<PopoverContent className="min-w-36 p-3" align="start">
-						<motion.div initial="hidden" animate="visible" exit="exit" variants={fadeInScale}>
+						<motion.div
+							initial="hidden"
+							animate="visible"
+							exit="exit"
+							variants={fadeInScale}
+						>
 							<div className="space-y-3">
-								<div className="text-xs font-medium text-muted-foreground">Filters</div>
+								<div className="text-xs font-medium text-muted-foreground">
+									Filters
+								</div>
 								<div className="space-y-3">
 									<AnimatePresence>
 										{uniqueTypes.map((value, i) => (
@@ -168,7 +188,9 @@ export function DocumentsFilters({
 												<Checkbox
 													id={`${id}-${i}`}
 													checked={activeTypes.includes(value)}
-													onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
+													onCheckedChange={(checked: boolean) =>
+														onToggleType(value, !!checked)
+													}
 												/>
 												<Label
 													htmlFor={`${id}-${i}`}
@@ -253,19 +275,26 @@ export function DocumentsFilters({
 									className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border"
 									aria-hidden="true"
 								>
-									<CircleAlert className="opacity-80" size={16} strokeWidth={2} />
+									<CircleAlert
+										className="opacity-80"
+										size={16}
+										strokeWidth={2}
+									/>
 								</div>
 								<AlertDialogHeader>
 									<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
 									<AlertDialogDescription>
-										This action cannot be undone. This will permanently delete {selectedIds.size}{" "}
-										selected {selectedIds.size === 1 ? "row" : "rows"}.
+										This action cannot be undone. This will permanently delete{" "}
+										{selectedIds.size} selected{" "}
+										{selectedIds.size === 1 ? "row" : "rows"}.
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 							</div>
 							<AlertDialogFooter>
 								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction onClick={onBulkDelete}>Delete</AlertDialogAction>
+								<AlertDialogAction onClick={onBulkDelete}>
+									Delete
+								</AlertDialogAction>
 							</AlertDialogFooter>
 						</AlertDialogContent>
 					</AlertDialog>

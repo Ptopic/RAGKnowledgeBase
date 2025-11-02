@@ -11,7 +11,6 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import {
 	DropdownMenu,
@@ -57,7 +56,6 @@ interface ChatItem {
 }
 
 export function NavProjects({ chats }: { chats: ChatItem[] }) {
-	const t = useTranslations("sidebar");
 	const { isMobile } = useSidebar();
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState("");
@@ -147,13 +145,13 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 
 	return (
 		<SidebarGroup className="group-data-[collapsible=icon]:hidden">
-			<SidebarGroupLabel>{t("recent_chats")}</SidebarGroupLabel>
+			<SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
 
 			{/* Search Input */}
 			{showSearch && (
 				<div className="px-2 pb-2">
 					<SidebarInput
-						placeholder={t("search_chats")}
+						placeholder="Search chats..."
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						className="h-8"
@@ -170,7 +168,7 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 					<SidebarMenuItem>
 						<SidebarMenuButton disabled className="text-muted-foreground">
 							<Search className="h-4 w-4" />
-							<span>{searchQuery ? t("no_chats_found") : t("no_recent_chats")}</span>
+							<span>{searchQuery ? "No chats found" : "No recent chats"}</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				)}
@@ -180,7 +178,7 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 					<SidebarMenuItem>
 						<SidebarMenuButton onClick={() => router.push(`/dashboard/${searchSpaceId}/chats`)}>
 							<MoreHorizontal />
-							<span>{t("view_all_chats")}</span>
+							<span>View All Chats</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				)}

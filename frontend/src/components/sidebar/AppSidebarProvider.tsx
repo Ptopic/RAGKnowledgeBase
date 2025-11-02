@@ -1,7 +1,6 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -56,8 +55,6 @@ export function AppSidebarProvider({
 	navSecondary,
 	navMain,
 }: AppSidebarProviderProps) {
-	const t = useTranslations("dashboard");
-	const tCommon = useTranslations("common");
 	const [recentChats, setRecentChats] = useState<
 		{
 			name: string;
@@ -199,14 +196,14 @@ export function AppSidebarProvider({
 		if (chatError) {
 			return [
 				{
-					name: t("error_loading_chats"),
+					name: "Error loading chats",
 					url: "#",
 					icon: "AlertCircle",
 					id: 0,
 					search_space_id: Number(searchSpaceId),
 					actions: [
 						{
-							name: tCommon("retry"),
+							name: "Retry",
 							icon: "RefreshCw",
 							onClick: retryFetch,
 						},
@@ -218,7 +215,7 @@ export function AppSidebarProvider({
 		if (!isLoadingChats && recentChats.length === 0) {
 			return [
 				{
-					name: t("no_recent_chats"),
+					name: "No recent chats",
 					url: "#",
 					icon: "MessageCircleMore",
 					id: 0,
@@ -229,7 +226,7 @@ export function AppSidebarProvider({
 		}
 
 		return [];
-	}, [chatError, isLoadingChats, recentChats.length, searchSpaceId, retryFetch, t, tCommon]);
+	}, [chatError, isLoadingChats, recentChats.length, searchSpaceId, retryFetch]);
 
 	// Use fallback chats if there's an error or no chats
 	const displayChats = recentChats.length > 0 ? recentChats : fallbackChats;
@@ -243,10 +240,10 @@ export function AppSidebarProvider({
 				title:
 					searchSpace?.name ||
 					(isLoadingSearchSpace
-						? tCommon("loading")
+						? "Loading..."
 						: searchSpaceError
-							? t("error_loading_space")
-							: t("unknown_search_space")),
+							? "Error loading space"
+							: "Unknown search space"),
 			};
 		}
 		return updated;
@@ -256,8 +253,6 @@ export function AppSidebarProvider({
 		searchSpace?.name,
 		isLoadingSearchSpace,
 		searchSpaceError,
-		t,
-		tCommon,
 	]);
 
 	// Show loading state if not client-side
@@ -275,11 +270,10 @@ export function AppSidebarProvider({
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>{t("delete_chat")}</span>
+							<span>Delete Chat</span>
 						</DialogTitle>
 						<DialogDescription>
-							{t("delete_chat_confirm")} <span className="font-medium">{chatToDelete?.name}</span>?{" "}
-							{t("action_cannot_undone")}
+							Are you sure you want to delete <span className="font-medium">{chatToDelete?.name}</span>? This action cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="flex gap-2 sm:justify-end">
@@ -288,7 +282,7 @@ export function AppSidebarProvider({
 							onClick={() => setShowDeleteDialog(false)}
 							disabled={isDeleting}
 						>
-							{tCommon("cancel")}
+							Cancel
 						</Button>
 						<Button
 							variant="destructive"
@@ -299,12 +293,12 @@ export function AppSidebarProvider({
 							{isDeleting ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("deleting")}
+									Deleting...
 								</>
 							) : (
 								<>
 									<Trash2 className="h-4 w-4" />
-									{tCommon("delete")}
+									Delete
 								</>
 							)}
 						</Button>

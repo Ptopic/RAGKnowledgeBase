@@ -1,5 +1,4 @@
 "use client";
-
 import { format } from "date-fns";
 import {
 	Calendar as CalendarIcon,
@@ -12,7 +11,6 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -28,7 +26,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -39,7 +43,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -56,19 +64,20 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { EnumConnectorName } from "@/contracts/enums/connector";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
 export default function ConnectorsPage() {
-	const t = useTranslations("connectors");
-	const tCommon = useTranslations("common");
-
 	// Helper function to format date with time
 	const formatDateTime = (dateString: string | null): string => {
-		if (!dateString) return t("never");
+		if (!dateString) return "Never";
 
 		const date = new Date(dateString);
 		return new Intl.DateTimeFormat("en-US", {
@@ -84,22 +93,30 @@ export default function ConnectorsPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const today = new Date();
 
-	const { connectors, isLoading, error, deleteConnector, indexConnector, updateConnector } =
-		useSearchSourceConnectors(false, parseInt(searchSpaceId));
-	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
-	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
-	const [datePickerOpen, setDatePickerOpen] = useState(false);
-	const [selectedConnectorForIndexing, setSelectedConnectorForIndexing] = useState<number | null>(
-		null
+	const {
+		connectors,
+		isLoading,
+		error,
+		deleteConnector,
+		indexConnector,
+		updateConnector,
+	} = useSearchSourceConnectors(false, parseInt(searchSpaceId));
+	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(
+		null,
 	);
+	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(
+		null,
+	);
+	const [datePickerOpen, setDatePickerOpen] = useState(false);
+	const [selectedConnectorForIndexing, setSelectedConnectorForIndexing] =
+		useState<number | null>(null);
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
 	// Periodic indexing state
 	const [periodicDialogOpen, setPeriodicDialogOpen] = useState(false);
-	const [selectedConnectorForPeriodic, setSelectedConnectorForPeriodic] = useState<number | null>(
-		null
-	);
+	const [selectedConnectorForPeriodic, setSelectedConnectorForPeriodic] =
+		useState<number | null>(null);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState<string>("1440");
 	const [customFrequency, setCustomFrequency] = useState<string>("");
@@ -107,10 +124,10 @@ export default function ConnectorsPage() {
 
 	useEffect(() => {
 		if (error) {
-			toast.error(t("failed_load"));
+			toast.error("Failed to load connectors");
 			console.error("Error fetching connectors:", error);
 		}
-	}, [error, t]);
+	}, [error]);
 
 	// Handle connector deletion
 	const handleDeleteConnector = async () => {
@@ -118,10 +135,10 @@ export default function ConnectorsPage() {
 
 		try {
 			await deleteConnector(connectorToDelete);
-			toast.success(t("delete_success"));
+			toast.success("Connector deleted successfully");
 		} catch (error) {
 			console.error("Error deleting connector:", error);
-			toast.error(t("delete_failed"));
+			toast.error("Failed to delete connector");
 		} finally {
 			setConnectorToDelete(null);
 		}
@@ -141,14 +158,21 @@ export default function ConnectorsPage() {
 
 		try {
 			setIndexingConnectorId(selectedConnectorForIndexing);
-			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
+			const startDateStr = startDate
+				? format(startDate, "yyyy-MM-dd")
+				: undefined;
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
-			await indexConnector(selectedConnectorForIndexing, searchSpaceId, startDateStr, endDateStr);
-			toast.success(t("indexing_started"));
+			await indexConnector(
+				selectedConnectorForIndexing,
+				searchSpaceId,
+				startDateStr,
+				endDateStr,
+			);
+			toast.success("Indexing started");
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
-			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
+			toast.error(error instanceof Error ? error.message : "Indexing failed");
 		} finally {
 			setIndexingConnectorId(null);
 			setSelectedConnectorForIndexing(null);
@@ -162,10 +186,10 @@ export default function ConnectorsPage() {
 		setIndexingConnectorId(connectorId);
 		try {
 			await indexConnector(connectorId, searchSpaceId);
-			toast.success(t("indexing_started"));
+			toast.success("Indexing started");
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
-			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
+			toast.error(error instanceof Error ? error.message : "Indexing failed");
 		} finally {
 			setIndexingConnectorId(null);
 		}
@@ -182,7 +206,9 @@ export default function ConnectorsPage() {
 		if (connector.indexing_frequency_minutes) {
 			// Check if it's a preset value
 			const presetValues = ["15", "60", "360", "720", "1440", "10080"];
-			if (presetValues.includes(connector.indexing_frequency_minutes.toString())) {
+			if (
+				presetValues.includes(connector.indexing_frequency_minutes.toString())
+			) {
 				setFrequencyMinutes(connector.indexing_frequency_minutes.toString());
 				setCustomFrequency("");
 			} else {
@@ -201,7 +227,9 @@ export default function ConnectorsPage() {
 	const handleSavePeriodicIndexing = async () => {
 		if (selectedConnectorForPeriodic === null) return;
 
-		const connector = connectors.find((c) => c.id === selectedConnectorForPeriodic);
+		const connector = connectors.find(
+			(c) => c.id === selectedConnectorForPeriodic,
+		);
 		if (!connector) return;
 
 		setIsSavingPeriodic(true);
@@ -229,12 +257,16 @@ export default function ConnectorsPage() {
 			toast.success(
 				periodicEnabled
 					? "Periodic indexing enabled successfully"
-					: "Periodic indexing disabled successfully"
+					: "Periodic indexing disabled successfully",
 			);
 			setPeriodicDialogOpen(false);
 		} catch (error) {
 			console.error("Error updating periodic indexing:", error);
-			toast.error(error instanceof Error ? error.message : "Failed to update periodic indexing");
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to update periodic indexing",
+			);
 		} finally {
 			setIsSavingPeriodic(false);
 			setSelectedConnectorForPeriodic(null);
@@ -258,19 +290,27 @@ export default function ConnectorsPage() {
 				className="mb-8 flex items-center justify-between"
 			>
 				<div>
-					<h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-					<p className="text-muted-foreground mt-2">{t("subtitle")}</p>
+					<h1 className="text-3xl font-bold tracking-tight">Connectors</h1>
+					<p className="text-muted-foreground mt-2">
+						Manage your connected services and data sources
+					</p>
 				</div>
-				<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}>
+				<Button
+					onClick={() =>
+						router.push(`/dashboard/${searchSpaceId}/connectors/add`)
+					}
+				>
 					<Plus className="mr-2 h-4 w-4" />
-					{t("add_connector")}
+					Add Connector
 				</Button>
 			</motion.div>
 
 			<Card>
 				<CardHeader className="pb-3">
-					<CardTitle>{t("your_connectors")}</CardTitle>
-					<CardDescription>{t("view_manage")}</CardDescription>
+					<CardTitle>Your Connectors</CardTitle>
+					<CardDescription>
+						View and manage your connected services
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
@@ -282,11 +322,17 @@ export default function ConnectorsPage() {
 						</div>
 					) : connectors.length === 0 ? (
 						<div className="text-center py-12">
-							<h3 className="text-lg font-medium mb-2">{t("no_connectors")}</h3>
-							<p className="text-muted-foreground mb-6">{t("no_connectors_desc")}</p>
-							<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}>
+							<h3 className="text-lg font-medium mb-2">No connectors</h3>
+							<p className="text-muted-foreground mb-6">
+								Get started by adding your first connector
+							</p>
+							<Button
+								onClick={() =>
+									router.push(`/dashboard/${searchSpaceId}/connectors/add`)
+								}
+							>
 								<Plus className="mr-2 h-4 w-4" />
-								{t("add_first")}
+								Add Your First Connector
 							</Button>
 						</div>
 					) : (
@@ -294,22 +340,26 @@ export default function ConnectorsPage() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>{t("name")}</TableHead>
-										<TableHead>{t("type")}</TableHead>
-										<TableHead>{t("last_indexed")}</TableHead>
-										<TableHead>{t("periodic")}</TableHead>
-										<TableHead className="text-right">{t("actions")}</TableHead>
+										<TableHead>Name</TableHead>
+										<TableHead>Type</TableHead>
+										<TableHead>Last Indexed</TableHead>
+										<TableHead>Periodic</TableHead>
+										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{connectors.map((connector) => (
 										<TableRow key={connector.id}>
-											<TableCell className="font-medium">{connector.name}</TableCell>
-											<TableCell>{getConnectorIcon(connector.connector_type)}</TableCell>
+											<TableCell className="font-medium">
+												{connector.name}
+											</TableCell>
+											<TableCell>
+												{getConnectorIcon(connector.connector_type)}
+											</TableCell>
 											<TableCell>
 												{connector.is_indexable
 													? formatDateTime(connector.last_indexed_at)
-													: t("not_indexable")}
+													: "Not indexable"}
 											</TableCell>
 											<TableCell>
 												{connector.is_indexable ? (
@@ -321,18 +371,25 @@ export default function ConnectorsPage() {
 																		<Clock className="h-4 w-4" />
 																		<span className="text-sm font-medium">
 																			{connector.indexing_frequency_minutes
-																				? formatFrequency(connector.indexing_frequency_minutes)
+																				? formatFrequency(
+																						connector.indexing_frequency_minutes,
+																					)
 																				: "Enabled"}
 																		</span>
 																	</div>
 																</TooltipTrigger>
 																<TooltipContent>
 																	<p>
-																		Runs every {connector.indexing_frequency_minutes} minutes
+																		Runs every{" "}
+																		{connector.indexing_frequency_minutes}{" "}
+																		minutes
 																		{connector.next_scheduled_at && (
 																			<>
 																				<br />
-																				Next: {formatDateTime(connector.next_scheduled_at)}
+																				Next:{" "}
+																				{formatDateTime(
+																					connector.next_scheduled_at,
+																				)}
 																			</>
 																		)}
 																	</p>
@@ -340,10 +397,14 @@ export default function ConnectorsPage() {
 															</Tooltip>
 														</TooltipProvider>
 													) : (
-														<span className="text-sm text-muted-foreground">Disabled</span>
+														<span className="text-sm text-muted-foreground">
+															Disabled
+														</span>
 													)
 												) : (
-													<span className="text-sm text-muted-foreground">-</span>
+													<span className="text-sm text-muted-foreground">
+														-
+													</span>
 												)}
 											</TableCell>
 											<TableCell className="text-right">
@@ -356,19 +417,25 @@ export default function ConnectorsPage() {
 																		<Button
 																			variant="outline"
 																			size="sm"
-																			onClick={() => handleOpenDatePicker(connector.id)}
-																			disabled={indexingConnectorId === connector.id}
+																			onClick={() =>
+																				handleOpenDatePicker(connector.id)
+																			}
+																			disabled={
+																				indexingConnectorId === connector.id
+																			}
 																		>
 																			{indexingConnectorId === connector.id ? (
 																				<RefreshCw className="h-4 w-4 animate-spin" />
 																			) : (
 																				<CalendarIcon className="h-4 w-4" />
 																			)}
-																			<span className="sr-only">{t("index_date_range")}</span>
+																			<span className="sr-only">
+																				Index Date Range
+																			</span>
 																		</Button>
 																	</TooltipTrigger>
 																	<TooltipContent>
-																		<p>{t("index_date_range")}</p>
+																		<p>Index Date Range</p>
 																	</TooltipContent>
 																</Tooltip>
 															</TooltipProvider>
@@ -378,19 +445,25 @@ export default function ConnectorsPage() {
 																		<Button
 																			variant="outline"
 																			size="sm"
-																			onClick={() => handleQuickIndexConnector(connector.id)}
-																			disabled={indexingConnectorId === connector.id}
+																			onClick={() =>
+																				handleQuickIndexConnector(connector.id)
+																			}
+																			disabled={
+																				indexingConnectorId === connector.id
+																			}
 																		>
 																			{indexingConnectorId === connector.id ? (
 																				<RefreshCw className="h-4 w-4 animate-spin" />
 																			) : (
 																				<RefreshCw className="h-4 w-4" />
 																			)}
-																			<span className="sr-only">{t("quick_index")}</span>
+																			<span className="sr-only">
+																				Quick Index
+																			</span>
 																		</Button>
 																	</TooltipTrigger>
 																	<TooltipContent>
-																		<p>{t("quick_index_auto")}</p>
+																		<p>Quick Index (auto date range)</p>
 																	</TooltipContent>
 																</Tooltip>
 															</TooltipProvider>
@@ -403,10 +476,14 @@ export default function ConnectorsPage() {
 																	<Button
 																		variant="outline"
 																		size="sm"
-																		onClick={() => handleOpenPeriodicDialog(connector.id)}
+																		onClick={() =>
+																			handleOpenPeriodicDialog(connector.id)
+																		}
 																	>
 																		<Clock className="h-4 w-4" />
-																		<span className="sr-only">Configure Periodic Indexing</span>
+																		<span className="sr-only">
+																			Configure Periodic Indexing
+																		</span>
 																	</Button>
 																</TooltipTrigger>
 																<TooltipContent>
@@ -420,12 +497,12 @@ export default function ConnectorsPage() {
 														size="sm"
 														onClick={() =>
 															router.push(
-																`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`
+																`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`,
 															)
 														}
 													>
 														<Edit className="h-4 w-4" />
-														<span className="sr-only">{tCommon("edit")}</span>
+														<span className="sr-only">Edit</span>
 													</Button>
 													<AlertDialog>
 														<AlertDialogTrigger asChild>
@@ -433,28 +510,35 @@ export default function ConnectorsPage() {
 																variant="outline"
 																size="sm"
 																className="text-destructive-foreground hover:bg-destructive/10"
-																onClick={() => setConnectorToDelete(connector.id)}
+																onClick={() =>
+																	setConnectorToDelete(connector.id)
+																}
 															>
 																<Trash2 className="h-4 w-4" />
-																<span className="sr-only">{tCommon("delete")}</span>
+																<span className="sr-only">Delete</span>
 															</Button>
 														</AlertDialogTrigger>
 														<AlertDialogContent>
 															<AlertDialogHeader>
-																<AlertDialogTitle>{t("delete_connector")}</AlertDialogTitle>
+																<AlertDialogTitle>
+																	Delete Connector
+																</AlertDialogTitle>
 																<AlertDialogDescription>
-																	{t("delete_confirm")}
+																	Are you sure you want to delete this
+																	connector? This action cannot be undone.
 																</AlertDialogDescription>
 															</AlertDialogHeader>
 															<AlertDialogFooter>
-																<AlertDialogCancel onClick={() => setConnectorToDelete(null)}>
-																	{tCommon("cancel")}
+																<AlertDialogCancel
+																	onClick={() => setConnectorToDelete(null)}
+																>
+																	Cancel
 																</AlertDialogCancel>
 																<AlertDialogAction
 																	className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 																	onClick={handleDeleteConnector}
 																>
-																	{tCommon("delete")}
+																	Delete
 																</AlertDialogAction>
 															</AlertDialogFooter>
 														</AlertDialogContent>
@@ -474,13 +558,15 @@ export default function ConnectorsPage() {
 			<Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
 				<DialogContent className="sm:max-w-[500px]">
 					<DialogHeader>
-						<DialogTitle>{t("select_date_range")}</DialogTitle>
-						<DialogDescription>{t("select_date_range_desc")}</DialogDescription>
+						<DialogTitle>Select Date Range</DialogTitle>
+						<DialogDescription>
+							Choose a date range for indexing content
+						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<Label htmlFor="start-date">{t("start_date")}</Label>
+								<Label htmlFor="start-date">Start Date</Label>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
@@ -488,11 +574,11 @@ export default function ConnectorsPage() {
 											variant="outline"
 											className={cn(
 												"w-full justify-start text-left font-normal",
-												!startDate && "text-muted-foreground"
+												!startDate && "text-muted-foreground",
 											)}
 										>
 											<CalendarIcon className="mr-2 h-4 w-4" />
-											{startDate ? format(startDate, "PPP") : t("pick_date")}
+											{startDate ? format(startDate, "PPP") : "Pick a date"}
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-0" align="start">
@@ -506,7 +592,7 @@ export default function ConnectorsPage() {
 								</Popover>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="end-date">{t("end_date")}</Label>
+								<Label htmlFor="end-date">End Date</Label>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
@@ -514,15 +600,20 @@ export default function ConnectorsPage() {
 											variant="outline"
 											className={cn(
 												"w-full justify-start text-left font-normal",
-												!endDate && "text-muted-foreground"
+												!endDate && "text-muted-foreground",
 											)}
 										>
 											<CalendarIcon className="mr-2 h-4 w-4" />
-											{endDate ? format(endDate, "PPP") : t("pick_date")}
+											{endDate ? format(endDate, "PPP") : "Pick a date"}
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+										<Calendar
+											mode="single"
+											selected={endDate}
+											onSelect={setEndDate}
+											initialFocus
+										/>
 									</PopoverContent>
 								</Popover>
 							</div>
@@ -536,7 +627,7 @@ export default function ConnectorsPage() {
 									setEndDate(undefined);
 								}}
 							>
-								{t("clear_dates")}
+								Clear Dates
 							</Button>
 							<Button
 								variant="outline"
@@ -548,7 +639,7 @@ export default function ConnectorsPage() {
 									setEndDate(today);
 								}}
 							>
-								{t("last_30_days")}
+								Last 30 Days
 							</Button>
 							<Button
 								variant="outline"
@@ -560,7 +651,7 @@ export default function ConnectorsPage() {
 									setEndDate(today);
 								}}
 							>
-								{t("last_year")}
+								Last Year
 							</Button>
 						</div>
 					</div>
@@ -574,9 +665,9 @@ export default function ConnectorsPage() {
 								setEndDate(undefined);
 							}}
 						>
-							{tCommon("cancel")}
+							Cancel
 						</Button>
-						<Button onClick={handleIndexConnector}>{t("start_indexing")}</Button>
+						<Button onClick={handleIndexConnector}>Start Indexing</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
@@ -611,7 +702,10 @@ export default function ConnectorsPage() {
 							<div className="space-y-4">
 								<div className="space-y-2">
 									<Label htmlFor="frequency">Indexing Frequency</Label>
-									<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes}>
+									<Select
+										value={frequencyMinutes}
+										onValueChange={setFrequencyMinutes}
+									>
 										<SelectTrigger id="frequency">
 											<SelectValue placeholder="Select frequency" />
 										</SelectTrigger>
@@ -629,7 +723,9 @@ export default function ConnectorsPage() {
 
 								{frequencyMinutes === "custom" && (
 									<div className="space-y-2">
-										<Label htmlFor="custom-frequency">Custom Frequency (minutes)</Label>
+										<Label htmlFor="custom-frequency">
+											Custom Frequency (minutes)
+										</Label>
 										<Input
 											id="custom-frequency"
 											type="number"
@@ -677,8 +773,13 @@ export default function ConnectorsPage() {
 						>
 							Cancel
 						</Button>
-						<Button onClick={handleSavePeriodicIndexing} disabled={isSavingPeriodic}>
-							{isSavingPeriodic && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+						<Button
+							onClick={handleSavePeriodicIndexing}
+							disabled={isSavingPeriodic}
+						>
+							{isSavingPeriodic && (
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							)}
 							Save Configuration
 						</Button>
 					</DialogFooter>

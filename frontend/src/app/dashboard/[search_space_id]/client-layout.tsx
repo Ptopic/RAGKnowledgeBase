@@ -2,16 +2,25 @@
 
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+	SidebarInset,
+	SidebarProvider,
+	SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
 
 export function DashboardClientLayout({
@@ -25,36 +34,25 @@ export function DashboardClientLayout({
 	navSecondary: any[];
 	navMain: any[];
 }) {
-	const t = useTranslations("dashboard");
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchSpaceIdNum = Number(searchSpaceId);
 
-	const { loading, error, isOnboardingComplete } = useLLMPreferences(searchSpaceIdNum);
+	const { loading, error, isOnboardingComplete } =
+		useLLMPreferences(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
 	// Skip onboarding check if we're already on the onboarding page
 	const isOnboardingPage = pathname?.includes("/onboard");
 
-	// Translate navigation items
-	const tNavMenu = useTranslations("nav_menu");
+	// Use navigation items as-is without translation
 	const translatedNavMain = useMemo(() => {
-		return navMain.map((item) => ({
-			...item,
-			title: tNavMenu(item.title.toLowerCase().replace(/ /g, "_")),
-			items: item.items?.map((subItem: any) => ({
-				...subItem,
-				title: tNavMenu(subItem.title.toLowerCase().replace(/ /g, "_")),
-			})),
-		}));
-	}, [navMain, tNavMenu]);
+		return navMain;
+	}, [navMain]);
 
 	const translatedNavSecondary = useMemo(() => {
-		return navSecondary.map((item) => ({
-			...item,
-			title: item.title === "All Search Spaces" ? tNavMenu("all_search_spaces") : item.title,
-		}));
-	}, [navSecondary, tNavMenu]);
+		return navSecondary;
+	}, [navSecondary]);
 
 	const [open, setOpen] = useState<boolean>(() => {
 		try {
@@ -98,8 +96,10 @@ export function DashboardClientLayout({
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">{t("loading_config")}</CardTitle>
-						<CardDescription>{t("checking_llm_prefs")}</CardDescription>
+						<CardTitle className="text-xl font-medium">
+							Loading Configuration
+						</CardTitle>
+						<CardDescription>Checking LLM preferences...</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center py-6">
 						<Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -116,9 +116,9 @@ export function DashboardClientLayout({
 				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-xl font-medium text-destructive">
-							{t("config_error")}
+							Configuration Error
 						</CardTitle>
-						<CardDescription>{t("failed_load_llm_config")}</CardDescription>
+						<CardDescription>Failed to load LLM configuration</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<p className="text-sm text-muted-foreground">{error}</p>

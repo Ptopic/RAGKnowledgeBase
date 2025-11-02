@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -29,39 +28,14 @@ interface NavItem {
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
-	const t = useTranslations("nav_menu");
-
-	// Translation function that handles both exact matches and fallback to original
-	const translateTitle = (title: string): string => {
-		const titleMap: Record<string, string> = {
-			Researcher: "researcher",
-			"Manage LLMs": "manage_llms",
-			Documents: "documents",
-			"Upload Documents": "upload_documents",
-			"Add Webpages": "add_webpages",
-			"Add Youtube Videos": "add_youtube",
-			"Manage Documents": "manage_documents",
-			Connectors: "connectors",
-			"Add Connector": "add_connector",
-			"Manage Connectors": "manage_connectors",
-			Podcasts: "podcasts",
-			Logs: "logs",
-			Platform: "platform",
-		};
-
-		const key = titleMap[title];
-		return key ? t(key) : title;
-	};
-
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
 
 	return (
 		<SidebarGroup>
-			<SidebarGroupLabel>{translateTitle("Platform")}</SidebarGroupLabel>
+			<SidebarGroupLabel>Platform</SidebarGroupLabel>
 			<SidebarMenu>
 				{memoizedItems.map((item, index) => {
-					const translatedTitle = translateTitle(item.title);
 					const hasSub = !!item.items?.length;
 					return (
 						<Collapsible key={`${item.title}-${index}`} asChild defaultOpen={item.isActive}>
@@ -72,13 +46,13 @@ export function NavMain({ items }: { items: NavItem[] }) {
 										<CollapsibleTrigger asChild>
 											<SidebarMenuButton
 												asChild
-												tooltip={translatedTitle}
+												tooltip={item.title}
 												isActive={item.isActive}
-												aria-label={`${translatedTitle} with submenu`}
+												aria-label={`${item.title} with submenu`}
 											>
 												<button type="button" className="flex items-center gap-2 w-full text-left">
 													<item.icon />
-													<span>{translatedTitle}</span>
+													<span>{item.title}</span>
 												</button>
 											</SidebarMenuButton>
 										</CollapsibleTrigger>
@@ -86,7 +60,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
 										<CollapsibleTrigger asChild>
 											<SidebarMenuAction
 												className="data-[state=open]:rotate-90 transition-transform duration-200"
-												aria-label={`Toggle ${translatedTitle} submenu`}
+												aria-label={`Toggle ${item.title} submenu`}
 											>
 												<ChevronRight />
 												<span className="sr-only">Toggle submenu</span>
@@ -96,12 +70,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
 										<CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 duration-200">
 											<SidebarMenuSub>
 												{item.items?.map((subItem, subIndex) => {
-													const translatedSubTitle = translateTitle(subItem.title);
 													return (
 														<SidebarMenuSubItem key={`${subItem.title}-${subIndex}`}>
-															<SidebarMenuSubButton asChild aria-label={translatedSubTitle}>
+															<SidebarMenuSubButton asChild aria-label={subItem.title}>
 																<a href={subItem.url}>
-																	<span>{translatedSubTitle}</span>
+																	<span>{subItem.title}</span>
 																</a>
 															</SidebarMenuSubButton>
 														</SidebarMenuSubItem>
@@ -114,13 +87,13 @@ export function NavMain({ items }: { items: NavItem[] }) {
 									// Leaf item: treat as a normal link
 									<SidebarMenuButton
 										asChild
-										tooltip={translatedTitle}
+										tooltip={item.title}
 										isActive={item.isActive}
-										aria-label={translatedTitle}
+										aria-label={item.title}
 									>
 										<a href={item.url}>
 											<item.icon />
-											<span>{translatedTitle}</span>
+											<span>{item.title}</span>
 										</a>
 									</SidebarMenuButton>
 								)}
