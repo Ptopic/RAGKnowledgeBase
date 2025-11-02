@@ -3,9 +3,9 @@
 import { CheckCircle2, FileType, Info, Tag, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { toast } from "sonner";
+import useUploadDocuments from "@/api/documents/hooks/useUploadDocuments";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,9 +49,26 @@ export default function FileUploader() {
 	const search_space_id = params.search_space_id as string;
 
 	const [files, setFiles] = useState<File[]>([]);
-	const [isUploading, setIsUploading] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const router = useRouter();
+	const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+	const { mutate: uploadDocuments, isPending: isUploading } =
+		useUploadDocuments({
+			onSuccess: () => {
+				if (progressIntervalRef.current) {
+					clearInterval(progressIntervalRef.current);
+				}
+				setUploadProgress(100);
+				router.push(`/dashboard/${search_space_id}/documents`);
+			},
+			onError: () => {
+				if (progressIntervalRef.current) {
+					clearInterval(progressIntervalRef.current);
+				}
+				setUploadProgress(0);
+			},
+		});
 
 	// Audio files are always supported (using whisper)
 	const audioFileTypes = {
@@ -255,59 +272,31 @@ export default function FileUploader() {
 		return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	};
 
-	const handleUpload = async () => {
-		setIsUploading(true);
+	const handleUpload = () => {
 		setUploadProgress(0);
 
-		const formData = new FormData();
-		files.forEach((file) => {
-			formData.append("files", file);
+		// Simulate progress for better UX
+		progressIntervalRef.current = setInterval(() => {
+			setUploadProgress((prev) => {
+				if (prev >= 90) return prev;
+				return prev + Math.random() * 10;
+			});
+		}, 200);
+
+		uploadDocuments({
+			files,
+			search_space_id,
 		});
-
-		formData.append("search_space_id", search_space_id);
-
-		try {
-			// Simulate progress for better UX
-			const progressInterval = setInterval(() => {
-				setUploadProgress((prev) => {
-					if (prev >= 90) return prev;
-					return prev + Math.random() * 10;
-				});
-			}, 200);
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
-				{
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${window.localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					body: formData,
-				},
-			);
-
-			clearInterval(progressInterval);
-			setUploadProgress(100);
-
-			if (!response.ok) {
-				throw new Error("Upload failed");
-			}
-
-			await response.json();
-
-			toast("Upload initiated", {
-				description: "Your files are being processed...",
-			});
-
-			router.push(`/dashboard/${search_space_id}/documents`);
-		} catch (error: any) {
-			setIsUploading(false);
-			setUploadProgress(0);
-			toast("Upload error", {
-				description: `Failed to upload files: ${error.message}`,
-			});
-		}
 	};
+
+	// Cleanup interval on unmount
+	useEffect(() => {
+		return () => {
+			if (progressIntervalRef.current) {
+				clearInterval(progressIntervalRef.current);
+			}
+		};
+	}, []);
 
 	const getTotalFileSize = () => {
 		return files.reduce((total, file) => total + file.size, 0);

@@ -1,10 +1,10 @@
 "use client";
-
 import { type Tag, TagInput } from "emblor";
 import { Globe, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import useCrawlWebpages from "@/api/documents/hooks/useCrawlWebpages";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -26,8 +26,13 @@ export default function WebpageCrawler() {
 
 	const [urlTags, setUrlTags] = useState<Tag[]>([]);
 	const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	const { mutate: crawlWebpages, isPending: isSubmitting } = useCrawlWebpages({
+		onSuccess: () => {
+			router.push(`/dashboard/${search_space_id}/documents`);
+		},
+	});
 
 	// Function to validate a URL
 	const isValidUrl = (url: string): boolean => {
@@ -35,7 +40,7 @@ export default function WebpageCrawler() {
 	};
 
 	// Function to handle URL submission
-	const handleSubmit = async () => {
+	const handleSubmit = () => {
 		// Validate that we have at least one URL
 		if (urlTags.length === 0) {
 			setError("Please add at least one URL");
@@ -52,53 +57,15 @@ export default function WebpageCrawler() {
 		}
 
 		setError(null);
-		setIsSubmitting(true);
 
-		try {
-			toast("Crawling webpages", {
-				description: "Your URLs are being crawled...",
-			});
+		// Extract URLs from tags
+		const urls = urlTags.map((tag) => tag.text);
 
-			// Extract URLs from tags
-			const urls = urlTags.map((tag) => tag.text);
-
-			// Make API call to backend
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					body: JSON.stringify({
-						document_type: "CRAWLED_URL",
-						content: urls,
-						search_space_id: parseInt(search_space_id),
-					}),
-				},
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to crawl URLs");
-			}
-
-			await response.json();
-
-			toast("Success", {
-				description: "Webpages crawled successfully",
-			});
-
-			// Redirect to documents page
-			router.push(`/dashboard/${search_space_id}/documents`);
-		} catch (error: any) {
-			setError(error.message || "An error occurred");
-			toast("Error", {
-				description: `Failed to crawl URLs: ${error.message}`,
-			});
-		} finally {
-			setIsSubmitting(false);
-		}
+		crawlWebpages({
+			document_type: "CRAWLED_URL",
+			content: urls,
+			search_space_id: parseInt(search_space_id),
+		});
 	};
 
 	// Function to add a new URL tag

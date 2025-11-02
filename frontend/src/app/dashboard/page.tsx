@@ -1,12 +1,11 @@
 "use client";
-
 import { AlertCircle, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import useDeleteSearchSpace from "@/api/searchspaces/hooks/useDeleteSearchSpace";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -33,16 +32,8 @@ import {
 } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
+import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { useSearchSpaces } from "@/hooks/use-search-spaces";
-import { apiClient } from "@/lib/api";
-
-interface User {
-	id: string;
-	email: string;
-	is_active: boolean;
-	is_superuser: boolean;
-	is_verified: boolean;
-}
 
 /**
  * Formats a date string into a readable format
@@ -160,38 +151,20 @@ const DashboardPage = () => {
 
 	const { searchSpaces, loading, error, refreshSearchSpaces } =
 		useSearchSpaces();
+	const { mutate: deleteSearchSpace, isPending: isDeletingSearchSpace } =
+		useDeleteSearchSpace({
+			onSuccess: () => {
+				// Refresh the search spaces list after successful deletion
+				refreshSearchSpaces();
+			},
+		});
 
-	// User state management
-	const [user, setUser] = useState<User | null>(null);
-	const [isLoadingUser, setIsLoadingUser] = useState(true);
-	const [userError, setUserError] = useState<string | null>(null);
-
-	// Fetch user details
-	useEffect(() => {
-		const fetchUser = async () => {
-			try {
-				if (typeof window === "undefined") return;
-
-				try {
-					const userData = await apiClient.get<User>("users/me");
-					setUser(userData);
-					setUserError(null);
-				} catch (error) {
-					console.error("Error fetching user:", error);
-					setUserError(
-						error instanceof Error ? error.message : "Unknown error occurred",
-					);
-				} finally {
-					setIsLoadingUser(false);
-				}
-			} catch (error) {
-				console.error("Error in fetchUser:", error);
-				setIsLoadingUser(false);
-			}
-		};
-
-		fetchUser();
-	}, []);
+	// Fetch user details using React Query
+	const {
+		data: user,
+		isLoading: isLoadingUser,
+		error: userError,
+	} = useGetCurrentUser();
 
 	// Create user object for UserDropdown
 	const customUser = {
@@ -209,32 +182,8 @@ const DashboardPage = () => {
 	if (loading) return <LoadingScreen />;
 	if (error) return <ErrorScreen message={error} />;
 
-	const handleDeleteSearchSpace = async (id: number) => {
-		// Send DELETE request to the API
-		try {
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-				},
-			);
-
-			if (!response.ok) {
-				toast.error("Failed to delete search space");
-				throw new Error("Failed to delete search space");
-			}
-
-			// Refresh the search spaces list after successful deletion
-			refreshSearchSpaces();
-		} catch (error) {
-			console.error("Error deleting search space:", error);
-			toast.error("An error occurred while deleting the search space");
-			return;
-		}
-		toast.success("Search space deleted successfully");
+	const handleDeleteSearchSpace = (id: number) => {
+		deleteSearchSpace(id);
 	};
 
 	return (

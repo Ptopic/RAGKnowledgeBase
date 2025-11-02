@@ -1,13 +1,22 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Check, CircleAlert, Github, Info, ListChecks, Loader2 } from "lucide-react";
+import {
+	ArrowLeft,
+	Check,
+	CircleAlert,
+	Info,
+	ListChecks,
+	Loader2,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import useFetchRepositories from "@/api/github/hooks/useFetchRepositories";
+import type { GithubRepo } from "@/api/github/types";
 import {
 	Accordion,
 	AccordionContent,
@@ -61,30 +70,26 @@ const githubPatFormSchema = z.object({
 // Define the type for the form values
 type GithubPatFormValues = z.infer<typeof githubPatFormSchema>;
 
-// Type for fetched GitHub repositories
-interface GithubRepo {
-	id: number;
-	name: string;
-	full_name: string;
-	private: boolean;
-	url: string;
-	description: string | null;
-	last_updated: string | null;
-}
-
 export default function GithubConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [step, setStep] = useState<"enter_pat" | "select_repos">("enter_pat");
-	const [isFetchingRepos, setIsFetchingRepos] = useState(false);
 	const [isCreatingConnector, setIsCreatingConnector] = useState(false);
 	const [repositories, setRepositories] = useState<GithubRepo[]>([]);
 	const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
-	const [connectorName, setConnectorName] = useState<string>("GitHub Connector");
+	const [connectorName, setConnectorName] =
+		useState<string>("GitHub Connector");
 	const [validatedPat, setValidatedPat] = useState<string>(""); // Store the validated PAT
 
 	const { createConnector } = useSearchSourceConnectors();
+	const { mutate: fetchRepositoriesMutation, isPending: isFetchingRepos } =
+		useFetchRepositories({
+			onSuccess: (data) => {
+				setRepositories(data);
+				setStep("select_repos"); // Move to the next step
+			},
+		});
 
 	// Initialize the form for PAT entry
 	const form = useForm<GithubPatFormValues>({
@@ -96,47 +101,10 @@ export default function GithubConnectorPage() {
 	});
 
 	// Function to fetch repositories using the new backend endpoint
-	const fetchRepositories = async (values: GithubPatFormValues) => {
-		setIsFetchingRepos(true);
+	const handleFetchRepositories = (values: GithubPatFormValues) => {
 		setConnectorName(values.name); // Store the name
 		setValidatedPat(values.github_pat); // Store the PAT temporarily
-		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({ github_pat: values.github_pat }),
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.detail || `Failed to fetch repositories: ${response.statusText}`);
-			}
-
-			const data: GithubRepo[] = await response.json();
-			setRepositories(data);
-			setStep("select_repos"); // Move to the next step
-			toast.success(`Found ${data.length} repositories.`);
-		} catch (error) {
-			console.error("Error fetching GitHub repositories:", error);
-			const errorMessage =
-				error instanceof Error
-					? error.message
-					: "Failed to fetch repositories. Please check the PAT and try again.";
-			toast.error(errorMessage);
-		} finally {
-			setIsFetchingRepos(false);
-		}
+		fetchRepositoriesMutation({ github_pat: values.github_pat });
 	};
 
 	// Handle final connector creation
@@ -162,7 +130,7 @@ export default function GithubConnectorPage() {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 				},
-				parseInt(searchSpaceId)
+				parseInt(searchSpaceId),
 			);
 
 			toast.success("GitHub connector created successfully!");
@@ -170,7 +138,9 @@ export default function GithubConnectorPage() {
 		} catch (error) {
 			console.error("Error creating GitHub connector:", error);
 			const errorMessage =
-				error instanceof Error ? error.message : "Failed to create GitHub connector.";
+				error instanceof Error
+					? error.message
+					: "Failed to create GitHub connector.";
 			toast.error(errorMessage);
 		} finally {
 			setIsCreatingConnector(false);
@@ -180,7 +150,9 @@ export default function GithubConnectorPage() {
 	// Handle checkbox changes
 	const handleRepoSelection = (repoFullName: string, checked: boolean) => {
 		setSelectedRepos((prev) =>
-			checked ? [...prev, repoFullName] : prev.filter((name) => name !== repoFullName)
+			checked
+				? [...prev, repoFullName]
+				: prev.filter((name) => name !== repoFullName),
 		);
 	};
 
@@ -204,7 +176,9 @@ export default function GithubConnectorPage() {
 				}}
 			>
 				<ArrowLeft className="mr-2 h-4 w-4" />
-				{step === "select_repos" ? "Back to PAT Entry" : "Back to Add Connectors"}
+				{step === "select_repos"
+					? "Back to PAT Entry"
+					: "Back to Add Connectors"}
 			</Button>
 
 			<motion.div
@@ -223,11 +197,16 @@ export default function GithubConnectorPage() {
 							<CardHeader>
 								<CardTitle className="text-2xl font-bold flex items-center gap-2">
 									{step === "enter_pat" ? (
-										getConnectorIcon(EnumConnectorName.GITHUB_CONNECTOR, "h-6 w-6")
+										getConnectorIcon(
+											EnumConnectorName.GITHUB_CONNECTOR,
+											"h-6 w-6",
+										)
 									) : (
 										<ListChecks className="h-6 w-6" />
 									)}
-									{step === "enter_pat" ? "Connect GitHub Account" : "Select Repositories to Index"}
+									{step === "enter_pat"
+										? "Connect GitHub Account"
+										: "Select Repositories to Index"}
 								</CardTitle>
 								<CardDescription>
 									{step === "enter_pat"
@@ -241,10 +220,13 @@ export default function GithubConnectorPage() {
 									<CardContent>
 										<Alert className="mb-6 bg-muted">
 											<Info className="h-4 w-4" />
-											<AlertTitle>GitHub Personal Access Token (PAT) Required</AlertTitle>
+											<AlertTitle>
+												GitHub Personal Access Token (PAT) Required
+											</AlertTitle>
 											<AlertDescription>
-												You'll need a GitHub PAT with the appropriate scopes (e.g., 'repo') to fetch
-												repositories. You can create one from your{" "}
+												You'll need a GitHub PAT with the appropriate scopes
+												(e.g., 'repo') to fetch repositories. You can create one
+												from your{" "}
 												<a
 													href="https://github.com/settings/personal-access-tokens"
 													target="_blank"
@@ -253,12 +235,15 @@ export default function GithubConnectorPage() {
 												>
 													GitHub Developer Settings
 												</a>
-												. The PAT will be used to fetch repositories and then stored securely to
-												enable indexing.
+												. The PAT will be used to fetch repositories and then
+												stored securely to enable indexing.
 											</AlertDescription>
 										</Alert>
 
-										<form onSubmit={form.handleSubmit(fetchRepositories)} className="space-y-6">
+										<form
+											onSubmit={form.handleSubmit(handleFetchRepositories)}
+											className="space-y-6"
+										>
 											<FormField
 												control={form.control}
 												name="name"
@@ -266,10 +251,14 @@ export default function GithubConnectorPage() {
 													<FormItem>
 														<FormLabel>Connector Name</FormLabel>
 														<FormControl>
-															<Input placeholder="My GitHub Connector" {...field} />
+															<Input
+																placeholder="My GitHub Connector"
+																{...field}
+															/>
 														</FormControl>
 														<FormDescription>
-															A friendly name to identify this GitHub connection.
+															A friendly name to identify this GitHub
+															connection.
 														</FormDescription>
 														<FormMessage />
 													</FormItem>
@@ -281,7 +270,9 @@ export default function GithubConnectorPage() {
 												name="github_pat"
 												render={({ field }) => (
 													<FormItem>
-														<FormLabel>GitHub Personal Access Token (PAT)</FormLabel>
+														<FormLabel>
+															GitHub Personal Access Token (PAT)
+														</FormLabel>
 														<FormControl>
 															<Input
 																type="password"
@@ -290,8 +281,8 @@ export default function GithubConnectorPage() {
 															/>
 														</FormControl>
 														<FormDescription>
-															Enter your GitHub PAT here to fetch your repositories. It will be
-															stored encrypted later.
+															Enter your GitHub PAT here to fetch your
+															repositories. It will be stored encrypted later.
 														</FormDescription>
 														<FormMessage />
 													</FormItem>
@@ -325,16 +316,22 @@ export default function GithubConnectorPage() {
 												<CircleAlert className="h-4 w-4" />
 												<AlertTitle>No Repositories Found</AlertTitle>
 												<AlertDescription>
-													No repositories were found or accessible with the provided PAT. Please
-													check the token and its permissions, then go back and try again.
+													No repositories were found or accessible with the
+													provided PAT. Please check the token and its
+													permissions, then go back and try again.
 												</AlertDescription>
 											</Alert>
 										) : (
 											<div className="space-y-4">
-												<FormLabel>Repositories ({selectedRepos.length} selected)</FormLabel>
+												<FormLabel>
+													Repositories ({selectedRepos.length} selected)
+												</FormLabel>
 												<div className="h-64 w-full rounded-md border p-4 overflow-y-auto">
 													{repositories.map((repo) => (
-														<div key={repo.id} className="flex items-center space-x-2 mb-2 py-1">
+														<div
+															key={repo.id}
+															className="flex items-center space-x-2 mb-2 py-1"
+														>
 															<Checkbox
 																id={`repo-${repo.id}`}
 																checked={selectedRepos.includes(repo.full_name)}
@@ -352,8 +349,8 @@ export default function GithubConnectorPage() {
 													))}
 												</div>
 												<FormDescription>
-													Select the repositories you wish to index. Only checked repositories will
-													be processed.
+													Select the repositories you wish to index. Only
+													checked repositories will be processed.
 												</FormDescription>
 
 												<div className="flex justify-between items-center pt-4">
@@ -364,14 +361,19 @@ export default function GithubConnectorPage() {
 															setRepositories([]);
 															setSelectedRepos([]);
 															setValidatedPat("");
-															form.reset({ name: connectorName, github_pat: "" });
+															form.reset({
+																name: connectorName,
+																github_pat: "",
+															});
 														}}
 													>
 														Back
 													</Button>
 													<Button
 														onClick={handleCreateConnector}
-														disabled={isCreatingConnector || selectedRepos.length === 0}
+														disabled={
+															isCreatingConnector || selectedRepos.length === 0
+														}
 														className="w-full sm:w-auto"
 													>
 														{isCreatingConnector ? (
@@ -394,12 +396,22 @@ export default function GithubConnectorPage() {
 							</Form>
 
 							<CardFooter className="flex flex-col items-start border-t bg-muted/50 px-6 py-4">
-								<h4 className="text-sm font-medium">What you get with GitHub integration:</h4>
+								<h4 className="text-sm font-medium">
+									What you get with GitHub integration:
+								</h4>
 								<ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
-									<li>Search through code and documentation in your selected repositories</li>
+									<li>
+										Search through code and documentation in your selected
+										repositories
+									</li>
 									<li>Access READMEs, Markdown files, and common code files</li>
-									<li>Connect your project knowledge directly to your search space</li>
-									<li>Index your selected repositories for enhanced search capabilities</li>
+									<li>
+										Connect your project knowledge directly to your search space
+									</li>
+									<li>
+										Index your selected repositories for enhanced search
+										capabilities
+									</li>
 								</ul>
 							</CardFooter>
 						</Card>
@@ -408,30 +420,35 @@ export default function GithubConnectorPage() {
 					<TabsContent value="documentation">
 						<Card className="border-2 border-border">
 							<CardHeader>
-								<CardTitle className="text-2xl font-bold">GitHub Connector Setup Guide</CardTitle>
+								<CardTitle className="text-2xl font-bold">
+									GitHub Connector Setup Guide
+								</CardTitle>
 								<CardDescription>
-									Learn how to generate a Personal Access Token (PAT) and connect your GitHub
-									account.
+									Learn how to generate a Personal Access Token (PAT) and
+									connect your GitHub account.
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-6">
 								<div>
 									<h3 className="text-xl font-semibold mb-2">How it works</h3>
 									<p className="text-muted-foreground">
-										The GitHub connector uses a Personal Access Token (PAT) to authenticate with the
-										GitHub API. First, it fetches a list of repositories accessible to the token.
-										You then select which repositories you want to index. The connector indexes
-										relevant files (code, markdown, text) from only the selected repositories.
+										The GitHub connector uses a Personal Access Token (PAT) to
+										authenticate with the GitHub API. First, it fetches a list
+										of repositories accessible to the token. You then select
+										which repositories you want to index. The connector indexes
+										relevant files (code, markdown, text) from only the selected
+										repositories.
 									</p>
 									<ul className="mt-2 list-disc pl-5 text-muted-foreground">
 										<li>
-											The connector indexes files based on common code and documentation extensions.
+											The connector indexes files based on common code and
+											documentation extensions.
 										</li>
 										<li>Large files (over 1MB) are skipped during indexing.</li>
 										<li>Only selected repositories are indexed.</li>
 										<li>
-											Indexing runs periodically (check connector settings for frequency) to keep
-											content up-to-date.
+											Indexing runs periodically (check connector settings for
+											frequency) to keep content up-to-date.
 										</li>
 									</ul>
 								</div>
@@ -444,7 +461,9 @@ export default function GithubConnectorPage() {
 										<AccordionContent>
 											<div className="space-y-6">
 												<div>
-													<h4 className="font-medium mb-2">Generating a Token:</h4>
+													<h4 className="font-medium mb-2">
+														Generating a Token:
+													</h4>
 													<ol className="list-decimal pl-5 space-y-3">
 														<li>
 															Go to your GitHub{" "}
@@ -459,34 +478,39 @@ export default function GithubConnectorPage() {
 															.
 														</li>
 														<li>
-															Click on <strong>Personal access tokens</strong>, then choose{" "}
-															<strong>Tokens (classic)</strong> or{" "}
-															<strong>Fine-grained tokens</strong> (recommended if available and
-															suitable).
+															Click on <strong>Personal access tokens</strong>,
+															then choose <strong>Tokens (classic)</strong> or{" "}
+															<strong>Fine-grained tokens</strong> (recommended
+															if available and suitable).
 														</li>
 														<li>
-															Click <strong>Generate new token</strong> (and choose the appropriate
-															type).
+															Click <strong>Generate new token</strong> (and
+															choose the appropriate type).
 														</li>
 														<li>
-															Give your token a descriptive name (e.g., "SurfSense Connector").
+															Give your token a descriptive name (e.g.,
+															"SurfSense Connector").
 														</li>
 														<li>
-															Set an expiration date for the token (recommended for security).
+															Set an expiration date for the token (recommended
+															for security).
 														</li>
 														<li>
-															Under <strong>Select scopes</strong> (for classic tokens) or{" "}
-															<strong>Repository access</strong> (for fine-grained), grant the
-															necessary permissions. At minimum, the <strong>`repo`</strong> scope
-															(or equivalent read access to repositories for fine-grained tokens) is
-															required to read repository content.
+															Under <strong>Select scopes</strong> (for classic
+															tokens) or <strong>Repository access</strong> (for
+															fine-grained), grant the necessary permissions. At
+															minimum, the <strong>`repo`</strong> scope (or
+															equivalent read access to repositories for
+															fine-grained tokens) is required to read
+															repository content.
 														</li>
 														<li>
 															Click <strong>Generate token</strong>.
 														</li>
 														<li>
-															<strong>Important:</strong> Copy your new PAT immediately. You won't
-															be able to see it again after leaving the page.
+															<strong>Important:</strong> Copy your new PAT
+															immediately. You won't be able to see it again
+															after leaving the page.
 														</li>
 													</ol>
 												</div>
@@ -503,24 +527,27 @@ export default function GithubConnectorPage() {
 												<li>Navigate to the "Connect GitHub" tab.</li>
 												<li>Enter a name for your connector.</li>
 												<li>
-													Paste the copied GitHub PAT into the "GitHub Personal Access Token (PAT)"
-													field.
+													Paste the copied GitHub PAT into the "GitHub Personal
+													Access Token (PAT)" field.
 												</li>
 												<li>
 													Click <strong>Fetch Repositories</strong>.
 												</li>
 												<li>
-													If the PAT is valid, you'll see a list of your accessible repositories.
+													If the PAT is valid, you'll see a list of your
+													accessible repositories.
 												</li>
 												<li>
-													Select the repositories you want SurfSense to index using the checkboxes.
+													Select the repositories you want SurfSense to index
+													using the checkboxes.
 												</li>
 												<li>
 													Click the <strong>Create Connector</strong> button.
 												</li>
 												<li>
-													If the connection is successful, you will be redirected and can start
-													indexing from the Connectors page.
+													If the connection is successful, you will be
+													redirected and can start indexing from the Connectors
+													page.
 												</li>
 											</ol>
 										</AccordionContent>

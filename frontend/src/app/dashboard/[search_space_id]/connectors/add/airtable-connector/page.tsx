@@ -1,11 +1,10 @@
 "use client";
-
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import useInitiateAirtableOAuth from "@/api/connectors/hooks/useInitiateAirtableOAuth";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -27,49 +26,29 @@ export default function AirtableConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
-	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { fetchConnectors } = useSearchSourceConnectors(true, parseInt(searchSpaceId));
+	const { fetchConnectors } = useSearchSourceConnectors(
+		true,
+		parseInt(searchSpaceId),
+	);
+	const { mutate: initiateAirtableOAuth, isPending } =
+		useInitiateAirtableOAuth();
 
 	useEffect(() => {
 		fetchConnectors(parseInt(searchSpaceId)).then((data) => {
 			const connector = data.find(
-				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.AIRTABLE_CONNECTOR
+				(c: SearchSourceConnector) =>
+					c.connector_type === EnumConnectorName.AIRTABLE_CONNECTOR,
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
 			}
 		});
-	}, []);
+	}, [fetchConnectors, searchSpaceId]);
 
-	const handleConnectAirtable = async () => {
-		setIsConnecting(true);
-		try {
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/auth/airtable/connector/add/?space_id=${searchSpaceId}`,
-				{
-					method: "GET",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to initiate Airtable OAuth");
-			}
-
-			const data = await response.json();
-
-			// Redirect to Airtable for authentication
-			window.location.href = data.auth_url;
-		} catch (error) {
-			console.error("Error connecting to Airtable:", error);
-			toast.error("Failed to connect to Airtable");
-		} finally {
-			setIsConnecting(false);
-		}
+	const handleConnectAirtable = () => {
+		initiateAirtableOAuth({ space_id: searchSpaceId });
 	};
 
 	return (
@@ -90,11 +69,18 @@ export default function AirtableConnectorPage() {
 					</Link>
 					<div className="flex items-center gap-4">
 						<div className="flex h-12 w-12 items-center justify-center rounded-lg">
-							{getConnectorIcon(EnumConnectorName.AIRTABLE_CONNECTOR, "h-6 w-6")}
+							{getConnectorIcon(
+								EnumConnectorName.AIRTABLE_CONNECTOR,
+								"h-6 w-6",
+							)}
 						</div>
 						<div>
-							<h1 className="text-3xl font-bold tracking-tight">Connect Airtable</h1>
-							<p className="text-muted-foreground">Connect your Airtable to search records.</p>
+							<h1 className="text-3xl font-bold tracking-tight">
+								Connect Airtable
+							</h1>
+							<p className="text-muted-foreground">
+								Connect your Airtable to search records.
+							</p>
 						</div>
 					</div>
 				</div>
@@ -105,8 +91,8 @@ export default function AirtableConnectorPage() {
 						<CardHeader>
 							<CardTitle>Connect Your Airtable Account</CardTitle>
 							<CardDescription>
-								Connect your Airtable account to access your records. We'll only request read-only
-								access to your records.
+								Connect your Airtable account to access your records. We'll only
+								request read-only access to your records.
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
@@ -127,12 +113,14 @@ export default function AirtableConnectorPage() {
 							<Button
 								type="button"
 								variant="outline"
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}
+								onClick={() =>
+									router.push(`/dashboard/${searchSpaceId}/connectors/add`)
+								}
 							>
 								Cancel
 							</Button>
-							<Button onClick={handleConnectAirtable} disabled={isConnecting}>
-								{isConnecting ? (
+							<Button onClick={handleConnectAirtable} disabled={isPending}>
+								{isPending ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 										Connecting...
@@ -165,15 +153,15 @@ export default function AirtableConnectorPage() {
 							<div>
 								<h4 className="font-medium mb-2">1. Connect Your Account</h4>
 								<p className="text-sm text-muted-foreground">
-									Click "Connect Your Airtable Account" to start the secure OAuth process. You'll be
-									redirected to Airtable to sign in.
+									Click "Connect Your Airtable Account" to start the secure
+									OAuth process. You'll be redirected to Airtable to sign in.
 								</p>
 							</div>
 							<div>
 								<h4 className="font-medium mb-2">2. Grant Permissions</h4>
 								<p className="text-sm text-muted-foreground">
-									Airtable will ask for permission to read your records. We only request read-only
-									access to keep your data safe.
+									Airtable will ask for permission to read your records. We only
+									request read-only access to keep your data safe.
 								</p>
 							</div>
 						</CardContent>

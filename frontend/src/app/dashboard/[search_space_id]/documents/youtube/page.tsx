@@ -7,6 +7,7 @@ import { motion, type Variants } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import useAddYouTubeVideos from "@/api/documents/hooks/useAddYouTubeVideos";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -29,8 +30,14 @@ export default function YouTubeVideoAdder() {
 
 	const [videoTags, setVideoTags] = useState<Tag[]>([]);
 	const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	const { mutate: addYouTubeVideos, isPending: isSubmitting } =
+		useAddYouTubeVideos({
+			onSuccess: () => {
+				router.push(`/dashboard/${search_space_id}/documents`);
+			},
+		});
 
 	// Function to validate a YouTube URL
 	const isValidYoutubeUrl = (url: string): boolean => {
@@ -46,7 +53,7 @@ export default function YouTubeVideoAdder() {
 	};
 
 	// Function to handle video URL submission
-	const handleSubmit = async () => {
+	const handleSubmit = () => {
 		// Validate that we have at least one video URL
 		if (videoTags.length === 0) {
 			setError("Please add at least one YouTube video URL");
@@ -63,53 +70,15 @@ export default function YouTubeVideoAdder() {
 		}
 
 		setError(null);
-		setIsSubmitting(true);
 
-		try {
-			toast("Processing YouTube videos", {
-				description: "Your videos are being processed...",
-			});
+		// Extract URLs from tags
+		const videoUrls = videoTags.map((tag) => tag.text);
 
-			// Extract URLs from tags
-			const videoUrls = videoTags.map((tag) => tag.text);
-
-			// Make API call to backend
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					body: JSON.stringify({
-						document_type: "YOUTUBE_VIDEO",
-						content: videoUrls,
-						search_space_id: parseInt(search_space_id),
-					}),
-				},
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to process YouTube videos");
-			}
-
-			await response.json();
-
-			toast("Success", {
-				description: "YouTube videos added successfully",
-			});
-
-			// Redirect to documents page
-			router.push(`/dashboard/${search_space_id}/documents`);
-		} catch (error: any) {
-			setError(error.message || "An error occurred");
-			toast("Error", {
-				description: `Failed to process videos: ${error.message}`,
-			});
-		} finally {
-			setIsSubmitting(false);
-		}
+		addYouTubeVideos({
+			document_type: "YOUTUBE_VIDEO",
+			content: videoUrls,
+			search_space_id: parseInt(search_space_id),
+		});
 	};
 
 	// Function to add a new video URL tag
@@ -209,7 +178,7 @@ export default function YouTubeVideoAdder() {
 										setActiveTagIndex={setActiveTagIndex}
 									/>
 									<p className="text-xs text-muted-foreground mt-1">
-										{t("hint")}
+										Paste YouTube URLs and press Enter to add them
 									</p>
 								</div>
 

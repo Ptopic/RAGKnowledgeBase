@@ -1,22 +1,18 @@
-// Types for connector API
-export interface ConnectorConfig {
-	[key: string]: string;
-}
+// Re-export types from API
 
-export interface Connector {
-	id: number;
-	name: string;
-	connector_type: string;
-	config: ConnectorConfig;
-	created_at: string;
-	user_id: string;
-}
-
-export interface CreateConnectorRequest {
-	name: string;
-	connector_type: string;
-	config: ConnectorConfig;
-}
+// Re-export hooks from API
+export { default as useCreateConnector } from "@/api/connectors/hooks/useCreateConnector";
+export { default as useDeleteConnector } from "@/api/connectors/hooks/useDeleteConnector";
+export { default as useGetConnector } from "@/api/connectors/hooks/useGetConnector";
+export { default as useGetConnectors } from "@/api/connectors/hooks/useGetConnectors";
+export { default as useUpdateConnector } from "@/api/connectors/hooks/useUpdateConnector";
+export type {
+	Connector,
+	ConnectorConfig,
+	CreateConnectorRequest,
+	GetConnectorsParams,
+	UpdateConnectorRequest,
+} from "@/api/connectors/types";
 
 // Get connector type display name
 export const getConnectorTypeDisplay = (type: string): string => {
@@ -28,105 +24,40 @@ export const getConnectorTypeDisplay = (type: string): string => {
 	return typeMap[type] || type;
 };
 
-// API service for connectors
+import connectorsClientRequests from "@/api/connectors/authClientRequests";
+import type {
+	Connector,
+	CreateConnectorRequest,
+	GetConnectorsParams,
+} from "@/api/connectors/types";
+
 export const ConnectorService = {
 	// Create a new connector
 	async createConnector(data: CreateConnectorRequest): Promise<Connector> {
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-				body: JSON.stringify(data),
-			}
-		);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.detail || "Failed to create connector");
-		}
-
-		return response.json();
+		return connectorsClientRequests.createConnector(data);
 	},
 
 	// Get all connectors
 	async getConnectors(skip = 0, limit = 100): Promise<Connector[]> {
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors?skip=${skip}&limit=${limit}`,
-			{
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-			}
-		);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.detail || "Failed to fetch connectors");
-		}
-
-		return response.json();
+		const params: GetConnectorsParams = { skip, limit };
+		return connectorsClientRequests.getConnectors(params);
 	},
 
 	// Get a specific connector
 	async getConnector(connectorId: number): Promise<Connector> {
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
-			{
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-			}
-		);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.detail || "Failed to fetch connector");
-		}
-
-		return response.json();
+		return connectorsClientRequests.getConnector(connectorId);
 	},
 
 	// Update a connector
-	async updateConnector(connectorId: number, data: CreateConnectorRequest): Promise<Connector> {
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
-			{
-				method: "PUT",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-				body: JSON.stringify(data),
-			}
-		);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.detail || "Failed to update connector");
-		}
-
-		return response.json();
+	async updateConnector(
+		connectorId: number,
+		data: CreateConnectorRequest,
+	): Promise<Connector> {
+		return connectorsClientRequests.updateConnector(connectorId, data);
 	},
 
 	// Delete a connector
 	async deleteConnector(connectorId: number): Promise<void> {
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
-			{
-				method: "DELETE",
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-			}
-		);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.detail || "Failed to delete connector");
-		}
+		return connectorsClientRequests.deleteConnector(connectorId);
 	},
 };

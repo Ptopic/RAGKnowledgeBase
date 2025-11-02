@@ -1,5 +1,10 @@
 import type { Message } from "@ai-sdk/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
+import chatsClientRequests from "@/api/chats/authClientRequests";
+import useCreateChat from "@/api/chats/hooks/useCreateChat";
+import useUpdateChat from "@/api/chats/hooks/useUpdateChat";
+import type { CreateChatRequest, UpdateChatRequest } from "@/api/chats/types";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
 
@@ -11,10 +16,14 @@ interface UseChatStateProps {
 export function useChatState({ chat_id }: UseChatStateProps) {
 	const [token, setToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
-	const [currentChatId, setCurrentChatId] = useState<string | null>(chat_id || null);
+	const [currentChatId, setCurrentChatId] = useState<string | null>(
+		chat_id || null,
+	);
 
 	// Chat configuration state
-	const [searchMode, setSearchMode] = useState<"DOCUMENTS" | "CHUNKS">("CHUNKS");
+	const [searchMode, setSearchMode] = useState<"DOCUMENTS" | "CHUNKS">(
+		"CHUNKS",
+	);
 	const [researchMode, setResearchMode] = useState<ResearchMode>("QNA");
 	const [selectedConnectors, setSelectedConnectors] = useState<string[]>([]);
 	const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
@@ -48,40 +57,33 @@ interface UseChatAPIProps {
 }
 
 export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
+	const queryClient = useQueryClient();
+	const { mutateAsync: createChatMutation } = useCreateChat();
+	const { mutateAsync: updateChatMutation } = useUpdateChat();
+
 	const fetchChatDetails = useCallback(
 		async (chatId: string) => {
 			if (!token) return null;
 
 			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chatId)}`,
-					{
-						method: "GET",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-					}
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to fetch chat details: ${response.statusText}`);
-				}
-
-				return await response.json();
+				const data = await queryClient.fetchQuery({
+					queryKey: ["chatDetails", Number(chatId)],
+					queryFn: () => chatsClientRequests.getChatDetails(Number(chatId)),
+				});
+				return data || null;
 			} catch (err) {
 				console.error("Error fetching chat details:", err);
 				return null;
 			}
 		},
-		[token]
+		[token, queryClient],
 	);
 
 	const createChat = useCallback(
 		async (
 			initialMessage: string,
 			researchMode: ResearchMode,
-			selectedConnectors: string[]
+			selectedConnectors: string[],
 		): Promise<string | null> => {
 			if (!token) {
 				console.error("Authentication token not found");
@@ -89,41 +91,28 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 			}
 
 			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats`,
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({
-							type: researchMode,
-							title: "Untitled Chat",
-							initial_connectors: selectedConnectors,
-							messages: [
-								{
-									role: "user",
-									content: initialMessage,
-								},
-							],
-							search_space_id: Number(search_space_id),
-						}),
-					}
-				);
+				const request: CreateChatRequest = {
+					type: researchMode,
+					title: "Untitled Chat",
+					initial_connectors: selectedConnectors,
+					messages: [
+						{
+							id: `temp-${Date.now()}`,
+							role: "user",
+							content: initialMessage,
+						} as Message,
+					],
+					search_space_id: Number(search_space_id),
+				};
 
-				if (!response.ok) {
-					throw new Error(`Failed to create chat: ${response.statusText}`);
-				}
-
-				const data = await response.json();
-				return data.id;
+				const response = await createChatMutation(request);
+				return response.id.toString();
 			} catch (err) {
 				console.error("Error creating chat:", err);
 				return null;
 			}
 		},
-		[token, search_space_id]
+		[token, search_space_id, createChatMutation],
 	);
 
 	const updateChat = useCallback(
@@ -131,7 +120,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 			chatId: string,
 			messages: Message[],
 			researchMode: ResearchMode,
-			selectedConnectors: string[]
+			selectedConnectors: string[],
 		) => {
 			if (!token) return;
 
@@ -141,32 +130,23 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 
 				const title = userMessages[0].content;
 
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chatId)}`,
-					{
-						method: "PUT",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({
-							type: researchMode,
-							title: title,
-							initial_connectors: selectedConnectors,
-							messages: messages,
-							search_space_id: Number(search_space_id),
-						}),
-					}
-				);
+				const request: UpdateChatRequest = {
+					type: researchMode,
+					title: title,
+					initial_connectors: selectedConnectors,
+					messages: messages,
+					search_space_id: Number(search_space_id),
+				};
 
-				if (!response.ok) {
-					throw new Error(`Failed to update chat: ${response.statusText}`);
-				}
+				await updateChatMutation({
+					id: Number(chatId),
+					data: request,
+				});
 			} catch (err) {
 				console.error("Error updating chat:", err);
 			}
 		},
-		[token, search_space_id]
+		[token, search_space_id, updateChatMutation],
 	);
 
 	return {

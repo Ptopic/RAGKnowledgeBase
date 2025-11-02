@@ -1,36 +1,18 @@
 "use client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { normalizeListResponse } from "@/lib/pagination";
+import documentsClientRequests from "@/api/documents/authClientRequests";
+import useDeleteDocument from "@/api/documents/hooks/useDeleteDocument";
+import type {
+	Document,
+	DocumentType,
+	GetDocumentsParams,
+	SearchDocumentsParams,
+} from "@/api/documents/types";
 
-export interface Document {
-	id: number;
-	title: string;
-	document_type: DocumentType;
-	document_metadata: any;
-	content: string;
-	created_at: string;
-	search_space_id: number;
-}
-
-export type DocumentType =
-	| "EXTENSION"
-	| "CRAWLED_URL"
-	| "SLACK_CONNECTOR"
-	| "NOTION_CONNECTOR"
-	| "FILE"
-	| "YOUTUBE_VIDEO"
-	| "GITHUB_CONNECTOR"
-	| "LINEAR_CONNECTOR"
-	| "DISCORD_CONNECTOR"
-	| "JIRA_CONNECTOR"
-	| "CONFLUENCE_CONNECTOR"
-	| "CLICKUP_CONNECTOR"
-	| "GOOGLE_CALENDAR_CONNECTOR"
-	| "GOOGLE_GMAIL_CONNECTOR"
-	| "AIRTABLE_CONNECTOR"
-	| "LUMA_CONNECTOR"
-	| "ELASTICSEARCH_CONNECTOR";
+// Re-export types for backward compatibility
+export type { Document, DocumentType };
 
 export interface UseDocumentsOptions {
 	page?: number;
@@ -39,74 +21,75 @@ export interface UseDocumentsOptions {
 	documentTypes?: string[];
 }
 
-export function useDocuments(searchSpaceId: number, options?: UseDocumentsOptions | boolean) {
+export function useDocuments(
+	searchSpaceId: number,
+	options?: UseDocumentsOptions | boolean,
+) {
 	// Support both old boolean API and new options API for backward compatibility
 	const opts = typeof options === "boolean" ? { lazy: options } : options || {};
 	const { page, pageSize = 300, lazy = false, documentTypes } = opts;
 
+	const queryClient = useQueryClient();
 	const [documents, setDocuments] = useState<Document[]>([]);
 	const [total, setTotal] = useState(0);
-	const [loading, setLoading] = useState(!lazy); // Don't show loading initially for lazy mode
+	const [loading, setLoading] = useState(!lazy);
 	const [error, setError] = useState<string | null>(null);
-	const [isLoaded, setIsLoaded] = useState(false); // Memoization flag
+	const [isLoaded, setIsLoaded] = useState(false);
+
+	const { mutate: deleteDocumentMutation } = useDeleteDocument({
+		onSuccess: (_, documentId) => {
+			// Update local state after successful deletion
+			setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+		},
+	});
 
 	const fetchDocuments = useCallback(
-		async (fetchPage?: number, fetchPageSize?: number, fetchDocumentTypes?: string[]) => {
+		async (
+			fetchPage?: number,
+			fetchPageSize?: number,
+			fetchDocumentTypes?: string[],
+		) => {
 			if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
 
 			try {
 				setLoading(true);
+				setError(null);
 
-				// Build query params
-				const params = new URLSearchParams({
-					search_space_id: searchSpaceId.toString(),
+				const params: GetDocumentsParams = {
+					search_space_id: searchSpaceId,
+					page: fetchPage !== undefined ? fetchPage : page,
+					page_size: fetchPageSize !== undefined ? fetchPageSize : pageSize,
+					document_types:
+						fetchDocumentTypes !== undefined
+							? fetchDocumentTypes
+							: documentTypes,
+				};
+
+				const result = await queryClient.fetchQuery({
+					queryKey: [
+						"documents",
+						params.search_space_id,
+						params.page,
+						params.page_size,
+						params.document_types,
+					],
+					queryFn: () => documentsClientRequests.getDocuments(params),
 				});
 
-				// Use passed parameters or fall back to state/options
-				const effectivePage = fetchPage !== undefined ? fetchPage : page;
-				const effectivePageSize = fetchPageSize !== undefined ? fetchPageSize : pageSize;
-				const effectiveDocumentTypes =
-					fetchDocumentTypes !== undefined ? fetchDocumentTypes : documentTypes;
-
-				if (effectivePage !== undefined) {
-					params.append("page", effectivePage.toString());
-				}
-				if (effectivePageSize !== undefined) {
-					params.append("page_size", effectivePageSize.toString());
-				}
-				if (effectiveDocumentTypes && effectiveDocumentTypes.length > 0) {
-					params.append("document_types", effectiveDocumentTypes.join(","));
-				}
-
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
-				);
-
-				if (!response.ok) {
-					toast.error("Failed to fetch documents");
-					throw new Error("Failed to fetch documents");
-				}
-
-				const data = await response.json();
-				const normalized = normalizeListResponse<Document>(data);
-				setDocuments(normalized.items);
-				setTotal(normalized.total);
-				setError(null);
+				setDocuments(result.items);
+				setTotal(result.total);
 				setIsLoaded(true);
-			} catch (err: any) {
-				setError(err.message || "Failed to fetch documents");
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error ? err.message : "Failed to fetch documents";
+				setError(errorMessage);
 				console.error("Error fetching documents:", err);
+				toast.error("Failed to fetch documents");
 			} finally {
 				setLoading(false);
 			}
 		},
-		[searchSpaceId, page, pageSize, documentTypes, isLoaded, lazy]
+		[searchSpaceId, page, pageSize, documentTypes, isLoaded, lazy, queryClient],
 	);
 
 	useEffect(() => {
@@ -118,8 +101,11 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 	// Function to refresh the documents list
 	const refreshDocuments = useCallback(async () => {
 		setIsLoaded(false); // Reset memoization flag to allow refetch
+		await queryClient.invalidateQueries({
+			queryKey: ["documents", searchSpaceId],
+		});
 		await fetchDocuments();
-	}, [fetchDocuments]);
+	}, [fetchDocuments, queryClient, searchSpaceId]);
 
 	// Function to search documents by title
 	const searchDocuments = useCallback(
@@ -127,7 +113,7 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 			searchQuery: string,
 			fetchPage?: number,
 			fetchPageSize?: number,
-			fetchDocumentTypes?: string[]
+			fetchDocumentTypes?: string[],
 		) => {
 			if (!searchQuery.trim()) {
 				// If search is empty, fetch all documents
@@ -136,119 +122,83 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 
 			try {
 				setLoading(true);
+				setError(null);
 
-				// Build query params
-				const params = new URLSearchParams({
-					search_space_id: searchSpaceId.toString(),
+				const params: SearchDocumentsParams = {
+					search_space_id: searchSpaceId,
 					title: searchQuery,
+					page: fetchPage !== undefined ? fetchPage : page,
+					page_size: fetchPageSize !== undefined ? fetchPageSize : pageSize,
+					document_types:
+						fetchDocumentTypes !== undefined
+							? fetchDocumentTypes
+							: documentTypes,
+				};
+
+				const result = await queryClient.fetchQuery({
+					queryKey: [
+						"searchDocuments",
+						params.search_space_id,
+						params.title,
+						params.page,
+						params.page_size,
+						params.document_types,
+					],
+					queryFn: () => documentsClientRequests.searchDocuments(params),
 				});
 
-				// Use passed parameters or fall back to state/options
-				const effectivePage = fetchPage !== undefined ? fetchPage : page;
-				const effectivePageSize = fetchPageSize !== undefined ? fetchPageSize : pageSize;
-				const effectiveDocumentTypes =
-					fetchDocumentTypes !== undefined ? fetchDocumentTypes : documentTypes;
-
-				if (effectivePage !== undefined) {
-					params.append("page", effectivePage.toString());
-				}
-				if (effectivePageSize !== undefined) {
-					params.append("page_size", effectivePageSize.toString());
-				}
-				if (effectiveDocumentTypes && effectiveDocumentTypes.length > 0) {
-					params.append("document_types", effectiveDocumentTypes.join(","));
-				}
-
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/search?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
-				);
-
-				if (!response.ok) {
-					toast.error("Failed to search documents");
-					throw new Error("Failed to search documents");
-				}
-
-				const data = await response.json();
-				const normalized = normalizeListResponse<Document>(data);
-				setDocuments(normalized.items);
-				setTotal(normalized.total);
-				setError(null);
-			} catch (err: any) {
-				setError(err.message || "Failed to search documents");
+				setDocuments(result.items);
+				setTotal(result.total);
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error ? err.message : "Failed to search documents";
+				setError(errorMessage);
 				console.error("Error searching documents:", err);
+				toast.error("Failed to search documents");
 			} finally {
 				setLoading(false);
 			}
 		},
-		[searchSpaceId, page, pageSize, documentTypes, fetchDocuments]
+		[searchSpaceId, page, pageSize, documentTypes, fetchDocuments, queryClient],
 	);
 
 	// Function to delete a document
 	const deleteDocument = useCallback(
 		async (documentId: number) => {
 			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "DELETE",
-					}
-				);
-
-				if (!response.ok) {
-					toast.error("Failed to delete document");
-					throw new Error("Failed to delete document");
-				}
-
-				toast.success("Document deleted successfully");
-				// Update the local state after successful deletion
-				setDocuments(documents.filter((doc) => doc.id !== documentId));
+				deleteDocumentMutation(documentId);
 				return true;
-			} catch (err: any) {
-				toast.error(err.message || "Failed to delete document");
+			} catch (err) {
 				console.error("Error deleting document:", err);
 				return false;
 			}
 		},
-		[documents]
+		[deleteDocumentMutation],
 	);
 
 	// Function to get document type counts
 	const getDocumentTypeCounts = useCallback(async () => {
 		try {
-			const params = new URLSearchParams({
-				search_space_id: searchSpaceId.toString(),
+			const result = await queryClient.fetchQuery({
+				queryKey: ["documentTypeCounts", searchSpaceId],
+				queryFn: () =>
+					documentsClientRequests.getDocumentTypeCounts({
+						search_space_id: searchSpaceId,
+					}),
 			});
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/type-counts?${params.toString()}`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+			// Convert array to Record<string, number>
+			return result.reduce(
+				(acc, item) => {
+					acc[item.type] = item.count;
+					return acc;
+				},
+				{} as Record<string, number>,
 			);
-
-			if (!response.ok) {
-				throw new Error("Failed to fetch document type counts");
-			}
-
-			const counts = await response.json();
-			return counts as Record<string, number>;
-		} catch (err: any) {
+		} catch (err) {
 			console.error("Error fetching document type counts:", err);
 			return {};
 		}
-	}, [searchSpaceId]);
+	}, [searchSpaceId, queryClient]);
 
 	return {
 		documents,

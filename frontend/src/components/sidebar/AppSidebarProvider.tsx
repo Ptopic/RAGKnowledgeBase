@@ -1,7 +1,8 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
+import useGetChats from "@/api/chats/hooks/useGetChats";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,24 +13,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { apiClient } from "@/lib/api";
-
-interface Chat {
-	created_at: string;
-	id: number;
-	type: string;
-	title: string;
-	messages: string[];
-	search_space_id: number;
-}
-
-interface SearchSpace {
-	created_at: string;
-	id: number;
-	name: string;
-	description: string;
-	user_id: string;
-}
+import { Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 interface AppSidebarProviderProps {
 	searchSpaceId: string;
@@ -55,24 +40,8 @@ export function AppSidebarProvider({
 	navSecondary,
 	navMain,
 }: AppSidebarProviderProps) {
-	const [recentChats, setRecentChats] = useState<
-		{
-			name: string;
-			url: string;
-			icon: string;
-			id: number;
-			search_space_id: number;
-			actions: { name: string; icon: string; onClick: () => void }[];
-		}[]
-	>([]);
-	const [searchSpace, setSearchSpace] = useState<SearchSpace | null>(null);
-	const [isLoadingChats, setIsLoadingChats] = useState(true);
-	const [isLoadingSearchSpace, setIsLoadingSearchSpace] = useState(true);
-	const [chatError, setChatError] = useState<string | null>(null);
-	const [searchSpaceError, setSearchSpaceError] = useState<string | null>(null);
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
 	const [isClient, setIsClient] = useState(false);
 
 	// Set isClient to true when component mounts on the client
@@ -80,116 +49,76 @@ export function AppSidebarProvider({
 		setIsClient(true);
 	}, []);
 
-	// Memoized fetch function for chats
-	const fetchRecentChats = useCallback(async () => {
-		try {
-			// Only run on client-side
-			if (typeof window === "undefined") return;
-
-			const chats: Chat[] = await apiClient.get<Chat[]>(
-				`api/v1/chats?limit=5&skip=0&search_space_id=${searchSpaceId}`
-			);
-
-			// Sort chats by created_at in descending order (newest first)
-			const sortedChats = chats.sort(
-				(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-			);
-
-			// Transform API response to the format expected by AppSidebar
-			const formattedChats = sortedChats.map((chat) => ({
-				name: chat.title || `Chat ${chat.id}`,
-				url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
-				icon: "MessageCircleMore",
-				id: chat.id,
-				search_space_id: chat.search_space_id,
-				actions: [
-					{
-						name: "Delete",
-						icon: "Trash2",
-						onClick: () => {
-							setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
-							setShowDeleteDialog(true);
-						},
-					},
-				],
-			}));
-
-			setRecentChats(formattedChats);
-			setChatError(null);
-		} catch (error) {
-			console.error("Error fetching chats:", error);
-			setChatError(error instanceof Error ? error.message : "Unknown error occurred");
-			setRecentChats([]);
-		} finally {
-			setIsLoadingChats(false);
+	// Fetch recent chats using React Query
+	const {
+		data: chats = [],
+		isLoading: isLoadingChats,
+		error: chatError,
+		refetch: refetchChats,
+	} = useGetChats(
+		{
+			search_space_id: Number(searchSpaceId),
+			limit: 5,
+			skip: 0,
+		},
+		{
+			refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
 		}
-	}, [searchSpaceId]);
+	);
 
-	// Memoized fetch function for search space
-	const fetchSearchSpace = useCallback(async () => {
-		try {
-			// Only run on client-side
-			if (typeof window === "undefined") return;
+	// Fetch search space details using React Query
+	const {
+		data: searchSpace,
+		isLoading: isLoadingSearchSpace,
+		error: searchSpaceError,
+		refetch: refetchSearchSpace,
+	} = useGetSearchSpace(Number(searchSpaceId));
 
-			const data: SearchSpace = await apiClient.get<SearchSpace>(
-				`api/v1/searchspaces/${searchSpaceId}`
-			);
-			setSearchSpace(data);
-			setSearchSpaceError(null);
-		} catch (error) {
-			console.error("Error fetching search space:", error);
-			setSearchSpaceError(error instanceof Error ? error.message : "Unknown error occurred");
-		} finally {
-			setIsLoadingSearchSpace(false);
-		}
-	}, [searchSpaceId]);
-
-	// Retry function
-	const retryFetch = useCallback(() => {
-		setChatError(null);
-		setSearchSpaceError(null);
-		setIsLoadingChats(true);
-		setIsLoadingSearchSpace(true);
-		fetchRecentChats();
-		fetchSearchSpace();
-	}, [fetchRecentChats, fetchSearchSpace]);
-
-	// Fetch recent chats
-	useEffect(() => {
-		fetchRecentChats();
-
-		// Set up a refresh interval (every 5 minutes)
-		const intervalId = setInterval(fetchRecentChats, 5 * 60 * 1000);
-
-		// Clean up interval on component unmount
-		return () => clearInterval(intervalId);
-	}, [fetchRecentChats]);
-
-	// Fetch search space details
-	useEffect(() => {
-		fetchSearchSpace();
-	}, [fetchSearchSpace]);
-
-	// Handle delete chat with better error handling
-	const handleDeleteChat = useCallback(async () => {
-		if (!chatToDelete) return;
-
-		try {
-			setIsDeleting(true);
-
-			await apiClient.delete(`api/v1/chats/${chatToDelete.id}`);
-
-			// Update local state
-			setRecentChats((prev) => prev.filter((chat) => chat.id !== chatToDelete.id));
-		} catch (error) {
-			console.error("Error deleting chat:", error);
-			// You could show a toast notification here
-		} finally {
-			setIsDeleting(false);
+	// Delete chat mutation
+	const { mutate: deleteChatMutation, isPending: isDeleting } = useDeleteChat({
+		onSuccess: () => {
 			setShowDeleteDialog(false);
 			setChatToDelete(null);
-		}
-	}, [chatToDelete]);
+		},
+	});
+
+	// Transform chats to the format expected by AppSidebar
+	const recentChats = useMemo(() => {
+		// Sort chats by created_at in descending order (newest first)
+		const sortedChats = [...chats].sort(
+			(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+		);
+
+		return sortedChats.map((chat) => ({
+			name: chat.title || `Chat ${chat.id}`,
+			url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
+			icon: "MessageCircleMore",
+			id: chat.id,
+			search_space_id: chat.search_space_id,
+			actions: [
+				{
+					name: "Delete",
+					icon: "Trash2",
+					onClick: () => {
+						setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
+						setShowDeleteDialog(true);
+					},
+				},
+			],
+		}));
+	}, [chats]);
+
+	// Retry function
+	const retryFetch = () => {
+		refetchChats();
+		refetchSearchSpace();
+	};
+
+	// Handle delete chat
+	const handleDeleteChat = () => {
+		if (!chatToDelete) return;
+		deleteChatMutation(chatToDelete.id);
+	};
 
 	// Memoized fallback chats
 	const fallbackChats = useMemo(() => {

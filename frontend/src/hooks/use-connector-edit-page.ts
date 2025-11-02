@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import useFetchRepositories from "@/api/github/hooks/useFetchRepositories";
 import {
 	type EditConnectorFormValues,
 	type EditMode,
@@ -18,7 +19,9 @@ import {
 
 const normalizeListInput = (value: unknown): string[] => {
 	if (Array.isArray(value)) {
-		return value.map((item) => String(item).trim()).filter((item) => item.length > 0);
+		return value
+			.map((item) => String(item).trim())
+			.filter((item) => item.length > 0);
 	}
 	if (typeof value === "string") {
 		return value
@@ -48,7 +51,10 @@ const normalizeBoolean = (value: unknown): boolean | null => {
 	return null;
 };
 
-export function useConnectorEditPage(connectorId: number, searchSpaceId: string) {
+export function useConnectorEditPage(
+	connectorId: number,
+	searchSpaceId: string,
+) {
 	const router = useRouter();
 	const {
 		connectors,
@@ -57,15 +63,29 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 	} = useSearchSourceConnectors(false, parseInt(searchSpaceId));
 
 	// State managed by the hook
-	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
-	const [originalConfig, setOriginalConfig] = useState<Record<string, any> | null>(null);
+	const [connector, setConnector] = useState<SearchSourceConnector | null>(
+		null,
+	);
+	const [originalConfig, setOriginalConfig] = useState<Record<
+		string,
+		any
+	> | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
-	const [currentSelectedRepos, setCurrentSelectedRepos] = useState<string[]>([]);
+	const [currentSelectedRepos, setCurrentSelectedRepos] = useState<string[]>(
+		[],
+	);
 	const [originalPat, setOriginalPat] = useState<string>("");
 	const [editMode, setEditMode] = useState<EditMode>("viewing");
 	const [fetchedRepos, setFetchedRepos] = useState<GithubRepo[] | null>(null);
 	const [newSelectedRepos, setNewSelectedRepos] = useState<string[]>([]);
-	const [isFetchingRepos, setIsFetchingRepos] = useState(false);
+
+	const { mutate: fetchRepositories, isPending: isFetchingRepos } =
+		useFetchRepositories({
+			onSuccess: (data) => {
+				setFetchedRepos(data);
+				setNewSelectedRepos([...currentSelectedRepos]);
+			},
+		});
 
 	// Forms managed by the hook
 	const patForm = useForm<GithubPatFormValues>({
@@ -124,11 +144,13 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						: config.SEARXNG_CATEGORIES || "",
 					SEARXNG_LANGUAGE: config.SEARXNG_LANGUAGE || "",
 					SEARXNG_SAFESEARCH:
-						config.SEARXNG_SAFESEARCH !== undefined && config.SEARXNG_SAFESEARCH !== null
+						config.SEARXNG_SAFESEARCH !== undefined &&
+						config.SEARXNG_SAFESEARCH !== null
 							? String(config.SEARXNG_SAFESEARCH)
 							: "",
 					SEARXNG_VERIFY_SSL:
-						config.SEARXNG_VERIFY_SSL !== undefined && config.SEARXNG_VERIFY_SSL !== null
+						config.SEARXNG_VERIFY_SSL !== undefined &&
+						config.SEARXNG_VERIFY_SSL !== null
 							? String(config.SEARXNG_VERIFY_SSL)
 							: "",
 					LINEAR_API_KEY: config.LINEAR_API_KEY || "",
@@ -170,46 +192,23 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 
 	// Handlers managed by the hook
 	const handleFetchRepositories = useCallback(
-		async (values: GithubPatFormValues) => {
-			setIsFetchingRepos(true);
+		(values: GithubPatFormValues) => {
 			setFetchedRepos(null);
-			try {
-				const token = localStorage.getItem("surfsense_bearer_token");
-				if (!token) throw new Error("No auth token");
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ github_pat: values.github_pat }),
-					}
-				);
-				if (!response.ok) {
-					const err = await response.json();
-					throw new Error(err.detail || "Fetch failed");
-				}
-				const data: GithubRepo[] = await response.json();
-				setFetchedRepos(data);
-				setNewSelectedRepos(currentSelectedRepos);
-				toast.success(`Found ${data.length} repos.`);
-			} catch (error) {
-				console.error("Error fetching GitHub repositories:", error);
-				toast.error(error instanceof Error ? error.message : "Failed to fetch repositories.");
-			} finally {
-				setIsFetchingRepos(false);
-			}
+			fetchRepositories({ github_pat: values.github_pat });
 		},
-		[currentSelectedRepos]
-	); // Added dependency
+		[fetchRepositories],
+	);
 
-	const handleRepoSelectionChange = useCallback((repoFullName: string, checked: boolean) => {
-		setNewSelectedRepos((prev) =>
-			checked ? [...prev, repoFullName] : prev.filter((name) => name !== repoFullName)
-		);
-	}, []);
+	const handleRepoSelectionChange = useCallback(
+		(repoFullName: string, checked: boolean) => {
+			setNewSelectedRepos((prev) =>
+				checked
+					? [...prev, repoFullName]
+					: prev.filter((name) => name !== repoFullName),
+			);
+		},
+		[],
+	);
 
 	const handleSaveChanges = useCallback(
 		async (formData: EditConnectorFormValues) => {
@@ -231,14 +230,19 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					const newRepoSet = new Set(newSelectedRepos);
 					const reposChanged =
 						initialRepoSet.size !== newRepoSet.size ||
-						![...initialRepoSet].every((repo) => newRepoSet.has(repo));
+						!Array.from(initialRepoSet).every((repo) => newRepoSet.has(repo));
 					if (
 						patChanged ||
-						(editMode === "editing_repos" && reposChanged && fetchedRepos !== null)
+						(editMode === "editing_repos" &&
+							reposChanged &&
+							fetchedRepos !== null)
 					) {
 						if (
 							!currentPatInForm ||
-							!(currentPatInForm.startsWith("ghp_") || currentPatInForm.startsWith("github_pat_"))
+							!(
+								currentPatInForm.startsWith("ghp_") ||
+								currentPatInForm.startsWith("github_pat_")
+							)
 						) {
 							toast.error("Invalid GitHub PAT format. Cannot save.");
 							setIsSaving(false);
@@ -265,7 +269,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					}
 					break;
 				case "NOTION_CONNECTOR":
-					if (formData.NOTION_INTEGRATION_TOKEN !== originalConfig.NOTION_INTEGRATION_TOKEN) {
+					if (
+						formData.NOTION_INTEGRATION_TOKEN !==
+						originalConfig.NOTION_INTEGRATION_TOKEN
+					) {
 						if (!formData.NOTION_INTEGRATION_TOKEN) {
 							toast.error("Notion Token empty.");
 							setIsSaving(false);
@@ -315,21 +322,29 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					}
 
 					const newEngines = normalizeListInput(formData.SEARXNG_ENGINES || "");
-					const originalEngines = normalizeListInput(originalConfig.SEARXNG_ENGINES);
+					const originalEngines = normalizeListInput(
+						originalConfig.SEARXNG_ENGINES,
+					);
 					if (!arraysEqual(newEngines, originalEngines)) {
 						candidateConfig.SEARXNG_ENGINES = newEngines;
 						hasChanges = true;
 					}
 
-					const newCategories = normalizeListInput(formData.SEARXNG_CATEGORIES || "");
-					const originalCategories = normalizeListInput(originalConfig.SEARXNG_CATEGORIES);
+					const newCategories = normalizeListInput(
+						formData.SEARXNG_CATEGORIES || "",
+					);
+					const originalCategories = normalizeListInput(
+						originalConfig.SEARXNG_CATEGORIES,
+					);
 					if (!arraysEqual(newCategories, originalCategories)) {
 						candidateConfig.SEARXNG_CATEGORIES = newCategories;
 						hasChanges = true;
 					}
 
 					const language = (formData.SEARXNG_LANGUAGE || "").trim();
-					const originalLanguage = (originalConfig.SEARXNG_LANGUAGE || "").trim();
+					const originalLanguage = (
+						originalConfig.SEARXNG_LANGUAGE || ""
+					).trim();
 					if (language !== originalLanguage) {
 						candidateConfig.SEARXNG_LANGUAGE = language || null;
 						hasChanges = true;
@@ -339,7 +354,12 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					const originalSafesearch = originalConfig.SEARXNG_SAFESEARCH;
 					if (safesearchRaw) {
 						const parsed = Number(safesearchRaw);
-						if (Number.isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0 || parsed > 2) {
+						if (
+							Number.isNaN(parsed) ||
+							!Number.isInteger(parsed) ||
+							parsed < 0 ||
+							parsed > 2
+						) {
 							toast.error("SearxNG SafeSearch must be 0, 1, or 2.");
 							setIsSaving(false);
 							return;
@@ -348,17 +368,26 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							candidateConfig.SEARXNG_SAFESEARCH = parsed;
 							hasChanges = true;
 						}
-					} else if (originalSafesearch !== undefined && originalSafesearch !== null) {
+					} else if (
+						originalSafesearch !== undefined &&
+						originalSafesearch !== null
+					) {
 						candidateConfig.SEARXNG_SAFESEARCH = null;
 						hasChanges = true;
 					}
 
-					const verifyRaw = (formData.SEARXNG_VERIFY_SSL || "").trim().toLowerCase();
-					const originalVerifyBool = normalizeBoolean(originalConfig.SEARXNG_VERIFY_SSL);
+					const verifyRaw = (formData.SEARXNG_VERIFY_SSL || "")
+						.trim()
+						.toLowerCase();
+					const originalVerifyBool = normalizeBoolean(
+						originalConfig.SEARXNG_VERIFY_SSL,
+					);
 					if (verifyRaw) {
 						let parsedBool: boolean | null = null;
-						if (["true", "1", "yes", "on"].includes(verifyRaw)) parsedBool = true;
-						else if (["false", "0", "no", "off"].includes(verifyRaw)) parsedBool = false;
+						if (["true", "1", "yes", "on"].includes(verifyRaw))
+							parsedBool = true;
+						else if (["false", "0", "no", "off"].includes(verifyRaw))
+							parsedBool = false;
 						if (parsedBool === null) {
 							toast.error("SearxNG SSL verification must be true or false.");
 							setIsSaving(false);
@@ -411,9 +440,11 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					break;
 				case "CONFLUENCE_CONNECTOR":
 					if (
-						formData.CONFLUENCE_BASE_URL !== originalConfig.CONFLUENCE_BASE_URL ||
+						formData.CONFLUENCE_BASE_URL !==
+							originalConfig.CONFLUENCE_BASE_URL ||
 						formData.CONFLUENCE_EMAIL !== originalConfig.CONFLUENCE_EMAIL ||
-						formData.CONFLUENCE_API_TOKEN !== originalConfig.CONFLUENCE_API_TOKEN
+						formData.CONFLUENCE_API_TOKEN !==
+							originalConfig.CONFLUENCE_API_TOKEN
 					) {
 						if (
 							!formData.CONFLUENCE_BASE_URL ||
@@ -437,7 +468,11 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						formData.JIRA_EMAIL !== originalConfig.JIRA_EMAIL ||
 						formData.JIRA_API_TOKEN !== originalConfig.JIRA_API_TOKEN
 					) {
-						if (!formData.JIRA_BASE_URL || !formData.JIRA_EMAIL || !formData.JIRA_API_TOKEN) {
+						if (
+							!formData.JIRA_BASE_URL ||
+							!formData.JIRA_EMAIL ||
+							!formData.JIRA_API_TOKEN
+						) {
 							toast.error("All Jira fields are required.");
 							setIsSaving(false);
 							return;
@@ -460,13 +495,18 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					}
 					break;
 				case "ELASTICSEARCH_CONNECTOR":
-					if (formData.ELASTICSEARCH_API_KEY !== originalConfig.ELASTICSEARCH_API_KEY) {
+					if (
+						formData.ELASTICSEARCH_API_KEY !==
+						originalConfig.ELASTICSEARCH_API_KEY
+					) {
 						if (!formData.ELASTICSEARCH_API_KEY) {
 							toast.error("Elasticsearch API Key cannot be empty.");
 							setIsSaving(false);
 							return;
 						}
-						newConfig = { ELASTICSEARCH_API_KEY: formData.ELASTICSEARCH_API_KEY };
+						newConfig = {
+							ELASTICSEARCH_API_KEY: formData.ELASTICSEARCH_API_KEY,
+						};
 					}
 					break;
 			}
@@ -493,7 +533,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 				setOriginalConfig(newlySavedConfig);
 				if (updatePayload.name) {
 					setConnector((prev) =>
-						prev ? { ...prev, name: updatePayload.name!, config: newlySavedConfig } : null
+						prev
+							? { ...prev, name: updatePayload.name!, config: newlySavedConfig }
+							: null,
 					);
 				}
 				if (configChanged) {
@@ -507,60 +549,109 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						setNewSelectedRepos(savedGitHubConfig.repo_full_names || []);
 						patForm.reset({ github_pat: savedGitHubConfig.GITHUB_PAT || "" });
 					} else if (connector.connector_type === "SLACK_CONNECTOR") {
-						editForm.setValue("SLACK_BOT_TOKEN", newlySavedConfig.SLACK_BOT_TOKEN || "");
+						editForm.setValue(
+							"SLACK_BOT_TOKEN",
+							newlySavedConfig.SLACK_BOT_TOKEN || "",
+						);
 					} else if (connector.connector_type === "NOTION_CONNECTOR") {
 						editForm.setValue(
 							"NOTION_INTEGRATION_TOKEN",
-							newlySavedConfig.NOTION_INTEGRATION_TOKEN || ""
+							newlySavedConfig.NOTION_INTEGRATION_TOKEN || "",
 						);
 					} else if (connector.connector_type === "SERPER_API") {
-						editForm.setValue("SERPER_API_KEY", newlySavedConfig.SERPER_API_KEY || "");
+						editForm.setValue(
+							"SERPER_API_KEY",
+							newlySavedConfig.SERPER_API_KEY || "",
+						);
 					} else if (connector.connector_type === "TAVILY_API") {
-						editForm.setValue("TAVILY_API_KEY", newlySavedConfig.TAVILY_API_KEY || "");
+						editForm.setValue(
+							"TAVILY_API_KEY",
+							newlySavedConfig.TAVILY_API_KEY || "",
+						);
 					} else if (connector.connector_type === "SEARXNG_API") {
-						editForm.setValue("SEARXNG_HOST", newlySavedConfig.SEARXNG_HOST || "");
-						editForm.setValue("SEARXNG_API_KEY", newlySavedConfig.SEARXNG_API_KEY || "");
+						editForm.setValue(
+							"SEARXNG_HOST",
+							newlySavedConfig.SEARXNG_HOST || "",
+						);
+						editForm.setValue(
+							"SEARXNG_API_KEY",
+							newlySavedConfig.SEARXNG_API_KEY || "",
+						);
 						editForm.setValue(
 							"SEARXNG_ENGINES",
-							normalizeListInput(newlySavedConfig.SEARXNG_ENGINES).join(", ")
+							normalizeListInput(newlySavedConfig.SEARXNG_ENGINES).join(", "),
 						);
 						editForm.setValue(
 							"SEARXNG_CATEGORIES",
-							normalizeListInput(newlySavedConfig.SEARXNG_CATEGORIES).join(", ")
+							normalizeListInput(newlySavedConfig.SEARXNG_CATEGORIES).join(
+								", ",
+							),
 						);
-						editForm.setValue("SEARXNG_LANGUAGE", newlySavedConfig.SEARXNG_LANGUAGE || "");
+						editForm.setValue(
+							"SEARXNG_LANGUAGE",
+							newlySavedConfig.SEARXNG_LANGUAGE || "",
+						);
 						editForm.setValue(
 							"SEARXNG_SAFESEARCH",
 							newlySavedConfig.SEARXNG_SAFESEARCH === null ||
 								newlySavedConfig.SEARXNG_SAFESEARCH === undefined
 								? ""
-								: String(newlySavedConfig.SEARXNG_SAFESEARCH)
+								: String(newlySavedConfig.SEARXNG_SAFESEARCH),
 						);
-						const verifyValue = normalizeBoolean(newlySavedConfig.SEARXNG_VERIFY_SSL);
+						const verifyValue = normalizeBoolean(
+							newlySavedConfig.SEARXNG_VERIFY_SSL,
+						);
 						editForm.setValue(
 							"SEARXNG_VERIFY_SSL",
-							verifyValue === null ? "" : String(verifyValue)
+							verifyValue === null ? "" : String(verifyValue),
 						);
 					} else if (connector.connector_type === "LINEAR_CONNECTOR") {
-						editForm.setValue("LINEAR_API_KEY", newlySavedConfig.LINEAR_API_KEY || "");
+						editForm.setValue(
+							"LINEAR_API_KEY",
+							newlySavedConfig.LINEAR_API_KEY || "",
+						);
 					} else if (connector.connector_type === "LINKUP_API") {
-						editForm.setValue("LINKUP_API_KEY", newlySavedConfig.LINKUP_API_KEY || "");
+						editForm.setValue(
+							"LINKUP_API_KEY",
+							newlySavedConfig.LINKUP_API_KEY || "",
+						);
 					} else if (connector.connector_type === "DISCORD_CONNECTOR") {
-						editForm.setValue("DISCORD_BOT_TOKEN", newlySavedConfig.DISCORD_BOT_TOKEN || "");
+						editForm.setValue(
+							"DISCORD_BOT_TOKEN",
+							newlySavedConfig.DISCORD_BOT_TOKEN || "",
+						);
 					} else if (connector.connector_type === "CONFLUENCE_CONNECTOR") {
-						editForm.setValue("CONFLUENCE_BASE_URL", newlySavedConfig.CONFLUENCE_BASE_URL || "");
-						editForm.setValue("CONFLUENCE_EMAIL", newlySavedConfig.CONFLUENCE_EMAIL || "");
-						editForm.setValue("CONFLUENCE_API_TOKEN", newlySavedConfig.CONFLUENCE_API_TOKEN || "");
+						editForm.setValue(
+							"CONFLUENCE_BASE_URL",
+							newlySavedConfig.CONFLUENCE_BASE_URL || "",
+						);
+						editForm.setValue(
+							"CONFLUENCE_EMAIL",
+							newlySavedConfig.CONFLUENCE_EMAIL || "",
+						);
+						editForm.setValue(
+							"CONFLUENCE_API_TOKEN",
+							newlySavedConfig.CONFLUENCE_API_TOKEN || "",
+						);
 					} else if (connector.connector_type === "JIRA_CONNECTOR") {
-						editForm.setValue("JIRA_BASE_URL", newlySavedConfig.JIRA_BASE_URL || "");
+						editForm.setValue(
+							"JIRA_BASE_URL",
+							newlySavedConfig.JIRA_BASE_URL || "",
+						);
 						editForm.setValue("JIRA_EMAIL", newlySavedConfig.JIRA_EMAIL || "");
-						editForm.setValue("JIRA_API_TOKEN", newlySavedConfig.JIRA_API_TOKEN || "");
+						editForm.setValue(
+							"JIRA_API_TOKEN",
+							newlySavedConfig.JIRA_API_TOKEN || "",
+						);
 					} else if (connector.connector_type === "LUMA_CONNECTOR") {
-						editForm.setValue("LUMA_API_KEY", newlySavedConfig.LUMA_API_KEY || "");
+						editForm.setValue(
+							"LUMA_API_KEY",
+							newlySavedConfig.LUMA_API_KEY || "",
+						);
 					} else if (connector.connector_type === "ELASTICSEARCH_CONNECTOR") {
 						editForm.setValue(
 							"ELASTICSEARCH_API_KEY",
-							newlySavedConfig.ELASTICSEARCH_API_KEY || ""
+							newlySavedConfig.ELASTICSEARCH_API_KEY || "",
 						);
 					}
 				}
@@ -571,7 +662,11 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 				// Resetting simple form values is handled by useEffect if connector state updates
 			} catch (error) {
 				console.error("Error updating connector:", error);
-				toast.error(error instanceof Error ? error.message : "Failed to update connector.");
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "Failed to update connector.",
+				);
 			} finally {
 				setIsSaving(false);
 			}
@@ -588,7 +683,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			editMode,
 			fetchedRepos,
 			editForm,
-		]
+		],
 	); // Added editForm to dependencies
 
 	// Return values needed by the component

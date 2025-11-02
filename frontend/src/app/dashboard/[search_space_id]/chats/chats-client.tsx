@@ -1,5 +1,4 @@
 "use client";
-
 import { format } from "date-fns";
 import {
 	Calendar,
@@ -17,9 +16,19 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
+import useGetChats from "@/api/chats/hooks/useGetChats";
+import type { Chat } from "@/api/chats/types";
+import useGeneratePodcast from "@/api/podcasts/hooks/useGeneratePodcast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -56,14 +65,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-interface Chat {
-	created_at: string;
-	id: number;
-	type: string;
-	title: string;
-	search_space_id: number;
-}
-
 interface ChatsPageClientProps {
 	searchSpaceId: string;
 }
@@ -82,31 +83,48 @@ const chatCardVariants: Variants = {
 
 const MotionCard = motion(Card);
 
-export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps) {
+export default function ChatsPageClient({
+	searchSpaceId,
+}: ChatsPageClientProps) {
 	const router = useRouter();
-	const [chats, setChats] = useState<Chat[]>([]);
 	const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [selectedType, setSelectedType] = useState<string>("all");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [chatToDelete, setChatToDelete] = useState<{ id: number; title: string } | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
+	const [chatToDelete, setChatToDelete] = useState<{
+		id: number;
+		title: string;
+	} | null>(null);
+
+	// React Query hooks
+	const {
+		data: chats = [],
+		isLoading,
+		error: queryError,
+	} = useGetChats({ search_space_id: searchSpaceId });
+	const { mutate: deleteChat, isPending: isDeletingChat } = useDeleteChat({
+		onSuccess: () => {
+			setDeleteDialogOpen(false);
+			setChatToDelete(null);
+		},
+	});
+	const { mutate: generatePodcast, isPending: isGeneratingPodcast } =
+		useGeneratePodcast();
 
 	// New state for podcast generation
 	const [selectedChats, setSelectedChats] = useState<number[]>([]);
 	const [selectionMode, setSelectionMode] = useState(false);
 	const [podcastDialogOpen, setPodcastDialogOpen] = useState(false);
 	const [podcastTitle, setPodcastTitle] = useState("");
-	const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
 
 	// New state for individual podcast generation
 	const [currentChatIndex, setCurrentChatIndex] = useState(0);
-	const [podcastTitles, setPodcastTitles] = useState<{ [key: number]: string }>({});
+	const [podcastTitles, setPodcastTitles] = useState<{ [key: number]: string }>(
+		{},
+	);
 	const [processingChat, setProcessingChat] = useState<Chat | null>(null);
 
 	const chatsPerPage = 9;
@@ -123,54 +141,10 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		}
 	}, [searchParams]);
 
-	// Fetch chats from API
+	// Update filtered chats when chats data changes
 	useEffect(() => {
-		const fetchChats = async () => {
-			try {
-				setIsLoading(true);
-
-				// Get token from localStorage
-				const token = localStorage.getItem("surfsense_bearer_token");
-
-				if (!token) {
-					setError("Authentication token not found. Please log in again.");
-					setIsLoading(false);
-					return;
-				}
-
-				// Fetch all chats for this search space
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?search_space_id=${searchSpaceId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-							"Content-Type": "application/json",
-						},
-						cache: "no-store",
-					}
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => null);
-					throw new Error(`Failed to fetch chats: ${response.status} ${errorData?.error || ""}`);
-				}
-
-				const data: Chat[] = await response.json();
-				setChats(data);
-				setFilteredChats(data);
-				setError(null);
-			} catch (error) {
-				console.error("Error fetching chats:", error);
-				setError(error instanceof Error ? error.message : "Unknown error occurred");
-				setChats([]);
-				setFilteredChats([]);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchChats();
-	}, [searchSpaceId]);
+		setFilteredChats(chats);
+	}, [chats]);
 
 	// Filter and sort chats based on search query, type, and sort order
 	useEffect(() => {
@@ -179,7 +153,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		// Filter by search term
 		if (searchQuery) {
 			const query = searchQuery.toLowerCase();
-			result = result.filter((chat) => chat.title.toLowerCase().includes(query));
+			result = result.filter((chat) =>
+				chat.title.toLowerCase().includes(query),
+			);
 		}
 
 		// Filter by type
@@ -199,49 +175,18 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		setTotalPages(Math.max(1, Math.ceil(result.length / chatsPerPage)));
 
 		// Reset to first page when filters change
-		if (currentPage !== 1 && (searchQuery || selectedType !== "all" || sortOrder !== "newest")) {
+		if (
+			currentPage !== 1 &&
+			(searchQuery || selectedType !== "all" || sortOrder !== "newest")
+		) {
 			setCurrentPage(1);
 		}
 	}, [chats, searchQuery, selectedType, sortOrder, currentPage]);
 
 	// Function to handle chat deletion
-	const handleDeleteChat = async () => {
+	const handleDeleteChat = () => {
 		if (!chatToDelete) return;
-
-		setIsDeleting(true);
-		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				setIsDeleting(false);
-				return;
-			}
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${chatToDelete.id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error(`Failed to delete chat: ${response.statusText}`);
-			}
-
-			// Close dialog and refresh chats
-			setDeleteDialogOpen(false);
-			setChatToDelete(null);
-
-			// Update local state by removing the deleted chat
-			setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatToDelete.id));
-		} catch (error) {
-			console.error("Error deleting chat:", error);
-		} finally {
-			setIsDeleting(false);
-		}
+		deleteChat(chatToDelete.id);
 	};
 
 	// Calculate pagination
@@ -250,10 +195,13 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	const currentChats = filteredChats.slice(indexOfFirstChat, indexOfLastChat);
 
 	// Get unique chat types for filter dropdown
-	const chatTypes = ["all", ...Array.from(new Set(chats.map((chat) => chat.type)))];
+	const chatTypes = [
+		"all",
+		...Array.from(new Set(chats.map((chat) => chat.type))),
+	];
 
 	// Generate individual podcasts from selected chats
-	const handleGeneratePodcast = async () => {
+	const handleGeneratePodcast = () => {
 		if (selectedChats.length === 0) {
 			toast.error("Please select at least one chat");
 			return;
@@ -267,75 +215,47 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 			return;
 		}
 
-		setIsGeneratingPodcast(true);
-		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				toast.error("Authentication error. Please log in again.");
-				setIsGeneratingPodcast(false);
-				return;
-			}
+		// Create payload for single chat
+		const payload = {
+			type: "CHAT" as const,
+			ids: [currentChatId], // Single chat ID
+			search_space_id: parseInt(searchSpaceId),
+			podcast_title: currentTitle,
+		};
 
-			// Create payload for single chat
-			const payload = {
-				type: "CHAT",
-				ids: [currentChatId], // Single chat ID
-				search_space_id: parseInt(searchSpaceId),
-				podcast_title: currentTitle,
-			};
+		generatePodcast(payload, {
+			onSuccess: () => {
+				// Move to the next chat or finish
+				if (currentChatIndex < selectedChats.length - 1) {
+					// Set up for next chat
+					setCurrentChatIndex(currentChatIndex + 1);
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/generate`,
-				{
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(payload),
-				}
-			);
+					// Find the next chat from the chats array
+					const nextChatId = selectedChats[currentChatIndex + 1];
+					const nextChat = chats.find((chat) => chat.id === nextChatId) || null;
+					setProcessingChat(nextChat);
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || "Failed to generate podcast");
-			}
-
-			const _data = await response.json();
-			toast.success(`Podcast "${currentTitle}" generation started!`);
-
-			// Move to the next chat or finish
-			if (currentChatIndex < selectedChats.length - 1) {
-				// Set up for next chat
-				setCurrentChatIndex(currentChatIndex + 1);
-
-				// Find the next chat from the chats array
-				const nextChatId = selectedChats[currentChatIndex + 1];
-				const nextChat = chats.find((chat) => chat.id === nextChatId) || null;
-				setProcessingChat(nextChat);
-
-				// Default title for the next chat
-				if (!podcastTitles[nextChatId]) {
-					setPodcastTitle(nextChat?.title || `Podcast from Chat ${nextChatId}`);
+					// Default title for the next chat
+					if (!podcastTitles[nextChatId]) {
+						setPodcastTitle(
+							nextChat?.title || `Podcast from Chat ${nextChatId}`,
+						);
+					} else {
+						setPodcastTitle(podcastTitles[nextChatId]);
+					}
 				} else {
-					setPodcastTitle(podcastTitles[nextChatId]);
+					// All done
+					finishPodcastGeneration();
 				}
-
-				setIsGeneratingPodcast(false);
-			} else {
-				// All done
-				finishPodcastGeneration();
-			}
-		} catch (error) {
-			console.error("Error generating podcast:", error);
-			toast.error(error instanceof Error ? error.message : "Failed to generate podcast");
-			setIsGeneratingPodcast(false);
-		}
+			},
+		});
 	};
 
 	// Helper to finish the podcast generation process
 	const finishPodcastGeneration = () => {
-		toast.success("All podcasts are being generated! Check the logs tab to see their status.");
+		toast.success(
+			"All podcasts are being generated! Check the logs tab to see their status.",
+		);
 		setPodcastDialogOpen(false);
 		setSelectedChats([]);
 		setSelectionMode(false);
@@ -343,7 +263,6 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		setPodcastTitles({});
 		setProcessingChat(null);
 		setPodcastTitle("");
-		setIsGeneratingPodcast(false);
 	};
 
 	// Start podcast generation flow
@@ -403,7 +322,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	// Toggle chat selection
 	const toggleChatSelection = (chatId: number) => {
 		setSelectedChats((prev) =>
-			prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId]
+			prev.includes(chatId)
+				? prev.filter((id) => id !== chatId)
+				: [...prev, chatId],
 		);
 	};
 
@@ -414,7 +335,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 			const allSelected = visibleChatIds.every((id) => prev.includes(id));
 			return allSelected
 				? prev.filter((id) => !visibleChatIds.includes(id)) // Deselect all visible if all are selected
-				: [...new Set([...prev, ...visibleChatIds])]; // Add all visible, ensuring no duplicates
+				: Array.from(new Set([...prev, ...visibleChatIds])); // Add all visible, ensuring no duplicates
 		});
 	};
 
@@ -435,7 +356,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 			<div className="flex flex-col space-y-4 md:space-y-6">
 				<div className="flex flex-col space-y-2">
 					<h1 className="text-3xl font-bold tracking-tight">All Chats</h1>
-					<p className="text-muted-foreground">View, search, and manage all your chats.</p>
+					<p className="text-muted-foreground">
+						View, search, and manage all your chats.
+					</p>
 				</div>
 
 				{/* Filter and Search Bar */}
@@ -460,7 +383,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 								<SelectGroup>
 									{chatTypes.map((type) => (
 										<SelectItem key={type} value={type}>
-											{type === "all" ? "All Types" : type.charAt(0).toUpperCase() + type.slice(1)}
+											{type === "all"
+												? "All Types"
+												: type.charAt(0).toUpperCase() + type.slice(1)}
 										</SelectItem>
 									))}
 								</SelectGroup>
@@ -534,14 +459,14 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 					</div>
 				)}
 
-				{error && !isLoading && (
+				{queryError && !isLoading && (
 					<div className="border border-destructive/50 text-destructive p-4 rounded-md">
 						<h3 className="font-medium">Error loading chats</h3>
-						<p className="text-sm">{error}</p>
+						<p className="text-sm">{queryError.message}</p>
 					</div>
 				)}
 
-				{!isLoading && !error && filteredChats.length === 0 && (
+				{!isLoading && !queryError && filteredChats.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
 						<MessageCircleMore className="h-8 w-8 text-muted-foreground" />
 						<h3 className="font-medium">No chats found</h3>
@@ -554,7 +479,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				)}
 
 				{/* Chat Grid */}
-				{!isLoading && !error && filteredChats.length > 0 && (
+				{!isLoading && !queryError && filteredChats.length > 0 && (
 					<AnimatePresence mode="wait">
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 							{currentChats.map((chat, index) => (
@@ -569,12 +494,16 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 										"overflow-hidden hover:shadow-md transition-shadow",
 										selectionMode && selectedChats.includes(chat.id)
 											? "ring-2 ring-primary ring-offset-2"
-											: ""
+											: "",
 									)}
 									onClick={(e) => {
 										if (!selectionMode) return;
 										// Ignore clicks coming from interactive elements
-										if ((e.target as HTMLElement).closest("button, a, [data-stop-selection]"))
+										if (
+											(e.target as HTMLElement).closest(
+												"button, a, [data-stop-selection]",
+											)
+										)
 											return;
 										toggleChatSelection(chat.id);
 									}}
@@ -598,7 +527,12 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 													<CardDescription>
 														<span className="flex items-center gap-1">
 															<Calendar className="h-3.5 w-3.5" />
-															<span>{format(new Date(chat.created_at), "MMM d, yyyy")}</span>
+															<span>
+																{format(
+																	new Date(chat.created_at),
+																	"MMM d, yyyy",
+																)}
+															</span>
 														</span>
 													</CardDescription>
 												</div>
@@ -620,7 +554,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 														<DropdownMenuItem
 															onClick={() =>
 																router.push(
-																	`/dashboard/${chat.search_space_id}/researcher/${chat.id}`
+																	`/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
 																)
 															}
 														>
@@ -630,7 +564,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 														<DropdownMenuItem
 															onClick={() => {
 																setSelectedChats([chat.id]);
-																setPodcastTitle(chat.title || `Chat ${chat.id}`);
+																setPodcastTitle(
+																	chat.title || `Chat ${chat.id}`,
+																);
 																setPodcastDialogOpen(true);
 															}}
 														>
@@ -666,7 +602,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 										<Button
 											size="sm"
 											onClick={() =>
-												router.push(`/dashboard/${chat.search_space_id}/researcher/${chat.id}`)
+												router.push(
+													`/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
+												)
 											}
 										>
 											<MessageCircleMore className="h-4 w-4" />
@@ -680,7 +618,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				)}
 
 				{/* Pagination */}
-				{!isLoading && !error && totalPages > 1 && (
+				{!isLoading && !queryError && totalPages > 1 && (
 					<Pagination className="mt-8">
 						<PaginationContent>
 							<PaginationItem>
@@ -690,7 +628,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 										e.preventDefault();
 										if (currentPage > 1) setCurrentPage(currentPage - 1);
 									}}
-									className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+									className={
+										currentPage <= 1 ? "pointer-events-none opacity-50" : ""
+									}
 								/>
 							</PaginationItem>
 
@@ -699,14 +639,17 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 								const isVisible =
 									pageNumber === 1 ||
 									pageNumber === totalPages ||
-									(pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1);
+									(pageNumber >= currentPage - 1 &&
+										pageNumber <= currentPage + 1);
 
 								if (!isVisible) {
 									// Show ellipsis at appropriate positions
 									if (pageNumber === 2 || pageNumber === totalPages - 1) {
 										return (
 											<PaginationItem key={pageNumber}>
-												<span className="flex h-9 w-9 items-center justify-center">...</span>
+												<span className="flex h-9 w-9 items-center justify-center">
+													...
+												</span>
 											</PaginationItem>
 										);
 									}
@@ -734,9 +677,14 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 									href={`?page=${Math.min(totalPages, currentPage + 1)}`}
 									onClick={(e) => {
 										e.preventDefault();
-										if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+										if (currentPage < totalPages)
+											setCurrentPage(currentPage + 1);
 									}}
-									className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+									className={
+										currentPage >= totalPages
+											? "pointer-events-none opacity-50"
+											: ""
+									}
 								/>
 							</PaginationItem>
 						</PaginationContent>
@@ -754,25 +702,25 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 						</DialogTitle>
 						<DialogDescription>
 							Are you sure you want to delete{" "}
-							<span className="font-medium">{chatToDelete?.title}</span>? This action cannot be
-							undone.
+							<span className="font-medium">{chatToDelete?.title}</span>? This
+							action cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="flex gap-2 sm:justify-end">
 						<Button
 							variant="outline"
 							onClick={() => setDeleteDialogOpen(false)}
-							disabled={isDeleting}
+							disabled={isDeletingChat}
 						>
 							Cancel
 						</Button>
 						<Button
 							variant="destructive"
 							onClick={handleDeleteChat}
-							disabled={isDeleting}
+							disabled={isDeletingChat}
 							className="gap-2"
 						>
-							{isDeleting ? (
+							{isDeletingChat ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									Deleting...
@@ -811,15 +759,18 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 						<DialogTitle className="flex items-center gap-2">
 							<Podcast className="h-5 w-5 text-primary" />
 							<span>
-								Generate Podcast {currentChatIndex + 1} of {selectedChats.length}
+								Generate Podcast {currentChatIndex + 1} of{" "}
+								{selectedChats.length}
 							</span>
 						</DialogTitle>
 						<DialogDescription>
 							{selectedChats.length > 1 ? (
 								<>
-									Creating individual podcasts for each selected chat. Currently processing:{" "}
+									Creating individual podcasts for each selected chat. Currently
+									processing:{" "}
 									<span className="font-medium">
-										{processingChat?.title || `Chat ${selectedChats[currentChatIndex]}`}
+										{processingChat?.title ||
+											`Chat ${selectedChats[currentChatIndex]}`}
 									</span>
 								</>
 							) : (
@@ -843,7 +794,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 							<div className="w-full bg-muted rounded-full h-2.5 mt-4">
 								<div
 									className="bg-primary h-2.5 rounded-full transition-all duration-300"
-									style={{ width: `${(currentChatIndex / selectedChats.length) * 100}%` }}
+									style={{
+										width: `${(currentChatIndex / selectedChats.length) * 100}%`,
+									}}
 								></div>
 							</div>
 						)}
@@ -851,7 +804,11 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 
 					<DialogFooter className="flex gap-2 sm:justify-end">
 						{selectedChats.length > 1 && !isGeneratingPodcast && (
-							<Button variant="outline" onClick={skipCurrentChat} className="gap-1">
+							<Button
+								variant="outline"
+								onClick={skipCurrentChat}
+								className="gap-1"
+							>
 								Skip
 							</Button>
 						)}

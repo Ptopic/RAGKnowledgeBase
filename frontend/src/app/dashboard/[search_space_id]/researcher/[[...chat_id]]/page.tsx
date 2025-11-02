@@ -1,6 +1,7 @@
 "use client";
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
+import config from "@shared/config";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import ChatInterface from "@/components/chat/ChatInterface";
@@ -56,12 +57,19 @@ export default function ResearcherPage() {
 	const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
 		`surfsense_chat_state_${searchSpaceId}_${chatId}`;
 
-	const storeChatState = (searchSpaceId: string, chatId: string, state: ChatState) => {
+	const storeChatState = (
+		searchSpaceId: string,
+		chatId: string,
+		state: ChatState,
+	) => {
 		const key = getChatStateStorageKey(searchSpaceId, chatId);
 		localStorage.setItem(key, JSON.stringify(state));
 	};
 
-	const restoreChatState = (searchSpaceId: string, chatId: string): ChatState | null => {
+	const restoreChatState = (
+		searchSpaceId: string,
+		chatId: string,
+	): ChatState | null => {
 		const key = getChatStateStorageKey(searchSpaceId, chatId);
 		const stored = localStorage.getItem(key);
 		if (stored) {
@@ -77,7 +85,7 @@ export default function ResearcherPage() {
 	};
 
 	const handler = useChat({
-		api: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chat`,
+		api: `${config.apiUrl}/api/v1/chat`,
 		streamProtocol: "data",
 		initialMessages: [],
 		headers: {
@@ -99,9 +107,13 @@ export default function ResearcherPage() {
 
 	const customHandlerAppend = async (
 		message: Message | CreateMessage,
-		chatRequestOptions?: { data?: any }
+		chatRequestOptions?: { data?: any },
 	) => {
-		const newChatId = await createChat(message.content, researchMode, selectedConnectors);
+		const newChatId = await createChat(
+			message.content,
+			researchMode,
+			selectedConnectors,
+		);
 		if (newChatId) {
 			// Store chat state before navigation
 			storeChatState(search_space_id as string, newChatId, {
@@ -125,7 +137,10 @@ export default function ResearcherPage() {
 	// Restore chat state from localStorage on page load
 	useEffect(() => {
 		if (chatIdParam && search_space_id) {
-			const restoredState = restoreChatState(search_space_id as string, chatIdParam);
+			const restoredState = restoreChatState(
+				search_space_id as string,
+				chatIdParam,
+			);
 			if (restoredState) {
 				setSelectedDocuments(restoredState.selectedDocuments);
 				setSelectedConnectors(restoredState.selectedConnectors);
@@ -133,7 +148,13 @@ export default function ResearcherPage() {
 				// researchMode is always "QNA", no need to restore
 			}
 		}
-	}, [chatIdParam, search_space_id, setSelectedDocuments, setSelectedConnectors, setSearchMode]);
+	}, [
+		chatIdParam,
+		search_space_id,
+		setSelectedDocuments,
+		setSelectedConnectors,
+		setSearchMode,
+	]);
 
 	const loadChatData = async (chatId: string) => {
 		try {
@@ -143,13 +164,19 @@ export default function ResearcherPage() {
 			// Update configuration from chat data
 			// researchMode is always "QNA", no need to set from chat data
 
-			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
+			if (
+				chatData.initial_connectors &&
+				Array.isArray(chatData.initial_connectors)
+			) {
 				setSelectedConnectors(chatData.initial_connectors);
 			}
 
 			// Load existing messages
 			if (chatData.messages && Array.isArray(chatData.messages)) {
-				if (chatData.messages.length === 1 && chatData.messages[0].role === "user") {
+				if (
+					chatData.messages.length === 1 &&
+					chatData.messages[0].role === "user"
+				) {
 					// Single user message - append to trigger LLM response
 					handler.append({
 						role: "user",
@@ -174,7 +201,12 @@ export default function ResearcherPage() {
 			handler.messages.length > 0 &&
 			handler.messages[handler.messages.length - 1]?.role === "assistant"
 		) {
-			updateChat(chatIdParam, handler.messages, researchMode, selectedConnectors);
+			updateChat(
+				chatIdParam,
+				handler.messages,
+				researchMode,
+				selectedConnectors,
+			);
 		}
 	}, [handler.messages, handler.status, chatIdParam, isNewChat]);
 

@@ -1,181 +1,61 @@
 "use client";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import useCreateLLMConfig from "@/api/llm-configs/hooks/useCreateLLMConfig";
+import useDeleteLLMConfig from "@/api/llm-configs/hooks/useDeleteLLMConfig";
+import useGetLLMConfigs from "@/api/llm-configs/hooks/useGetLLMConfigs";
+import useGetLLMPreferences from "@/api/llm-configs/hooks/useGetLLMPreferences";
+import useUpdateLLMConfig from "@/api/llm-configs/hooks/useUpdateLLMConfig";
+import useUpdateLLMPreferences from "@/api/llm-configs/hooks/useUpdateLLMPreferences";
 
-export interface LLMConfig {
-	id: number;
-	name: string;
-	provider: string;
-	custom_provider?: string;
-	model_name: string;
-	api_key: string;
-	api_base?: string;
-	language?: string;
-	litellm_params?: Record<string, any>;
-	created_at: string;
-	search_space_id: number;
-}
-
-export interface LLMPreferences {
-	long_context_llm_id?: number;
-	fast_llm_id?: number;
-	strategic_llm_id?: number;
-	long_context_llm?: LLMConfig;
-	fast_llm?: LLMConfig;
-	strategic_llm?: LLMConfig;
-}
-
-export interface CreateLLMConfig {
-	name: string;
-	provider: string;
-	custom_provider?: string;
-	model_name: string;
-	api_key: string;
-	api_base?: string;
-	language?: string;
-	litellm_params?: Record<string, any>;
-	search_space_id: number;
-}
-
-export interface UpdateLLMConfig {
-	name?: string;
-	provider?: string;
-	custom_provider?: string;
-	model_name?: string;
-	api_key?: string;
-	api_base?: string;
-	litellm_params?: Record<string, any>;
-}
+// Re-export types for backward compatibility
+export type {
+	CreateLLMConfig,
+	LLMConfig,
+	LLMPreferences,
+	UpdateLLMConfig,
+} from "@/api/llm-configs/types";
 
 export function useLLMConfigs(searchSpaceId: number | null) {
-	const [llmConfigs, setLlmConfigs] = useState<LLMConfig[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const params = searchSpaceId ? { search_space_id: searchSpaceId } : null;
 
-	const fetchLLMConfigs = async () => {
-		if (!searchSpaceId) {
-			setLoading(false);
-			return;
-		}
+	const { data: llmConfigs = [], isLoading: loading, error: queryError, refetch } = useGetLLMConfigs(params);
+	const createMutation = useCreateLLMConfig();
+	const updateMutation = useUpdateLLMConfig();
+	const deleteMutation = useDeleteLLMConfig();
 
+	const error = queryError?.message || null;
+
+	const createLLMConfig = async (config: import("@/api/llm-configs/types").CreateLLMConfig) => {
 		try {
-			setLoading(true);
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs?search_space_id=${searchSpaceId}`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to fetch LLM configurations");
-			}
-
-			const data = await response.json();
-			setLlmConfigs(data);
-			setError(null);
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch LLM configurations");
-			console.error("Error fetching LLM configurations:", err);
-		} finally {
-			setLoading(false);
+			const result = await createMutation.mutateAsync(config);
+			return result;
+		} catch {
+			return null;
 		}
 	};
 
-	useEffect(() => {
-		fetchLLMConfigs();
-	}, [searchSpaceId]);
-
-	const createLLMConfig = async (config: CreateLLMConfig): Promise<LLMConfig | null> => {
+	const updateLLMConfig = async (
+		id: number,
+		config: import("@/api/llm-configs/types").UpdateLLMConfig
+	) => {
 		try {
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					body: JSON.stringify(config),
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.detail || "Failed to create LLM configuration");
-			}
-
-			const newConfig = await response.json();
-			setLlmConfigs((prev) => [...prev, newConfig]);
-			toast.success("LLM configuration created successfully");
-			return newConfig;
-		} catch (err: any) {
-			toast.error(err.message || "Failed to create LLM configuration");
-			console.error("Error creating LLM configuration:", err);
+			const result = await updateMutation.mutateAsync({ id, data: config });
+			return result;
+		} catch {
 			return null;
 		}
 	};
 
 	const deleteLLMConfig = async (id: number): Promise<boolean> => {
 		try {
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/${id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to delete LLM configuration");
-			}
-
-			setLlmConfigs((prev) => prev.filter((config) => config.id !== id));
-			toast.success("LLM configuration deleted successfully");
+			await deleteMutation.mutateAsync(id);
 			return true;
-		} catch (err: any) {
-			toast.error(err.message || "Failed to delete LLM configuration");
-			console.error("Error deleting LLM configuration:", err);
+		} catch {
 			return false;
 		}
 	};
 
-	const updateLLMConfig = async (
-		id: number,
-		config: UpdateLLMConfig
-	): Promise<LLMConfig | null> => {
-		try {
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/${id}`,
-				{
-					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					body: JSON.stringify(config),
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.detail || "Failed to update LLM configuration");
-			}
-
-			const updatedConfig = await response.json();
-			setLlmConfigs((prev) => prev.map((c) => (c.id === id ? updatedConfig : c)));
-			toast.success("LLM configuration updated successfully");
-			return updatedConfig;
-		} catch (err: any) {
-			toast.error(err.message || "Failed to update LLM configuration");
-			console.error("Error updating LLM configuration:", err);
-			return null;
-		}
+	const refreshConfigs = () => {
+		refetch();
 	};
 
 	return {
@@ -185,85 +65,38 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 		createLLMConfig,
 		updateLLMConfig,
 		deleteLLMConfig,
-		refreshConfigs: fetchLLMConfigs,
+		refreshConfigs,
 	};
 }
 
 export function useLLMPreferences(searchSpaceId: number | null) {
-	const [preferences, setPreferences] = useState<LLMPreferences>({});
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const params = searchSpaceId ? { search_space_id: searchSpaceId } : null;
 
-	const fetchPreferences = async () => {
+	const { data: preferences = {}, isLoading: loading, error: queryError, refetch } = useGetLLMPreferences(params);
+	const updateMutation = useUpdateLLMPreferences();
+
+	const error = queryError?.message || null;
+
+	const updatePreferences = async (
+		newPreferences: Partial<import("@/api/llm-configs/types").LLMPreferences>
+	): Promise<boolean> => {
 		if (!searchSpaceId) {
-			setLoading(false);
-			return;
+			return false;
 		}
 
 		try {
-			setLoading(true);
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to fetch LLM preferences");
-			}
-
-			const data = await response.json();
-			setPreferences(data);
-			setError(null);
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch LLM preferences");
-			console.error("Error fetching LLM preferences:", err);
-		} finally {
-			setLoading(false);
+			await updateMutation.mutateAsync({
+				search_space_id: searchSpaceId,
+				preferences: newPreferences,
+			});
+			return true;
+		} catch {
+			return false;
 		}
 	};
 
-	useEffect(() => {
-		fetchPreferences();
-	}, [searchSpaceId]);
-
-	const updatePreferences = async (newPreferences: Partial<LLMPreferences>): Promise<boolean> => {
-		if (!searchSpaceId) {
-			toast.error("Search space ID is required");
-			return false;
-		}
-
-		try {
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
-				{
-					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					body: JSON.stringify(newPreferences),
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.detail || "Failed to update LLM preferences");
-			}
-
-			const updatedPreferences = await response.json();
-			setPreferences(updatedPreferences);
-			toast.success("LLM preferences updated successfully");
-			return true;
-		} catch (err: any) {
-			toast.error(err.message || "Failed to update LLM preferences");
-			console.error("Error updating LLM preferences:", err);
-			return false;
-		}
+	const refreshPreferences = () => {
+		refetch();
 	};
 
 	const isOnboardingComplete = (): boolean => {
@@ -279,7 +112,7 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 		loading,
 		error,
 		updatePreferences,
-		refreshPreferences: fetchPreferences,
+		refreshPreferences,
 		isOnboardingComplete,
 	};
 }

@@ -1,105 +1,63 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import documentsClientRequests from "@/api/documents/authClientRequests";
+import useGetDocumentByChunk from "@/api/documents/hooks/useGetDocumentByChunk";
+import type {
+	Chunk,
+	DocumentType,
+	DocumentWithChunks,
+} from "@/api/documents/types";
 
-export interface Chunk {
-	id: number;
-	content: string;
-	document_id: number;
-	created_at: string;
-}
-
-export interface DocumentWithChunks {
-	id: number;
-	title: string;
-	document_type: DocumentType;
-	document_metadata: any;
-	content: string;
-	created_at: string;
-	search_space_id: number;
-	chunks: Chunk[];
-}
-
-export type DocumentType =
-	| "EXTENSION"
-	| "CRAWLED_URL"
-	| "SLACK_CONNECTOR"
-	| "NOTION_CONNECTOR"
-	| "FILE"
-	| "YOUTUBE_VIDEO"
-	| "GITHUB_CONNECTOR"
-	| "LINEAR_CONNECTOR"
-	| "DISCORD_CONNECTOR"
-	| "JIRA_CONNECTOR"
-	| "CONFLUENCE_CONNECTOR"
-	| "CLICKUP_CONNECTOR"
-	| "GOOGLE_CALENDAR_CONNECTOR"
-	| "GOOGLE_GMAIL_CONNECTOR"
-	| "LUMA_CONNECTOR"
-	| "ELASTICSEARCH_CONNECTOR";
+// Re-export types for backward compatibility
+export type { Chunk, DocumentType, DocumentWithChunks };
 
 export function useDocumentByChunk() {
-	const [document, setDocument] = useState<DocumentWithChunks | null>(null);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const queryClient = useQueryClient();
+	const [chunkId, setChunkId] = useState<number | null>(null);
 
-	const fetchDocumentByChunk = useCallback(async (chunkId: number) => {
-		try {
-			setLoading(true);
-			setError(null);
-			setDocument(null);
+	const {
+		data: document,
+		isLoading: loading,
+		error: queryError,
+	} = useGetDocumentByChunk(chunkId);
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/by-chunk/${chunkId}`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						"Content-Type": "application/json",
-					},
-					method: "GET",
-				}
-			);
+	const error = queryError?.message || null;
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				let errorMessage = "Failed to fetch document";
-
-				try {
-					const errorData = JSON.parse(errorText);
-					errorMessage = errorData.detail || errorMessage;
-				} catch {
-					// If parsing fails, use default message
-				}
-
-				if (response.status === 404) {
-					errorMessage = "Chunk not found or you don't have access to it";
-				}
-
-				toast.error(errorMessage);
-				throw new Error(errorMessage);
-			}
-
-			const data: DocumentWithChunks = await response.json();
-			setDocument(data);
-			setError(null);
-			return data;
-		} catch (err: any) {
-			const errorMessage = err.message || "Failed to fetch document";
-			setError(errorMessage);
-			console.error("Error fetching document by chunk:", err);
-			throw err;
-		} finally {
-			setLoading(false);
+	// Handle errors with toast notifications (query hooks don't support onError)
+	useEffect(() => {
+		if (queryError) {
+			console.error("Error fetching document by chunk:", queryError);
+			const errorMessage =
+				queryError.message?.includes("404") ||
+				queryError.message?.includes("not found")
+					? "Chunk not found or you don't have access to it"
+					: queryError.message || "Failed to fetch document";
+			toast.error(errorMessage);
 		}
-	}, []);
+	}, [queryError]);
+
+	const fetchDocumentByChunk = useCallback(
+		async (id: number) => {
+			setChunkId(id);
+			// Refetch the query
+			const result = await queryClient.fetchQuery({
+				queryKey: ["documentByChunk", id],
+				queryFn: () => documentsClientRequests.getDocumentByChunk(id),
+			});
+			return result;
+		},
+		[queryClient],
+	);
 
 	const clearDocument = useCallback(() => {
-		setDocument(null);
-		setError(null);
-	}, []);
+		setChunkId(null);
+		queryClient.removeQueries({ queryKey: ["documentByChunk"] });
+	}, [queryClient]);
 
 	return {
-		document,
+		document: document || null,
 		loading,
 		error,
 		fetchDocumentByChunk,
