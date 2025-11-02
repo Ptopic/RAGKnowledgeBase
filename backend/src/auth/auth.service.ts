@@ -1,34 +1,34 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import axios from 'axios';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import axios from "axios";
+import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
 export class AuthService {
 	constructor(
 		private prisma: PrismaService,
-		private jwtService: JwtService
+		private jwtService: JwtService,
 	) {}
 
-	async verifyGoogleToken(accessToken: string, pushNotificationId: string) {
+	async verifyGoogleToken(accessToken: string) {
 		try {
 			const tokenInfoResponse = await axios.get(
-				`https://oauth2.googleapis.com/tokeninfo?access_token=${accessToken}`
+				`https://oauth2.googleapis.com/tokeninfo?access_token=${accessToken}`,
 			);
 
 			const userInfoResponse = await axios.get(
-				`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`
+				`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`,
 			);
 
 			const { email, sub } = tokenInfoResponse.data;
 
 			if (!email || !sub) {
-				throw new UnauthorizedException('Invalid token payload');
+				throw new UnauthorizedException("Invalid token payload");
 			}
 
 			const { name, picture } = userInfoResponse.data;
 
-			let userId;
+			let userId: string;
 
 			const existingUser = await this.prisma.user.findUnique({
 				where: {
@@ -42,17 +42,12 @@ export class AuthService {
 						email,
 						fullName: name,
 						picture,
-						pushNotificationId,
 					},
 				});
 
 				userId = newUser.id;
 			} else {
 				userId = existingUser.id;
-				await this.prisma.user.update({
-					where: { id: userId },
-					data: { pushNotificationId },
-				});
 			}
 
 			const jwtToken = this.jwtService.sign({
@@ -64,8 +59,8 @@ export class AuthService {
 				token: jwtToken,
 			};
 		} catch (error) {
-			console.error('Google token verification failed:', error);
-			throw new UnauthorizedException('Invalid Google access token');
+			console.error("Google token verification failed:", error);
+			throw new UnauthorizedException("Invalid Google access token");
 		}
 	}
 

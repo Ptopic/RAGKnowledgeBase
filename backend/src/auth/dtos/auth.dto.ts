@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { IsEmail, IsNotEmpty, IsString } from "class-validator";
 
 export class AuthPayloadDto {
 	@IsEmail()
@@ -12,4 +12,11 @@ export class AuthPayloadDto {
 	@IsNotEmpty()
 	@ApiProperty()
 	password: string;
+}
+
+export class GoogleLoginDto {
+	@IsString()
+	@IsNotEmpty()
+	@ApiProperty({ description: "Google OAuth access token" })
+	token: string;
 }

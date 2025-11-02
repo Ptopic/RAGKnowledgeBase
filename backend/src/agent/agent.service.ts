@@ -6,12 +6,7 @@ import { Injectable } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { ChatDto } from "./dtos/chat.dto";
 import { userPrompt } from "./prompts";
-import {
-	retrievalTool,
-	retrieveSimilarVideosTool,
-	retrieveStoredVideosTool,
-	triggerYoutubeVideoScrapeTool,
-} from "./tools";
+import { retrievalTool } from "./tools";
 
 @Injectable()
 export class AgentService {
@@ -29,12 +24,7 @@ export class AgentService {
 
 	private readonly agent = createReactAgent({
 		llm: this.llm,
-		tools: [
-			retrievalTool,
-			triggerYoutubeVideoScrapeTool,
-			retrieveSimilarVideosTool,
-			retrieveStoredVideosTool,
-		],
+		tools: [retrievalTool],
 		checkpointSaver: this.memorySaver,
 	});
 
@@ -49,7 +39,7 @@ export class AgentService {
 			{
 				messages: [{ role: "user", content: formattedPrompt }],
 			},
-			{ configurable: { thread_id } }
+			{ configurable: { thread_id } },
 		);
 
 		return results.messages.at(-1).content;
@@ -95,12 +85,7 @@ export class AgentService {
 
 					const streamingAgent = createReactAgent({
 						llm: streamingLlm,
-						tools: [
-							retrievalTool,
-							triggerYoutubeVideoScrapeTool,
-							retrieveSimilarVideosTool,
-							retrieveStoredVideosTool,
-						],
+						tools: [retrievalTool],
 						checkpointSaver: this.memorySaver,
 					});
 
@@ -108,7 +93,7 @@ export class AgentService {
 						{
 							messages: [{ role: "user", content: formattedPrompt }],
 						},
-						{ configurable: { thread_id } }
+						{ configurable: { thread_id } },
 					);
 
 					subscriber.complete();

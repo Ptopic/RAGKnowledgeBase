@@ -1,9 +1,17 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
-import { Request } from 'express';
-import { AuthService } from './auth.service';
-import { JwtAuth } from './decorators/jwt-auth.decorator';
+import {
+	BadRequestException,
+	Body,
+	Controller,
+	Get,
+	Post,
+	Req,
+} from "@nestjs/common";
+import { Request } from "express";
+import { AuthService } from "./auth.service";
+import { JwtAuth } from "./decorators/jwt-auth.decorator";
+import { GoogleLoginDto } from "./dtos/auth.dto";
 
-@Controller('auth')
+@Controller("auth")
 export class AuthController {
 	constructor(private authService: AuthService) {}
 
@@ -17,20 +25,15 @@ export class AuthController {
 	// 	return this.authService.login(payload);
 	// }
 
-	@Post('google')
-	async googleLogin(
-		@Body() body: { token: string; pushNotificationId: string }
-	) {
+	@Post("google")
+	async googleLogin(@Body() body: GoogleLoginDto) {
 		if (!body.token) {
-			throw new Error('Authorization code is missing');
+			throw new BadRequestException("Google access token is required");
 		}
-		return this.authService.verifyGoogleToken(
-			body.token,
-			body.pushNotificationId
-		);
+		return this.authService.verifyGoogleToken(body.token);
 	}
 
-	@Get('me')
+	@Get("me")
 	@JwtAuth()
 	me(@Req() req: Request) {
 		return this.authService.me(req.user.userId);

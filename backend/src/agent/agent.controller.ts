@@ -2,7 +2,6 @@ import { Body, Controller, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { AgentService } from "./agent.service";
 import type { ChatDto } from "./dtos/chat.dto";
-import { addYTVideoToVectorStore } from "./embeddings";
 
 @Controller("agent")
 export class AgentController {
@@ -44,13 +43,7 @@ export class AgentController {
 	@Post("webhook")
 	async webhook(@Body() body: any) {
 		console.log("webhook triggered");
-
-		await Promise.all(
-			body.map(async (video: any) => {
-				await addYTVideoToVectorStore(video);
-			}),
-		);
-
+		// TODO: Implement video processing logic
 		return { message: "Ok" };
 	}
 }

@@ -18,14 +18,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  email              String           @unique
-}
-
-model Transcript {
-  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  content  String?
-  metadata Json?
-  vector   Unsupported("vector(1536)")?
-
-  @@map("transcripts")
+  email    String  @unique
+  fullName String?
+  picture  String?
 }
