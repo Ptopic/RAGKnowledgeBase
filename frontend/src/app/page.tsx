@@ -6,7 +6,6 @@ import { openGraphImage } from "metadata/openGraphImage";
 import type { Metadata, ResolvingMetadata } from "next";
 
 export async function generateMetadata(
-	{},
 	parent: ResolvingMetadata,
 ): Promise<Metadata> {
 	const parentOpengraphUrl = (await parent).openGraph?.url;
