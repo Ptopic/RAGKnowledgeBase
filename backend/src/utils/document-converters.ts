@@ -1,11 +1,31 @@
 import { createHash } from 'crypto';
 import { Logger } from '@nestjs/common';
-import { token_counter, get_model_info } from 'litellm';
+import * as tiktoken from 'tiktoken';
 import { ConfigService } from '../config/config.service';
 import { SUMMARY_PROMPT_TEMPLATE } from '../prompts';
 import { DocumentType } from '@prisma/client';
 
 const logger = new Logger('DocumentConverters');
+
+// Model context window sizes (input + output tokens)
+const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
+  'gpt-4': 8192,
+  'gpt-4-32k': 32768,
+  'gpt-4-turbo': 128000,
+  'gpt-4-turbo-preview': 128000,
+  'gpt-4-1106-preview': 128000,
+  'gpt-4-0125-preview': 128000,
+  'gpt-4o': 128000,
+  'gpt-4o-mini': 128000,
+  'gpt-3.5-turbo': 16385,
+  'gpt-3.5-turbo-16k': 16385,
+  'gpt-3.5-turbo-1106': 16385,
+  'gpt-3.5-turbo-0125': 16385,
+  'claude-3-opus': 200000,
+  'claude-3-sonnet': 200000,
+  'claude-3-haiku': 200000,
+  'claude-3-5-sonnet': 200000,
+};
 
 export interface Chunk {
   content: string;
@@ -17,42 +37,70 @@ export interface DocumentMetadata {
 }
 
 /**
+ * Count tokens in text for a given model.
+ */
+function countTokens(text: string, modelName: string): number {
+  try {
+    // Try to get encoding for the specific model
+    const encoding = tiktoken.encoding_for_model(modelName as any);
+    const tokens = encoding.encode(text);
+    const count = tokens.length;
+    encoding.free(); // Free up memory
+    return count;
+  } catch {
+    // Fallback to cl100k_base encoding (used by gpt-4 and gpt-3.5-turbo)
+    try {
+      const encoding = tiktoken.get_encoding('cl100k_base');
+      const tokens = encoding.encode(text);
+      const count = tokens.length;
+      encoding.free();
+      return count;
+    } catch {
+      // Last resort: rough estimation (1 token ≈ 4 characters)
+      logger.warn(
+        `Could not load tokenizer for ${modelName}, using character-based estimation`,
+      );
+      return Math.ceil(text.length / 4);
+    }
+  }
+}
+
+/**
  * Get the total context window size for a model (input + output tokens).
  */
-export async function getModelContextWindow(modelName: string): Promise<number> {
-  try {
-    const modelInfo = await get_model_info(modelName);
-    const contextWindow = modelInfo.max_input_tokens || 4096;
-    return contextWindow;
-  } catch (error) {
-    logger.warn(
-      `Could not get model info for ${modelName}, using default 4096 tokens. Error: ${error.message}`,
-    );
-    return 4096;
+export function getModelContextWindow(modelName: string): number {
+  // Check if model name contains any known model identifier
+  for (const [key, value] of Object.entries(MODEL_CONTEXT_WINDOWS)) {
+    if (modelName.includes(key)) {
+      return value;
+    }
   }
+  
+  // Default to 4096 for unknown models
+  logger.warn(
+    `Unknown model ${modelName}, using default 4096 token context window`,
+  );
+  return 4096;
 }
 
 /**
  * Optimize content length to fit within model context window using binary search.
  */
-export async function optimizeContentForContextWindow(
+export function optimizeContentForContextWindow(
   content: string,
   documentMetadata: DocumentMetadata | null,
   modelName: string,
-): Promise<string> {
+): string {
   if (!content) {
     return content;
   }
 
-  const contextWindow = await getModelContextWindow(modelName);
+  const contextWindow = getModelContextWindow(modelName);
   let reservedTokens = 2000;
 
   if (documentMetadata) {
     const metadataText = `<DOCUMENT_METADATA>\n\n${JSON.stringify(documentMetadata)}\n\n</DOCUMENT_METADATA>`;
-    const metadataTokens = await token_counter({
-      messages: [{ role: 'user', content: metadataText }],
-      model: modelName,
-    });
+    const metadataTokens = countTokens(metadataText, modelName);
     reservedTokens += metadataTokens;
   }
 
@@ -73,10 +121,7 @@ export async function optimizeContentForContextWindow(
     const testContent = content.slice(0, mid);
     const testDocument = `<DOCUMENT_CONTENT>\n\n${testContent}\n\n</DOCUMENT_CONTENT>`;
 
-    const testTokens = await token_counter({
-      messages: [{ role: 'user', content: testDocument }],
-      model: modelName,
-    });
+    const testTokens = countTokens(testDocument, modelName);
 
     if (testTokens <= availableTokens) {
       optimalLength = mid;
@@ -108,7 +153,7 @@ export async function generateDocumentSummary(
 ): Promise<{ summary: string; embedding: number[] }> {
   const modelName = userLlm.model || 'gpt-3.5-turbo';
 
-  const optimizedContent = await optimizeContentForContextWindow(
+  const optimizedContent = optimizeContentForContextWindow(
     content,
     documentMetadata,
     modelName,
@@ -276,7 +321,7 @@ export function convertChunksToLangChainDocuments(chunks: any[]): any[] {
     });
 
     return langchainDocs;
-  } catch (error) {
+  } catch {
     throw new Error(
       'LangChain is not installed. Please install it with `npm install @langchain/core`',
     );
