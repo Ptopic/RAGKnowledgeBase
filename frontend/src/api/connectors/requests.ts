@@ -10,17 +10,6 @@ import type {
 	UpdateConnectorRequest,
 } from "./types";
 
-export const initiateAirtableOAuth =
-	(request: ICallableRequestBuilder<OAuthResponse>) =>
-	async (params: InitiateOAuthParams) =>
-		request.call(
-			`${config.apiUrl}/api/v1/auth/airtable/connector/add/?space_id=${params.space_id}`,
-			(init) => ({
-				...init,
-				method: "GET",
-			}),
-		);
-
 export const initiateGoogleCalendarOAuth =
 	(request: ICallableRequestBuilder<OAuthResponse>) =>
 	async (params: InitiateOAuthParams) =>

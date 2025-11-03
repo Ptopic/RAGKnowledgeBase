@@ -52,11 +52,7 @@ export function SourceDetailSheet({
 	const [summaryOpen, setSummaryOpen] = useState(false);
 
 	// Check if this is a source type that should render directly from node
-	const isDirectRenderSource =
-		sourceType === "TAVILY_API" ||
-		sourceType === "LINKUP_API" ||
-		sourceType === "SEARXNG_API" ||
-		sourceType === "BAIDU_SEARCH_API";
+	const isDirectRenderSource = false;
 
 	useEffect(() => {
 		if (open && chunkId && !isDirectRenderSource) {
@@ -85,7 +81,7 @@ export function SourceDetailSheet({
 	};
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
+        <Sheet open={open} onOpenChange={onOpenChange}>
 			{children}
 			<SheetContent side="right" className="w-full sm:max-w-5xl lg:max-w-7xl">
 				<SheetHeader className="px-6 py-4 border-b">
@@ -244,5 +240,5 @@ export function SourceDetailSheet({
 				)}
 			</SheetContent>
 		</Sheet>
-	);
+    );
 }

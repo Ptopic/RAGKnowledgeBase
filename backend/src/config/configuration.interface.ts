@@ -40,11 +40,6 @@ export interface GoogleConfig {
   gmail: GoogleGmailConfig;
 }
 
-export interface AirtableConfig {
-  clientId?: string;
-  clientSecret?: string;
-  redirectUri?: string;
-}
 
 export interface AzureOpenAIConfig {
   endpoint?: string;
@@ -126,74 +121,10 @@ export interface NotionConnectorConfig {
   token?: string;
 }
 
-export interface LinearConnectorConfig {
-  apiKey?: string;
-}
-
-export interface JiraConnectorConfig {
-  email?: string;
-  apiToken?: string;
-  serverUrl?: string;
-}
-
-export interface ConfluenceConnectorConfig {
-  email?: string;
-  apiToken?: string;
-  baseUrl?: string;
-}
-
-export interface DiscordConnectorConfig {
-  token?: string;
-}
-
-export interface ClickupConnectorConfig {
-  apiKey?: string;
-}
-
-export interface LumaConnectorConfig {
-  apiKey?: string;
-}
-
-export interface ElasticsearchConnectorConfig {
-  host?: string;
-  username?: string;
-  password?: string;
-}
-
 export interface ConnectorsConfig {
   github: GithubConnectorConfig;
   slack: SlackConnectorConfig;
   notion: NotionConnectorConfig;
-  linear: LinearConnectorConfig;
-  jira: JiraConnectorConfig;
-  confluence: ConfluenceConnectorConfig;
-  discord: DiscordConnectorConfig;
-  clickup: ClickupConnectorConfig;
-  luma: LumaConnectorConfig;
-  elasticsearch: ElasticsearchConnectorConfig;
-}
-
-export interface TavilySearchConfig {
-  apiKey?: string;
-}
-
-export interface LinkupSearchConfig {
-  apiKey?: string;
-}
-
-export interface SearxngSearchConfig {
-  url?: string;
-}
-
-export interface BaiduSearchConfig {
-  apiKey?: string;
-}
-
-export interface SearchConfig {
-  tavily: TavilySearchConfig;
-  linkup: LinkupSearchConfig;
-  searxng: SearxngSearchConfig;
-  baidu: BaiduSearchConfig;
 }
 
 export interface OpenAIConfig {
@@ -230,7 +161,6 @@ export interface AppConfig {
   backend: BackendConfig;
   auth: AuthConfig;
   google: GoogleConfig;
-  airtable: AirtableConfig;
   embedding: EmbeddingConfig;
   reranker: RerankerConfig;
   etl: ETLConfig;
@@ -239,6 +169,5 @@ export interface AppConfig {
   queue: QueueConfig;
   langsmith: LangsmithConfig;
   connectors: ConnectorsConfig;
-  search: SearchConfig;
   llm: LLMConfig;
 }

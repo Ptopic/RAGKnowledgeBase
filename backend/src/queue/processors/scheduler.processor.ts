@@ -48,16 +48,8 @@ export class SchedulerProcessor {
         SLACK_CONNECTOR: 'index-slack-messages',
         NOTION_CONNECTOR: 'index-notion-pages',
         GITHUB_CONNECTOR: 'index-github-repos',
-        LINEAR_CONNECTOR: 'index-linear-issues',
-        JIRA_CONNECTOR: 'index-jira-issues',
-        CONFLUENCE_CONNECTOR: 'index-confluence-pages',
-        CLICKUP_CONNECTOR: 'index-clickup-tasks',
         GOOGLE_CALENDAR_CONNECTOR: 'index-google-calendar-events',
-        AIRTABLE_CONNECTOR: 'index-airtable-records',
         GOOGLE_GMAIL_CONNECTOR: 'index-google-gmail-messages',
-        DISCORD_CONNECTOR: 'index-discord-messages',
-        LUMA_CONNECTOR: 'index-luma-events',
-        ELASTICSEARCH_CONNECTOR: 'index-elasticsearch-documents',
       };
 
       for (const connector of dueConnectors) {

@@ -7,8 +7,8 @@ import { QUEUE_NAMES } from '../queue.config';
 /**
  * Connector Indexing Processor
  *
- * Handles indexing from various third-party connectors:
- * - GitHub, Slack, Notion, Jira, etc.
+ * Handles indexing from third-party connectors:
+ * - Slack, Notion, GitHub, Google Calendar, Google Gmail
  */
 @Processor(QUEUE_NAMES.CONNECTORS)
 export class ConnectorsProcessor {
@@ -122,10 +122,10 @@ export class ConnectorsProcessor {
   }
 
   /**
-   * Index Linear issues
+   * Index Google Calendar events
    */
-  @Process('index-linear-issues')
-  async indexLinearIssues(
+  @Process('index-google-calendar-events')
+  async indexGoogleCalendarEvents(
     job: Job<{
       connectorId: number;
       searchSpaceId: number;
@@ -138,17 +138,17 @@ export class ConnectorsProcessor {
 
     try {
       this.logger.log(
-        `Indexing Linear issues for connector ${connectorId}`,
+        `Indexing Google Calendar events for connector ${connectorId}`,
       );
 
-      // TODO: Implement Linear indexing
+      // TODO: Implement Google Calendar indexing
 
       this.logger.log(
-        `Successfully indexed Linear issues for connector ${connectorId}`,
+        `Successfully indexed Google Calendar events for connector ${connectorId}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to index Linear issues: ${error.message}`,
+        `Failed to index Google Calendar events: ${error.message}`,
         error.stack,
       );
       throw error;
@@ -156,10 +156,10 @@ export class ConnectorsProcessor {
   }
 
   /**
-   * Index Jira issues
+   * Index Google Gmail messages
    */
-  @Process('index-jira-issues')
-  async indexJiraIssues(
+  @Process('index-google-gmail-messages')
+  async indexGoogleGmailMessages(
     job: Job<{
       connectorId: number;
       searchSpaceId: number;
@@ -172,23 +172,20 @@ export class ConnectorsProcessor {
 
     try {
       this.logger.log(
-        `Indexing Jira issues for connector ${connectorId}`,
+        `Indexing Google Gmail messages for connector ${connectorId}`,
       );
 
-      // TODO: Implement Jira indexing
+      // TODO: Implement Google Gmail indexing
 
       this.logger.log(
-        `Successfully indexed Jira issues for connector ${connectorId}`,
+        `Successfully indexed Google Gmail messages for connector ${connectorId}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to index Jira issues: ${error.message}`,
+        `Failed to index Google Gmail messages: ${error.message}`,
         error.stack,
       );
       throw error;
     }
   }
-
-  // Add placeholders for other connectors (Confluence, ClickUp, Google Calendar, etc.)
-  // These will be implemented when migrating each specific connector
 }

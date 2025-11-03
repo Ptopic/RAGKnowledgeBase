@@ -4,14 +4,12 @@ import {
 	deleteConnector,
 	getConnector,
 	getConnectors,
-	initiateAirtableOAuth,
 	initiateGoogleCalendarOAuth,
 	initiateGoogleGmailOAuth,
 	updateConnector,
 } from "./requests";
 
 const connectorsClientRequests = {
-	initiateAirtableOAuth: withAuthenticatedClientRequest(initiateAirtableOAuth),
 	initiateGoogleCalendarOAuth: withAuthenticatedClientRequest(
 		initiateGoogleCalendarOAuth,
 	),

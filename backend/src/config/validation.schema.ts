@@ -27,10 +27,6 @@ const envSchema = z.object({
   GOOGLE_CALENDAR_REDIRECT_URI: z.string().url().optional(),
   GOOGLE_GMAIL_REDIRECT_URI: z.string().url().optional(),
 
-  // Airtable OAuth
-  AIRTABLE_CLIENT_ID: z.string().optional(),
-  AIRTABLE_CLIENT_SECRET: z.string().optional(),
-  AIRTABLE_REDIRECT_URI: z.string().url().optional(),
 
   // Embedding Configuration
   EMBEDDING_MODEL: z
@@ -83,25 +79,6 @@ const envSchema = z.object({
   GITHUB_TOKEN: z.string().optional(),
   SLACK_TOKEN: z.string().optional(),
   NOTION_TOKEN: z.string().optional(),
-  LINEAR_API_KEY: z.string().optional(),
-  JIRA_EMAIL: z.string().email().optional().or(z.literal('')),
-  JIRA_API_TOKEN: z.string().optional(),
-  JIRA_SERVER_URL: z.string().url().optional().or(z.literal('')),
-  CONFLUENCE_EMAIL: z.string().email().optional().or(z.literal('')),
-  CONFLUENCE_API_TOKEN: z.string().optional(),
-  CONFLUENCE_BASE_URL: z.string().url().optional().or(z.literal('')),
-  DISCORD_TOKEN: z.string().optional(),
-  CLICKUP_API_KEY: z.string().optional(),
-  LUMA_API_KEY: z.string().optional(),
-  ELASTICSEARCH_HOST: z.string().url().optional().or(z.literal('')),
-  ELASTICSEARCH_USERNAME: z.string().optional(),
-  ELASTICSEARCH_PASSWORD: z.string().optional(),
-
-  // Search APIs
-  TAVILY_API_KEY: z.string().optional(),
-  LINKUP_API_KEY: z.string().optional(),
-  SEARXNG_URL: z.string().url().optional().or(z.literal('')),
-  BAIDU_API_KEY: z.string().optional(),
 
   // LLM Provider Keys
   OPENAI_API_KEY: z.string().optional(),

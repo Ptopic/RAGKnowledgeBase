@@ -1,8 +1,6 @@
 "use client";
 
 import {
-	IconBrandWindows,
-	IconBrandZoom,
 	IconChevronDown,
 	IconChevronRight,
 } from "@tabler/icons-react";
@@ -44,50 +42,6 @@ interface ConnectorCategory {
 // Define connector categories and their connectors
 const connectorCategories: ConnectorCategory[] = [
 	{
-		id: "search-engines",
-		title: "search_engines",
-		connectors: [
-			{
-				id: "tavily-api",
-				title: "Tavily API",
-				description: "tavily_desc",
-				icon: getConnectorIcon(EnumConnectorName.TAVILY_API, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "searxng",
-				title: "SearxNG",
-				description: "searxng_desc",
-				icon: getConnectorIcon(EnumConnectorName.SEARXNG_API, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "linkup-api",
-				title: "Linkup API",
-				description: "linkup_desc",
-				icon: getConnectorIcon(EnumConnectorName.LINKUP_API, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "elasticsearch-connector",
-				title: "Elasticsearch",
-				description: "elasticsearch_desc",
-				icon: getConnectorIcon(
-					EnumConnectorName.ELASTICSEARCH_CONNECTOR,
-					"h-6 w-6",
-				),
-				status: "available",
-			},
-			{
-				id: "baidu-search-api",
-				title: "Baidu Search",
-				description: "baidu_desc",
-				icon: getConnectorIcon(EnumConnectorName.BAIDU_SEARCH_API, "h-6 w-6"),
-				status: "available",
-			},
-		],
-	},
-	{
 		id: "team-chats",
 		title: "team_chats",
 		connectors: [
@@ -96,47 +50,6 @@ const connectorCategories: ConnectorCategory[] = [
 				title: "Slack",
 				description: "slack_desc",
 				icon: getConnectorIcon(EnumConnectorName.SLACK_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "ms-teams",
-				title: "Microsoft Teams",
-				description: "teams_desc",
-				icon: <IconBrandWindows className="h-6 w-6" />,
-				status: "coming-soon",
-			},
-			{
-				id: "discord-connector",
-				title: "Discord",
-				description: "discord_desc",
-				icon: getConnectorIcon(EnumConnectorName.DISCORD_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-		],
-	},
-	{
-		id: "project-management",
-		title: "project_management",
-		connectors: [
-			{
-				id: "linear-connector",
-				title: "Linear",
-				description: "linear_desc",
-				icon: getConnectorIcon(EnumConnectorName.LINEAR_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "jira-connector",
-				title: "Jira",
-				description: "jira_desc",
-				icon: getConnectorIcon(EnumConnectorName.JIRA_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "clickup-connector",
-				title: "ClickUp",
-				description: "clickup_desc",
-				icon: getConnectorIcon(EnumConnectorName.CLICKUP_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 		],
@@ -157,30 +70,6 @@ const connectorCategories: ConnectorCategory[] = [
 				title: "GitHub",
 				description: "github_desc",
 				icon: getConnectorIcon(EnumConnectorName.GITHUB_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "confluence-connector",
-				title: "Confluence",
-				description: "confluence_desc",
-				icon: getConnectorIcon(
-					EnumConnectorName.CONFLUENCE_CONNECTOR,
-					"h-6 w-6",
-				),
-				status: "available",
-			},
-			{
-				id: "airtable-connector",
-				title: "Airtable",
-				description: "airtable_desc",
-				icon: getConnectorIcon(EnumConnectorName.AIRTABLE_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-			{
-				id: "luma-connector",
-				title: "Luma",
-				description: "luma_desc",
-				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 		],
@@ -208,13 +97,6 @@ const connectorCategories: ConnectorCategory[] = [
 					"h-6 w-6",
 				),
 				status: "available",
-			},
-			{
-				id: "zoom",
-				title: "Zoom",
-				description: "zoom_desc",
-				icon: <IconBrandZoom className="h-6 w-6" />,
-				status: "coming-soon",
 			},
 		],
 	},
@@ -263,9 +145,7 @@ export default function ConnectorsPage() {
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [expandedCategories, setExpandedCategories] = useState<string[]>([
-		"search-engines",
 		"knowledge-bases",
-		"project-management",
 		"team-chats",
 		"communication",
 	]);
@@ -279,7 +159,7 @@ export default function ConnectorsPage() {
 	};
 
 	return (
-		<div className="container mx-auto py-12 max-w-6xl">
+        <div className="container mx-auto py-12 max-w-6xl">
 			<motion.div
 				initial={{ opacity: 0, y: 30 }}
 				animate={{ opacity: 1, y: 0 }}
@@ -455,5 +335,5 @@ export default function ConnectorsPage() {
 				))}
 			</motion.div>
 		</div>
-	);
+    );
 }

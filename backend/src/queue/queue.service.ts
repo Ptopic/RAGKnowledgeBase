@@ -178,7 +178,43 @@ export class QueueService implements OnModuleInit {
     });
   }
 
-  // Add more connector methods as needed (Linear, Jira, etc.)
+  /**
+   * Index Google Calendar events
+   */
+  async indexGoogleCalendarEvents(
+    connectorId: number,
+    searchSpaceId: number,
+    userId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    return this.connectorsQueue.add('index-google-calendar-events', {
+      connectorId,
+      searchSpaceId,
+      userId,
+      startDate,
+      endDate,
+    });
+  }
+
+  /**
+   * Index Google Gmail messages
+   */
+  async indexGoogleGmailMessages(
+    connectorId: number,
+    searchSpaceId: number,
+    userId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    return this.connectorsQueue.add('index-google-gmail-messages', {
+      connectorId,
+      searchSpaceId,
+      userId,
+      startDate,
+      endDate,
+    });
+  }
 
   // ==================== Queue Management Methods ====================
 

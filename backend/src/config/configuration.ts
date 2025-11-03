@@ -40,12 +40,6 @@ export default () => ({
     },
   },
 
-  // Airtable OAuth
-  airtable: {
-    clientId: process.env.AIRTABLE_CLIENT_ID,
-    clientSecret: process.env.AIRTABLE_CLIENT_SECRET,
-    redirectUri: process.env.AIRTABLE_REDIRECT_URI,
-  },
 
   // Embedding Configuration
   embedding: {
@@ -124,49 +118,6 @@ export default () => ({
     },
     notion: {
       token: process.env.NOTION_TOKEN,
-    },
-    linear: {
-      apiKey: process.env.LINEAR_API_KEY,
-    },
-    jira: {
-      email: process.env.JIRA_EMAIL,
-      apiToken: process.env.JIRA_API_TOKEN,
-      serverUrl: process.env.JIRA_SERVER_URL,
-    },
-    confluence: {
-      email: process.env.CONFLUENCE_EMAIL,
-      apiToken: process.env.CONFLUENCE_API_TOKEN,
-      baseUrl: process.env.CONFLUENCE_BASE_URL,
-    },
-    discord: {
-      token: process.env.DISCORD_TOKEN,
-    },
-    clickup: {
-      apiKey: process.env.CLICKUP_API_KEY,
-    },
-    luma: {
-      apiKey: process.env.LUMA_API_KEY,
-    },
-    elasticsearch: {
-      host: process.env.ELASTICSEARCH_HOST,
-      username: process.env.ELASTICSEARCH_USERNAME,
-      password: process.env.ELASTICSEARCH_PASSWORD,
-    },
-  },
-
-  // Search APIs
-  search: {
-    tavily: {
-      apiKey: process.env.TAVILY_API_KEY,
-    },
-    linkup: {
-      apiKey: process.env.LINKUP_API_KEY,
-    },
-    searxng: {
-      url: process.env.SEARXNG_URL,
-    },
-    baidu: {
-      apiKey: process.env.BAIDU_API_KEY,
     },
   },
 
