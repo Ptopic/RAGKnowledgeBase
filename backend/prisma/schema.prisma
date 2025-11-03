@@ -1,24 +1,354 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// This is your Prisma schema file
+// Converted from backend_test/app/db.py
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
+// ==================== Enums ====================
+
+enum DocumentType {
+  EXTENSION
+  CRAWLED_URL
+  FILE
+  SLACK_CONNECTOR
+  NOTION_CONNECTOR
+  YOUTUBE_VIDEO
+  GITHUB_CONNECTOR
+  LINEAR_CONNECTOR
+  DISCORD_CONNECTOR
+  JIRA_CONNECTOR
+  CONFLUENCE_CONNECTOR
+  CLICKUP_CONNECTOR
+  GOOGLE_CALENDAR_CONNECTOR
+  GOOGLE_GMAIL_CONNECTOR
+  AIRTABLE_CONNECTOR
+  LUMA_CONNECTOR
+  ELASTICSEARCH_CONNECTOR
+}
+
+enum SearchSourceConnectorType {
+  SERPER_API // Not implemented yet
+  TAVILY_API
+  SEARXNG_API
+  LINKUP_API
+  BAIDU_SEARCH_API
+  SLACK_CONNECTOR
+  NOTION_CONNECTOR
+  GITHUB_CONNECTOR
+  LINEAR_CONNECTOR
+  DISCORD_CONNECTOR
+  JIRA_CONNECTOR
+  CONFLUENCE_CONNECTOR
+  CLICKUP_CONNECTOR
+  GOOGLE_CALENDAR_CONNECTOR
+  GOOGLE_GMAIL_CONNECTOR
+  AIRTABLE_CONNECTOR
+  LUMA_CONNECTOR
+  ELASTICSEARCH_CONNECTOR
+}
+
+enum ChatType {
+  QNA
+}
+
+enum LiteLLMProvider {
+  OPENAI
+  ANTHROPIC
+  GROQ
+  COHERE
+  HUGGINGFACE
+  AZURE_OPENAI
+  GOOGLE
+  AWS_BEDROCK
+  OLLAMA
+  MISTRAL
+  TOGETHER_AI
+  OPENROUTER
+  REPLICATE
+  PALM
+  VERTEX_AI
+  ANYSCALE
+  PERPLEXITY
+  DEEPINFRA
+  AI21
+  NLPCLOUD
+  ALEPH_ALPHA
+  PETALS
+  COMETAPI
+  // Chinese LLM Providers
+  DEEPSEEK
+  ALIBABA_QWEN
+  MOONSHOT
+  ZHIPU
+  CUSTOM
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum LogStatus {
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+}
+
+// ==================== Models ====================
+
+// User Model (with fastapi-users fields)
 model User {
   id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  email    String  @unique
-  fullName String?
-  picture  String?
+  email          String  @unique
+  hashedPassword String? @map("hashed_password")
+  isActive       Boolean @default(true) @map("is_active")
+  isSuperuser    Boolean @default(false) @map("is_superuser")
+  isVerified     Boolean @default(false) @map("is_verified")
+  fullName       String? @map("full_name")
+  picture        String?
+
+  // Page usage tracking for ETL services
+  pagesLimit Int @default(500) @map("pages_limit")
+  pagesUsed  Int @default(0) @map("pages_used")
+
+  // Relationships
+  oauthAccounts          OAuthAccount[]
+  searchSpaces           SearchSpace[]
+  searchSourceConnectors SearchSourceConnector[]
+  searchSpacePreferences UserSearchSpacePreference[]
+
+  @@map("user")
+}
+
+// OAuth Account Model
+model OAuthAccount {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  userId       String  @map("user_id")
+  oauthName    String  @map("oauth_name") // e.g., "google"
+  accessToken  String  @map("access_token")
+  expiresAt    Int?    @map("expires_at")
+  refreshToken String? @map("refresh_token")
+  accountId    String  @map("account_id")
+  accountEmail String  @map("account_email")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([oauthName, accountId])
+  @@index([userId])
+  @@map("oauth_account")
+}
+
+// Search Space Model
+model SearchSpace {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  name        String  @db.VarChar(100)
+  description String? @db.VarChar(500)
+  userId      String  @map("user_id")
+
+  // Relationships
+  user                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents              Document[]
+  chats                  Chat[]
+  logs                   Log[]
+  searchSourceConnectors SearchSourceConnector[]
+  llmConfigs             LLMConfig[]
+  userPreferences        UserSearchSpacePreference[]
+
+  @@index([name])
+  @@index([userId])
+  @@map("searchspaces")
+}
+
+// Document Model
+model Document {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  title                String       @db.VarChar(255)
+  documentType         DocumentType @map("document_type")
+  documentMetadata     Json?        @map("document_metadata")
+  content              String       @db.Text
+  contentHash          String       @unique @map("content_hash")
+  uniqueIdentifierHash String?      @unique @map("unique_identifier_hash")
+
+  // pgvector embedding - stored as Unsupported type
+  // Vector dimension depends on embedding model (e.g., 384, 768, 1536)
+  // Will be handled via raw queries or pgvector extension
+  embedding Unsupported("vector")?
+
+  searchSpaceId Int @map("search_space_id")
+
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  chunks      Chunk[]
+
+  @@index([title])
+  @@index([contentHash])
+  @@index([uniqueIdentifierHash])
+  @@index([searchSpaceId])
+  @@map("documents")
+}
+
+// Chunk Model
+model Chunk {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  content    String                 @db.Text
+  embedding  Unsupported("vector")? // pgvector embedding
+  documentId Int                    @map("document_id")
+
+  // Relationships
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("chunks")
+}
+
+// Chat Model
+model Chat {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  type              ChatType @map("type")
+  title             String   @db.VarChar(255)
+  initialConnectors String[] @map("initial_connectors")
+  messages          Json     @map("messages") // Array of message objects
+
+  searchSpaceId Int @map("search_space_id")
+
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+
+  @@index([title])
+  @@index([searchSpaceId])
+  @@map("chats")
+}
+
+// Search Source Connector Model
+model SearchSourceConnector {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  name          String                    @db.VarChar(100)
+  connectorType SearchSourceConnectorType @map("connector_type")
+  isIndexable   Boolean                   @default(false) @map("is_indexable")
+  lastIndexedAt DateTime?                 @map("last_indexed_at") @db.Timestamptz
+  config        Json                      @map("config")
+
+  // Periodic indexing fields
+  periodicIndexingEnabled  Boolean   @default(false) @map("periodic_indexing_enabled")
+  indexingFrequencyMinutes Int?      @map("indexing_frequency_minutes")
+  nextScheduledAt          DateTime? @map("next_scheduled_at") @db.Timestamptz
+
+  searchSpaceId Int    @map("search_space_id")
+  userId        String @map("user_id")
+
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([searchSpaceId, userId, connectorType], name: "uq_searchspace_user_connector_type")
+  @@index([name])
+  @@index([searchSpaceId])
+  @@index([userId])
+  @@map("search_source_connectors")
+}
+
+// LLM Config Model
+model LLMConfig {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  name           String          @db.VarChar(100)
+  provider       LiteLLMProvider @map("provider")
+  customProvider String?         @map("custom_provider") @db.VarChar(100)
+  modelName      String          @map("model_name") @db.VarChar(100)
+  apiKey         String          @map("api_key") // Should be encrypted
+  apiBase        String?         @map("api_base") @db.VarChar(500)
+  language       String?         @default("English") @db.VarChar(50)
+  litellmParams  Json?           @default("{}") @map("litellm_params")
+
+  searchSpaceId Int @map("search_space_id")
+
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+
+  // Reverse relationships for user preferences
+  userPreferencesLongContext UserSearchSpacePreference[] @relation("LongContextLLM")
+  userPreferencesFast        UserSearchSpacePreference[] @relation("FastLLM")
+  userPreferencesStrategic   UserSearchSpacePreference[] @relation("StrategicLLM")
+
+  @@index([name])
+  @@index([searchSpaceId])
+  @@map("llm_configs")
+}
+
+// User Search Space Preference Model
+model UserSearchSpacePreference {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId        String @map("user_id")
+  searchSpaceId Int    @map("search_space_id")
+
+  // User-specific LLM preferences for this search space
+  longContextLlmId Int? @map("long_context_llm_id")
+  fastLlmId        Int? @map("fast_llm_id")
+  strategicLlmId   Int? @map("strategic_llm_id")
+
+  // Relationships
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+
+  longContextLlm LLMConfig? @relation("LongContextLLM", fields: [longContextLlmId], references: [id], onDelete: SetNull)
+  fastLlm        LLMConfig? @relation("FastLLM", fields: [fastLlmId], references: [id], onDelete: SetNull)
+  strategicLlm   LLMConfig? @relation("StrategicLLM", fields: [strategicLlmId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, searchSpaceId], name: "uq_user_searchspace")
+  @@index([userId])
+  @@index([searchSpaceId])
+  @@map("user_search_space_preferences")
+}
+
+// Log Model
+model Log {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  level       LogLevel  @map("level")
+  status      LogStatus @map("status")
+  message     String    @db.Text
+  source      String?   @db.VarChar(200) // Service/component that generated the log
+  logMetadata Json?     @default("{}") @map("log_metadata")
+
+  searchSpaceId Int @map("search_space_id")
+
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+
+  @@index([level])
+  @@index([status])
+  @@index([source])
+  @@index([searchSpaceId])
+  @@map("logs")
 }

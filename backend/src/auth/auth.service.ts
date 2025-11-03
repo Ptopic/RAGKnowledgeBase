@@ -1,15 +1,27 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import axios from "axios";
 import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
 export class AuthService {
+	private readonly logger = new Logger(AuthService.name);
+
 	constructor(
 		private prisma: PrismaService,
 		private jwtService: JwtService,
 	) {}
 
+	/**
+	 * Lifecycle hook: Called after user registration
+	 */
+	private async onAfterRegister(userId: string): Promise<void> {
+		this.logger.log(`User ${userId} has registered.`);
+	}
+
+	/**
+	 * Verify Google OAuth token and create/link user account
+	 */
 	async verifyGoogleToken(accessToken: string) {
 		try {
 			const tokenInfoResponse = await axios.get(
@@ -29,11 +41,11 @@ export class AuthService {
 			const { name, picture } = userInfoResponse.data;
 
 			let userId: string;
+			let isNewUser = false;
 
 			const existingUser = await this.prisma.user.findUnique({
-				where: {
-					email,
-				},
+				where: { email },
+				include: { oauthAccounts: true },
 			});
 
 			if (!existingUser) {
@@ -42,12 +54,44 @@ export class AuthService {
 						email,
 						fullName: name,
 						picture,
+						oauthAccounts: {
+							create: {
+								oauthName: "google",
+								accountId: sub,
+								accountEmail: email,
+								accessToken: accessToken,
+							},
+						},
 					},
 				});
 
 				userId = newUser.id;
+				isNewUser = true;
+
+				await this.onAfterRegister(userId);
 			} else {
 				userId = existingUser.id;
+
+				const existingOAuthAccount = existingUser.oauthAccounts.find(
+					(account) => account.oauthName === "google" && account.accountId === sub,
+				);
+
+				if (!existingOAuthAccount) {
+					await this.prisma.oAuthAccount.create({
+						data: {
+							userId: userId,
+							oauthName: "google",
+							accountId: sub,
+							accountEmail: email,
+							accessToken: accessToken,
+						},
+					});
+				} else {
+					await this.prisma.oAuthAccount.update({
+						where: { id: existingOAuthAccount.id },
+						data: { accessToken: accessToken },
+					});
+				}
 			}
 
 			const jwtToken = this.jwtService.sign({
@@ -57,9 +101,10 @@ export class AuthService {
 
 			return {
 				token: jwtToken,
+				isNewUser,
 			};
 		} catch (error) {
-			console.error("Google token verification failed:", error);
+			this.logger.error("Google token verification failed:", error);
 			throw new UnauthorizedException("Invalid Google access token");
 		}
 	}
@@ -69,9 +114,54 @@ export class AuthService {
 			where: {
 				id: userId,
 			},
+			include: {
+				oauthAccounts: {
+					select: {
+						oauthName: true,
+						accountId: true,
+					},
+				},
+				searchSpaces: {
+					select: {
+						id: true,
+						name: true,
+						description: true,
+					},
+				},
+			},
 		});
 
 		return user;
+	}
+
+	/**
+	 * Update user's page usage (for ETL tracking)
+	 */
+	async incrementPagesUsed(userId: string, pagesUsed: number): Promise<void> {
+		await this.prisma.user.update({
+			where: { id: userId },
+			data: {
+				pagesUsed: {
+					increment: pagesUsed,
+				},
+			},
+		});
+	}
+
+	/**
+	 * Check if user has exceeded their page limit
+	 */
+	async hasExceededPageLimit(userId: string): Promise<boolean> {
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { pagesLimit: true, pagesUsed: true },
+		});
+
+		if (!user) {
+			throw new UnauthorizedException("User not found");
+		}
+
+		return user.pagesUsed >= user.pagesLimit;
 	}
 
 	// async register(payload: AuthPayloadDto) {
