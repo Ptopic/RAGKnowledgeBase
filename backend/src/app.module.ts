@@ -8,6 +8,7 @@ import configuration from './config/configuration';
 import { AppConfigModule } from './config/config.module';
 import { validateConfig } from './config/validation.schema';
 import { QueueModule } from './queue/queue.module';
+import { ConnectorsModule } from './connectors';
 
 @Module({
 	imports: [
@@ -17,6 +18,7 @@ import { QueueModule } from './queue/queue.module';
 			validate: validateConfig,
 		}),
 		AppConfigModule,
+		ConnectorsModule,
 		QueueModule,
 		AuthModule,
 		AgentModule,
