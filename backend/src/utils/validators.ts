@@ -4,6 +4,7 @@ import * as validator from 'validator';
 /**
  * Validate and convert search_space_id to integer.
  */
+// biome-ignore lint/suspicious/noExplicitAny: Function accepts any type for validation
 export function validateSearchSpaceId(searchSpaceId: any): number {
   if (searchSpaceId === null || searchSpaceId === undefined) {
     throw new BadRequestException('search_space_id is required');
@@ -45,6 +46,7 @@ export function validateSearchSpaceId(searchSpaceId: any): number {
 /**
  * Validate and convert document_ids to list of integers.
  */
+// biome-ignore lint/suspicious/noExplicitAny: Function accepts any type for validation
 export function validateDocumentIds(documentIds: any): number[] {
   if (documentIds === null || documentIds === undefined) {
     return [];
@@ -103,6 +105,7 @@ export function validateDocumentIds(documentIds: any): number[] {
 /**
  * Validate selected_connectors list.
  */
+// biome-ignore lint/suspicious/noExplicitAny: Function accepts any type for validation
 export function validateConnectors(connectors: any): string[] {
   if (connectors === null || connectors === undefined) {
     return [];
@@ -139,6 +142,7 @@ export function validateConnectors(connectors: any): string[] {
 /**
  * Validate research_mode parameter.
  */
+// biome-ignore lint/suspicious/noExplicitAny: Function accepts any type for validation
 export function validateResearchMode(researchMode: any): string {
   if (researchMode === null || researchMode === undefined) {
     return 'QNA'; // Default value
@@ -164,6 +168,7 @@ export function validateResearchMode(researchMode: any): string {
 /**
  * Validate search_mode parameter.
  */
+// biome-ignore lint/suspicious/noExplicitAny: Function accepts any type for validation
 export function validateSearchMode(searchMode: any): string {
   if (searchMode === null || searchMode === undefined) {
     return 'CHUNKS'; // Default value
@@ -189,6 +194,7 @@ export function validateSearchMode(searchMode: any): string {
 /**
  * Validate messages structure.
  */
+// biome-ignore lint/suspicious/noExplicitAny: Function accepts any type for validation
 export function validateMessages(messages: any): Array<{ role: string; content: string }> {
   if (!Array.isArray(messages)) {
     throw new BadRequestException('messages must be a list');
@@ -293,8 +299,11 @@ export function validateUuid(uuidString: string): string {
  * Validate connector configuration based on connector type.
  */
 export function validateConnectorConfig(
+  // biome-ignore lint/suspicious/noExplicitAny: Function accepts any type for validation
   connectorType: string | any,
+  // biome-ignore lint/suspicious/noExplicitAny: Config structure varies by connector type
   config: Record<string, any>,
+  // biome-ignore lint/suspicious/noExplicitAny: Return type matches input config structure
 ): Record<string, any> {
   if (typeof config !== 'object' || config === null || Array.isArray(config)) {
     throw new Error('config must be a dictionary of connector settings');

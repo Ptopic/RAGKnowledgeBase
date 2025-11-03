@@ -13,12 +13,14 @@ import { User } from '@prisma/client';
  * @throws NotFoundException if item doesn't exist
  * @throws ForbiddenException if user doesn't own the item
  */
+// biome-ignore lint/suspicious/noExplicitAny: Generic type for items with id and userId
 export async function checkOwnership<T extends { id: any; userId: string }>(
   prisma: PrismaService,
   model: keyof PrismaService,
   itemId: number | string,
   user: User,
 ): Promise<T> {
+  // biome-ignore lint/suspicious/noExplicitAny: Prisma model access requires dynamic typing
   const prismaModel = prisma[model] as any;
 
   if (!prismaModel || typeof prismaModel.findFirst !== 'function') {
@@ -58,12 +60,14 @@ export async function checkOwnership<T extends { id: any; userId: string }>(
  * @returns Array of items owned by the user
  * @throws ForbiddenException if any item is not owned by the user
  */
+// biome-ignore lint/suspicious/noExplicitAny: Generic type for items with id and userId
 export async function checkMultipleOwnership<T extends { id: any; userId: string }>(
   prisma: PrismaService,
   model: keyof PrismaService,
   itemIds: (number | string)[],
   user: User,
 ): Promise<T[]> {
+  // biome-ignore lint/suspicious/noExplicitAny: Prisma model access requires dynamic typing
   const prismaModel = prisma[model] as any;
 
   if (!prismaModel || typeof prismaModel.findMany !== 'function') {

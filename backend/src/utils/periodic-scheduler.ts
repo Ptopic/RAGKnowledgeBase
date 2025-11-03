@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { SearchSourceConnectorType } from '@prisma/client';
-import { QueueService } from '../queue/queue.service';
+// TODO: Implement QueueService
+// import { QueueService } from '../queue/queue.service';
 
 const logger = new Logger('PeriodicScheduler');
 
@@ -21,12 +22,15 @@ export const CONNECTOR_TASK_MAP = {
  * Note: The periodic schedule is managed by the database (nextScheduledAt field)
  * and checked by the meta-scheduler task that runs every minute.
  * This function just triggers the first run for immediate feedback.
+ * 
+ * TODO: Implement when QueueService is available
  */
 export async function createPeriodicSchedule(
-  queueService: QueueService,
+  // biome-ignore lint/suspicious/noExplicitAny: QueueService type not yet implemented
+  _queueService: any, // TODO: Replace with QueueService type when implemented
   connectorId: number,
-  searchSpaceId: number,
-  userId: string,
+  _searchSpaceId: number,
+  _userId: string,
   connectorType: SearchSourceConnectorType,
   frequencyMinutes: number,
 ): Promise<boolean> {
@@ -43,38 +47,41 @@ export async function createPeriodicSchedule(
       return false;
     }
 
+    // TODO: Implement when QueueService is available
     // Trigger the first run immediately
-    switch (connectorType) {
-      case SearchSourceConnectorType.SLACK_CONNECTOR:
-        await queueService.indexSlackMessages(connectorId, searchSpaceId, userId, null, null);
-        break;
-      case SearchSourceConnectorType.NOTION_CONNECTOR:
-        await queueService.indexNotionPages(connectorId, searchSpaceId, userId, null, null);
-        break;
-      case SearchSourceConnectorType.GITHUB_CONNECTOR:
-        await queueService.indexGitHubRepos(connectorId, searchSpaceId, userId, null, null);
-        break;
-      case SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR:
-        await queueService.indexGoogleCalendarEvents(connectorId, searchSpaceId, userId, null, null);
-        break;
-      case SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR:
-        await queueService.indexGoogleGmailMessages(connectorId, searchSpaceId, userId, null, null);
-        break;
-      default:
-        logger.error(`Unsupported connector type: ${connectorType}`);
-        return false;
-    }
+    // switch (connectorType) {
+    //   case SearchSourceConnectorType.SLACK_CONNECTOR:
+    //     await queueService.indexSlackMessages(connectorId, searchSpaceId, userId, null, null);
+    //     break;
+    //   case SearchSourceConnectorType.NOTION_CONNECTOR:
+    //     await queueService.indexNotionPages(connectorId, searchSpaceId, userId, null, null);
+    //     break;
+    //   case SearchSourceConnectorType.GITHUB_CONNECTOR:
+    //     await queueService.indexGitHubRepos(connectorId, searchSpaceId, userId, null, null);
+    //     break;
+    //   case SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR:
+    //     await queueService.indexGoogleCalendarEvents(connectorId, searchSpaceId, userId, null, null);
+    //     break;
+    //   case SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR:
+    //     await queueService.indexGoogleGmailMessages(connectorId, searchSpaceId, userId, null, null);
+    //     break;
+    //   default:
+    //     logger.error(`Unsupported connector type: ${connectorType}`);
+    //     return false;
+    // }
+
+    logger.warn('QueueService not yet implemented - skipping first indexing run');
 
     logger.log(
-      `✓ First indexing run triggered for connector ${connectorId}. ` +
-        `Periodic indexing will continue automatically every ${frequencyMinutes} minutes.`,
+      `✓ Periodic schedule configured for connector ${connectorId}. ` +
+        `Will run automatically every ${frequencyMinutes} minutes once QueueService is implemented.`,
     );
 
     return true;
   } catch (error) {
     logger.error(
-      `Failed to trigger initial indexing for connector ${connectorId}: ${error.message}`,
-      error.stack,
+      `Failed to configure periodic schedule for connector ${connectorId}: ${(error as Error).message}`,
+      (error as Error).stack,
     );
     return false;
   }
@@ -97,13 +104,16 @@ export function deletePeriodicSchedule(connectorId: number): boolean {
  *
  * Note: With the meta-scheduler pattern, updates are handled by the database.
  * This function logs the update and optionally triggers an immediate run.
+ * 
+ * TODO: Implement when QueueService is available
  */
 export async function updatePeriodicSchedule(
-  queueService: QueueService,
+  // biome-ignore lint/suspicious/noExplicitAny: QueueService type not yet implemented
+  _queueService: any, // TODO: Replace with QueueService type when implemented
   connectorId: number,
-  searchSpaceId: number,
-  userId: string,
-  connectorType: SearchSourceConnectorType,
+  _searchSpaceId: number,
+  _userId: string,
+  _connectorType: SearchSourceConnectorType,
   frequencyMinutes: number,
 ): Promise<boolean> {
   logger.log(
@@ -111,7 +121,7 @@ export async function updatePeriodicSchedule(
       `(new frequency: ${frequencyMinutes} minutes)`,
   );
 
-  // Optionally trigger an immediate run with the new schedule
+  // TODO: Optionally trigger an immediate run with the new schedule
   // Uncomment the line below if you want immediate execution on schedule update
   // return createPeriodicSchedule(queueService, connectorId, searchSpaceId, userId, connectorType, frequencyMinutes);
 
