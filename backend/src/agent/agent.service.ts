@@ -5,17 +5,15 @@ import { ChatOpenAI } from "@langchain/openai";
 import { Injectable } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { ChatDto } from "./dtos/chat.dto";
+import { ResearcherDto } from "./dtos/researcher.dto";
 import { userPrompt } from "./prompts";
+import { ResearcherService } from "./researcher.service";
 import { retrievalTool } from "./tools";
 
 @Injectable()
 export class AgentService {
-	// private readonly llm = new ChatAnthropic({
-	// 	modelName: 'claude-3-7-sonnet-latest',
-	// });
-
 	private readonly llm = new ChatOpenAI({
-		modelName: "gpt-4.1-mini",
+		modelName: "gpt-4o-mini",
 	});
 
 	private readonly memorySaver = new MemorySaver();
@@ -27,6 +25,8 @@ export class AgentService {
 		tools: [retrievalTool],
 		checkpointSaver: this.memorySaver,
 	});
+
+	constructor(private readonly researcherService: ResearcherService) {}
 
 	async chat(chatDto: ChatDto) {
 		const { message, thread_id } = chatDto;
@@ -58,12 +58,12 @@ export class AgentService {
 					let isStreamingFinalResponse = false;
 
 					const streamingLlm = new ChatOpenAI({
-						modelName: "gpt-4.1-mini",
+						modelName: "gpt-4o-mini",
 						streaming: true,
 						configuration: {
-							baseURL: "http://localhost:8585/jawn/v1/gateway/oai/v1", // Helicone local proxy
+							baseURL: "http://localhost:8585/jawn/v1/gateway/oai/v1",
 							defaultHeaders: {
-								"Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`, // your Helicone key
+								"Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
 							},
 						},
 						callbacks: [
@@ -102,5 +102,12 @@ export class AgentService {
 				}
 			})();
 		});
+	}
+
+	/**
+	 * Researcher agent - delegates to ResearcherService
+	 */
+	streamResearcher(researcherDto: ResearcherDto): Observable<string> {
+		return this.researcherService.streamResearcher(researcherDto);
 	}
 }
