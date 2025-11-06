@@ -25,7 +25,7 @@ interface Document {
 @Injectable()
 export class ResearcherService {
 	/**
-	 * Main researcher agent workflow - matches Python implementation
+	 * Main researcher agent workflow
 	 * Workflow: reformulate_query -> fetch_documents -> qna_workflow -> generate_follow_up_questions
 	 */
 	streamResearcher(researcherDto: ResearcherDto): Observable<string> {
