@@ -16,6 +16,7 @@ import { SearchSourceConnectorsModule } from './search-source-connectors/search-
 import { LLMConfigsModule } from './llm-configs/llm-configs.module';
 import { LogsModule } from './logs/logs.module';
 import { GoogleAuthModule } from './google-auth/google-auth.module';
+import { ServicesModule } from './services/services.module';
 
 @Module({
 	imports: [
@@ -25,6 +26,7 @@ import { GoogleAuthModule } from './google-auth/google-auth.module';
 			validate: validateConfig,
 		}),
 		AppConfigModule,
+		ServicesModule,
 		ConnectorsModule,
 		QueueModule,
 		AuthModule,
