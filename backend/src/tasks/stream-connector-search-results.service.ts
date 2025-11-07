@@ -3,6 +3,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { AgentService } from '../agent/agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface StreamConnectorSearchResultsParams {
@@ -11,7 +12,7 @@ interface StreamConnectorSearchResultsParams {
   searchSpaceId: number;
   researchMode: string;
   selectedConnectors: string[];
-  langchainChatHistory: any[];
+  langchainChatHistory: Array<{ role: string; content: string }>;
   searchModeStr: string;
   documentIdsToAddInContext: number[];
   language?: string;
@@ -23,7 +24,27 @@ export class StreamConnectorSearchResultsService {
     StreamConnectorSearchResultsService.name,
   );
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private agentService: AgentService,
+  ) {}
+
+  /**
+   * Format data for AI SDK data stream protocol
+   * Format: 0:"text content"\n
+   */
+  private formatDataStreamChunk(text: string): string {
+    // Escape quotes and newlines in the text
+    const escaped = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    return `0:"${escaped}"\n`;
+  }
+
+  /**
+   * Format finish message for AI SDK data stream protocol
+   */
+  private formatFinishChunk(): string {
+    return 'd:{"finishReason":"stop"}\n';
+  }
 
   /**
    * Stream connector search results to the client.
@@ -81,31 +102,75 @@ export class StreamConnectorSearchResultsService {
       // Run the graph directly
       this.logger.log('Running the complete researcher workflow...');
 
-      // Note: This is where you would stream results from your LangGraph workflow
-      // For now, this is a placeholder implementation
-      yield JSON.stringify({
-        type: 'status',
-        message: 'Starting search...',
+      // Call the agent service with the user query
+      const chatDto = {
+        message: params.userQuery,
+        thread_id: `${params.userId}_${params.searchSpaceId}`,
+      };
+
+      // Stream from agent service and convert to AI SDK format
+      const stream = this.agentService.streamChat(chatDto);
+
+      // Convert Observable to async generator
+      const chunks: string[] = [];
+      let streamError: Error | null = null;
+      let streamComplete = false;
+
+      // Subscribe to the stream and collect chunks
+      stream.subscribe({
+        next: (chunk) => {
+          if (chunk && chunk.length > 0) {
+            chunks.push(chunk);
+          }
+        },
+        error: (error) => {
+          this.logger.error(`Stream error: ${error.message}`);
+          streamError = error;
+          streamComplete = true;
+        },
+        complete: () => {
+          this.logger.log('Agent stream completed');
+          streamComplete = true;
+        },
       });
 
-      // Example streaming implementation:
-      // for await (const chunk of researcherGraph.astream(initialState, config)) {
-      //   if (chunk && chunk.yieldValue) {
-      //     yield chunk.yieldValue;
-      //   }
-      // }
+      // Yield chunks as they arrive
+      while (!streamComplete) {
+        if (chunks.length > 0) {
+          const chunk = chunks.shift();
+          if (chunk) {
+            // Format the chunk for AI SDK
+            yield this.formatDataStreamChunk(chunk);
+          }
+        } else {
+          // Wait a bit before checking again
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      }
 
-      // Placeholder final result
-      yield JSON.stringify({
-        type: 'completion',
-        message: 'Search completed',
-      });
+      // Yield any remaining chunks
+      while (chunks.length > 0) {
+        const chunk = chunks.shift();
+        if (chunk) {
+          yield this.formatDataStreamChunk(chunk);
+        }
+      }
+
+      // If there was an error, throw it
+      if (streamError) {
+        throw streamError;
+      }
+
+      // Send finish chunk
+      yield this.formatFinishChunk();
     } catch (error) {
       this.logger.error(
         `Error streaming connector search results: ${error.message}`,
         error.stack,
       );
-      throw error;
+      // Send error in AI SDK format
+      yield this.formatDataStreamChunk(`Error: ${error.message}`);
+      yield this.formatFinishChunk();
     }
   }
 }

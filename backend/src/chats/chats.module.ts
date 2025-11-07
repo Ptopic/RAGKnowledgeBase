@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { AgentModule } from '../agent/agent.module';
 import { ChatsController } from './chats.controller';
 import { ChatsService } from './chats.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StreamConnectorSearchResultsService } from '../tasks/stream-connector-search-results.service';
 
 @Module({
+  imports: [AgentModule],
   controllers: [ChatsController],
   providers: [
     ChatsService,

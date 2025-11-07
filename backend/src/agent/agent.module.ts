@@ -27,6 +27,7 @@ import { RetrieverModule } from 'src/retriever/retriever.module';
   ],
   controllers: [AgentController],
   exports: [
+    AgentService,
     ResearcherServiceComplete,
     ConnectorService,
     QNAService,
