@@ -1,15 +1,15 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Req,
-  ParseIntPipe,
+    Controller,
+    Get,
+    Post,
+    Put,
+    Delete,
+    Body,
+    Param,
+    Query,
+    UseGuards,
+    Req,
+    ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { LogsService } from './logs.service';
@@ -64,8 +64,8 @@ export class LogsController {
   @Get('search-space/:searchSpaceId/summary')
   async getLogsSummary(
     @Param('searchSpaceId', ParseIntPipe) searchSpaceId: number,
-    @Query('hours') hours?: string,
     @Req() req: any,
+    @Query('hours') hours?: string,
   ): Promise<any> {
     const hoursNum = hours !== undefined ? parseInt(hours, 10) : 24;
     return this.logsService.getLogsSummary(searchSpaceId, req.user.id, hoursNum);

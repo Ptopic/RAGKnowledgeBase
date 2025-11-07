@@ -24,8 +24,8 @@ export class RerankerService {
 	private readonly logger = new Logger(RerankerService.name);
 	private rerankerInstance: any;
 
-	constructor(rerankerInstance?: any) {
-		this.rerankerInstance = rerankerInstance;
+	constructor() {
+		this.rerankerInstance = null;
 	}
 
 	/**
@@ -107,7 +107,9 @@ export class RerankerService {
 	 */
 	static getRerankerInstance(config: any): RerankerService | null {
 		if (config?.rerankerInstance) {
-			return new RerankerService(config.rerankerInstance);
+			const service = new RerankerService();
+			service.setRerankerInstance(config.rerankerInstance);
+			return service;
 		}
 		return null;
 	}

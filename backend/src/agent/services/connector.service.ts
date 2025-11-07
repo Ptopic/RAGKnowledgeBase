@@ -3,6 +3,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { RetrieverService } from "src/retriever/retriever.service";
 import { Document } from "../utils/agent.utils";
 import { SearchMode } from "../dtos/researcher.dto";
+import { DocumentType } from "@prisma/client";
 
 interface SourceObject {
 	id: number;
@@ -274,7 +275,7 @@ export class ConnectorService {
 					topK,
 					userId,
 					searchSpaceId,
-					documentType,
+					documentType: documentType as DocumentType,
 				});
 			} else {
 				results = await this.retrieverService.searchDocuments({
@@ -282,7 +283,7 @@ export class ConnectorService {
 					topK,
 					userId,
 					searchSpaceId,
-					documentType,
+					documentType: documentType as DocumentType,
 				});
 			}
 

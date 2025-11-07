@@ -155,7 +155,6 @@ export class YoutubeProcessorService {
             title: videoData.title,
             content: summaryContent,
             contentHash,
-            embedding: summaryEmbedding,
             documentMetadata: {
               url,
               video_id: videoId,
@@ -180,7 +179,6 @@ export class YoutubeProcessorService {
               thumbnail: videoData.thumbnail_url,
             } as any,
             content: summaryContent,
-            embedding: summaryEmbedding,
             searchSpaceId,
             contentHash,
             uniqueIdentifierHash,

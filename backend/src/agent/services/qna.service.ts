@@ -4,11 +4,11 @@ import { RerankerService } from "./reranker.service";
 import { LLMService } from "./llm.service";
 import { StreamingService } from "../streaming.service";
 import {
-	Document,
-	optimizeDocumentsForTokenLimit,
-	formatDocumentsSection,
-	langchainChatHistoryToStr,
-	calculateTokenCount,
+    Document,
+    optimizeDocumentsForTokenLimit,
+    formatDocumentsSection,
+    langchainChatHistoryToStr,
+    calculateTokenCount,
 } from "../utils/agent.utils";
 import { BaseMessage } from "@langchain/core/messages";
 
@@ -248,7 +248,7 @@ export class QNAService {
 			// Enable streaming on the LLM
 			const streamingLLM = llm.bind({
 				streaming: true,
-			});
+			} as any);
 
 			const stream = await streamingLLM.stream(messagesWithChatHistory);
 

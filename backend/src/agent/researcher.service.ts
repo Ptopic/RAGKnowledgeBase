@@ -451,9 +451,9 @@ ${formattedDocs}
 
 	private formatDocumentForCitation(document: Document): string {
 		const content = document.content || "";
-		const docInfo = document.document || {};
+		const docInfo = document.document || ({} as any);
 		const documentId = document.chunk_id || "";
-		const documentType = docInfo.document_type || "CRAWLED_URL";
+		const documentType = (docInfo as any).document_type || "CRAWLED_URL";
 
 		return `<document>
   <metadata>
@@ -485,8 +485,8 @@ ${formattedDocs}
 
 		for (const [docType, docs] of Object.entries(documentsByType)) {
 			const sourcesList = docs.map((doc) => {
-				const documentInfo = doc.document || {};
-				const metadata = documentInfo.metadata || {};
+				const documentInfo: any = doc.document || {};
+				const metadata: any = documentInfo.metadata || {};
 
 				return {
 					id: doc.chunk_id || sourceIdCounter++,

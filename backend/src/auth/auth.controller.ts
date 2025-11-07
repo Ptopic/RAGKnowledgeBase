@@ -1,10 +1,10 @@
 import {
-	BadRequestException,
-	Body,
-	Controller,
-	Get,
-	Post,
-	Req,
+    BadRequestException,
+    Body,
+    Controller,
+    Get,
+    Post,
+    Req,
 } from "@nestjs/common";
 import { Request } from "express";
 import { AuthService } from "./auth.service";
@@ -36,6 +36,6 @@ export class AuthController {
 	@Get("me")
 	@JwtAuth()
 	me(@Req() req: Request) {
-		return this.authService.me(req.user.userId);
+		return this.authService.me(req.user.id);
 	}
 }

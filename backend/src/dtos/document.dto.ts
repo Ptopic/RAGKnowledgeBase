@@ -1,11 +1,11 @@
 import {
-  IsString,
-  IsInt,
-  IsEnum,
-  IsOptional,
-  ValidateNested,
-  IsArray,
-  IsObject,
+    IsString,
+    IsInt,
+    IsEnum,
+    IsOptional,
+    ValidateNested,
+    IsArray,
+    IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DocumentType } from '@prisma/client';
@@ -87,7 +87,7 @@ export class DocumentDto {
   search_space_id: number;
 }
 
-export class ChunkDto {
+export class DocumentChunkDto {
   @IsInt()
   id: number;
 
@@ -104,8 +104,8 @@ export class ChunkDto {
 export class DocumentWithChunksDto extends DocumentDto {
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ChunkDto)
-  chunks: ChunkDto[];
+  @Type(() => DocumentChunkDto)
+  chunks: DocumentChunkDto[];
 }
 
 export class PaginatedResponseDto<T> {

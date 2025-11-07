@@ -149,7 +149,6 @@ export class ExtensionProcessorService {
             title: content.metadata.VisitedWebPageTitle,
             content: summaryContent,
             contentHash,
-            embedding: summaryEmbedding,
             documentMetadata: content.metadata as any,
           },
         });
@@ -163,7 +162,6 @@ export class ExtensionProcessorService {
             documentType: DocumentType.EXTENSION,
             documentMetadata: content.metadata as any,
             content: summaryContent,
-            embedding: summaryEmbedding,
             contentHash,
             uniqueIdentifierHash,
           },

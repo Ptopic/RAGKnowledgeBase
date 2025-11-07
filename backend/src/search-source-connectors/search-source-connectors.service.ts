@@ -1,15 +1,15 @@
 import {
-  Injectable,
-  NotFoundException,
-  InternalServerErrorException,
-  ConflictException,
-  BadRequestException,
+    Injectable,
+    NotFoundException,
+    InternalServerErrorException,
+    ConflictException,
+    BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  CreateSearchSourceConnectorDto,
-  UpdateSearchSourceConnectorDto,
-  SearchSourceConnectorDto,
+    CreateSearchSourceConnectorDto,
+    UpdateSearchSourceConnectorDto,
+    SearchSourceConnectorDto,
 } from '../dtos/search-source-connector.dto';
 
 @Injectable()
@@ -213,7 +213,7 @@ export class SearchSourceConnectorsService {
 
       let mergedConfig = connector.config;
       if (updateDto.config) {
-        mergedConfig = { ...mergedConfig, ...updateDto.config };
+        mergedConfig = { ...(mergedConfig as object), ...updateDto.config };
       }
 
       const updated = await this.prisma.searchSourceConnector.update({

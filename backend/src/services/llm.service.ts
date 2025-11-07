@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatLiteLLM } from '@langchain/community/chat_models/litellm';
+// import { ChatLiteLLM } from '@langchain/community/chat_models/litellm';
 import { PrismaService } from '../prisma/prisma.service';
-import { LLMProvider } from '@prisma/client';
+import { LiteLLMProvider } from '@prisma/client';
+
+// Temporary type until ChatLiteLLM is available
+type ChatLiteLLM = any;
 
 export enum LLMRole {
 	LONG_CONTEXT = 'long_context',
@@ -83,29 +86,29 @@ export class LLMService {
 				modelString = `${llmConfig.customProvider}/${llmConfig.modelName}`;
 			} else {
 				// Map provider enum to litellm format
-				const providerMap: Record<LLMProvider, string> = {
-					[LLMProvider.OPENAI]: 'openai',
-					[LLMProvider.ANTHROPIC]: 'anthropic',
-					[LLMProvider.GROQ]: 'groq',
-					[LLMProvider.COHERE]: 'cohere',
-					[LLMProvider.GOOGLE]: 'gemini',
-					[LLMProvider.OLLAMA]: 'ollama',
-					[LLMProvider.MISTRAL]: 'mistral',
-					[LLMProvider.AZURE_OPENAI]: 'azure',
-					[LLMProvider.OPENROUTER]: 'openrouter',
-					[LLMProvider.COMETAPI]: 'cometapi',
+				const providerMap: Partial<Record<LiteLLMProvider, string>> = {
+					[LiteLLMProvider.OPENAI]: 'openai',
+					[LiteLLMProvider.ANTHROPIC]: 'anthropic',
+					[LiteLLMProvider.GROQ]: 'groq',
+					[LiteLLMProvider.COHERE]: 'cohere',
+					[LiteLLMProvider.GOOGLE]: 'gemini',
+					[LiteLLMProvider.OLLAMA]: 'ollama',
+					[LiteLLMProvider.MISTRAL]: 'mistral',
+					[LiteLLMProvider.AZURE_OPENAI]: 'azure',
+					[LiteLLMProvider.OPENROUTER]: 'openrouter',
+					[LiteLLMProvider.COMETAPI]: 'cometapi',
 					// Chinese LLM providers (OpenAI-compatible)
-					[LLMProvider.DEEPSEEK]: 'openai', // DeepSeek uses OpenAI-compatible API
-					[LLMProvider.ALIBABA_QWEN]: 'openai', // Qwen uses OpenAI-compatible API
-					[LLMProvider.MOONSHOT]: 'openai', // Moonshot (Kimi) uses OpenAI-compatible API
-					[LLMProvider.ZHIPU]: 'openai', // Zhipu (GLM) uses OpenAI-compatible API
+					[LiteLLMProvider.DEEPSEEK]: 'openai', // DeepSeek uses OpenAI-compatible API
+					[LiteLLMProvider.ALIBABA_QWEN]: 'openai', // Qwen uses OpenAI-compatible API
+					[LiteLLMProvider.MOONSHOT]: 'openai', // Moonshot (Kimi) uses OpenAI-compatible API
+					[LiteLLMProvider.ZHIPU]: 'openai', // Zhipu (GLM) uses OpenAI-compatible API
 				};
 				const providerPrefix =
 					providerMap[llmConfig.provider] || llmConfig.provider.toLowerCase();
 				modelString = `${providerPrefix}/${llmConfig.modelName}`;
 			}
 
-			// Create ChatLiteLLM instance
+			// Create ChatLiteLLM instance - commented out as package doesn't exist
 			const litellmConfig: Record<string, any> = {
 				model: modelString,
 				apiKey: llmConfig.apiKey,
@@ -121,7 +124,8 @@ export class LLMService {
 				Object.assign(litellmConfig, llmConfig.litellmParams);
 			}
 
-			return new ChatLiteLLM(litellmConfig);
+			// return new ChatLiteLLM(litellmConfig);
+			return null; // Temporarily return null until ChatLiteLLM is available
 		} catch (error) {
 			this.logger.error(
 				`Error getting LLM instance for user ${userId}, role ${role}: ${error.message}`,

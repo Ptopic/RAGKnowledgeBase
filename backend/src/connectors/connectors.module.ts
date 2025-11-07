@@ -2,31 +2,16 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AppConfigModule } from '../config/config.module';
 
-import { GitHubConnector } from './github.connector';
-import { GoogleCalendarConnector } from './google-calendar.connector';
-import { GoogleGmailConnector } from './google-gmail.connector';
-import { NotionConnector } from './notion.connector';
-import { SlackConnector } from './slack.connector';
-
 /**
- * Module that provides all connector implementations
+ * Module that provides connector dependencies
+ * Note: Connectors (GitHubConnector, NotionConnector, etc.) are not registered as providers
+ * because they require runtime parameters (tokens, credentials) that cannot be injected.
+ * They should be instantiated directly when needed with the appropriate credentials.
  */
 @Module({
   imports: [PrismaModule, AppConfigModule],
-  providers: [
-    GitHubConnector,
-    GoogleCalendarConnector,
-    GoogleGmailConnector,
-    NotionConnector,
-    SlackConnector,
-  ],
-  exports: [
-    GitHubConnector,
-    GoogleCalendarConnector,
-    GoogleGmailConnector,
-    NotionConnector,
-    SlackConnector,
-  ],
+  providers: [],
+  exports: [],
 })
 export class ConnectorsModule {}
 

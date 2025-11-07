@@ -35,7 +35,7 @@ export class LLMService {
 			const preference =
 				await this.prisma.userSearchSpacePreference.findUnique({
 					where: {
-						userId_searchSpaceId: {
+						uq_user_searchspace: {
 							userId,
 							searchSpaceId,
 						},
@@ -211,7 +211,7 @@ export class LLMService {
 	 */
 	getModelName(llm: BaseChatModel): string {
 		if (llm instanceof ChatOpenAI) {
-			return llm.modelName || "gpt-3.5-turbo";
+			return (llm as any).modelName || "gpt-3.5-turbo";
 		} else if (llm instanceof ChatAnthropic) {
 			return llm.model || "claude-3-sonnet-20240229";
 		}

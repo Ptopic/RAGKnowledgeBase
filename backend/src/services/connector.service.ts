@@ -5,7 +5,7 @@ import {
 	DocumentType,
 } from '@prisma/client';
 import { ChunksHybridSearchRetriever } from '../retriever/chunks-hybrid-search.retriever';
-import { DocumentsHybridSearchRetriever } from '../retriever/documents-hybrid-search.retriever';
+import { DocumentHybridSearchRetriever } from '../retriever/documents-hybrid-search.retriever';
 
 export enum SearchMode {
 	CHUNKS = 'CHUNKS',
@@ -31,7 +31,7 @@ interface SourceItem {
 export class ConnectorService {
 	private readonly logger = new Logger(ConnectorService.name);
 	private chunkRetriever: ChunksHybridSearchRetriever;
-	private documentRetriever: DocumentsHybridSearchRetriever;
+	private documentRetriever: DocumentHybridSearchRetriever;
 	private userId: string | null = null;
 	private sourceIdCounter: number = 100000; // High starting value to avoid collisions
 	private counterLock: boolean = false;
@@ -39,7 +39,7 @@ export class ConnectorService {
 	constructor(
 		private readonly prisma: PrismaService,
 		chunkRetriever: ChunksHybridSearchRetriever,
-		documentRetriever: DocumentsHybridSearchRetriever,
+		documentRetriever: DocumentHybridSearchRetriever,
 		userId?: string,
 	) {
 		this.chunkRetriever = chunkRetriever;
@@ -53,7 +53,7 @@ export class ConnectorService {
 	static forUser(
 		prisma: PrismaService,
 		chunkRetriever: ChunksHybridSearchRetriever,
-		documentRetriever: DocumentsHybridSearchRetriever,
+		documentRetriever: DocumentHybridSearchRetriever,
 		userId: string,
 	): ConnectorService {
 		const service = new ConnectorService(
@@ -151,21 +151,21 @@ export class ConnectorService {
 		let chunks: any[];
 
 		if (searchMode === SearchMode.CHUNKS) {
-			chunks = await this.chunkRetriever.hybridSearch(
-				userQuery,
+			chunks = await this.chunkRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.CRAWLED_URL,
-			);
+				documentType: DocumentType.CRAWLED_URL,
+			});
 		} else {
-			const docs = await this.documentRetriever.hybridSearch(
-				userQuery,
+			const docs = await this.documentRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.CRAWLED_URL,
-			);
+				documentType: DocumentType.CRAWLED_URL,
+			});
 			chunks = this.transformDocumentResults(docs);
 		}
 
@@ -229,21 +229,21 @@ export class ConnectorService {
 		let chunks: any[];
 
 		if (searchMode === SearchMode.CHUNKS) {
-			chunks = await this.chunkRetriever.hybridSearch(
-				userQuery,
+			chunks = await this.chunkRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.FILE,
-			);
+				documentType: DocumentType.FILE,
+			});
 		} else {
-			const docs = await this.documentRetriever.hybridSearch(
-				userQuery,
+			const docs = await this.documentRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.FILE,
-			);
+				documentType: DocumentType.FILE,
+			});
 			chunks = this.transformDocumentResults(docs);
 		}
 
@@ -327,21 +327,21 @@ export class ConnectorService {
 		let chunks: any[];
 
 		if (searchMode === SearchMode.CHUNKS) {
-			chunks = await this.chunkRetriever.hybridSearch(
-				userQuery,
+			chunks = await this.chunkRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.SLACK_CONNECTOR,
-			);
+				documentType: DocumentType.SLACK_CONNECTOR,
+			});
 		} else {
-			const docs = await this.documentRetriever.hybridSearch(
-				userQuery,
+			const docs = await this.documentRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.SLACK_CONNECTOR,
-			);
+				documentType: DocumentType.SLACK_CONNECTOR,
+			});
 			chunks = this.transformDocumentResults(docs);
 		}
 
@@ -414,21 +414,21 @@ export class ConnectorService {
 		let chunks: any[];
 
 		if (searchMode === SearchMode.CHUNKS) {
-			chunks = await this.chunkRetriever.hybridSearch(
-				userQuery,
+			chunks = await this.chunkRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.NOTION_CONNECTOR,
-			);
+				documentType: DocumentType.NOTION_CONNECTOR,
+			});
 		} else {
-			const docs = await this.documentRetriever.hybridSearch(
-				userQuery,
+			const docs = await this.documentRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				DocumentType.NOTION_CONNECTOR,
-			);
+				documentType: DocumentType.NOTION_CONNECTOR,
+			});
 			chunks = this.transformDocumentResults(docs);
 		}
 
@@ -510,21 +510,21 @@ export class ConnectorService {
 		let chunks: any[];
 
 		if (searchMode === SearchMode.CHUNKS) {
-			chunks = await this.chunkRetriever.hybridSearch(
-				userQuery,
+			chunks = await this.chunkRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				connectorType,
-			);
+				documentType: connectorType as DocumentType,
+			});
 		} else {
-			const docs = await this.documentRetriever.hybridSearch(
-				userQuery,
+			const docs = await this.documentRetriever.hybridSearch({
+				queryText: userQuery,
 				topK,
 				userId,
 				searchSpaceId,
-				connectorType,
-			);
+				documentType: connectorType as DocumentType,
+			});
 			chunks = this.transformDocumentResults(docs);
 		}
 

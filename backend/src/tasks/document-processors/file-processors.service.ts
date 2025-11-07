@@ -82,7 +82,6 @@ export class FileProcessorsService {
             title: fileName,
             content: summaryContent,
             contentHash,
-            embedding: summaryEmbedding,
             documentMetadata: {
               FILE_NAME: fileName,
               ETL_SERVICE: 'UNSTRUCTURED',
@@ -102,7 +101,6 @@ export class FileProcessorsService {
               ETL_SERVICE: 'UNSTRUCTURED',
             } as any,
             content: summaryContent,
-            embedding: summaryEmbedding,
             contentHash,
             uniqueIdentifierHash,
           },
@@ -181,7 +179,6 @@ export class FileProcessorsService {
             title: fileName,
             content: summaryContent,
             contentHash,
-            embedding: summaryEmbedding,
             documentMetadata: {
               FILE_NAME: fileName,
               ETL_SERVICE: 'LLAMACLOUD',
@@ -201,7 +198,6 @@ export class FileProcessorsService {
               ETL_SERVICE: 'LLAMACLOUD',
             } as any,
             content: summaryContent,
-            embedding: summaryEmbedding,
             contentHash,
             uniqueIdentifierHash,
           },
@@ -282,7 +278,6 @@ export class FileProcessorsService {
             title: fileName,
             content: summaryContent,
             contentHash,
-            embedding: summaryEmbedding,
             documentMetadata: {
               FILE_NAME: fileName,
               ETL_SERVICE: 'DOCLING',
@@ -302,7 +297,6 @@ export class FileProcessorsService {
               ETL_SERVICE: 'DOCLING',
             } as any,
             content: summaryContent,
-            embedding: summaryEmbedding,
             contentHash,
             uniqueIdentifierHash,
           },

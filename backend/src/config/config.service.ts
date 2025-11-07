@@ -1,23 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService as NestConfigService } from '@nestjs/config';
 import type {
-  AirtableConfig,
-  AppConfig,
-  AuthConfig,
-  BackendConfig,
-  ConnectorsConfig,
-  DatabaseConfig,
-  EmbeddingConfig,
-  ETLConfig,
-  FrontendConfig,
-  GoogleConfig,
-  LangsmithConfig,
-  LLMConfig,
-  QueueConfig,
-  RerankerConfig,
-  SearchConfig,
-  STTConfig,
-  TTSConfig,
+    AppConfig,
+    AuthConfig,
+    BackendConfig,
+    ConnectorsConfig,
+    DatabaseConfig,
+    EmbeddingConfig,
+    ETLConfig,
+    FrontendConfig,
+    GoogleConfig,
+    LangsmithConfig,
+    LLMConfig,
+    QueueConfig,
+    RerankerConfig,
+    STTConfig,
+    TTSConfig,
 } from './configuration.interface';
 
 /**
@@ -62,12 +60,6 @@ export class ConfigService {
     return this.nestConfigService.get<GoogleConfig>('google', { infer: true })!;
   }
 
-  get airtable(): AirtableConfig {
-    return this.nestConfigService.get<AirtableConfig>('airtable', {
-      infer: true,
-    })!;
-  }
-
   get embedding(): EmbeddingConfig {
     return this.nestConfigService.get<EmbeddingConfig>('embedding', {
       infer: true,
@@ -108,10 +100,6 @@ export class ConfigService {
     })!;
   }
 
-  get search(): SearchConfig {
-    return this.nestConfigService.get<SearchConfig>('search', { infer: true })!;
-  }
-
   get llm(): LLMConfig {
     return this.nestConfigService.get<LLMConfig>('llm', { infer: true })!;
   }
@@ -128,7 +116,6 @@ export class ConfigService {
       backend: this.backend,
       auth: this.auth,
       google: this.google,
-      airtable: this.airtable,
       embedding: this.embedding,
       reranker: this.reranker,
       etl: this.etl,
@@ -137,7 +124,6 @@ export class ConfigService {
       queue: this.queue,
       langsmith: this.langsmith,
       connectors: this.connectors,
-      search: this.search,
       llm: this.llm,
     };
   }

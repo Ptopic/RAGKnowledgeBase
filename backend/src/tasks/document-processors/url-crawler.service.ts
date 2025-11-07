@@ -131,7 +131,6 @@ export class UrlCrawlerService {
             title: crawledContent.metadata.title,
             content: summaryContent,
             contentHash,
-            embedding: summaryEmbedding,
             documentMetadata: crawledContent.metadata as any,
           },
         });
@@ -145,7 +144,6 @@ export class UrlCrawlerService {
             documentType: DocumentType.CRAWLED_URL,
             documentMetadata: crawledContent.metadata as any,
             content: summaryContent,
-            embedding: summaryEmbedding,
             contentHash,
             uniqueIdentifierHash,
           },

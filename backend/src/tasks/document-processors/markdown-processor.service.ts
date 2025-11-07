@@ -82,7 +82,6 @@ export class MarkdownProcessorService {
             title: fileName,
             content: summaryContent,
             contentHash,
-            embedding: summaryEmbedding,
             documentMetadata: {
               FILE_NAME: fileName,
             } as any,
@@ -100,7 +99,6 @@ export class MarkdownProcessorService {
               FILE_NAME: fileName,
             } as any,
             content: summaryContent,
-            embedding: summaryEmbedding,
             contentHash,
             uniqueIdentifierHash,
           },

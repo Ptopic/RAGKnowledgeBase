@@ -2,8 +2,6 @@ import { Module, Global } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RetrieverModule } from '../retriever/retriever.module';
 import { LLMService } from './llm.service';
-import { TaskLoggingService } from './task-logging.service';
-import { ConnectorService } from './connector.service';
 import { StreamingService } from './streaming.service';
 import { QueryService } from './query.service';
 import { RerankerService } from './reranker.service';
@@ -22,8 +20,6 @@ import { STTService } from './stt.service';
 	imports: [PrismaModule, RetrieverModule],
 	providers: [
 		LLMService,
-		TaskLoggingService,
-		ConnectorService,
 		StreamingService,
 		QueryService,
 		RerankerService,
@@ -33,8 +29,6 @@ import { STTService } from './stt.service';
 	],
 	exports: [
 		LLMService,
-		TaskLoggingService,
-		ConnectorService,
 		StreamingService,
 		QueryService,
 		RerankerService,
