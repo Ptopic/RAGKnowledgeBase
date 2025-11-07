@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {

@@ -6,7 +6,7 @@ import type { FetchRepositoriesRequest, GithubRepo } from "./types";
 export const fetchRepositories =
 	(request: ICallableRequestBuilder<GithubRepo[]>) =>
 	async (data: FetchRepositoriesRequest) =>
-		request.call(`${config.apiUrl}/api/v1/github/repositories`, (init) => ({
+		request.call(`${config.apiUrl}/github/repositories`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {

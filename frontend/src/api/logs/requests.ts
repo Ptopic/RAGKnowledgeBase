@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 import config from "@shared/config";
 import type {
 	CreateLogRequest,
@@ -12,7 +12,7 @@ import type {
 export const getLogs =
 	(request: ICallableRequestBuilder<Log[]>) =>
 	async (params: GetLogsParams): Promise<Log[]> => {
-		const url = new URL(`${config.apiUrl}/api/v1/logs`);
+		const url = new URL(`${config.apiUrl}/logs`);
 
 		if (params.search_space_id !== undefined) {
 			url.searchParams.append(
@@ -50,7 +50,7 @@ export const getLogs =
 
 export const getLog =
 	(request: ICallableRequestBuilder<Log>) => async (id: number) =>
-		request.call(`${config.apiUrl}/api/v1/logs/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/logs/${id}`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -58,7 +58,7 @@ export const getLog =
 export const createLog =
 	(request: ICallableRequestBuilder<Log>) =>
 	async (data: CreateLogRequest) =>
-		request.call(`${config.apiUrl}/api/v1/logs`, (init) => ({
+		request.call(`${config.apiUrl}/logs`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -71,7 +71,7 @@ export const createLog =
 export const updateLog =
 	(request: ICallableRequestBuilder<Log>) =>
 	async (id: number, data: UpdateLogRequest) =>
-		request.call(`${config.apiUrl}/api/v1/logs/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/logs/${id}`, (init) => ({
 			...init,
 			method: "PUT",
 			headers: {
@@ -83,7 +83,7 @@ export const updateLog =
 
 export const deleteLog =
 	(request: ICallableRequestBuilder<void>) => async (id: number) =>
-		request.call(`${config.apiUrl}/api/v1/logs/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/logs/${id}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));
@@ -92,7 +92,7 @@ export const getLogsSummary =
 	(request: ICallableRequestBuilder<LogSummary>) =>
 	async (params: GetLogsSummaryParams): Promise<LogSummary> => {
 		const hours = params.hours ?? 24;
-		const url = `${config.apiUrl}/api/v1/logs/search-space/${params.search_space_id}/summary?hours=${hours}`;
+		const url = `${config.apiUrl}/logs/search-space/${params.search_space_id}/summary?hours=${hours}`;
 
 		return request.call(url, (init) => ({
 			...init,

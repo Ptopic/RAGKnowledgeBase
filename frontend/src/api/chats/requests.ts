@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {
@@ -14,7 +14,7 @@ export const getChats =
 	(request: ICallableRequestBuilder<Chat[]>) =>
 	async (params: GetChatsParams) =>
 		request.call(
-			`${config.apiUrl}/api/v1/chats?search_space_id=${params.search_space_id}`,
+			`${config.apiUrl}/chats?search_space_id=${params.search_space_id}`,
 			(init) => ({
 				...init,
 				method: "GET",
@@ -23,7 +23,7 @@ export const getChats =
 
 export const getChatDetails =
 	(request: ICallableRequestBuilder<ChatDetails>) => async (id: number) =>
-		request.call(`${config.apiUrl}/api/v1/chats/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/chats/${id}`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -31,7 +31,7 @@ export const getChatDetails =
 export const createChat =
 	(request: ICallableRequestBuilder<CreateChatResponse>) =>
 	async (data: CreateChatRequest) =>
-		request.call(`${config.apiUrl}/api/v1/chats`, (init) => ({
+		request.call(`${config.apiUrl}/chats`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -44,7 +44,7 @@ export const createChat =
 export const updateChat =
 	(request: ICallableRequestBuilder<void>) =>
 	async (id: number, data: UpdateChatRequest) =>
-		request.call(`${config.apiUrl}/api/v1/chats/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/chats/${id}`, (init) => ({
 			...init,
 			method: "PUT",
 			headers: {
@@ -56,7 +56,7 @@ export const updateChat =
 
 export const deleteChat =
 	(request: ICallableRequestBuilder<void>) => async (id: number) =>
-		request.call(`${config.apiUrl}/api/v1/chats/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/chats/${id}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));

@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 import config from "@shared/config";
 import { normalizeListResponse } from "@/lib/pagination";
 import type {
@@ -26,7 +26,7 @@ export const uploadDocuments =
 		formData.append("search_space_id", data.search_space_id);
 
 		return request.call(
-			`${config.apiUrl}/api/v1/documents/fileupload`,
+			`${config.apiUrl}/documents/fileupload`,
 			(init) => {
 				// For FormData, don't set Content-Type - browser will set it automatically with boundary
 				const headers = new Headers(init.headers);
@@ -46,7 +46,7 @@ export const uploadDocuments =
 export const crawlWebpages =
 	(request: ICallableRequestBuilder<CrawlWebpagesResponse>) =>
 	async (data: CrawlWebpagesRequest) =>
-		request.call(`${config.apiUrl}/api/v1/documents`, (init) => ({
+		request.call(`${config.apiUrl}/documents`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -59,7 +59,7 @@ export const crawlWebpages =
 export const addYouTubeVideos =
 	(request: ICallableRequestBuilder<AddYouTubeVideosResponse>) =>
 	async (data: AddYouTubeVideosRequest) =>
-		request.call(`${config.apiUrl}/api/v1/documents`, (init) => ({
+		request.call(`${config.apiUrl}/documents`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -73,7 +73,7 @@ export const getDocumentByChunk =
 	(request: ICallableRequestBuilder<DocumentWithChunks>) =>
 	async (chunkId: number) =>
 		request.call(
-			`${config.apiUrl}/api/v1/documents/by-chunk/${chunkId}`,
+			`${config.apiUrl}/documents/by-chunk/${chunkId}`,
 			(init) => ({
 				...init,
 				method: "GET",
@@ -83,7 +83,7 @@ export const getDocumentByChunk =
 export const getDocuments =
 	(request: ICallableRequestBuilder<unknown>) =>
 	async (params: GetDocumentsParams): Promise<ListResponse<Document>> => {
-		const url = new URL(`${config.apiUrl}/api/v1/documents`);
+		const url = new URL(`${config.apiUrl}/documents`);
 		url.searchParams.append(
 			"search_space_id",
 			params.search_space_id.toString(),
@@ -110,7 +110,7 @@ export const getDocuments =
 export const searchDocuments =
 	(request: ICallableRequestBuilder<unknown>) =>
 	async (params: SearchDocumentsParams): Promise<ListResponse<Document>> => {
-		const url = new URL(`${config.apiUrl}/api/v1/documents/search`);
+		const url = new URL(`${config.apiUrl}/documents/search`);
 		url.searchParams.append(
 			"search_space_id",
 			params.search_space_id.toString(),
@@ -137,7 +137,7 @@ export const searchDocuments =
 
 export const deleteDocument =
 	(request: ICallableRequestBuilder<void>) => async (id: number) =>
-		request.call(`${config.apiUrl}/api/v1/documents/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/documents/${id}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));
@@ -145,7 +145,7 @@ export const deleteDocument =
 export const getDocumentTypeCounts =
 	(request: ICallableRequestBuilder<Record<string, number>>) =>
 	async (params?: GetDocumentTypeCountsParams) => {
-		const url = new URL(`${config.apiUrl}/api/v1/documents/type-counts`);
+		const url = new URL(`${config.apiUrl}/documents/type-counts`);
 		if (params?.search_space_id !== undefined) {
 			url.searchParams.append(
 				"search_space_id",

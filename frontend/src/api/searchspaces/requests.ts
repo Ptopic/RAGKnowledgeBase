@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {
@@ -10,7 +10,7 @@ import type {
 export const getSearchSpaces =
 	(request: ICallableRequestBuilder<SearchSpace[]>) =>
 	async (): Promise<SearchSpace[]> =>
-		request.call(`${config.apiUrl}/api/v1/searchspaces`, (init) => ({
+		request.call(`${config.apiUrl}/searchspaces`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -18,7 +18,7 @@ export const getSearchSpaces =
 export const getSearchSpace =
 	(request: ICallableRequestBuilder<SearchSpace>) =>
 	async (id: number): Promise<SearchSpace> =>
-		request.call(`${config.apiUrl}/api/v1/searchspaces/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/searchspaces/${id}`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -26,7 +26,7 @@ export const getSearchSpace =
 export const createSearchSpace =
 	(request: ICallableRequestBuilder<CreateSearchSpaceResponse>) =>
 	async (data: CreateSearchSpaceRequest) =>
-		request.call(`${config.apiUrl}/api/v1/searchspaces`, (init) => ({
+		request.call(`${config.apiUrl}/searchspaces`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -38,7 +38,7 @@ export const createSearchSpace =
 
 export const deleteSearchSpace =
 	(request: ICallableRequestBuilder<void>) => async (id: number) =>
-		request.call(`${config.apiUrl}/api/v1/searchspaces/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/searchspaces/${id}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));

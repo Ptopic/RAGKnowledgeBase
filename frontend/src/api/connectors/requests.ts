@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {
@@ -14,7 +14,7 @@ export const initiateGoogleCalendarOAuth =
 	(request: ICallableRequestBuilder<OAuthResponse>) =>
 	async (params: InitiateOAuthParams) =>
 		request.call(
-			`${config.apiUrl}/api/v1/auth/google/calendar/connector/add/?space_id=${params.space_id}`,
+			`${config.apiUrl}/auth/google/calendar/connector/add/?space_id=${params.space_id}`,
 			(init) => ({
 				...init,
 				method: "GET",
@@ -25,7 +25,7 @@ export const initiateGoogleGmailOAuth =
 	(request: ICallableRequestBuilder<OAuthResponse>) =>
 	async (params: InitiateOAuthParams) =>
 		request.call(
-			`${config.apiUrl}/api/v1/auth/google/gmail/connector/add/?space_id=${params.space_id}`,
+			`${config.apiUrl}/auth/google/gmail/connector/add/?space_id=${params.space_id}`,
 			(init) => ({
 				...init,
 				method: "GET",
@@ -36,7 +36,7 @@ export const createConnector =
 	(request: ICallableRequestBuilder<Connector>) =>
 	async (data: CreateConnectorRequest) =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors`,
+			`${config.apiUrl}/search-source-connectors`,
 			(init) => ({
 				...init,
 				method: "POST",
@@ -54,7 +54,7 @@ export const getConnectors =
 		const skip = params?.skip ?? 0;
 		const limit = params?.limit ?? 100;
 		return request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors?skip=${skip}&limit=${limit}`,
+			`${config.apiUrl}/search-source-connectors?skip=${skip}&limit=${limit}`,
 			(init) => ({
 				...init,
 				method: "GET",
@@ -65,7 +65,7 @@ export const getConnectors =
 export const getConnector =
 	(request: ICallableRequestBuilder<Connector>) => async (id: number) =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors/${id}`,
+			`${config.apiUrl}/search-source-connectors/${id}`,
 			(init) => ({
 				...init,
 				method: "GET",
@@ -76,7 +76,7 @@ export const updateConnector =
 	(request: ICallableRequestBuilder<Connector>) =>
 	async (id: number, data: UpdateConnectorRequest) =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors/${id}`,
+			`${config.apiUrl}/search-source-connectors/${id}`,
 			(init) => ({
 				...init,
 				method: "PUT",
@@ -91,7 +91,7 @@ export const updateConnector =
 export const deleteConnector =
 	(request: ICallableRequestBuilder<void>) => async (id: number) =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors/${id}`,
+			`${config.apiUrl}/search-source-connectors/${id}`,
 			(init) => ({
 				...init,
 				method: "DELETE",

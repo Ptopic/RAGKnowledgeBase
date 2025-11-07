@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 import config from "@shared/config";
 import type {
 	CreateLLMConfig,
@@ -13,7 +13,7 @@ import type {
 export const getLLMConfigs =
 	(request: ICallableRequestBuilder<LLMConfig[]>) =>
 	async (params: GetLLMConfigsParams): Promise<LLMConfig[]> => {
-		const url = new URL(`${config.apiUrl}/api/v1/llm-configs`);
+		const url = new URL(`${config.apiUrl}/llm-configs`);
 		url.searchParams.append(
 			"search_space_id",
 			params.search_space_id.toString(),
@@ -28,7 +28,7 @@ export const getLLMConfigs =
 export const createLLMConfig =
 	(request: ICallableRequestBuilder<LLMConfig>) =>
 	async (data: CreateLLMConfig): Promise<LLMConfig> =>
-		request.call(`${config.apiUrl}/api/v1/llm-configs`, (init) => ({
+		request.call(`${config.apiUrl}/llm-configs`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -41,7 +41,7 @@ export const createLLMConfig =
 export const updateLLMConfig =
 	(request: ICallableRequestBuilder<LLMConfig>) =>
 	async (id: number, data: UpdateLLMConfig): Promise<LLMConfig> =>
-		request.call(`${config.apiUrl}/api/v1/llm-configs/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/llm-configs/${id}`, (init) => ({
 			...init,
 			method: "PUT",
 			headers: {
@@ -54,7 +54,7 @@ export const updateLLMConfig =
 export const deleteLLMConfig =
 	(request: ICallableRequestBuilder<void>) =>
 	async (id: number): Promise<void> =>
-		request.call(`${config.apiUrl}/api/v1/llm-configs/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/llm-configs/${id}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));
@@ -63,7 +63,7 @@ export const getLLMPreferences =
 	(request: ICallableRequestBuilder<LLMPreferences>) =>
 	async (params: GetLLMPreferencesParams): Promise<LLMPreferences> =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-spaces/${params.search_space_id}/llm-preferences`,
+			`${config.apiUrl}/search-spaces/${params.search_space_id}/llm-preferences`,
 			(init) => ({
 				...init,
 				method: "GET",
@@ -74,7 +74,7 @@ export const updateLLMPreferences =
 	(request: ICallableRequestBuilder<LLMPreferences>) =>
 	async (params: UpdateLLMPreferencesParams): Promise<LLMPreferences> =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-spaces/${params.search_space_id}/llm-preferences`,
+			`${config.apiUrl}/search-spaces/${params.search_space_id}/llm-preferences`,
 			(init) => ({
 				...init,
 				method: "PUT",

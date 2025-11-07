@@ -1,4 +1,4 @@
-import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
+import type { ICallableRequestBuilder } from "@requestBuilder/types";
 import config from "@shared/config";
 import type {
 	CreateSearchSourceConnectorRequest,
@@ -12,7 +12,7 @@ import type {
 export const getSearchSourceConnectors =
 	(request: ICallableRequestBuilder<SearchSourceConnector[]>) =>
 	async (params?: GetSearchSourceConnectorsParams): Promise<SearchSourceConnector[]> => {
-		const url = new URL(`${config.apiUrl}/api/v1/search-source-connectors`);
+		const url = new URL(`${config.apiUrl}/search-source-connectors`);
 
 		if (params?.search_space_id !== undefined) {
 			url.searchParams.append("search_space_id", params.search_space_id.toString());
@@ -27,7 +27,7 @@ export const getSearchSourceConnectors =
 export const createSearchSourceConnector =
 	(request: ICallableRequestBuilder<SearchSourceConnector>) =>
 	async (data: CreateSearchSourceConnectorRequest, searchSpaceId: number) => {
-		const url = new URL(`${config.apiUrl}/api/v1/search-source-connectors`);
+		const url = new URL(`${config.apiUrl}/search-source-connectors`);
 		url.searchParams.append("search_space_id", searchSpaceId.toString());
 
 		return request.call(url.toString(), (init) => ({
@@ -45,7 +45,7 @@ export const updateSearchSourceConnector =
 	(request: ICallableRequestBuilder<SearchSourceConnector>) =>
 	async (id: number, data: UpdateSearchSourceConnectorRequest) =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors/${id}`,
+			`${config.apiUrl}/search-source-connectors/${id}`,
 			(init) => ({
 				...init,
 				method: "PUT",
@@ -60,7 +60,7 @@ export const updateSearchSourceConnector =
 export const deleteSearchSourceConnector =
 	(request: ICallableRequestBuilder<void>) => async (id: number) =>
 		request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors/${id}`,
+			`${config.apiUrl}/search-source-connectors/${id}`,
 			(init) => ({
 				...init,
 				method: "DELETE",
@@ -82,7 +82,7 @@ export const indexConnector =
 		}
 
 		return request.call(
-			`${config.apiUrl}/api/v1/search-source-connectors/${params.connector_id}/index?${queryParams.toString()}`,
+			`${config.apiUrl}/search-source-connectors/${params.connector_id}/index?${queryParams.toString()}`,
 			(init) => ({
 				...init,
 				method: "POST",
