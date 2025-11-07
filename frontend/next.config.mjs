@@ -3,6 +3,14 @@
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+  },
   webpack: (config, { webpack }) => {
     config.plugins.push(
       new webpack.IgnorePlugin({ resourceRegExp: /^electron$/ }),

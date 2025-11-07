@@ -1,3 +1,4 @@
+import { getAccessTokenClient } from "@/shared/utils/authClient";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,10 +16,12 @@ export function useApiKey(): UseApiKeyReturn {
 
 	useEffect(() => {
 		// Load API key from localStorage
-		const loadApiKey = () => {
+		const loadApiKey = async () => {
 			try {
-				const token = localStorage.getItem("surfsense_bearer_token");
-				setApiKey(token);
+				const token = await getAccessTokenClient();
+				const tokenStr =
+					typeof token === "string" ? token : token ? String(token) : null;
+				setApiKey(tokenStr);
 			} catch (error) {
 				console.error("Error loading API key:", error);
 				toast.error("Failed to load API key");
@@ -28,7 +31,9 @@ export function useApiKey(): UseApiKeyReturn {
 		};
 
 		// Add a small delay to simulate loading
-		const timer = setTimeout(loadApiKey, 500);
+		const timer = setTimeout(() => {
+			void loadApiKey();
+		}, 500);
 		return () => clearTimeout(timer);
 	}, []);
 

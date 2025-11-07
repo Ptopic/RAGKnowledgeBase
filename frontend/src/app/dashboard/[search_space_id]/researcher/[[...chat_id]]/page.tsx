@@ -85,7 +85,7 @@ export default function ResearcherPage() {
 	};
 
 	const handler = useChat({
-		api: `${config.apiUrl}/api/v1/chat`,
+		api: `${config.apiUrl}/chat`,
 		streamProtocol: "data",
 		initialMessages: [],
 		headers: {

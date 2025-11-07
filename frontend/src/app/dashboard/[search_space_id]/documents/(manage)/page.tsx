@@ -9,8 +9,8 @@ import { useDocuments } from "@/hooks/use-documents";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import {
-	DocumentsTableShell,
-	type SortKey,
+    DocumentsTableShell,
+    type SortKey,
 } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
 import type { ColumnVisibility } from "./components/types";
@@ -235,5 +235,3 @@ export default function DocumentsTable() {
 		</motion.div>
 	);
 }
-
-export { DocumentsTable };

@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import {
@@ -23,6 +22,13 @@ import {
 } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
 
+interface NavItem {
+	title: string;
+	url: string;
+	icon: string;
+	items?: { title: string; url: string }[];
+}
+
 export function DashboardClientLayout({
 	children,
 	searchSpaceId,
@@ -31,8 +37,8 @@ export function DashboardClientLayout({
 }: {
 	children: React.ReactNode;
 	searchSpaceId: string;
-	navSecondary: any[];
-	navMain: any[];
+	navSecondary: NavItem[];
+	navMain: NavItem[];
 }) {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -45,7 +51,6 @@ export function DashboardClientLayout({
 	// Skip onboarding check if we're already on the onboarding page
 	const isOnboardingPage = pathname?.includes("/onboard");
 
-	// Use navigation items as-is without translation
 	const translatedNavMain = useMemo(() => {
 		return navMain;
 	}, [navMain]);
@@ -145,7 +150,6 @@ export function DashboardClientLayout({
 							<DashboardBreadcrumb />
 						</div>
 						<div className="flex items-center gap-2">
-							<LanguageSwitcher />
 							<ThemeTogglerComponent />
 						</div>
 					</div>

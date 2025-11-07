@@ -1,4 +1,4 @@
-"use client";
+"use client";;
 import { format } from "date-fns";
 import {
 	Calendar,
@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
 import useGetChats from "@/api/chats/hooks/useGetChats";
 import type { Chat } from "@/api/chats/types";
-import useGeneratePodcast from "@/api/podcasts/hooks/useGeneratePodcast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +45,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 // UI Components
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Pagination,
 	PaginationContent,
@@ -111,8 +109,6 @@ export default function ChatsPageClient({
 			setChatToDelete(null);
 		},
 	});
-	const { mutate: generatePodcast, isPending: isGeneratingPodcast } =
-		useGeneratePodcast();
 
 	// New state for podcast generation
 	const [selectedChats, setSelectedChats] = useState<number[]>([]);
@@ -173,15 +169,14 @@ export default function ChatsPageClient({
 
 		setFilteredChats(result);
 		setTotalPages(Math.max(1, Math.ceil(result.length / chatsPerPage)));
+	}, [chats, searchQuery, selectedType, sortOrder]);
 
-		// Reset to first page when filters change
-		if (
-			currentPage !== 1 &&
-			(searchQuery || selectedType !== "all" || sortOrder !== "newest")
-		) {
+	// Reset to first page when filters change
+	useEffect(() => {
+		if (searchQuery || selectedType !== "all" || sortOrder !== "newest") {
 			setCurrentPage(1);
 		}
-	}, [chats, searchQuery, selectedType, sortOrder, currentPage]);
+	}, [searchQuery, selectedType, sortOrder]);
 
 	// Function to handle chat deletion
 	const handleDeleteChat = () => {
@@ -199,57 +194,6 @@ export default function ChatsPageClient({
 		"all",
 		...Array.from(new Set(chats.map((chat) => chat.type))),
 	];
-
-	// Generate individual podcasts from selected chats
-	const handleGeneratePodcast = () => {
-		if (selectedChats.length === 0) {
-			toast.error("Please select at least one chat");
-			return;
-		}
-
-		const currentChatId = selectedChats[currentChatIndex];
-		const currentTitle = podcastTitles[currentChatId] || podcastTitle;
-
-		if (!currentTitle.trim()) {
-			toast.error("Please enter a podcast title");
-			return;
-		}
-
-		// Create payload for single chat
-		const payload = {
-			type: "CHAT" as const,
-			ids: [currentChatId], // Single chat ID
-			search_space_id: parseInt(searchSpaceId),
-			podcast_title: currentTitle,
-		};
-
-		generatePodcast(payload, {
-			onSuccess: () => {
-				// Move to the next chat or finish
-				if (currentChatIndex < selectedChats.length - 1) {
-					// Set up for next chat
-					setCurrentChatIndex(currentChatIndex + 1);
-
-					// Find the next chat from the chats array
-					const nextChatId = selectedChats[currentChatIndex + 1];
-					const nextChat = chats.find((chat) => chat.id === nextChatId) || null;
-					setProcessingChat(nextChat);
-
-					// Default title for the next chat
-					if (!podcastTitles[nextChatId]) {
-						setPodcastTitle(
-							nextChat?.title || `Podcast from Chat ${nextChatId}`,
-						);
-					} else {
-						setPodcastTitle(podcastTitles[nextChatId]);
-					}
-				} else {
-					// All done
-					finishPodcastGeneration();
-				}
-			},
-		});
-	};
 
 	// Helper to finish the podcast generation process
 	const finishPodcastGeneration = () => {
@@ -729,116 +673,6 @@ export default function ChatsPageClient({
 								<>
 									<Trash2 className="h-4 w-4" />
 									Delete
-								</>
-							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* Podcast Generation Dialog */}
-			<Dialog
-				open={podcastDialogOpen}
-				onOpenChange={(isOpen: boolean) => {
-					if (!isOpen) {
-						// Cancel the process if dialog is closed
-						setPodcastDialogOpen(false);
-						setSelectedChats([]);
-						setSelectionMode(false);
-						setCurrentChatIndex(0);
-						setPodcastTitles({});
-						setProcessingChat(null);
-						setPodcastTitle("");
-					} else {
-						setPodcastDialogOpen(true);
-					}
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Podcast className="h-5 w-5 text-primary" />
-							<span>
-								Generate Podcast {currentChatIndex + 1} of{" "}
-								{selectedChats.length}
-							</span>
-						</DialogTitle>
-						<DialogDescription>
-							{selectedChats.length > 1 ? (
-								<>
-									Creating individual podcasts for each selected chat. Currently
-									processing:{" "}
-									<span className="font-medium">
-										{processingChat?.title ||
-											`Chat ${selectedChats[currentChatIndex]}`}
-									</span>
-								</>
-							) : (
-								"Create a podcast from this chat. The podcast will be available in the podcasts section once generated."
-							)}
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="space-y-4 py-2">
-						<div className="space-y-2">
-							<Label htmlFor="podcast-title">Podcast Title</Label>
-							<Input
-								id="podcast-title"
-								placeholder="Enter podcast title"
-								value={podcastTitle}
-								onChange={(e) => updateCurrentChatTitle(e.target.value)}
-							/>
-						</div>
-
-						{selectedChats.length > 1 && (
-							<div className="w-full bg-muted rounded-full h-2.5 mt-4">
-								<div
-									className="bg-primary h-2.5 rounded-full transition-all duration-300"
-									style={{
-										width: `${(currentChatIndex / selectedChats.length) * 100}%`,
-									}}
-								></div>
-							</div>
-						)}
-					</div>
-
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						{selectedChats.length > 1 && !isGeneratingPodcast && (
-							<Button
-								variant="outline"
-								onClick={skipCurrentChat}
-								className="gap-1"
-							>
-								Skip
-							</Button>
-						)}
-						<Button
-							variant="outline"
-							onClick={() => {
-								setPodcastDialogOpen(false);
-								setCurrentChatIndex(0);
-								setPodcastTitles({});
-								setProcessingChat(null);
-							}}
-							disabled={isGeneratingPodcast}
-						>
-							Cancel
-						</Button>
-						<Button
-							variant="default"
-							onClick={handleGeneratePodcast}
-							disabled={isGeneratingPodcast}
-							className="gap-2"
-						>
-							{isGeneratingPodcast ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									Generating...
-								</>
-							) : (
-								<>
-									<Podcast className="h-4 w-4" />
-									Generate Podcast
 								</>
 							)}
 						</Button>

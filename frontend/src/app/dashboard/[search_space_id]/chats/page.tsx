@@ -2,14 +2,14 @@ import { Suspense } from "react";
 import ChatsPageClient from "./chats-client";
 
 interface PageProps {
-	params: {
+	params: Promise<{
 		search_space_id: string;
-	};
+	}>;
 }
 
 export default async function ChatsPage({ params }: PageProps) {
 	// Get search space ID from the route parameter
-	const { search_space_id: searchSpaceId } = await Promise.resolve(params);
+	const { search_space_id: searchSpaceId } = await params;
 
 	return (
 		<Suspense

@@ -7,6 +7,7 @@ import useUpdateChat from "@/api/chats/hooks/useUpdateChat";
 import type { CreateChatRequest, UpdateChatRequest } from "@/api/chats/types";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
+import { getAccessTokenClient } from "@/shared/utils/authClient";
 
 interface UseChatStateProps {
 	search_space_id: string;
@@ -29,8 +30,15 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 	const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
 
 	useEffect(() => {
-		const bearerToken = localStorage.getItem("surfsense_bearer_token");
-		setToken(bearerToken);
+		const fetchToken = async () => {
+			const token = getAccessTokenClient();
+			
+			// Handle both sync and async cookie values
+			const resolvedToken = token instanceof Promise ? await token : token;
+			setToken(resolvedToken || null);
+		};
+		
+		fetchToken();
 	}, []);
 
 	return {

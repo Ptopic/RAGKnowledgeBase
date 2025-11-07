@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, LogOut, Settings } from "lucide-react";
+import { BadgeCheck, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { removeAuthToken } from "@/shared/utils/authClient";
 
 export function UserDropdown({
 	user,
@@ -28,7 +29,7 @@ export function UserDropdown({
 	const handleLogout = () => {
 		try {
 			if (typeof window !== "undefined") {
-				localStorage.removeItem("surfsense_bearer_token");
+				removeAuthToken();
 				router.push("/");
 			}
 		} catch (error) {

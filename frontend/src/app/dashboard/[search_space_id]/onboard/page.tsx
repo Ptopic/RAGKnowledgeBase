@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { getAccessTokenClient } from "@/shared/utils/authClient";
 
 const TOTAL_STEPS = 3;
 
@@ -48,7 +49,7 @@ const OnboardPage = () => {
 
 	// Check if user is authenticated
 	useEffect(() => {
-		const token = localStorage.getItem("surfsense_bearer_token");
+		const token = getAccessTokenClient();
 		if (!token) {
 			router.push("/login");
 			return;
