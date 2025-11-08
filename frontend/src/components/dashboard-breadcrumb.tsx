@@ -44,7 +44,6 @@ export function DashboardBreadcrumb() {
 					researcher: "Researcher",
 					documents: "Documents",
 					connectors: "Connectors",
-					podcasts: "Podcasts",
 					logs: "Logs",
 					chats: "Chats",
 					settings: "Settings",
@@ -55,7 +54,8 @@ export function DashboardBreadcrumb() {
 				// Handle sub-sections
 				if (segments[3]) {
 					const subSection = segments[3];
-					let subSectionLabel = subSection.charAt(0).toUpperCase() + subSection.slice(1);
+					let subSectionLabel =
+						subSection.charAt(0).toUpperCase() + subSection.slice(1);
 
 					// Handle documents sub-sections
 					if (section === "documents") {
@@ -95,7 +95,8 @@ export function DashboardBreadcrumb() {
 								"elasticsearch-connector": "Elasticsearch",
 							};
 
-							const connectorLabel = connectorLabels[connectorType] || connectorType;
+							const connectorLabel =
+								connectorLabels[connectorType] || connectorType;
 							breadcrumbs.push({
 								label: "Connectors",
 								href: `/dashboard/${segments[1]}/connectors`,
@@ -113,7 +114,8 @@ export function DashboardBreadcrumb() {
 							manage: "Manage Connectors",
 						};
 
-						const connectorLabel = connectorLabels[subSection] || subSectionLabel;
+						const connectorLabel =
+							connectorLabels[subSection] || subSectionLabel;
 						breadcrumbs.push({
 							label: "Connectors",
 							href: `/dashboard/${segments[1]}/connectors`,

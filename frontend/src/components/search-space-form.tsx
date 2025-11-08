@@ -116,7 +116,10 @@ export function SearchSpaceForm({
 			animate="visible"
 			variants={containerVariants}
 		>
-			<motion.div className="flex items-center justify-between" variants={itemVariants}>
+			<motion.div
+				className="flex items-center justify-between"
+				variants={itemVariants}
+			>
 				<div className="flex flex-col space-y-2">
 					<h2 className="text-3xl font-bold tracking-tight">
 						{isEditing ? "Edit Search Space" : "Create Search Space"}
@@ -124,7 +127,7 @@ export function SearchSpaceForm({
 					<p className="text-muted-foreground">
 						{isEditing
 							? "Update your search space details"
-							: "Create a new search space to organize your documents, chats, and podcasts."}
+							: "Create a new search space to organize your documents and chats."}
 					</p>
 				</div>
 				<Button
@@ -171,7 +174,10 @@ export function SearchSpaceForm({
 								<h3 className="text-xl font-semibold">Search Space</h3>
 							</div>
 							{isEditing && onDelete && (
-								<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+								<AlertDialog
+									open={showDeleteDialog}
+									onOpenChange={setShowDeleteDialog}
+								>
 									<AlertDialogTrigger asChild>
 										<Button
 											variant="ghost"
@@ -185,21 +191,23 @@ export function SearchSpaceForm({
 										<AlertDialogHeader>
 											<AlertDialogTitle>Are you sure?</AlertDialogTitle>
 											<AlertDialogDescription>
-												This action cannot be undone. This will permanently delete your search
-												space.
+												This action cannot be undone. This will permanently
+												delete your search space.
 											</AlertDialogDescription>
 										</AlertDialogHeader>
 										<AlertDialogFooter>
 											<AlertDialogCancel>Cancel</AlertDialogCancel>
-											<AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+											<AlertDialogAction onClick={handleDelete}>
+												Delete
+											</AlertDialogAction>
 										</AlertDialogFooter>
 									</AlertDialogContent>
 								</AlertDialog>
 							)}
 						</div>
 						<p className="text-muted-foreground">
-							A search space allows you to organize and search through your documents, generate
-							podcasts, and have AI-powered conversations about your content.
+							A search space allows you to organize and search through your
+							documents, and have AI-powered conversations about your content.
 						</p>
 					</div>
 				</Tilt>
@@ -208,7 +216,10 @@ export function SearchSpaceForm({
 			<Separator className="my-4" />
 
 			<Form {...form}>
-				<form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+				<form
+					onSubmit={form.handleSubmit(handleFormSubmit)}
+					className="space-y-6"
+				>
 					<FormField
 						control={form.control}
 						name="name"
@@ -218,7 +229,9 @@ export function SearchSpaceForm({
 								<FormControl>
 									<Input placeholder="Enter search space name" {...field} />
 								</FormControl>
-								<FormDescription>A unique name for your search space.</FormDescription>
+								<FormDescription>
+									A unique name for your search space.
+								</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
@@ -231,10 +244,14 @@ export function SearchSpaceForm({
 							<FormItem>
 								<FormLabel>Description</FormLabel>
 								<FormControl>
-									<Input placeholder="Enter search space description" {...field} />
+									<Input
+										placeholder="Enter search space description"
+										{...field}
+									/>
 								</FormControl>
 								<FormDescription>
-									A brief description of what this search space will be used for.
+									A brief description of what this search space will be used
+									for.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>

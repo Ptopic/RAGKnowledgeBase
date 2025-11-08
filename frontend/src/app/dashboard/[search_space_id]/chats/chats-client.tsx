@@ -1,4 +1,5 @@
-"use client";;
+"use client";
+
 import { format } from "date-fns";
 import {
 	Calendar,
@@ -7,7 +8,6 @@ import {
 	ExternalLink,
 	MessageCircleMore,
 	MoreHorizontal,
-	Podcast,
 	Search,
 	Tag,
 	Trash2,
@@ -15,7 +15,6 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
 import useGetChats from "@/api/chats/hooks/useGetChats";
 import type { Chat } from "@/api/chats/types";
@@ -110,18 +109,8 @@ export default function ChatsPageClient({
 		},
 	});
 
-	// New state for podcast generation
 	const [selectedChats, setSelectedChats] = useState<number[]>([]);
 	const [selectionMode, setSelectionMode] = useState(false);
-	const [podcastDialogOpen, setPodcastDialogOpen] = useState(false);
-	const [podcastTitle, setPodcastTitle] = useState("");
-
-	// New state for individual podcast generation
-	const [currentChatIndex, setCurrentChatIndex] = useState(0);
-	const [podcastTitles, setPodcastTitles] = useState<{ [key: number]: string }>(
-		{},
-	);
-	const [processingChat, setProcessingChat] = useState<Chat | null>(null);
 
 	const chatsPerPage = 9;
 	const searchParams = useSearchParams();
@@ -194,74 +183,6 @@ export default function ChatsPageClient({
 		"all",
 		...Array.from(new Set(chats.map((chat) => chat.type))),
 	];
-
-	// Helper to finish the podcast generation process
-	const finishPodcastGeneration = () => {
-		toast.success(
-			"All podcasts are being generated! Check the logs tab to see their status.",
-		);
-		setPodcastDialogOpen(false);
-		setSelectedChats([]);
-		setSelectionMode(false);
-		setCurrentChatIndex(0);
-		setPodcastTitles({});
-		setProcessingChat(null);
-		setPodcastTitle("");
-	};
-
-	// Start podcast generation flow
-	const startPodcastGeneration = () => {
-		if (selectedChats.length === 0) {
-			toast.error("Please select at least one chat");
-			return;
-		}
-
-		// Reset the state for podcast generation
-		setCurrentChatIndex(0);
-		setPodcastTitles({});
-
-		// Set up for the first chat
-		const firstChatId = selectedChats[0];
-		const firstChat = chats.find((chat) => chat.id === firstChatId) || null;
-		setProcessingChat(firstChat);
-
-		// Set default title for the first chat
-		setPodcastTitle(firstChat?.title || `Podcast from Chat ${firstChatId}`);
-		setPodcastDialogOpen(true);
-	};
-
-	// Update the title for the current chat
-	const updateCurrentChatTitle = (title: string) => {
-		const currentChatId = selectedChats[currentChatIndex];
-		setPodcastTitle(title);
-		setPodcastTitles((prev) => ({
-			...prev,
-			[currentChatId]: title,
-		}));
-	};
-
-	// Skip generating a podcast for the current chat
-	const skipCurrentChat = () => {
-		if (currentChatIndex < selectedChats.length - 1) {
-			// Move to the next chat
-			setCurrentChatIndex(currentChatIndex + 1);
-
-			// Find the next chat
-			const nextChatId = selectedChats[currentChatIndex + 1];
-			const nextChat = chats.find((chat) => chat.id === nextChatId) || null;
-			setProcessingChat(nextChat);
-
-			// Set default title for the next chat
-			if (!podcastTitles[nextChatId]) {
-				setPodcastTitle(nextChat?.title || `Podcast from Chat ${nextChatId}`);
-			} else {
-				setPodcastTitle(podcastTitles[nextChatId]);
-			}
-		} else {
-			// All done (all skipped)
-			finishPodcastGeneration();
-		}
-	};
 
 	// Toggle chat selection
 	const toggleChatSelection = (chatId: number) => {
@@ -352,31 +273,12 @@ export default function ChatsPageClient({
 										? "Deselect Page"
 										: "Select Page"}
 								</Button>
-								<Button
-									variant="default"
-									size="sm"
-									onClick={startPodcastGeneration}
-									className="gap-1"
-									disabled={selectedChats.length === 0}
-								>
-									<Podcast className="h-4 w-4" />
-									Generate Podcast ({selectedChats.length})
-								</Button>
 								<Button variant="ghost" size="sm" onClick={cancelSelectionMode}>
 									Cancel
 								</Button>
 							</>
 						) : (
 							<>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setSelectionMode(true)}
-									className="gap-1"
-								>
-									<Podcast className="h-4 w-4" />
-									Podcaster
-								</Button>
 								<Select value={sortOrder} onValueChange={setSortOrder}>
 									<SelectTrigger className="w-40">
 										<SelectValue placeholder="Sort order" />
@@ -504,18 +406,6 @@ export default function ChatsPageClient({
 														>
 															<ExternalLink className="mr-2 h-4 w-4" />
 															<span>View Chat</span>
-														</DropdownMenuItem>
-														<DropdownMenuItem
-															onClick={() => {
-																setSelectedChats([chat.id]);
-																setPodcastTitle(
-																	chat.title || `Chat ${chat.id}`,
-																);
-																setPodcastDialogOpen(true);
-															}}
-														>
-															<Podcast className="mr-2 h-4 w-4" />
-															<span>Generate Podcast</span>
 														</DropdownMenuItem>
 														<DropdownMenuSeparator />
 														<DropdownMenuItem
