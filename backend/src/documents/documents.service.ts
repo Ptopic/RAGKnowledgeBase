@@ -1,408 +1,408 @@
 import {
-  Injectable,
-  NotFoundException,
-  InternalServerErrorException,
-  BadRequestException,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { DocumentType } from '@prisma/client';
+	BadRequestException,
+	Injectable,
+	InternalServerErrorException,
+	NotFoundException,
+} from "@nestjs/common";
+import { DocumentType } from "@prisma/client";
 import {
-  CreateDocumentsDto,
-  UpdateDocumentDto,
-  DocumentDto,
-  DocumentWithChunksDto,
-  PaginatedResponseDto,
-} from '../dtos/document.dto';
+	CreateDocumentsDto,
+	DocumentDto,
+	DocumentWithChunksDto,
+	PaginatedResponseDto,
+	UpdateDocumentDto,
+} from "../dtos/document.dto";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class DocumentsService {
-  constructor(private prisma: PrismaService) {}
+	constructor(private prisma: PrismaService) {}
 
-  async checkSearchSpaceOwnership(
-    searchSpaceId: number,
-    userId: string,
-  ): Promise<void> {
-    const searchSpace = await this.prisma.searchSpace.findFirst({
-      where: { id: searchSpaceId, userId },
-    });
+	async checkSearchSpaceOwnership(
+		searchSpaceId: number,
+		userId: string,
+	): Promise<void> {
+		const searchSpace = await this.prisma.searchSpace.findFirst({
+			where: { id: searchSpaceId, userId },
+		});
 
-    if (!searchSpace) {
-      throw new NotFoundException(
-        'Search space not found or you do not have permission to access it',
-      );
-    }
-  }
+		if (!searchSpace) {
+			throw new NotFoundException(
+				"Search space not found or you do not have permission to access it",
+			);
+		}
+	}
 
-  async create(
-    createDto: CreateDocumentsDto,
-    userId: string,
-  ): Promise<{ message: string }> {
-    try {
-      await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
+	async create(
+		createDto: CreateDocumentsDto,
+		userId: string,
+	): Promise<{ message: string }> {
+		try {
+			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
 
-      if (createDto.document_type === DocumentType.EXTENSION) {
-        // Process extension documents
-        // In production, this would queue tasks for background processing
-        return { message: 'Documents processed successfully' };
-      } else if (createDto.document_type === DocumentType.CRAWLED_URL) {
-        // Process crawled URLs
-        return { message: 'Documents processed successfully' };
-      } else if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
-        // Process YouTube videos
-        return { message: 'Documents processed successfully' };
-      } else {
-        throw new BadRequestException('Invalid document type');
-      }
-    } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        `Failed to process documents: ${error.message}`,
-      );
-    }
-  }
+			if (createDto.document_type === DocumentType.EXTENSION) {
+				// Process extension documents
+				// In production, this would queue tasks for background processing
+				return { message: "Documents processed successfully" };
+			} else if (createDto.document_type === DocumentType.CRAWLED_URL) {
+				// Process crawled URLs
+				return { message: "Documents processed successfully" };
+			} else if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
+				// Process YouTube videos
+				return { message: "Documents processed successfully" };
+			} else {
+				throw new BadRequestException("Invalid document type");
+			}
+		} catch (error) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof BadRequestException
+			) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to process documents: ${error.message}`,
+			);
+		}
+	}
 
-  async createFileUpload(
-    files: Express.Multer.File[],
-    searchSpaceId: number,
-    userId: string,
-  ): Promise<{ message: string }> {
-    try {
-      await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+	async createFileUpload(
+		files: Express.Multer.File[],
+		searchSpaceId: number,
+		userId: string,
+	): Promise<{ message: string }> {
+		try {
+			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
 
-      if (!files || files.length === 0) {
-        throw new BadRequestException('No files provided');
-      }
+			if (!files || files.length === 0) {
+				throw new BadRequestException("No files provided");
+			}
 
-      // In production, this would queue file processing tasks
-      return { message: 'Files uploaded for processing' };
-    } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        `Failed to upload files: ${error.message}`,
-      );
-    }
-  }
+			// In production, this would queue file processing tasks
+			return { message: "Files uploaded for processing" };
+		} catch (error) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof BadRequestException
+			) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to upload files: ${error.message}`,
+			);
+		}
+	}
 
-  async findAll(
-    userId: string,
-    skip?: number,
-    page?: number,
-    pageSize: number = 50,
-    searchSpaceId?: number,
-    documentTypes?: string,
-  ): Promise<PaginatedResponseDto<DocumentDto>> {
-    try {
-      let offset = 0;
-      if (skip !== undefined && skip !== null) {
-        offset = skip;
-      } else if (page !== undefined && page !== null) {
-        offset = page * pageSize;
-      }
+	async findAll(
+		userId: string,
+		skip?: number,
+		page?: number,
+		pageSize: number = 50,
+		searchSpaceId?: number,
+		documentTypes?: string,
+	): Promise<PaginatedResponseDto<DocumentDto>> {
+		try {
+			let offset = 0;
+			if (skip !== undefined && skip !== null) {
+				offset = skip;
+			} else if (page !== undefined && page !== null) {
+				offset = page * pageSize;
+			}
 
-      const where: any = {
-        searchSpace: { userId },
-      };
+			const where: any = {
+				searchSpace: { userId },
+			};
 
-      if (searchSpaceId !== undefined && searchSpaceId !== null) {
-        where.searchSpaceId = searchSpaceId;
-      }
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				where.searchSpaceId = searchSpaceId;
+			}
 
-      if (documentTypes) {
-        const types = documentTypes.split(',').map((t) => t.trim());
-        where.documentType = { in: types };
-      }
+			if (documentTypes) {
+				const types = documentTypes.split(",").map((t) => t.trim());
+				where.documentType = { in: types };
+			}
 
-      const total = await this.prisma.document.count({ where });
+			const total = await this.prisma.document.count({ where });
 
-      let documents;
-      if (pageSize === -1) {
-        documents = await this.prisma.document.findMany({
-          where,
-          skip: offset,
-          orderBy: { createdAt: 'desc' },
-        });
-      } else {
-        documents = await this.prisma.document.findMany({
-          where,
-          skip: offset,
-          take: pageSize,
-          orderBy: { createdAt: 'desc' },
-        });
-      }
+			let documents: any;
+			if (pageSize === -1) {
+				documents = await this.prisma.document.findMany({
+					where,
+					skip: offset,
+					orderBy: { createdAt: "desc" },
+				});
+			} else {
+				documents = await this.prisma.document.findMany({
+					where,
+					skip: offset,
+					take: pageSize,
+					orderBy: { createdAt: "desc" },
+				});
+			}
 
-      return {
-        items: documents.map((doc) => this.toDto(doc)),
-        total,
-      };
-    } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to fetch documents: ${error.message}`,
-      );
-    }
-  }
+			return {
+				items: documents.map((doc) => this.toDto(doc)),
+				total,
+			};
+		} catch (error) {
+			throw new InternalServerErrorException(
+				`Failed to fetch documents: ${error.message}`,
+			);
+		}
+	}
 
-  async search(
-    userId: string,
-    title: string,
-    skip?: number,
-    page?: number,
-    pageSize: number = 50,
-    searchSpaceId?: number,
-    documentTypes?: string,
-  ): Promise<PaginatedResponseDto<DocumentDto>> {
-    try {
-      let offset = 0;
-      if (skip !== undefined && skip !== null) {
-        offset = skip;
-      } else if (page !== undefined && page !== null) {
-        offset = page * pageSize;
-      }
+	async search(
+		userId: string,
+		title: string,
+		skip?: number,
+		page?: number,
+		pageSize: number = 50,
+		searchSpaceId?: number,
+		documentTypes?: string,
+	): Promise<PaginatedResponseDto<DocumentDto>> {
+		try {
+			let offset = 0;
+			if (skip !== undefined && skip !== null) {
+				offset = skip;
+			} else if (page !== undefined && page !== null) {
+				offset = page * pageSize;
+			}
 
-      const where: any = {
-        searchSpace: { userId },
-        title: { contains: title, mode: 'insensitive' },
-      };
+			const where: any = {
+				searchSpace: { userId },
+				title: { contains: title, mode: "insensitive" },
+			};
 
-      if (searchSpaceId !== undefined && searchSpaceId !== null) {
-        where.searchSpaceId = searchSpaceId;
-      }
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				where.searchSpaceId = searchSpaceId;
+			}
 
-      if (documentTypes) {
-        const types = documentTypes.split(',').map((t) => t.trim());
-        where.documentType = { in: types };
-      }
+			if (documentTypes) {
+				const types = documentTypes.split(",").map((t) => t.trim());
+				where.documentType = { in: types };
+			}
 
-      const total = await this.prisma.document.count({ where });
+			const total = await this.prisma.document.count({ where });
 
-      let documents;
-      if (pageSize === -1) {
-        documents = await this.prisma.document.findMany({
-          where,
-          skip: offset,
-          orderBy: { createdAt: 'desc' },
-        });
-      } else {
-        documents = await this.prisma.document.findMany({
-          where,
-          skip: offset,
-          take: pageSize,
-          orderBy: { createdAt: 'desc' },
-        });
-      }
+			let documents: any;
+			if (pageSize === -1) {
+				documents = await this.prisma.document.findMany({
+					where,
+					skip: offset,
+					orderBy: { createdAt: "desc" },
+				});
+			} else {
+				documents = await this.prisma.document.findMany({
+					where,
+					skip: offset,
+					take: pageSize,
+					orderBy: { createdAt: "desc" },
+				});
+			}
 
-      return {
-        items: documents.map((doc) => this.toDto(doc)),
-        total,
-      };
-    } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to search documents: ${error.message}`,
-      );
-    }
-  }
+			return {
+				items: documents.map((doc) => this.toDto(doc)),
+				total,
+			};
+		} catch (error) {
+			throw new InternalServerErrorException(
+				`Failed to search documents: ${error.message}`,
+			);
+		}
+	}
 
-  async getTypeCounts(
-    userId: string,
-    searchSpaceId?: number,
-  ): Promise<Record<string, number>> {
-    try {
-      const where: any = {
-        searchSpace: { userId },
-      };
+	async getTypeCounts(
+		userId: string,
+		searchSpaceId?: number,
+	): Promise<Record<string, number>> {
+		try {
+			const where: any = {
+				searchSpace: { userId },
+			};
 
-      if (searchSpaceId !== undefined && searchSpaceId !== null) {
-        where.searchSpaceId = searchSpaceId;
-      }
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				where.searchSpaceId = searchSpaceId;
+			}
 
-      const documents = await this.prisma.document.groupBy({
-        by: ['documentType'],
-        where,
-        _count: {
-          id: true,
-        },
-      });
+			const documents = await this.prisma.document.groupBy({
+				by: ["documentType"],
+				where,
+				_count: {
+					id: true,
+				},
+			});
 
-      const result: Record<string, number> = {};
-      documents.forEach((doc) => {
-        result[doc.documentType] = doc._count.id;
-      });
+			const result: Record<string, number> = {};
+			documents.forEach((doc) => {
+				result[doc.documentType] = doc._count.id;
+			});
 
-      return result;
-    } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to fetch document type counts: ${error.message}`,
-      );
-    }
-  }
+			return result;
+		} catch (error) {
+			throw new InternalServerErrorException(
+				`Failed to fetch document type counts: ${error.message}`,
+			);
+		}
+	}
 
-  async getDocumentByChunkId(
-    chunkId: number,
-    userId: string,
-  ): Promise<DocumentWithChunksDto> {
-    try {
-      const chunk = await this.prisma.chunk.findUnique({
-        where: { id: chunkId },
-      });
+	async getDocumentByChunkId(
+		chunkId: number,
+		userId: string,
+	): Promise<DocumentWithChunksDto> {
+		try {
+			const chunk = await this.prisma.chunk.findUnique({
+				where: { id: chunkId },
+			});
 
-      if (!chunk) {
-        throw new NotFoundException(`Chunk with id ${chunkId} not found`);
-      }
+			if (!chunk) {
+				throw new NotFoundException(`Chunk with id ${chunkId} not found`);
+			}
 
-      const document = await this.prisma.document.findFirst({
-        where: {
-          id: chunk.documentId,
-          searchSpace: { userId },
-        },
-        include: {
-          chunks: {
-            orderBy: { createdAt: 'asc' },
-          },
-        },
-      });
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id: chunk.documentId,
+					searchSpace: { userId },
+				},
+				include: {
+					chunks: {
+						orderBy: { createdAt: "asc" },
+					},
+				},
+			});
 
-      if (!document) {
-        throw new NotFoundException(
-          'Document not found or you do not have access to it',
-        );
-      }
+			if (!document) {
+				throw new NotFoundException(
+					"Document not found or you do not have access to it",
+				);
+			}
 
-      return this.toWithChunksDto(document);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        `Failed to retrieve document: ${error.message}`,
-      );
-    }
-  }
+			return this.toWithChunksDto(document);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to retrieve document: ${error.message}`,
+			);
+		}
+	}
 
-  async findOne(id: number, userId: string): Promise<DocumentDto> {
-    try {
-      const document = await this.prisma.document.findFirst({
-        where: {
-          id,
-          searchSpace: { userId },
-        },
-      });
+	async findOne(id: number, userId: string): Promise<DocumentDto> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+			});
 
-      if (!document) {
-        throw new NotFoundException(`Document with id ${id} not found`);
-      }
+			if (!document) {
+				throw new NotFoundException(`Document with id ${id} not found`);
+			}
 
-      return this.toDto(document);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        `Failed to fetch document: ${error.message}`,
-      );
-    }
-  }
+			return this.toDto(document);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to fetch document: ${error.message}`,
+			);
+		}
+	}
 
-  async update(
-    id: number,
-    updateDto: UpdateDocumentDto,
-    userId: string,
-  ): Promise<DocumentDto> {
-    try {
-      const document = await this.prisma.document.findFirst({
-        where: {
-          id,
-          searchSpace: { userId },
-        },
-      });
+	async update(
+		id: number,
+		updateDto: UpdateDocumentDto,
+		userId: string,
+	): Promise<DocumentDto> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+			});
 
-      if (!document) {
-        throw new NotFoundException(`Document with id ${id} not found`);
-      }
+			if (!document) {
+				throw new NotFoundException(`Document with id ${id} not found`);
+			}
 
-      const updated = await this.prisma.document.update({
-        where: { id },
-        data: {
-          title: updateDto.title,
-          content: updateDto.content,
-          documentMetadata: updateDto.document_metadata as any,
-        },
-      });
+			const updated = await this.prisma.document.update({
+				where: { id },
+				data: {
+					title: updateDto.title,
+					content: updateDto.content,
+					documentMetadata: updateDto.document_metadata as any,
+				},
+			});
 
-      return this.toDto(updated);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        `Failed to update document: ${error.message}`,
-      );
-    }
-  }
+			return this.toDto(updated);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to update document: ${error.message}`,
+			);
+		}
+	}
 
-  async remove(id: number, userId: string): Promise<{ message: string }> {
-    try {
-      const document = await this.prisma.document.findFirst({
-        where: {
-          id,
-          searchSpace: { userId },
-        },
-      });
+	async remove(id: number, userId: string): Promise<{ message: string }> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+			});
 
-      if (!document) {
-        throw new NotFoundException(`Document with id ${id} not found`);
-      }
+			if (!document) {
+				throw new NotFoundException(`Document with id ${id} not found`);
+			}
 
-      await this.prisma.document.delete({
-        where: { id },
-      });
+			await this.prisma.document.delete({
+				where: { id },
+			});
 
-      return { message: 'Document deleted successfully' };
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        `Failed to delete document: ${error.message}`,
-      );
-    }
-  }
+			return { message: "Document deleted successfully" };
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to delete document: ${error.message}`,
+			);
+		}
+	}
 
-  private toDto(document: any): DocumentDto {
-    return {
-      id: document.id,
-      title: document.title,
-      document_type: document.documentType,
-      document_metadata: document.documentMetadata,
-      content: document.content,
-      createdAt: document.createdAt,
-      search_space_id: document.searchSpaceId,
-    };
-  }
+	private toDto(document: any): DocumentDto {
+		return {
+			id: document.id,
+			title: document.title,
+			document_type: document.documentType,
+			document_metadata: document.documentMetadata,
+			content: document.content,
+			createdAt: document.createdAt,
+			search_space_id: document.searchSpaceId,
+		};
+	}
 
-  private toWithChunksDto(document: any): DocumentWithChunksDto {
-    return {
-      id: document.id,
-      title: document.title,
-      document_type: document.documentType,
-      document_metadata: document.documentMetadata,
-      content: document.content,
-      createdAt: document.createdAt,
-      search_space_id: document.searchSpaceId,
-      chunks: document.chunks.map((chunk: any) => ({
-        id: chunk.id,
-        content: chunk.content,
-        createdAt: chunk.createdAt,
-        documentId: chunk.documentId,
-      })),
-    };
-  }
+	private toWithChunksDto(document: any): DocumentWithChunksDto {
+		return {
+			id: document.id,
+			title: document.title,
+			document_type: document.documentType,
+			document_metadata: document.documentMetadata,
+			content: document.content,
+			createdAt: document.createdAt,
+			search_space_id: document.searchSpaceId,
+			chunks: document.chunks.map((chunk: any) => ({
+				id: chunk.id,
+				content: chunk.content,
+				createdAt: chunk.createdAt,
+				documentId: chunk.documentId,
+			})),
+		};
+	}
 }
