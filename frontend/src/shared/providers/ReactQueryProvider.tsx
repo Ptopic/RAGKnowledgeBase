@@ -2,10 +2,8 @@
 
 import { queryClientDefaultOptions } from '@shared/queryClient';
 import {
-   HydrationBoundary,
    QueryClient,
    QueryClientProvider,
-   dehydrate,
 } from '@tanstack/react-query';
 import { ReactNode, useState } from 'react';
 
@@ -18,15 +16,9 @@ const ReactQueryProvider = ({ children }: IProps) => {
       () => new QueryClient({ ...queryClientDefaultOptions })
    );
 
-   const dehydratedState = dehydrate(client, {
-      shouldDehydrateQuery: () => true,
-   });
-
    return (
       <QueryClientProvider client={client}>
-         <HydrationBoundary state={dehydratedState}>
-            {children}
-         </HydrationBoundary>
+         {children}
          {/* <ReactQueryDevtools /> */}
       </QueryClientProvider>
    );

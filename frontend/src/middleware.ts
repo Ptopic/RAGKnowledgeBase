@@ -4,7 +4,7 @@ import { COOKIE_NAME } from "@shared/constants/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
 const AUTH_ROUTE = "/auth";
-const HOME_ROUTE = "/";
+const HOME_ROUTE = "/dashboard";
 
 export const config = {
 	matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],

@@ -4,6 +4,7 @@ import useGoogleLogin from "@api/auth/hooks/useGoogleLogin";
 import { setAuthToken } from "@shared/utils/authClient";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { loginWithGoogle } from "@/api/auth/requests";
 
 declare global {
 	interface Window {
@@ -37,7 +38,7 @@ const AuthPage = () => {
 		onSuccess: (data) => {
 			setAuthToken(data);
 			setIsLoading(false);
-			router.push("/");
+			router.push("/dashboard");
 			router.refresh();
 		},
 		onError: (err) => {
@@ -155,7 +156,7 @@ const AuthPage = () => {
 						disabled={!isGoogleReady || isLoading}
 						className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface px-4 py-3 text-text transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						{isLoading ? (
+						{isLoading || googleLoginMutation.isPending ? (
 							<>
 								<div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
 								<span>Signing in...</span>

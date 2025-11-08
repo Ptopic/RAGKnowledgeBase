@@ -12,9 +12,16 @@
 			"!src/seed/**/*"
 		]
 	},
+	"organizeImports": {
+		"enabled": true
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
+			"recommended": true,
+			"correctness": {
+				"noUnusedImports": "error"
+			},
 			"complexity": {
 				"noStaticOnlyClass": "off"
 			},
