@@ -4,8 +4,9 @@ import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import useDeleteSearchSpace from "@/api/searchspaces/hooks/useDeleteSearchSpace";
+import useGetSearchSpaces from "@/api/searchspaces/hooks/useGetSearchSpaces";
+import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -32,8 +33,6 @@ import {
 } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
-import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
-import { useSearchSpaces } from "@/hooks/use-search-spaces";
 
 /**
  * Formats a date string into a readable format
@@ -149,8 +148,15 @@ const DashboardPage = () => {
 		},
 	};
 
-	const { searchSpaces, loading, error, refreshSearchSpaces } =
-		useSearchSpaces();
+	const {
+		data: searchSpaces,
+		isLoading: loading,
+		isFetching: fetching,
+		isRefetching: refetching,
+		error,
+		refetch: refreshSearchSpaces,
+	} = useGetSearchSpaces();
+
 	const { mutate: deleteSearchSpace, isPending: isDeletingSearchSpace } =
 		useDeleteSearchSpace({
 			onSuccess: () => {
@@ -180,7 +186,7 @@ const DashboardPage = () => {
 	};
 
 	if (loading) return <LoadingScreen />;
-	if (error) return <ErrorScreen message={error} />;
+	if (error) return <ErrorScreen message={error.toString()} />;
 
 	const handleDeleteSearchSpace = (id: number) => {
 		deleteSearchSpace(id);
@@ -222,7 +228,15 @@ const DashboardPage = () => {
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{searchSpaces &&
+						{loading || refetching || fetching ? (
+							<motion.div
+								animate={{ rotate: 360 }}
+								transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+							>
+								<Loader2 className="h-12 w-12 text-primary" />
+							</motion.div>
+						) : (
+							searchSpaces &&
 							searchSpaces.length > 0 &&
 							searchSpaces.map((space) => (
 								<motion.div
@@ -328,9 +342,10 @@ const DashboardPage = () => {
 										</div>
 									</Tilt>
 								</motion.div>
-							))}
+							))
+						)}
 
-						{searchSpaces.length === 0 && (
+						{searchSpaces && searchSpaces.length === 0 && (
 							<motion.div
 								variants={itemVariants}
 								className="col-span-full flex flex-col items-center justify-center p-12 text-center"
@@ -353,7 +368,7 @@ const DashboardPage = () => {
 							</motion.div>
 						)}
 
-						{searchSpaces.length > 0 && (
+						{searchSpaces && searchSpaces.length > 0 && (
 							<motion.div variants={itemVariants} className="aspect-[4/3]">
 								<Tilt
 									rotationFactor={6}

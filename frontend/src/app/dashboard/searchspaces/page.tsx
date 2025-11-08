@@ -1,18 +1,11 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useRouter } from "next/navigation";
 import useCreateSearchSpace from "@/api/searchspaces/hooks/useCreateSearchSpace";
 import { SearchSpaceForm } from "@/components/search-space-form";
 
 export default function SearchSpacesPage() {
-	const router = useRouter();
-
-	const { mutate: createSearchSpace } = useCreateSearchSpace({
-		onSuccess: () => {
-			router.push(`/dashboard`);
-		},
-	});
+	const { mutate: createSearchSpace } = useCreateSearchSpace();
 
 	const handleCreateSearchSpace = (data: {
 		name: string;
