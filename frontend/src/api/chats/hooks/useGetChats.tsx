@@ -4,7 +4,10 @@ import type { Chat, GetChatsParams } from "../types";
 
 const useGetChats = (
 	params: GetChatsParams,
-	options?: UseQueryOptions<Chat[], Error>,
+	options?: Omit<
+		UseQueryOptions<Chat[], Error, Chat[], readonly unknown[]>,
+		"queryKey" | "queryFn"
+	>
 ) => {
 	return useQuery<Chat[], Error>({
 		queryKey: ["chats", params.search_space_id],

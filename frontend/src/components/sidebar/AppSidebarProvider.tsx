@@ -14,7 +14,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface AppSidebarProviderProps {
 	searchSpaceId: string;
@@ -57,9 +57,7 @@ export function AppSidebarProvider({
 		refetch: refetchChats,
 	} = useGetChats(
 		{
-			search_space_id: Number(searchSpaceId),
-			limit: 5,
-			skip: 0,
+			search_space_id: searchSpaceId,
 		},
 		{
 			refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
@@ -108,11 +106,11 @@ export function AppSidebarProvider({
 		}));
 	}, [chats]);
 
-	// Retry function
-	const retryFetch = () => {
+	// Retry function - wrapped in useCallback to prevent infinite loops
+	const retryFetch = useCallback(() => {
 		refetchChats();
 		refetchSearchSpace();
-	};
+	}, [refetchChats, refetchSearchSpace]);
 
 	// Handle delete chat
 	const handleDeleteChat = () => {

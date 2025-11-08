@@ -157,15 +157,12 @@ export default function ChatsPageClient({
 		});
 
 		setFilteredChats(result);
-		setTotalPages(Math.max(1, Math.ceil(result.length / chatsPerPage)));
-	}, [chats, searchQuery, selectedType, sortOrder]);
+		const newTotalPages = Math.max(1, Math.ceil(result.length / chatsPerPage));
+		setTotalPages(newTotalPages);
 
-	// Reset to first page when filters change
-	useEffect(() => {
-		if (searchQuery || selectedType !== "all" || sortOrder !== "newest") {
-			setCurrentPage(1);
-		}
-	}, [searchQuery, selectedType, sortOrder]);
+		// Reset to first page when filters change (but only if current page would be invalid)
+		setCurrentPage((prevPage) => (prevPage > newTotalPages ? 1 : prevPage));
+	}, [chats, searchQuery, selectedType, sortOrder]);
 
 	// Function to handle chat deletion
 	const handleDeleteChat = () => {
