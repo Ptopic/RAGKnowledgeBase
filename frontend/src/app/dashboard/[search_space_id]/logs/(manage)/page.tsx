@@ -147,13 +147,13 @@ function MessageDetails({
 	message,
 	taskName,
 	metadata,
-	createdAt,
+	created_at,
 	children,
 }: {
 	message: string;
 	taskName?: string;
 	metadata?: any;
-	createdAt?: string;
+	created_at?: string;
 	children: React.ReactNode;
 }) {
 	return (
@@ -163,9 +163,9 @@ function MessageDetails({
 				<div className="flex items-start justify-between gap-4">
 					<div>
 						<AlertDialogTitle className="text-lg">Log details</AlertDialogTitle>
-						{createdAt && (
+						{created_at && (
 							<p className="text-xs text-muted-foreground mt-1">
-								{new Date(createdAt).toLocaleString()}
+								{new Date(created_at).toLocaleString()}
 							</p>
 						)}
 					</div>
@@ -305,7 +305,7 @@ const createColumns = (): ColumnDef<Log>[] => [
 					message={message}
 					taskName={taskName}
 					metadata={row.original.log_metadata}
-					createdAt={createdAt}
+					created_at={createdAt}
 				>
 					<div className="flex flex-col gap-1 max-w-[400px] cursor-pointer">
 						{taskName && (

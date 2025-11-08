@@ -33,19 +33,7 @@ import {
 } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
-
-/**
- * Formats a date string into a readable format
- * @param dateString - The date string to format
- * @returns Formatted date string (e.g., "Jan 1, 2023")
- */
-const formatDate = (dateString: string): string => {
-	return new Date(dateString).toLocaleDateString("en-US", {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-	});
-};
+import { formatDateString } from "@/shared/utils/date";
 
 /**
  * Loading screen component with animation
@@ -334,7 +322,7 @@ const DashboardPage = () => {
 													<div className="mt-4  text-xs text-muted-foreground">
 														{/* <span>{space.title}</span> */}
 														<span>
-															{"Created"} {formatDate(space.created_at)}
+															{"Created"} {formatDateString(space.created_at)}
 														</span>
 													</div>
 												</div>

@@ -1,16 +1,21 @@
-import { IsString, IsOptional, MaxLength, IsUUID, IsInt } from 'class-validator';
-import { Type } from 'class-transformer';
-import { IDDto, TimestampDto } from './base.dto';
+import { Type } from "class-transformer";
+import {
+	IsInt,
+	IsOptional,
+	IsString,
+	IsUUID,
+	MaxLength,
+} from "class-validator";
 
 export class SearchSpaceBaseDto {
-  @IsString()
-  @MaxLength(100)
-  name: string;
+	@IsString()
+	@MaxLength(100)
+	name: string;
 
-  @IsString()
-  @IsOptional()
-  @MaxLength(500)
-  description?: string;
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	description?: string;
 }
 
 export class CreateSearchSpaceDto extends SearchSpaceBaseDto {}
@@ -18,12 +23,12 @@ export class CreateSearchSpaceDto extends SearchSpaceBaseDto {}
 export class UpdateSearchSpaceDto extends SearchSpaceBaseDto {}
 
 export class SearchSpaceDto extends SearchSpaceBaseDto {
-  @IsInt()
-  id: number;
+	@IsInt()
+	id: number;
 
-  @IsUUID()
-  userId: string;
+	@IsUUID()
+	userId: string;
 
-  @Type(() => Date)
-  createdAt: Date;
+	@Type(() => Date)
+	created_at: Date;
 }

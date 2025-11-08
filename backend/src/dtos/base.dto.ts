@@ -2,16 +2,16 @@
  * Base DTOs for common fields
  */
 
-import { IsDate, IsInt } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type } from "class-transformer";
+import { IsDate, IsInt } from "class-validator";
 
 export class TimestampDto {
-  @IsDate()
-  @Type(() => Date)
-  createdAt: Date;
+	@IsDate()
+	@Type(() => Date)
+	created_at: Date;
 }
 
 export class IDDto {
-  @IsInt()
-  id: number;
+	@IsInt()
+	id: number;
 }

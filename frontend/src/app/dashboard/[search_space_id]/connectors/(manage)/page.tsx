@@ -73,21 +73,9 @@ import {
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
+import { formatDateString } from "@/shared/utils/date";
 
 export default function ConnectorsPage() {
-	// Helper function to format date with time
-	const formatDateTime = (dateString: string | null): string => {
-		if (!dateString) return "Never";
-
-		const date = new Date(dateString);
-		return new Intl.DateTimeFormat("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		}).format(date);
-	};
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
@@ -358,7 +346,7 @@ export default function ConnectorsPage() {
 											</TableCell>
 											<TableCell>
 												{connector.is_indexable
-													? formatDateTime(connector.last_indexed_at)
+													? formatDateString(connector.last_indexed_at)
 													: "Not indexable"}
 											</TableCell>
 											<TableCell>
@@ -387,7 +375,7 @@ export default function ConnectorsPage() {
 																			<>
 																				<br />
 																				Next:{" "}
-																				{formatDateTime(
+																				{formatDateString(
 																					connector.next_scheduled_at,
 																				)}
 																			</>

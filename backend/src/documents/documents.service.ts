@@ -116,7 +116,10 @@ export class DocumentsService {
 			) {
 				throw error;
 			}
-			this.logger.error(`Failed to upload files: ${error.message}`, error.stack);
+			this.logger.error(
+				`Failed to upload files: ${error.message}`,
+				error.stack,
+			);
 			throw new InternalServerErrorException(
 				`Failed to upload files: ${error.message}`,
 			);
@@ -413,7 +416,7 @@ export class DocumentsService {
 			document_type: document.documentType,
 			document_metadata: document.documentMetadata,
 			content: document.content,
-			createdAt: document.createdAt,
+			created_at: document.createdAt,
 			search_space_id: document.searchSpaceId,
 		};
 	}
@@ -425,12 +428,12 @@ export class DocumentsService {
 			document_type: document.documentType,
 			document_metadata: document.documentMetadata,
 			content: document.content,
-			createdAt: document.createdAt,
+			created_at: document.createdAt,
 			search_space_id: document.searchSpaceId,
 			chunks: document.chunks.map((chunk: any) => ({
 				id: chunk.id,
 				content: chunk.content,
-				createdAt: chunk.createdAt,
+				created_at: chunk.createdAt,
 				documentId: chunk.documentId,
 			})),
 		};
