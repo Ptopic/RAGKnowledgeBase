@@ -6,6 +6,7 @@ import {
 import { toast } from "sonner";
 import llmConfigsClientRequests from "../authClientRequests";
 import type { CreateLLMConfig, LLMConfig } from "../types";
+import { LLM_CONFIGS } from "@/shared/queryKeys";
 
 const useCreateLLMConfig = (
 	options?: UseMutationOptions<LLMConfig, Error, CreateLLMConfig, unknown>,
@@ -16,7 +17,7 @@ const useCreateLLMConfig = (
 		mutationFn: (data: CreateLLMConfig) =>
 			llmConfigsClientRequests.createLLMConfig(data),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["llmConfigs"] });
+			queryClient.invalidateQueries({ queryKey: [LLM_CONFIGS] });
 			toast.success("LLM configuration created successfully");
 		},
 		onError: (error) => {

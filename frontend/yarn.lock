@@ -938,7 +938,7 @@
     "@babel/helper-string-parser" "^7.27.1"
     "@babel/helper-validator-identifier" "^7.28.5"
 
-"@biomejs/biome@2.1.2":
+"@biomejs/biome@^2.1.2":
   version "2.1.2"
   resolved "https://registry.npmjs.org/@biomejs/biome/-/biome-2.1.2.tgz"
   integrity sha512-yq8ZZuKuBVDgAS76LWCfFKHSYIAgqkxVB3mGVVpOe2vSkUTs7xG46zXZeNPRNVjiJuw0SZ3+J2rXiYx0RUpfGg==

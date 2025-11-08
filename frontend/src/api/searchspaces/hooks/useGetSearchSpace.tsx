@@ -1,4 +1,5 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
+import { SEARCH_SPACES } from "@/shared/queryKeys";
 import searchSpacesClientRequests from "../authClientRequests";
 import type { SearchSpace } from "../types";
 
@@ -7,10 +8,10 @@ const useGetSearchSpace = (
 	options?: Omit<
 		UseQueryOptions<SearchSpace, Error, SearchSpace, readonly unknown[]>,
 		"queryKey" | "queryFn"
-	>
+	>,
 ) => {
 	return useQuery<SearchSpace, Error>({
-		queryKey: ["searchSpace", id],
+		queryKey: [SEARCH_SPACES, id],
 		queryFn: () => {
 			if (!id) {
 				throw new Error("Search space ID is required");

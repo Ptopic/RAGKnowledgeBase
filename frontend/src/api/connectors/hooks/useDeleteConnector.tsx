@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import connectorsClientRequests from "../authClientRequests";
+import { CONNECTORS } from "@/shared/queryKeys";
 
 const useDeleteConnector = (
 	options?: UseMutationOptions<void, Error, number, unknown>,
@@ -14,8 +15,8 @@ const useDeleteConnector = (
 	return useMutation({
 		mutationFn: (id: number) => connectorsClientRequests.deleteConnector(id),
 		onSuccess: (_, id) => {
-			queryClient.invalidateQueries({ queryKey: ["connectors"] });
-			queryClient.invalidateQueries({ queryKey: ["connector", id] });
+			queryClient.invalidateQueries({ queryKey: [CONNECTORS] });
+			queryClient.invalidateQueries({ queryKey: [CONNECTORS, id] });
 			toast.success("Connector deleted successfully");
 		},
 		onError: (error) => {

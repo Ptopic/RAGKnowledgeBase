@@ -6,6 +6,7 @@ import {
 import { toast } from "sonner";
 import llmConfigsClientRequests from "../authClientRequests";
 import type { LLMPreferences, UpdateLLMPreferencesParams } from "../types";
+import { LLM_PREFERENCES } from "@/shared/queryKeys";
 
 const useUpdateLLMPreferences = (
 	options?: UseMutationOptions<
@@ -22,7 +23,7 @@ const useUpdateLLMPreferences = (
 			llmConfigsClientRequests.updateLLMPreferences(params),
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: ["llmPreferences", variables.search_space_id],
+				queryKey: [LLM_PREFERENCES, variables.search_space_id],
 			});
 			toast.success("LLM preferences updated successfully");
 		},

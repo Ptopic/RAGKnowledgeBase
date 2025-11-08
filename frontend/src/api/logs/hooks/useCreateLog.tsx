@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LOGS, LOGS_SUMMARY } from "@/shared/queryKeys";
 import logsClientRequests from "../authClientRequests";
 import type { CreateLogRequest, Log } from "../types";
 
@@ -15,8 +16,8 @@ const useCreateLog = (
 	return useMutation({
 		mutationFn: (data: CreateLogRequest) => logsClientRequests.createLog(data),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["logs"] });
-			queryClient.invalidateQueries({ queryKey: ["logsSummary"] });
+			queryClient.invalidateQueries({ queryKey: [LOGS] });
+			queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY] });
 			toast.success("Log created successfully");
 		},
 		onError: (error) => {

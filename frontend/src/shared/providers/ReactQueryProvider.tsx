@@ -1,27 +1,24 @@
-'use client';
+"use client";
 
-import { queryClientDefaultOptions } from '@shared/queryClient';
-import {
-   QueryClient,
-   QueryClientProvider,
-} from '@tanstack/react-query';
-import { ReactNode, useState } from 'react';
+import { queryClientDefaultOptions } from "@shared/queryClient";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { type ReactNode, useState } from "react";
 
 interface IProps {
-   children: ReactNode;
+	children: ReactNode;
 }
 
 const ReactQueryProvider = ({ children }: IProps) => {
-   const [client] = useState(
-      () => new QueryClient({ ...queryClientDefaultOptions })
-   );
+	const [client] = useState(
+		() => new QueryClient({ ...queryClientDefaultOptions }),
+	);
 
-   return (
-      <QueryClientProvider client={client}>
-         {children}
-         {/* <ReactQueryDevtools /> */}
-      </QueryClientProvider>
-   );
+	return (
+		<QueryClientProvider client={client}>
+			{children}
+			{/* <ReactQueryDevtools /> */}
+		</QueryClientProvider>
+	);
 };
 
 export default ReactQueryProvider;

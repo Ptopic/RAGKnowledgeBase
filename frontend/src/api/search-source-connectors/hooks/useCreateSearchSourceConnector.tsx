@@ -9,6 +9,7 @@ import type {
 	CreateSearchSourceConnectorRequest,
 	SearchSourceConnector,
 } from "../types";
+import { SEARCH_SOURCE_CONNECTORS } from "@/shared/queryKeys";
 
 interface CreateSearchSourceConnectorParams {
 	data: CreateSearchSourceConnectorRequest;
@@ -21,7 +22,7 @@ const useCreateSearchSourceConnector = (
 		Error,
 		CreateSearchSourceConnectorParams,
 		unknown
-	>
+	>,
 ) => {
 	const queryClient = useQueryClient();
 
@@ -29,10 +30,10 @@ const useCreateSearchSourceConnector = (
 		mutationFn: ({ data, searchSpaceId }: CreateSearchSourceConnectorParams) =>
 			searchSourceConnectorsClientRequests.createSearchSourceConnector(
 				data,
-				searchSpaceId
+				searchSpaceId,
 			),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["searchSourceConnectors"] });
+			queryClient.invalidateQueries({ queryKey: [SEARCH_SOURCE_CONNECTORS] });
 			toast.success("Connector created successfully");
 		},
 		onError: (error) => {

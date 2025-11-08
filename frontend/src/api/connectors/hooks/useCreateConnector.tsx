@@ -6,6 +6,7 @@ import {
 import { toast } from "sonner";
 import connectorsClientRequests from "../authClientRequests";
 import type { Connector, CreateConnectorRequest } from "../types";
+import { CONNECTORS } from "@/shared/queryKeys";
 
 const useCreateConnector = (
 	options?: UseMutationOptions<
@@ -21,7 +22,7 @@ const useCreateConnector = (
 		mutationFn: (data: CreateConnectorRequest) =>
 			connectorsClientRequests.createConnector(data),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["connectors"] });
+			queryClient.invalidateQueries({ queryKey: [CONNECTORS] });
 			toast.success("Connector created successfully");
 		},
 		onError: (error) => {

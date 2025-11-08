@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import chatsClientRequests from "../authClientRequests";
+import { CHATS } from "@/shared/queryKeys";
 
 const useDeleteChat = (
 	options?: UseMutationOptions<void, Error, number, unknown>,
@@ -14,9 +15,8 @@ const useDeleteChat = (
 	return useMutation({
 		mutationFn: (id: number) => chatsClientRequests.deleteChat(id),
 		onSuccess: () => {
-			// Invalidate chats queries to refetch the list
-			queryClient.invalidateQueries({ queryKey: ["chats"] });
-			toast.success("Chat deleted successfully");
+			queryClient.invalidateQueries({ queryKey: [CHATS] });
+				toast.success("Chat deleted successfully");
 		},
 		onError: (error) => {
 			console.error("Error deleting chat:", error);

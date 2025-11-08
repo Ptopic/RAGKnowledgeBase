@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { SEARCH_SPACES } from "@/shared/queryKeys";
 import searchSpacesClientRequests from "../authClientRequests";
 import type {
 	CreateSearchSpaceRequest,
@@ -24,7 +25,7 @@ const useCreateSearchSpace = (
 		mutationFn: (data: CreateSearchSpaceRequest) =>
 			searchSpacesClientRequests.createSearchSpace(data),
 		onSuccess: (data, variables) => {
-			queryClient.invalidateQueries({ queryKey: ["searchSpaces"] });
+			queryClient.invalidateQueries({ queryKey: [SEARCH_SPACES] });
 			toast.success("Search space created successfully", {
 				description: `"${variables.name}" has been created.`,
 			});
