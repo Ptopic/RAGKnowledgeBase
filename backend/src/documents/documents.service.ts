@@ -2,6 +2,7 @@ import {
 	BadRequestException,
 	Injectable,
 	InternalServerErrorException,
+	Logger,
 	NotFoundException,
 } from "@nestjs/common";
 import { DocumentType } from "@prisma/client";
@@ -13,10 +14,16 @@ import {
 	UpdateDocumentDto,
 } from "../dtos/document.dto";
 import { PrismaService } from "../prisma/prisma.service";
+import { QueueService } from "../queue/queue.service";
 
 @Injectable()
 export class DocumentsService {
-	constructor(private prisma: PrismaService) {}
+	private readonly logger = new Logger(DocumentsService.name);
+
+	constructor(
+		private prisma: PrismaService,
+		private queueService: QueueService,
+	) {}
 
 	async checkSearchSpaceOwnership(
 		searchSpaceId: number,
@@ -78,8 +85,30 @@ export class DocumentsService {
 				throw new BadRequestException("No files provided");
 			}
 
-			// In production, this would queue file processing tasks
-			return { message: "Files uploaded for processing" };
+			// Queue each file for background processing
+			const queuedJobs = [];
+			for (const file of files) {
+				this.logger.log(
+					`Queuing file for processing: ${file.originalname} (path: ${file.path})`,
+				);
+
+				const job = await this.queueService.processFileDocument(
+					file.path,
+					file.originalname,
+					searchSpaceId,
+					userId,
+				);
+
+				queuedJobs.push(job.id);
+			}
+
+			this.logger.log(
+				`Successfully queued ${queuedJobs.length} file(s) for processing`,
+			);
+
+			return {
+				message: `${files.length} file(s) uploaded and queued for processing`,
+			};
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
@@ -87,6 +116,7 @@ export class DocumentsService {
 			) {
 				throw error;
 			}
+			this.logger.error(`Failed to upload files: ${error.message}`, error.stack);
 			throw new InternalServerErrorException(
 				`Failed to upload files: ${error.message}`,
 			);

@@ -2,6 +2,7 @@ import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { FileProcessorsService } from 'src/tasks/document-processors';
 import { QUEUE_NAMES } from '../queue.config';
 
 /**
@@ -17,7 +18,10 @@ import { QUEUE_NAMES } from '../queue.config';
 export class DocumentsProcessor {
   private readonly logger = new Logger(DocumentsProcessor.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fileProcessorsService: FileProcessorsService,
+  ) {}
 
   /**
    * Process extension document
@@ -147,15 +151,13 @@ export class DocumentsProcessor {
         `Processing file document: ${fileName} for search space ${searchSpaceId}`,
       );
 
-      // TODO: Implement file processing
-      // This will include:
-      // 1. Detect file type
-      // 2. Use ETL service (Docling, Unstructured, LlamaCloud)
-      // 3. Extract text
-      // 4. Chunk content
-      // 5. Generate embeddings
-      // 6. Store in database
-      // 7. Check page limit usage
+      // Call FileProcessorsService to handle the actual file processing
+      await this.fileProcessorsService.processFileInBackground(
+        filePath,
+        fileName,
+        searchSpaceId,
+        userId,
+      );
 
       this.logger.log(`Successfully processed file document: ${fileName}`);
     } catch (error) {

@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { TasksModule } from 'src/tasks/tasks.module';
 import { ConnectorsProcessor } from './processors/connectors.processor';
 import { DocumentsProcessor } from './processors/documents.processor';
 import { SchedulerProcessor } from './processors/scheduler.processor';
@@ -21,6 +22,7 @@ import { QueueService } from './queue.service';
     ),
 
     PrismaModule,
+    TasksModule,
   ],
   providers: [
     DocumentsProcessor,

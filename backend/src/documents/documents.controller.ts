@@ -15,6 +15,9 @@ import {
 	UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import * as path from "path";
+import * as fs from "fs";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import {
 	CreateDocumentsDto,
@@ -24,6 +27,25 @@ import {
 	UpdateDocumentDto,
 } from "../dtos/document.dto";
 import { DocumentsService } from "./documents.service";
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+	fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure Multer storage
+const storage = diskStorage({
+	destination: (req, file, cb) => {
+		cb(null, uploadsDir);
+	},
+	filename: (req, file, cb) => {
+		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+		const ext = path.extname(file.originalname);
+		const name = path.basename(file.originalname, ext);
+		cb(null, `${name}-${uniqueSuffix}${ext}`);
+	},
+});
 
 @Controller("documents")
 @UseGuards(JwtAuthGuard)
@@ -39,7 +61,7 @@ export class DocumentsController {
 	}
 
 	@Post("fileupload")
-	@UseInterceptors(FilesInterceptor("files"))
+	@UseInterceptors(FilesInterceptor("files", 10, { storage }))
 	async createFileUpload(
 		@UploadedFiles() files: Express.Multer.File[],
 		@Body("search_space_id", ParseIntPipe) searchSpaceId: number,

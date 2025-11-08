@@ -6,9 +6,11 @@
  * using Bull queue system.
  */
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AgentModule } from '../agent/agent.module';
+import { RetrieverModule } from '../retriever/retriever.module';
 
 // Document Processors
 import {
@@ -43,6 +45,8 @@ import { StreamConnectorSearchResultsService } from './stream-connector-search-r
 @Module({
   imports: [
     PrismaModule,
+    RetrieverModule,
+    forwardRef(() => AgentModule),
     // Register Bull queues
     BullModule.registerQueue(
       {
