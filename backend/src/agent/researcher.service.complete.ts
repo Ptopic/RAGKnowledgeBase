@@ -1,13 +1,17 @@
+import {
+	BaseMessage,
+	HumanMessage,
+	SystemMessage,
+} from "@langchain/core/messages";
 import { Injectable, Logger } from "@nestjs/common";
 import { Observable } from "rxjs";
-import { HumanMessage, SystemMessage, BaseMessage } from "@langchain/core/messages";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ResearcherDto, SearchMode } from "./dtos/researcher.dto";
-import { StreamingService } from "./streaming.service";
 import { ConnectorService } from "./services/connector.service";
-import { QNAService } from "./services/qna.service";
 import { LLMService } from "./services/llm.service";
 import { PromptsService } from "./services/prompts.service";
+import { QNAService } from "./services/qna.service";
+import { StreamingService } from "./streaming.service";
 import {
 	Document,
 	getConnectorEmoji,
@@ -168,7 +172,9 @@ export class ResearcherServiceComplete {
 					if (allDocuments.length > 0) {
 						const sourcesToStream =
 							this.extractSourcesFromDocuments(allDocuments);
-						subscriber.next(streamingService.formatSourcesDelta(sourcesToStream));
+						subscriber.next(
+							streamingService.formatSourcesDelta(sourcesToStream),
+						);
 					}
 
 					// Step 2d: Generate answer using QNA agent
@@ -233,10 +239,7 @@ export class ResearcherServiceComplete {
 
 					subscriber.complete();
 				} catch (error) {
-					this.logger.error(
-						`Researcher error: ${error.message}`,
-						error.stack,
-					);
+					this.logger.error(`Researcher error: ${error.message}`, error.stack);
 					subscriber.next(
 						streamingService.formatError(`Error: ${error.message}`),
 					);
@@ -369,7 +372,10 @@ Reformulated Query (respond with only the reformulated query, nothing else):`;
 
 					return docChunks.map((chunk) => {
 						// Use connector service's rich formatting
-						return this.connectorService.formatSourceEntryPublic(docType, chunk);
+						return this.connectorService.formatSourceEntryPublic(
+							docType,
+							chunk,
+						);
 					});
 				});
 
@@ -463,16 +469,6 @@ Reformulated Query (respond with only the reformulated query, nothing else):`;
 					switch (connector) {
 						case "YOUTUBE_VIDEO":
 							result = await this.connectorService.searchYouTube(
-								userQuery,
-								userId,
-								searchSpaceId,
-								topK,
-								searchMode,
-							);
-							break;
-
-						case "EXTENSION":
-							result = await this.connectorService.searchExtension(
 								userQuery,
 								userId,
 								searchSpaceId,
@@ -628,7 +624,8 @@ Reformulated Query (respond with only the reformulated query, nothing else):`;
 		for (let i = 0; i < str.length; i++) {
 			hash ^= str.charCodeAt(i);
 			// FNV prime: 16777619
-			hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+			hash +=
+				(hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
 		}
 
 		// Convert to 32-bit integer
@@ -697,9 +694,7 @@ Reformulated Query (respond with only the reformulated query, nothing else):`;
 			const llm = await this.llmService.getUserFastLLM(userId, searchSpaceId);
 			if (!llm) {
 				this.logger.error("No fast LLM configured");
-				subscriber.next(
-					streamingService.formatError("No fast LLM configured"),
-				);
+				subscriber.next(streamingService.formatError("No fast LLM configured"));
 				return [];
 			}
 

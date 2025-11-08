@@ -6,104 +6,99 @@
  * using Bull queue system.
  */
 
-import { Module, forwardRef } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
-import { PrismaModule } from '../prisma/prisma.module';
-import { AgentModule } from '../agent/agent.module';
-import { RetrieverModule } from '../retriever/retriever.module';
-
-// Document Processors
-import {
-  DocumentProcessorBaseService,
-  ExtensionProcessorService,
-  UrlCrawlerService,
-  YoutubeProcessorService,
-  MarkdownProcessorService,
-  FileProcessorsService,
-} from './document-processors';
-
+import { BullModule } from "@nestjs/bull";
+import { forwardRef, Module } from "@nestjs/common";
+import { AgentModule } from "../agent/agent.module";
+import { PrismaModule } from "../prisma/prisma.module";
+import { RetrieverModule } from "../retriever/retriever.module";
 // Connector Indexers
 import {
-  ConnectorIndexerBaseService,
-  GithubIndexerService,
-  GoogleCalendarIndexerService,
-  GoogleGmailIndexerService,
-  NotionIndexerService,
-  SlackIndexerService,
-} from './connector-indexers';
+	ConnectorIndexerBaseService,
+	GithubIndexerService,
+	GoogleCalendarIndexerService,
+	GoogleGmailIndexerService,
+	NotionIndexerService,
+	SlackIndexerService,
+} from "./connector-indexers";
+// Document Processors
+import {
+	DocumentProcessorBaseService,
+	FileProcessorsService,
+	MarkdownProcessorService,
+	UrlCrawlerService,
+	YoutubeProcessorService,
+} from "./document-processors";
 
 // Queue Processors
 import {
-  ConnectorTasksProcessor,
-  DocumentTasksProcessor,
-  ScheduleCheckerProcessor,
-} from './queue-tasks';
+	ConnectorTasksProcessor,
+	DocumentTasksProcessor,
+	ScheduleCheckerProcessor,
+} from "./queue-tasks";
 
 // Stream Service
-import { StreamConnectorSearchResultsService } from './stream-connector-search-results.service';
+import { StreamConnectorSearchResultsService } from "./stream-connector-search-results.service";
 
 @Module({
-  imports: [
-    PrismaModule,
-    RetrieverModule,
-    forwardRef(() => AgentModule),
-    // Register Bull queues
-    BullModule.registerQueue(
-      {
-        name: 'connector-tasks',
-      },
-      {
-        name: 'document-tasks',
-      },
-      {
-        name: 'schedule-checker',
-      },
-    ),
-  ],
-  providers: [
-    // Document Processor Services
-    DocumentProcessorBaseService,
-    ExtensionProcessorService,
-    UrlCrawlerService,
-    YoutubeProcessorService,
-    MarkdownProcessorService,
-    FileProcessorsService,
+	imports: [
+		PrismaModule,
+		RetrieverModule,
+		forwardRef(() => AgentModule),
+		// Register Bull queues
+		BullModule.registerQueue(
+			{
+				name: "connector-tasks",
+			},
+			{
+				name: "document-tasks",
+			},
+			{
+				name: "schedule-checker",
+			},
+		),
+	],
+	providers: [
+		// Document Processor Services
+		DocumentProcessorBaseService,
+		UrlCrawlerService,
+		YoutubeProcessorService,
+		MarkdownProcessorService,
+		FileProcessorsService,
 
-    // Connector Indexer Services
-    ConnectorIndexerBaseService,
-    GithubIndexerService,
-    GoogleCalendarIndexerService,
-    GoogleGmailIndexerService,
-    NotionIndexerService,
-    SlackIndexerService,
+		// Connector Indexer Services
+		ConnectorIndexerBaseService,
+		GithubIndexerService,
+		GoogleCalendarIndexerService,
+		GoogleGmailIndexerService,
+		NotionIndexerService,
+		SlackIndexerService,
 
-    // Queue Processors
-    ConnectorTasksProcessor,
-    DocumentTasksProcessor,
-    ScheduleCheckerProcessor,
+		// Queue Processors
+		ConnectorTasksProcessor,
+		DocumentTasksProcessor,
+		ScheduleCheckerProcessor,
 
-    // Stream Service
-    StreamConnectorSearchResultsService,
-  ],
-  exports: [
-    // Export document processors for use in other modules
-    DocumentProcessorBaseService,
-    ExtensionProcessorService,
-    UrlCrawlerService,
-    YoutubeProcessorService,
-    MarkdownProcessorService,
-    FileProcessorsService,
+		// Stream Service
+		StreamConnectorSearchResultsService,
+	],
+	exports: [
+		// Export document processors for use in other modules
+		DocumentProcessorBaseService,
+		UrlCrawlerService,
+		YoutubeProcessorService,
+		MarkdownProcessorService,
+		FileProcessorsService,
 
-    // Export connector indexers for use in other modules
-    ConnectorIndexerBaseService,
-    GithubIndexerService,
-    GoogleCalendarIndexerService,
-    GoogleGmailIndexerService,
-    NotionIndexerService,
-    SlackIndexerService,
+		// Export connector indexers for use in other modules
+		ConnectorIndexerBaseService,
+		GithubIndexerService,
+		GoogleCalendarIndexerService,
+		GoogleGmailIndexerService,
+		NotionIndexerService,
+		SlackIndexerService,
 
-    // Export stream service
-    StreamConnectorSearchResultsService,
-  ],
+		// Export stream service
+		StreamConnectorSearchResultsService,
+	],
 })
 export class TasksModule {}

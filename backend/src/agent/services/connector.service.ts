@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { DocumentType } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { RetrieverService } from "src/retriever/retriever.service";
-import { Document } from "../utils/agent.utils";
 import { SearchMode } from "../dtos/researcher.dto";
-import { DocumentType } from "@prisma/client";
+import { Document } from "../utils/agent.utils";
 
 interface SourceObject {
 	id: number;
@@ -78,27 +78,6 @@ export class ConnectorService {
 		return this.searchDocumentType(
 			"YOUTUBE_VIDEO",
 			"YouTube",
-			userQuery,
-			userId,
-			searchSpaceId,
-			topK,
-			searchMode,
-		);
-	}
-
-	/**
-	 * Search browser extension data
-	 */
-	async searchExtension(
-		userQuery: string,
-		userId: string,
-		searchSpaceId: number,
-		topK: number,
-		searchMode: SearchMode,
-	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
-		return this.searchDocumentType(
-			"EXTENSION",
-			"Browser Extension",
 			userQuery,
 			userId,
 			searchSpaceId,
@@ -470,9 +449,7 @@ export class ConnectorService {
 
 				const description =
 					metadata.description || this.truncateDescription(content);
-				const url = videoId
-					? `https://www.youtube.com/watch?v=${videoId}`
-					: "";
+				const url = videoId ? `https://www.youtube.com/watch?v=${videoId}` : "";
 
 				return {
 					id: chunk.chunk_id,
@@ -534,8 +511,7 @@ export class ConnectorService {
 
 				// Construct Jira URL
 				const baseUrl = metadata.base_url || "";
-				const url =
-					baseUrl && issueKey ? `${baseUrl}/browse/${issueKey}` : "";
+				const url = baseUrl && issueKey ? `${baseUrl}/browse/${issueKey}` : "";
 
 				return {
 					id: chunk.chunk_id,
@@ -715,32 +691,6 @@ export class ConnectorService {
 				};
 			}
 
-			case "EXTENSION": {
-				// Extract Extension-specific metadata
-				const webpageTitle =
-					metadata.VisitedWebPageTitle || document.title || "Untitled";
-				const webpageUrl = metadata.VisitedWebPageURL || "";
-				const visitDate = metadata.VisitedWebPageDateWithTimeInISOString || "";
-
-				let title = webpageTitle;
-				if (visitDate) {
-					const formattedDate = visitDate.includes("T")
-						? visitDate.split("T")[0]
-						: visitDate;
-					title += ` (visited: ${formattedDate})`;
-				}
-
-				const description = content;
-				const url = webpageUrl;
-
-				return {
-					id: chunk.chunk_id,
-					title,
-					description: this.truncateDescription(description),
-					url,
-				};
-			}
-
 			case "CRAWLED_URL": {
 				const title = document.title;
 				const description =
@@ -769,8 +719,7 @@ export class ConnectorService {
 					metadata.description || this.truncateDescription(content);
 
 				// If a link or index info is stored, surface it
-				const url =
-					metadata.url || metadata.elasticsearch_index || "";
+				const url = metadata.url || metadata.elasticsearch_index || "";
 
 				return {
 					id: chunk.chunk_id,
@@ -846,7 +795,10 @@ export class ConnectorService {
 	/**
 	 * Truncate description to reasonable length
 	 */
-	private truncateDescription(content: string, maxLength: number = 200): string {
+	private truncateDescription(
+		content: string,
+		maxLength: number = 200,
+	): string {
 		if (!content) return "";
 		return content.length > maxLength
 			? content.substring(0, maxLength) + "..."

@@ -137,10 +137,7 @@ export class ResearcherService {
 					const allSources: any[] = [...userSelectedSources];
 
 					// Combine documents
-					const allDocuments = [
-						...userSelectedDocuments,
-						...relevantDocuments,
-					];
+					const allDocuments = [...userSelectedDocuments, ...relevantDocuments];
 
 					subscriber.next(
 						streamingService.formatTerminalInfoDelta(
@@ -152,7 +149,9 @@ export class ResearcherService {
 					if (allDocuments.length > 0) {
 						const sourcesToStream =
 							this.extractSourcesFromDocuments(allDocuments);
-						subscriber.next(streamingService.formatSourcesDelta(sourcesToStream));
+						subscriber.next(
+							streamingService.formatSourcesDelta(sourcesToStream),
+						);
 					}
 
 					// Step 2d: Generate answer using QNA agent
@@ -210,9 +209,7 @@ export class ResearcherService {
 
 					// Complete
 					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							"✅ Research complete!",
-						),
+						streamingService.formatTerminalInfoDelta("✅ Research complete!"),
 					);
 
 					subscriber.complete();
@@ -394,7 +391,8 @@ Do not include any other text or explanation. Only return the JSON.
 		return chatHistory
 			.map((msg) => {
 				if (msg.role === "user") return `<user>${msg.content}</user>`;
-				if (msg.role === "assistant") return `<assistant>${msg.content}</assistant>`;
+				if (msg.role === "assistant")
+					return `<assistant>${msg.content}</assistant>`;
 				return `<message>${msg.content}</message>`;
 			})
 			.join("\n");
@@ -512,19 +510,12 @@ ${formattedDocs}
 	private getConnectorFriendlyName(connectorName: string): string {
 		const names: Record<string, string> = {
 			YOUTUBE_VIDEO: "YouTube",
-			EXTENSION: "Browser Extension",
 			CRAWLED_URL: "Web Pages",
 			FILE: "Files",
 			SLACK_CONNECTOR: "Slack",
 			NOTION_CONNECTOR: "Notion",
 			GITHUB_CONNECTOR: "GitHub",
-			LINEAR_CONNECTOR: "Linear",
-			JIRA_CONNECTOR: "Jira",
-			DISCORD_CONNECTOR: "Discord",
-			TAVILY_API: "Web Search",
 			GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
-			AIRTABLE_CONNECTOR: "Airtable",
-			LUMA_CONNECTOR: "Luma",
 		};
 		return names[connectorName] || connectorName;
 	}

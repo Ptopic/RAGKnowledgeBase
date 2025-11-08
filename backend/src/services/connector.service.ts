@@ -1,15 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import {
-	SearchSourceConnectorType,
-	DocumentType,
-} from '@prisma/client';
-import { ChunksHybridSearchRetriever } from '../retriever/chunks-hybrid-search.retriever';
-import { DocumentHybridSearchRetriever } from '../retriever/documents-hybrid-search.retriever';
+import { Injectable, Logger } from "@nestjs/common";
+import { DocumentType, SearchSourceConnectorType } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { ChunksHybridSearchRetriever } from "../retriever/chunks-hybrid-search.retriever";
+import { DocumentHybridSearchRetriever } from "../retriever/documents-hybrid-search.retriever";
 
 export enum SearchMode {
-	CHUNKS = 'CHUNKS',
-	DOCUMENTS = 'DOCUMENTS',
+	CHUNKS = "CHUNKS",
+	DOCUMENTS = "DOCUMENTS",
 }
 
 interface SourceInfo {
@@ -64,7 +61,7 @@ export class ConnectorService {
 		);
 		// Initialize counter
 		service.initializeCounter().catch((error) => {
-			console.error('Failed to initialize counter:', error);
+			console.error("Failed to initialize counter:", error);
 		});
 		return service;
 	}
@@ -129,11 +126,11 @@ export class ConnectorService {
 			chunk_id: doc.document_id,
 			document: {
 				id: doc.document_id,
-				title: doc.title || 'Untitled Document',
+				title: doc.title || "Untitled Document",
 				document_type: doc.document_type,
 				metadata: doc.metadata || {},
 			},
-			content: doc.chunks_content || doc.content || '',
+			content: doc.chunks_content || doc.content || "",
 			score: doc.score || 0.0,
 		}));
 	}
@@ -173,8 +170,8 @@ export class ConnectorService {
 			return [
 				{
 					id: 1,
-					name: 'Crawled URLs',
-					type: 'CRAWLED_URL',
+					name: "Crawled URLs",
+					type: "CRAWLED_URL",
 					sources: [],
 				},
 				[],
@@ -190,13 +187,13 @@ export class ConnectorService {
 
 				const source: SourceItem = {
 					id: chunk.chunk_id || this.getNextSourceId(),
-					title: document.title || 'Untitled Document',
+					title: document.title || "Untitled Document",
 					description:
 						metadata.ogDescription ||
-						metadata['og:description'] ||
+						metadata["og:description"] ||
 						chunk.content ||
-						'',
-					url: metadata.url || '',
+						"",
+					url: metadata.url || "",
 				};
 
 				sourcesList.push(source);
@@ -208,8 +205,8 @@ export class ConnectorService {
 		return [
 			{
 				id: 1,
-				name: 'Crawled URLs',
-				type: 'CRAWLED_URL',
+				name: "Crawled URLs",
+				type: "CRAWLED_URL",
 				sources: sourcesList,
 			},
 			chunks,
@@ -251,8 +248,8 @@ export class ConnectorService {
 			return [
 				{
 					id: 2,
-					name: 'Files',
-					type: 'FILE',
+					name: "Files",
+					type: "FILE",
 					sources: [],
 				},
 				[],
@@ -268,13 +265,13 @@ export class ConnectorService {
 
 				const source: SourceItem = {
 					id: chunk.chunk_id || this.getNextSourceId(),
-					title: document.title || 'Untitled Document',
+					title: document.title || "Untitled Document",
 					description:
 						metadata.ogDescription ||
-						metadata['og:description'] ||
+						metadata["og:description"] ||
 						chunk.content ||
-						'',
-					url: metadata.url || '',
+						"",
+					url: metadata.url || "",
 				};
 
 				sourcesList.push(source);
@@ -286,8 +283,8 @@ export class ConnectorService {
 		return [
 			{
 				id: 2,
-				name: 'Files',
-				type: 'FILE',
+				name: "Files",
+				type: "FILE",
 				sources: sourcesList,
 			},
 			chunks,
@@ -349,8 +346,8 @@ export class ConnectorService {
 			return [
 				{
 					id: 4,
-					name: 'Slack',
-					type: 'SLACK_CONNECTOR',
+					name: "Slack",
+					type: "SLACK_CONNECTOR",
 					sources: [],
 				},
 				[],
@@ -364,9 +361,9 @@ export class ConnectorService {
 				const document = chunk.document || {};
 				const metadata = document.metadata || {};
 
-				const channelName = metadata.channel_name || 'Unknown Channel';
-				const channelId = metadata.channel_id || '';
-				const messageDate = metadata.start_date || '';
+				const channelName = metadata.channel_name || "Unknown Channel";
+				const channelId = metadata.channel_id || "";
+				const messageDate = metadata.start_date || "";
 
 				let title = `Slack: ${channelName}`;
 				if (messageDate) {
@@ -375,12 +372,12 @@ export class ConnectorService {
 
 				const url = channelId
 					? `https://slack.com/app_redirect?channel=${channelId}`
-					: '';
+					: "";
 
 				const source: SourceItem = {
 					id: chunk.chunk_id || this.getNextSourceId(),
 					title,
-					description: chunk.content || '',
+					description: chunk.content || "",
 					url,
 				};
 
@@ -393,8 +390,8 @@ export class ConnectorService {
 		return [
 			{
 				id: 4,
-				name: 'Slack',
-				type: 'SLACK_CONNECTOR',
+				name: "Slack",
+				type: "SLACK_CONNECTOR",
 				sources: sourcesList,
 			},
 			chunks,
@@ -436,8 +433,8 @@ export class ConnectorService {
 			return [
 				{
 					id: 5,
-					name: 'Notion',
-					type: 'NOTION_CONNECTOR',
+					name: "Notion",
+					type: "NOTION_CONNECTOR",
 					sources: [],
 				},
 				[],
@@ -451,23 +448,23 @@ export class ConnectorService {
 				const document = chunk.document || {};
 				const metadata = document.metadata || {};
 
-				const pageTitle = metadata.page_title || 'Untitled Page';
-				const pageId = metadata.page_id || '';
-				const indexedAt = metadata.indexed_at || '';
+				const pageTitle = metadata.page_title || "Untitled Page";
+				const pageId = metadata.page_id || "";
+				const indexedAt = metadata.indexed_at || "";
 
 				let title = `Notion: ${pageTitle}`;
 				if (indexedAt) {
 					title += ` (indexed: ${indexedAt})`;
 				}
 
-				let description = chunk.content || '';
+				let description = chunk.content || "";
 				if (description.length === 100) {
-					description += '...';
+					description += "...";
 				}
 
 				const url = pageId
-					? `https://notion.so/${pageId.replace(/-/g, '')}`
-					: '';
+					? `https://notion.so/${pageId.replace(/-/g, "")}`
+					: "";
 
 				const source: SourceItem = {
 					id: chunk.chunk_id || this.getNextSourceId(),
@@ -485,8 +482,8 @@ export class ConnectorService {
 		return [
 			{
 				id: 5,
-				name: 'Notion',
-				type: 'NOTION_CONNECTOR',
+				name: "Notion",
+				type: "NOTION_CONNECTOR",
 				sources: sourcesList,
 			},
 			chunks,
@@ -495,7 +492,7 @@ export class ConnectorService {
 
 	/**
 	 * Generic search method for other connector types
-	 * Can be extended for: Extension, YouTube, GitHub, Linear, Jira, etc.
+	 * Can be extended for: YouTube, GitHub, Linear, Jira, etc.
 	 */
 	async searchConnector(
 		connectorId: number,
@@ -549,9 +546,9 @@ export class ConnectorService {
 
 				const source: SourceItem = {
 					id: chunk.chunk_id || this.getNextSourceId(),
-					title: document.title || 'Untitled Document',
-					description: chunk.content || '',
-					url: metadata.url || '',
+					title: document.title || "Untitled Document",
+					description: chunk.content || "",
+					url: metadata.url || "",
 				};
 
 				sourcesList.push(source);

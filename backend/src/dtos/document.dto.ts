@@ -10,41 +10,12 @@ import {
 	ValidateNested,
 } from "class-validator";
 
-export class ExtensionDocumentMetadataDto {
-	@IsString()
-	BrowsingSessionId: string;
-
-	@IsString()
-	VisitedWebPageURL: string;
-
-	@IsString()
-	VisitedWebPageTitle: string;
-
-	@IsString()
-	VisitedWebPageDateWithTimeInISOString: string;
-
-	@IsString()
-	VisitedWebPageReffererURL: string;
-
-	@IsString()
-	VisitedWebPageVisitDurationInMilliseconds: string;
-}
-
-export class ExtensionDocumentContentDto {
-	@ValidateNested()
-	@Type(() => ExtensionDocumentMetadataDto)
-	metadata: ExtensionDocumentMetadataDto;
-
-	@IsString()
-	pageContent: string;
-}
-
 export class CreateDocumentsDto {
 	@IsEnum(DocumentType)
 	document_type: DocumentType;
 
 	@IsArray()
-	content: ExtensionDocumentContentDto[] | string[];
+	content: string[];
 
 	@IsInt()
 	search_space_id: number;

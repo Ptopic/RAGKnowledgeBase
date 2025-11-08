@@ -26,7 +26,7 @@ export interface ConnectorSourceItem {
  */
 export const useSearchSourceConnectors = (
 	lazy: boolean = false,
-	searchSpaceId?: number
+	searchSpaceId?: number,
 ) => {
 	const params = useMemo(() => {
 		return searchSpaceId ? { search_space_id: searchSpaceId } : undefined;
@@ -64,12 +64,6 @@ export const useSearchSourceConnectors = (
 		},
 		{
 			id: 3,
-			name: "Extension",
-			type: "EXTENSION",
-			sources: [],
-		},
-		{
-			id: 4,
 			name: "Youtube Video",
 			type: "YOUTUBE_VIDEO",
 			sources: [],
@@ -94,12 +88,6 @@ export const useSearchSourceConnectors = (
 			},
 			{
 				id: 3,
-				name: "Extension",
-				type: "EXTENSION",
-				sources: [],
-			},
-			{
-				id: 4,
 				name: "Youtube Video",
 				type: "YOUTUBE_VIDEO",
 				sources: [],
@@ -113,7 +101,7 @@ export const useSearchSourceConnectors = (
 				name: connector.name,
 				type: connector.connector_type,
 				sources: [],
-			})
+			}),
 		);
 
 		setConnectorSourceItems([...defaultConnectors, ...apiConnectors]);
@@ -135,7 +123,7 @@ export const useSearchSourceConnectors = (
 	 */
 	const createConnector = async (
 		connectorData: CreateSearchSourceConnectorRequest,
-		spaceId: number
+		spaceId: number,
 	) => {
 		return createConnectorMutation.mutateAsync({
 			data: connectorData,
@@ -148,7 +136,7 @@ export const useSearchSourceConnectors = (
 	 */
 	const updateConnector = async (
 		connectorId: number,
-		connectorData: UpdateSearchSourceConnectorRequest
+		connectorData: UpdateSearchSourceConnectorRequest,
 	) => {
 		return updateConnectorMutation.mutateAsync({
 			id: connectorId,
@@ -170,7 +158,7 @@ export const useSearchSourceConnectors = (
 		connectorId: number,
 		searchSpaceIdParam: string | number,
 		startDate?: string,
-		endDate?: string
+		endDate?: string,
 	) => {
 		return indexConnectorMutation.mutateAsync({
 			connector_id: connectorId,

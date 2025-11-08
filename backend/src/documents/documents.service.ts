@@ -47,11 +47,7 @@ export class DocumentsService {
 		try {
 			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
 
-			if (createDto.document_type === DocumentType.EXTENSION) {
-				// Process extension documents
-				// In production, this would queue tasks for background processing
-				return { message: "Documents processed successfully" };
-			} else if (createDto.document_type === DocumentType.CRAWLED_URL) {
+			if (createDto.document_type === DocumentType.CRAWLED_URL) {
 				// Process crawled URLs
 				return { message: "Documents processed successfully" };
 			} else if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {

@@ -6,10 +6,20 @@ import {
 	IconCalendar,
 	IconMail,
 } from "@tabler/icons-react";
-import { File, Globe, Microscope, Search, Sparkles, Telescope, Webhook } from "lucide-react";
+import {
+	File,
+	Globe,
+	Microscope,
+	Search,
+	Sparkles,
+	Telescope,
+} from "lucide-react";
 import { EnumConnectorName } from "./connector";
 
-export const getConnectorIcon = (connectorType: EnumConnectorName | string, className?: string) => {
+export const getConnectorIcon = (
+	connectorType: EnumConnectorName | string,
+	className?: string,
+) => {
 	const iconProps = { className: className || "h-4 w-4" };
 
 	switch (connectorType) {
@@ -30,8 +40,6 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Globe {...iconProps} />;
 		case "FILE":
 			return <File {...iconProps} />;
-		case "EXTENSION":
-			return <Webhook {...iconProps} />;
 		case "DEEP":
 			return <Sparkles {...iconProps} />;
 		case "DEEPER":

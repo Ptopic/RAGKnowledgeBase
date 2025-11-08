@@ -1,5 +1,5 @@
-import { encoding_for_model, TiktokenModel } from "tiktoken";
 import { BaseMessage } from "@langchain/core/messages";
+import { encoding_for_model, TiktokenModel } from "tiktoken";
 
 /**
  * Document token information
@@ -33,25 +33,13 @@ export interface Document {
 export function getConnectorEmoji(connectorName: string): string {
 	const connectorEmojis: Record<string, string> = {
 		YOUTUBE_VIDEO: "📹",
-		EXTENSION: "🧩",
 		CRAWLED_URL: "🌐",
 		FILE: "📄",
 		SLACK_CONNECTOR: "💬",
 		NOTION_CONNECTOR: "📘",
 		GITHUB_CONNECTOR: "🐙",
-		LINEAR_CONNECTOR: "📊",
-		JIRA_CONNECTOR: "🎫",
-		DISCORD_CONNECTOR: "🗨️",
-		TAVILY_API: "🔍",
-		LINKUP_API: "🔗",
-		BAIDU_SEARCH_API: "🇨🇳",
 		GOOGLE_CALENDAR_CONNECTOR: "📅",
 		GOOGLE_GMAIL_CONNECTOR: "📧",
-		AIRTABLE_CONNECTOR: "🗃️",
-		LUMA_CONNECTOR: "✨",
-		ELASTICSEARCH_CONNECTOR: "⚡",
-		CONFLUENCE_CONNECTOR: "🏢",
-		CLICKUP_CONNECTOR: "✅",
 	};
 	return connectorEmojis[connectorName] || "🔎";
 }
@@ -62,25 +50,13 @@ export function getConnectorEmoji(connectorName: string): string {
 export function getConnectorFriendlyName(connectorName: string): string {
 	const connectorFriendlyNames: Record<string, string> = {
 		YOUTUBE_VIDEO: "YouTube",
-		EXTENSION: "Browser Extension",
 		CRAWLED_URL: "Web Pages",
 		FILE: "Files",
 		SLACK_CONNECTOR: "Slack",
 		NOTION_CONNECTOR: "Notion",
 		GITHUB_CONNECTOR: "GitHub",
-		LINEAR_CONNECTOR: "Linear",
-		JIRA_CONNECTOR: "Jira",
-		CONFLUENCE_CONNECTOR: "Confluence",
 		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 		GOOGLE_GMAIL_CONNECTOR: "Gmail",
-		DISCORD_CONNECTOR: "Discord",
-		TAVILY_API: "Tavily Search",
-		LINKUP_API: "Linkup Search",
-		BAIDU_SEARCH_API: "Baidu Search",
-		AIRTABLE_CONNECTOR: "Airtable",
-		LUMA_CONNECTOR: "Luma",
-		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
-		CLICKUP_CONNECTOR: "ClickUp",
 	};
 	return connectorFriendlyNames[connectorName] || connectorName;
 }
@@ -338,9 +314,7 @@ export function optimizeDocumentsForTokenLimit(
 /**
  * Convert LangChain chat history to string
  */
-export function langchainChatHistoryToStr(
-	chatHistory: BaseMessage[],
-): string {
+export function langchainChatHistoryToStr(chatHistory: BaseMessage[]): string {
 	let chatHistoryStr = "";
 
 	for (const chatMessage of chatHistory) {

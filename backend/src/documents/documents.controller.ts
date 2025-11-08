@@ -15,9 +15,9 @@ import {
 	UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
+import * as fs from "fs";
 import { diskStorage } from "multer";
 import * as path from "path";
-import * as fs from "fs";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import {
 	CreateDocumentsDto,
