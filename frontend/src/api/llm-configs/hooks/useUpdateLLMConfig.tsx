@@ -4,7 +4,6 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LLM_CONFIGS } from "@/shared/queryKeys";
 import llmConfigsClientRequests from "../authClientRequests";
 import type { LLMConfig, UpdateLLMConfig } from "../types";
 
@@ -27,7 +26,7 @@ const useUpdateLLMConfig = (
 		mutationFn: ({ id, data }: UpdateLLMConfigParams) =>
 			llmConfigsClientRequests.updateLLMConfig(id, data),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [LLM_CONFIGS] });
+			queryClient.invalidateQueries({ queryKey: ["llmConfigs"] });
 			toast.success("LLM configuration updated successfully");
 		},
 		onError: (error) => {

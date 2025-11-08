@@ -1,7 +1,6 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
 import logsClientRequests from "../authClientRequests";
 import type { Log } from "../types";
-import { LOGS } from "@/shared/queryKeys";
 
 const useGetLog = (
 	id: number | null,
@@ -11,7 +10,7 @@ const useGetLog = (
 	>,
 ) => {
 	return useQuery<Log, Error>({
-		queryKey: [LOGS, id],
+		queryKey: ["logs", id],
 		queryFn: () => {
 			if (!id) {
 				throw new Error("Log ID is required");

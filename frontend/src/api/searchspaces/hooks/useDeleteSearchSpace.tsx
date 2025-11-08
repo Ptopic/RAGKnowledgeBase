@@ -4,7 +4,6 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SEARCH_SPACES } from "@/shared/queryKeys";
 import searchSpacesClientRequests from "../authClientRequests";
 
 const useDeleteSearchSpace = (
@@ -16,7 +15,8 @@ const useDeleteSearchSpace = (
 		mutationFn: (id: number) =>
 			searchSpacesClientRequests.deleteSearchSpace(id),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [SEARCH_SPACES] });
+			// Invalidate search spaces query to refetch the list
+			queryClient.invalidateQueries({ queryKey: ["searchSpaces"] });
 			toast.success("Search space deleted successfully");
 		},
 		onError: (error) => {

@@ -15,6 +15,7 @@ const useInitiateGoogleCalendarOAuth = (
 		mutationFn: (params: InitiateOAuthParams) =>
 			connectorsClientRequests.initiateGoogleCalendarOAuth(params),
 		onSuccess: (data) => {
+			// Redirect to Google for authentication
 			window.location.href = data.auth_url;
 		},
 		onError: (error) => {

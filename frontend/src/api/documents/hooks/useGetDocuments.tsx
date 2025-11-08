@@ -1,7 +1,6 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
 import documentsClientRequests from "../authClientRequests";
 import type { Document, GetDocumentsParams, ListResponse } from "../types";
-import { DOCUMENTS } from "@/shared/queryKeys";
 
 const useGetDocuments = (
 	params: GetDocumentsParams,
@@ -17,7 +16,7 @@ const useGetDocuments = (
 ) => {
 	return useQuery<ListResponse<Document>, Error>({
 		queryKey: [
-			DOCUMENTS,
+			"documents",
 			params.search_space_id,
 			params.page,
 			params.page_size,

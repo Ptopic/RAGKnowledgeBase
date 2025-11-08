@@ -1,5 +1,4 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
-import { DOCUMENT_BY_CHUNKS } from "@/shared/queryKeys";
 import documentsClientRequests from "../authClientRequests";
 import type { DocumentWithChunks } from "../types";
 
@@ -8,7 +7,7 @@ const useGetDocumentByChunk = (
 	options?: UseQueryOptions<DocumentWithChunks, Error>,
 ) => {
 	return useQuery<DocumentWithChunks, Error>({
-		queryKey: [DOCUMENT_BY_CHUNKS, chunkId],
+		queryKey: ["documentByChunk", chunkId],
 		queryFn: () => {
 			if (!chunkId) {
 				throw new Error("Chunk ID is required");

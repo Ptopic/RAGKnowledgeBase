@@ -9,7 +9,6 @@ import type {
 	SearchSourceConnector,
 	UpdateSearchSourceConnectorRequest,
 } from "../types";
-import { SEARCH_SOURCE_CONNECTORS } from "@/shared/queryKeys";
 
 interface UpdateSearchSourceConnectorParams {
 	id: number;
@@ -22,18 +21,15 @@ const useUpdateSearchSourceConnector = (
 		Error,
 		UpdateSearchSourceConnectorParams,
 		unknown
-	>,
+	>
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: ({ id, data }: UpdateSearchSourceConnectorParams) =>
-			searchSourceConnectorsClientRequests.updateSearchSourceConnector(
-				id,
-				data,
-			),
+			searchSourceConnectorsClientRequests.updateSearchSourceConnector(id, data),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [SEARCH_SOURCE_CONNECTORS] });
+			queryClient.invalidateQueries({ queryKey: ["searchSourceConnectors"] });
 			toast.success("Connector updated successfully");
 		},
 		onError: (error) => {

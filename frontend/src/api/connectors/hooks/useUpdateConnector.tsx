@@ -6,7 +6,6 @@ import {
 import { toast } from "sonner";
 import connectorsClientRequests from "../authClientRequests";
 import type { Connector, UpdateConnectorRequest } from "../types";
-import { CONNECTORS } from "@/shared/queryKeys";
 
 interface UpdateConnectorParams {
 	id: number;
@@ -27,9 +26,9 @@ const useUpdateConnector = (
 		mutationFn: ({ id, data }: UpdateConnectorParams) =>
 			connectorsClientRequests.updateConnector(id, data),
 		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({ queryKey: [CONNECTORS] });
+			queryClient.invalidateQueries({ queryKey: ["connectors"] });
 			queryClient.invalidateQueries({
-				queryKey: [CONNECTORS, variables.id],
+				queryKey: ["connector", variables.id],
 			});
 			toast.success("Connector updated successfully");
 		},

@@ -1,5 +1,4 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
-import { LOGS_SUMMARY } from "@/shared/queryKeys";
 import logsClientRequests from "../authClientRequests";
 import type { GetLogsSummaryParams, LogSummary } from "../types";
 
@@ -11,7 +10,7 @@ const useGetLogsSummary = (
 	>,
 ) => {
 	return useQuery<LogSummary, Error>({
-		queryKey: [LOGS_SUMMARY, params?.search_space_id, params?.hours],
+		queryKey: ["logsSummary", params?.search_space_id, params?.hours],
 		queryFn: () => {
 			if (!params) {
 				throw new Error("Search space ID is required");

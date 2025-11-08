@@ -15,6 +15,7 @@ const useInitiateGoogleGmailOAuth = (
 		mutationFn: (params: InitiateOAuthParams) =>
 			connectorsClientRequests.initiateGoogleGmailOAuth(params),
 		onSuccess: (data) => {
+			// Redirect to Google for authentication
 			window.location.href = data.auth_url;
 		},
 		onError: (error) => {
