@@ -11,6 +11,9 @@ import { forwardRef, Module } from "@nestjs/common";
 import { AgentModule } from "../agent/agent.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { RetrieverModule } from "../retriever/retriever.module";
+import { DeepgramService } from "../services/deepgram.service";
+import { DoclingService } from "../services/docling.service";
+import { LlamaCloudService } from "../services/llamacloud.service";
 // Connector Indexers
 import {
 	ConnectorIndexerBaseService,
@@ -60,6 +63,9 @@ import { StreamConnectorSearchResultsService } from "./stream-connector-search-r
 	providers: [
 		// Document Processor Services
 		DocumentProcessorBaseService,
+		DeepgramService,
+		DoclingService,
+		LlamaCloudService,
 		UrlCrawlerService,
 		YoutubeProcessorService,
 		MarkdownProcessorService,
@@ -84,6 +90,9 @@ import { StreamConnectorSearchResultsService } from "./stream-connector-search-r
 	exports: [
 		// Export document processors for use in other modules
 		DocumentProcessorBaseService,
+		DeepgramService,
+		DoclingService,
+		LlamaCloudService,
 		UrlCrawlerService,
 		YoutubeProcessorService,
 		MarkdownProcessorService,

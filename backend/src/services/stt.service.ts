@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 interface TranscriptionResult {
 	text: string;
@@ -25,11 +25,12 @@ export class STTService {
 
 	constructor(private readonly configService: ConfigService) {
 		// Parse model from STT_SERVICE config (e.g., "local/base" or "local/tiny")
-		const sttService = this.configService.get<string>('STT_SERVICE') || 'local/base';
-		if (sttService.startsWith('local/')) {
-			this.modelSize = sttService.split('/')[1];
+		const sttService =
+			this.configService.get<string>("STT_SERVICE") || "local/base";
+		if (sttService.startsWith("local/")) {
+			this.modelSize = sttService.split("/")[1];
 		} else {
-			this.modelSize = 'base'; // fallback
+			this.modelSize = "base"; // fallback
 		}
 
 		this.logger.log(`STT Service initialized with model: ${this.modelSize}`);
@@ -46,8 +47,8 @@ export class STTService {
 			// 3. Or use a Node.js Whisper binding if available
 
 			this.logger.warn(
-				'Whisper model not loaded. ' +
-					'This requires integration with Python Faster-Whisper or external STT service.',
+				"Whisper model not loaded. " +
+					"This requires integration with Python Faster-Whisper or external STT service.",
 			);
 			this.model = null;
 		}
@@ -65,8 +66,8 @@ export class STTService {
 
 		if (model === null) {
 			throw new Error(
-				'STT model not initialized. ' +
-					'This requires integration with Python Faster-Whisper or external STT service.',
+				"STT model not initialized. " +
+					"This requires integration with Python Faster-Whisper or external STT service.",
 			);
 		}
 
@@ -79,8 +80,8 @@ export class STTService {
 			// 3. Or use OpenAI Whisper API as fallback
 
 			throw new Error(
-				'Audio transcription not implemented. ' +
-					'Integrate with Python Faster-Whisper or external STT service.',
+				"Audio transcription not implemented. " +
+					"Integrate with Python Faster-Whisper or external STT service.",
 			);
 		} catch (error) {
 			this.logger.error(`Transcription failed: ${error.message}`);
@@ -93,11 +94,11 @@ export class STTService {
 	 */
 	async transcribeBytes(
 		audioBytes: Buffer,
-		filename: string = 'audio.wav',
+		filename: string = "audio.wav",
 		language?: string,
 	): Promise<TranscriptionResult> {
 		// Save bytes to temporary file
-		const suffix = path.extname(filename) || '.wav';
+		const suffix = path.extname(filename) || ".wav";
 		const tmpDir = os.tmpdir();
 		const tmpPath = path.join(
 			tmpDir,
