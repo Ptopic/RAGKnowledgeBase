@@ -424,13 +424,13 @@ export default function LogsManagePage() {
 		const levelColumn = table.getColumn("level");
 		if (!levelColumn) return [];
 		return Array.from(levelColumn.getFacetedUniqueValues().keys()).sort();
-	}, [table.getColumn]);
+	}, [table, logs]);
 
 	const uniqueStatuses = useMemo(() => {
 		const statusColumn = table.getColumn("status");
 		if (!statusColumn) return [];
 		return Array.from(statusColumn.getFacetedUniqueValues().keys()).sort();
-	}, [table.getColumn]);
+	}, [table, logs]);
 
 	const handleDeleteRows = async () => {
 		const selectedRows = table.getSelectedRowModel().rows;
@@ -835,7 +835,7 @@ function FilterDropdown({
 	const selectedValues = useMemo(() => {
 		const filterValue = column?.getFilterValue() as string[];
 		return filterValue ?? [];
-	}, [column?.getFilterValue]);
+	}, [column?.getFilterValue()]);
 
 	const handleValueChange = (checked: boolean, value: string) => {
 		const filterValue = column?.getFilterValue() as string[];
