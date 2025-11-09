@@ -98,7 +98,7 @@ import { StreamConnectorSearchResultsService } from "./stream-connector-search-r
 		MarkdownProcessorService,
 		FileProcessorsService,
 
-		// Export connector indexers for use in other modules
+		// Export connector indexer services for use in other modules
 		ConnectorIndexerBaseService,
 		GithubIndexerService,
 		GoogleCalendarIndexerService,

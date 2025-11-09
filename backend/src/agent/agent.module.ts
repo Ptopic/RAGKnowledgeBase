@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AgentService } from './agent.service';
 import { AgentController } from './agent.controller';
 import { ResearcherService } from './researcher.service';
@@ -11,9 +11,10 @@ import { RerankerService } from './services/reranker.service';
 import { PromptsService } from './services/prompts.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { RetrieverModule } from 'src/retriever/retriever.module';
+import { TasksModule } from 'src/tasks/tasks.module';
 
 @Module({
-  imports: [PrismaModule, RetrieverModule],
+  imports: [PrismaModule, RetrieverModule, forwardRef(() => TasksModule)],
   providers: [
     AgentService,
     ResearcherService,

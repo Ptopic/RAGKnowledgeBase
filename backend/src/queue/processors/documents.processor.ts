@@ -2,7 +2,11 @@ import { Process, Processor } from "@nestjs/bull";
 import { Logger } from "@nestjs/common";
 import { Job } from "bull";
 import { PrismaService } from "src/prisma/prisma.service";
-import { FileProcessorsService } from "src/tasks/document-processors";
+import {
+	FileProcessorsService,
+	UrlCrawlerService,
+	YoutubeProcessorService,
+} from "src/tasks/document-processors";
 import { QUEUE_NAMES } from "../queue.config";
 
 /**
@@ -10,7 +14,7 @@ import { QUEUE_NAMES } from "../queue.config";
  *
  * Handles asynchronous processing of documents:
  * - URL documents (web scraping)
- * - YouTube video documents
+ * - YouTube video documents (via BrightData webhook)
  * - File uploads
  */
 @Processor(QUEUE_NAMES.DOCUMENTS)
@@ -20,6 +24,8 @@ export class DocumentsProcessor {
 	constructor(
 		private prisma: PrismaService,
 		private fileProcessorsService: FileProcessorsService,
+		private urlCrawlerService: UrlCrawlerService,
+		private youtubeProcessorService: YoutubeProcessorService,
 	) {}
 
 	/**
@@ -40,13 +46,12 @@ export class DocumentsProcessor {
 				`Processing URL document: ${url} for search space ${searchSpaceId}`,
 			);
 
-			// TODO: Implement URL scraping and processing
-			// This will include:
-			// 1. Fetch URL content (Firecrawl, Playwright, etc.)
-			// 2. Extract text
-			// 3. Chunk content
-			// 4. Generate embeddings
-			// 5. Store in database
+			// Call UrlCrawlerService to handle the actual URL processing
+			await this.urlCrawlerService.addCrawledUrlDocument(
+				url,
+				searchSpaceId,
+				userId,
+			);
 
 			this.logger.log(`Successfully processed URL document: ${url}`);
 		} catch (error) {
@@ -59,7 +64,8 @@ export class DocumentsProcessor {
 	}
 
 	/**
-	 * Process YouTube video document
+	 * Process YouTube video document using BrightData webhook approach.
+	 * This triggers async scraping - the webhook will process results when ready.
 	 */
 	@Process("process-youtube-document")
 	async processYouTubeDocument(
@@ -73,21 +79,23 @@ export class DocumentsProcessor {
 
 		try {
 			this.logger.log(
-				`Processing YouTube video: ${videoUrl} for search space ${searchSpaceId}`,
+				`Triggering BrightData scrape for YouTube video: ${videoUrl} (search space ${searchSpaceId})`,
 			);
 
-			// TODO: Implement YouTube processing
-			// This will include:
-			// 1. Extract video ID
-			// 2. Fetch transcript
-			// 3. Chunk content
-			// 4. Generate embeddings
-			// 5. Store in database
+			// Use BrightData webhook approach for async transcript extraction
+			const snapshotId =
+				await this.youtubeProcessorService.triggerYoutubeVideoScrape(
+					videoUrl,
+					searchSpaceId,
+					userId,
+				);
 
-			this.logger.log(`Successfully processed YouTube video: ${videoUrl}`);
+			this.logger.log(
+				`BrightData scrape triggered for ${videoUrl}. Snapshot ID: ${snapshotId}. Webhook will process results.`,
+			);
 		} catch (error) {
 			this.logger.error(
-				`Failed to process YouTube video ${videoUrl}: ${error.message}`,
+				`Failed to trigger BrightData scrape for ${videoUrl}: ${error.message}`,
 				error.stack,
 			);
 			throw error;

@@ -47,15 +47,53 @@ export class DocumentsService {
 		try {
 			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
 
+			if (!createDto.content || createDto.content.length === 0) {
+				throw new BadRequestException("Content array cannot be empty");
+			}
+
 			if (createDto.document_type === DocumentType.CRAWLED_URL) {
 				// Process crawled URLs
-				return { message: "Documents processed successfully" };
-			} else if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
-				// Process YouTube videos
-				return { message: "Documents processed successfully" };
-			} else {
-				throw new BadRequestException("Invalid document type");
+				const queuedJobs = [];
+				for (const url of createDto.content) {
+					this.logger.log(`Queuing URL for crawling: ${url}`);
+					const job = await this.queueService.processUrlDocument(
+						url,
+						createDto.search_space_id,
+						userId,
+					);
+					queuedJobs.push(job.id);
+				}
+
+				this.logger.log(
+					`Successfully queued ${queuedJobs.length} URL(s) for crawling`,
+				);
+
+				return {
+					message: `${createDto.content.length} URL(s) queued for processing`,
+				};
 			}
+			if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
+				// Process YouTube videos
+				const queuedJobs = [];
+				for (const videoUrl of createDto.content) {
+					this.logger.log(`Queuing YouTube video for processing: ${videoUrl}`);
+					const job = await this.queueService.processYouTubeDocument(
+						videoUrl,
+						createDto.search_space_id,
+						userId,
+					);
+					queuedJobs.push(job.id);
+				}
+
+				this.logger.log(
+					`Successfully queued ${queuedJobs.length} YouTube video(s) for processing`,
+				);
+
+				return {
+					message: `${createDto.content.length} YouTube video(s) queued for processing`,
+				};
+			}
+			throw new BadRequestException("Invalid document type");
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
@@ -63,6 +101,10 @@ export class DocumentsService {
 			) {
 				throw error;
 			}
+			this.logger.error(
+				`Failed to process documents: ${error.message}`,
+				error.stack,
+			);
 			throw new InternalServerErrorException(
 				`Failed to process documents: ${error.message}`,
 			);
