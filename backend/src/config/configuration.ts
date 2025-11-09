@@ -71,8 +71,8 @@ export default () => ({
     llamaCloud: {
       apiKey: process.env.LLAMA_CLOUD_API_KEY,
     },
-    firecrawl: {
-      apiKey: process.env.FIRECRAWL_API_KEY,
+    jinaReader: {
+      enabled: (process.env.JINA_READER_ENABLED || 'TRUE').toUpperCase() === 'TRUE',
     },
   },
 

@@ -8,6 +8,7 @@ import { RerankerService } from './reranker.service';
 import { PageLimitService } from './page-limit.service';
 import { DoclingService } from './docling.service';
 import { STTService } from './stt.service';
+import { JinaReaderService } from './jina-reader.service';
 
 /**
  * Global Services Module
@@ -26,6 +27,7 @@ import { STTService } from './stt.service';
 		PageLimitService,
 		DoclingService,
 		STTService,
+		JinaReaderService,
 	],
 	exports: [
 		LLMService,
@@ -35,6 +37,7 @@ import { STTService } from './stt.service';
 		PageLimitService,
 		DoclingService,
 		STTService,
+		JinaReaderService,
 	],
 })
 export class ServicesModule {}

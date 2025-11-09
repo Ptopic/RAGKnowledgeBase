@@ -4,170 +4,169 @@
  */
 
 export interface DatabaseConfig {
-  url: string;
+	url: string;
 }
 
 export interface FrontendConfig {
-  url?: string;
+	url?: string;
 }
 
 export interface BackendConfig {
-  url?: string;
+	url?: string;
 }
 
 export interface AuthConfig {
-  type: string;
-  secretKey: string;
-  registrationEnabled: boolean;
+	type: string;
+	secretKey: string;
+	registrationEnabled: boolean;
 }
 
 export interface GoogleOAuthConfig {
-  clientId?: string;
-  clientSecret?: string;
+	clientId?: string;
+	clientSecret?: string;
 }
 
 export interface GoogleCalendarConfig {
-  redirectUri?: string;
+	redirectUri?: string;
 }
 
 export interface GoogleGmailConfig {
-  redirectUri?: string;
+	redirectUri?: string;
 }
 
 export interface GoogleConfig {
-  oauth: GoogleOAuthConfig;
-  calendar: GoogleCalendarConfig;
-  gmail: GoogleGmailConfig;
+	oauth: GoogleOAuthConfig;
+	calendar: GoogleCalendarConfig;
+	gmail: GoogleGmailConfig;
 }
 
-
 export interface AzureOpenAIConfig {
-  endpoint?: string;
-  apiKey?: string;
-  apiVersion: string;
-  deployment?: string;
+	endpoint?: string;
+	apiKey?: string;
+	apiVersion: string;
+	deployment?: string;
 }
 
 export interface EmbeddingConfig {
-  model: string;
-  maxSeqLength: number;
-  chunkSize: number;
-  azure: AzureOpenAIConfig;
+	model: string;
+	maxSeqLength: number;
+	chunkSize: number;
+	azure: AzureOpenAIConfig;
 }
 
 export interface RerankerConfig {
-  enabled: boolean;
-  modelName?: string;
-  modelType?: string;
+	enabled: boolean;
+	modelName?: string;
+	modelType?: string;
 }
 
 export interface UnstructuredConfig {
-  apiKey?: string;
+	apiKey?: string;
 }
 
 export interface LlamaCloudConfig {
-  apiKey?: string;
+	apiKey?: string;
 }
 
-export interface FirecrawlConfig {
-  apiKey?: string;
+export interface JinaReaderConfig {
+	enabled: boolean;
 }
 
 export interface ETLConfig {
-  service: 'UNSTRUCTURED' | 'LLAMACLOUD' | 'DOCLING';
-  unstructured: UnstructuredConfig;
-  llamaCloud: LlamaCloudConfig;
-  firecrawl: FirecrawlConfig;
+	service: "LLAMACLOUD" | "DOCLING";
+	unstructured: UnstructuredConfig;
+	llamaCloud: LlamaCloudConfig;
+	jinaReader: JinaReaderConfig;
 }
 
 export interface TTSConfig {
-  service?: string;
-  apiBase?: string;
-  apiKey?: string;
+	service?: string;
+	apiBase?: string;
+	apiKey?: string;
 }
 
 export interface STTConfig {
-  service?: string;
-  apiBase?: string;
-  apiKey?: string;
+	service?: string;
+	apiBase?: string;
+	apiKey?: string;
 }
 
 export interface RedisConfig {
-  host: string;
-  port: number;
-  password?: string;
-  db: number;
+	host: string;
+	port: number;
+	password?: string;
+	db: number;
 }
 
 export interface QueueConfig {
-  redis: RedisConfig;
+	redis: RedisConfig;
 }
 
 export interface LangsmithConfig {
-  apiKey?: string;
-  project?: string;
-  tracingEnabled: boolean;
+	apiKey?: string;
+	project?: string;
+	tracingEnabled: boolean;
 }
 
 export interface GithubConnectorConfig {
-  token?: string;
+	token?: string;
 }
 
 export interface SlackConnectorConfig {
-  token?: string;
+	token?: string;
 }
 
 export interface NotionConnectorConfig {
-  token?: string;
+	token?: string;
 }
 
 export interface ConnectorsConfig {
-  github: GithubConnectorConfig;
-  slack: SlackConnectorConfig;
-  notion: NotionConnectorConfig;
+	github: GithubConnectorConfig;
+	slack: SlackConnectorConfig;
+	notion: NotionConnectorConfig;
 }
 
 export interface OpenAIConfig {
-  apiKey?: string;
+	apiKey?: string;
 }
 
 export interface AnthropicConfig {
-  apiKey?: string;
+	apiKey?: string;
 }
 
 export interface GroqConfig {
-  apiKey?: string;
+	apiKey?: string;
 }
 
 export interface CohereConfig {
-  apiKey?: string;
+	apiKey?: string;
 }
 
 export interface LLMConfig {
-  openai: OpenAIConfig;
-  anthropic: AnthropicConfig;
-  groq: GroqConfig;
-  cohere: CohereConfig;
+	openai: OpenAIConfig;
+	anthropic: AnthropicConfig;
+	groq: GroqConfig;
+	cohere: CohereConfig;
 }
 
 /**
  * Main configuration interface
  */
 export interface AppConfig {
-  port: number;
-  host: string;
-  database: DatabaseConfig;
-  frontend: FrontendConfig;
-  backend: BackendConfig;
-  auth: AuthConfig;
-  google: GoogleConfig;
-  embedding: EmbeddingConfig;
-  reranker: RerankerConfig;
-  etl: ETLConfig;
-  tts: TTSConfig;
-  stt: STTConfig;
-  queue: QueueConfig;
-  langsmith: LangsmithConfig;
-  connectors: ConnectorsConfig;
-  llm: LLMConfig;
+	port: number;
+	host: string;
+	database: DatabaseConfig;
+	frontend: FrontendConfig;
+	backend: BackendConfig;
+	auth: AuthConfig;
+	google: GoogleConfig;
+	embedding: EmbeddingConfig;
+	reranker: RerankerConfig;
+	etl: ETLConfig;
+	tts: TTSConfig;
+	stt: STTConfig;
+	queue: QueueConfig;
+	langsmith: LangsmithConfig;
+	connectors: ConnectorsConfig;
+	llm: LLMConfig;
 }

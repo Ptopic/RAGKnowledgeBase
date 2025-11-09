@@ -13,4 +13,5 @@ export * from './reranker.service';
 export * from './page-limit.service';
 export * from './docling.service';
 export * from './stt.service';
+export * from './jina-reader.service';
 export * from './services.module';
