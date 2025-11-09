@@ -19,10 +19,6 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
-// YouTube video ID validation regex
-const youtubeRegex =
-	/^(https:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
-
 export default function YouTubeVideoAdder() {
 	const params = useParams();
 	const router = useRouter();
@@ -39,17 +35,17 @@ export default function YouTubeVideoAdder() {
 			},
 		});
 
-	// Function to validate a YouTube URL
-	const isValidYoutubeUrl = (url: string): boolean => {
-		return youtubeRegex.test(url);
-	};
-
 	// Function to extract video ID from URL
 	const extractVideoId = (url: string): string | null => {
 		const match = url.match(
-			/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+			/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
 		);
 		return match ? match[1] : null;
+	};
+
+	// Function to validate a YouTube URL (checks if we can extract a valid video ID)
+	const isValidYoutubeUrl = (url: string): boolean => {
+		return extractVideoId(url) !== null;
 	};
 
 	// Function to handle video URL submission
@@ -210,35 +206,30 @@ export default function YouTubeVideoAdder() {
 								</motion.div>
 
 								{videoTags.length > 0 && (
-									<motion.div
-										variants={itemVariants}
-										className="mt-4 space-y-2"
-									>
+									<div className="mt-4 space-y-2">
 										<h4 className="font-medium">Preview:</h4>
 										<div className="grid grid-cols-1 gap-3">
-											{videoTags.map((tag, index) => {
+											{videoTags.map((tag) => {
 												const videoId = extractVideoId(tag.text);
-												return videoId ? (
-													<motion.div
-														key={tag.id}
-														initial={{ opacity: 0, y: 10 }}
-														animate={{ opacity: 1, y: 0 }}
-														transition={{ delay: index * 0.1 }}
-														className="relative aspect-video rounded-lg overflow-hidden border"
-													>
-														<iframe
-															width="100%"
-															height="100%"
-															src={`https://www.youtube.com/embed/${videoId}`}
-															title="YouTube video player"
-															allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-															allowFullScreen
-														></iframe>
-													</motion.div>
-												) : null;
+
+												return (
+													videoId && (
+														<div key={tag.id} className="w-full space-y-2">
+															<div className="w-full aspect-video">
+																<iframe
+																	className="w-full h-full border-0"
+																	src={`https://www.youtube.com/embed/${videoId}`}
+																	title="YouTube video player"
+																	allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+																	allowFullScreen
+																/>
+															</div>
+														</div>
+													)
+												);
 											})}
 										</div>
-									</motion.div>
+									</div>
 								)}
 							</div>
 						</CardContent>
