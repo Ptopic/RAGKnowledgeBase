@@ -184,7 +184,7 @@ export default function FileUploader() {
 				// Audio files (always supported)
 				...audioFileTypes,
 			};
-		} else if (etlService === "DOCLING") {
+		} else {
 			return {
 				// Docling supported file types
 				"application/pdf": [".pdf"],
@@ -203,40 +203,6 @@ export default function FileUploader() {
 				"image/tiff": [".tiff", ".tif"],
 				"image/bmp": [".bmp"],
 				"image/webp": [".webp"],
-				// Audio files (always supported)
-				...audioFileTypes,
-			};
-		} else {
-			return {
-				// Unstructured supported file types
-				"image/bmp": [".bmp"],
-				"text/csv": [".csv"],
-				"application/msword": [".doc"],
-				"application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-					[".docx"],
-				"message/rfc822": [".eml"],
-				"application/epub+zip": [".epub"],
-				"image/heic": [".heic"],
-				"text/html": [".html"],
-				"image/jpeg": [".jpeg", ".jpg"],
-				"image/png": [".png"],
-				"application/vnd.ms-outlook": [".msg"],
-				"application/vnd.oasis.opendocument.text": [".odt"],
-				"text/x-org": [".org"],
-				"application/pkcs7-signature": [".p7s"],
-				"application/pdf": [".pdf"],
-				"application/vnd.ms-powerpoint": [".ppt"],
-				"application/vnd.openxmlformats-officedocument.presentationml.presentation":
-					[".pptx"],
-				"text/x-rst": [".rst"],
-				"application/rtf": [".rtf"],
-				"image/tiff": [".tiff"],
-				"text/tab-separated-values": [".tsv"],
-				"application/vnd.ms-excel": [".xls"],
-				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
-					".xlsx",
-				],
-				"application/xml": [".xml"],
 				// Audio files (always supported)
 				...audioFileTypes,
 			};

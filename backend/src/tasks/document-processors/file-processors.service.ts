@@ -47,49 +47,6 @@ export class FileProcessorsService {
 	}
 
 	/**
-	 * Convert Unstructured elements to markdown format.
-	 */
-	private async convertDocumentToMarkdown(
-		elements: LangChainDocument[],
-	): Promise<string> {
-		const markdownParts: string[] = [];
-
-		for (const element of elements) {
-			const category = element.metadata?.category;
-			const content = element.pageContent;
-
-			if (!content) continue;
-
-			const markdownMapping: Record<string, (text: string) => string> = {
-				Formula: (x) => `\`\`\`math\n${x}\n\`\`\``,
-				FigureCaption: (x) => `*Figure: ${x}*`,
-				NarrativeText: (x) => `${x}\n\n`,
-				ListItem: (x) => `- ${x}\n`,
-				Title: (x) => `# ${x}\n\n`,
-				Address: (x) => `> ${x}\n\n`,
-				EmailAddress: (x) => `\`${x}\``,
-				Image: (x) => `![${x}](${x})`,
-				PageBreak: () => "\n---\n",
-				Table: () =>
-					element.metadata?.text_as_html
-						? `\`\`\`html\n${element.metadata.text_as_html}\n\`\`\`\n\n`
-						: `${content}\n\n`,
-				Header: (x) => `## ${x}\n\n`,
-				Footer: (x) => `*${x}*\n\n`,
-				CodeSnippet: (x) => `\`\`\`\n${x}\n\`\`\``,
-				PageNumber: (x) => `*Page ${x}*\n\n`,
-				UncategorizedText: (x) => `${x}\n\n`,
-			};
-
-			const formatter =
-				markdownMapping[category] || ((x: string) => `${x}\n\n`);
-			markdownParts.push(formatter(content));
-		}
-
-		return markdownParts.join("");
-	}
-
-	/**
 	 * Create document chunks with embeddings.
 	 */
 	private async createDocumentChunks(
