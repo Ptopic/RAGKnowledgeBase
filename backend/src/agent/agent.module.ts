@@ -2,7 +2,6 @@ import { forwardRef, Module } from '@nestjs/common';
 import { AgentService } from './agent.service';
 import { AgentController } from './agent.controller';
 import { ResearcherService } from './researcher.service';
-import { ResearcherServiceComplete } from './researcher.service.complete';
 import { StreamingService } from './streaming.service';
 import { ConnectorService } from './services/connector.service';
 import { QNAService } from './services/qna.service';
@@ -18,7 +17,6 @@ import { TasksModule } from 'src/tasks/tasks.module';
   providers: [
     AgentService,
     ResearcherService,
-    ResearcherServiceComplete,
     StreamingService,
     ConnectorService,
     QNAService,
@@ -29,7 +27,7 @@ import { TasksModule } from 'src/tasks/tasks.module';
   controllers: [AgentController],
   exports: [
     AgentService,
-    ResearcherServiceComplete,
+    ResearcherService,
     ConnectorService,
     QNAService,
     LLMService,

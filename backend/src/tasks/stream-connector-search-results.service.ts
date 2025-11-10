@@ -4,6 +4,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { AgentService } from '../agent/agent.service';
+import { SearchMode } from '../agent/dtos/researcher.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface StreamConnectorSearchResultsParams {
@@ -64,13 +65,13 @@ export class StreamConnectorSearchResultsService {
 
     try {
       // Convert search mode string to enum
-      let searchMode: 'CHUNKS' | 'DOCUMENTS';
+      let searchMode: SearchMode;
       if (params.searchModeStr === 'CHUNKS') {
-        searchMode = 'CHUNKS';
+        searchMode = SearchMode.CHUNKS;
       } else if (params.searchModeStr === 'DOCUMENTS') {
-        searchMode = 'DOCUMENTS';
+        searchMode = SearchMode.DOCUMENTS;
       } else {
-        searchMode = 'CHUNKS'; // Default
+        searchMode = SearchMode.CHUNKS; // Default
       }
 
       // Sample configuration
@@ -102,14 +103,21 @@ export class StreamConnectorSearchResultsService {
       // Run the graph directly
       this.logger.log('Running the complete researcher workflow...');
 
-      // Call the agent service with the user query
-      const chatDto = {
-        message: params.userQuery,
+      // Call the researcher service with proper DTO
+      const researcherDto = {
+        user_query: params.userQuery,
+        connectors_to_search: params.selectedConnectors,
+        user_id: params.userId,
+        search_space_id: parseInt(String(params.searchSpaceId)),
+        search_mode: searchMode,
+        document_ids_to_add_in_context: params.documentIdsToAddInContext,
+        language: params.language,
         thread_id: `${params.userId}_${params.searchSpaceId}`,
+        chat_history: params.langchainChatHistory,
       };
 
-      // Stream from agent service and convert to AI SDK format
-      const stream = this.agentService.streamChat(chatDto);
+      // Stream from researcher service and convert to AI SDK format
+      const stream = this.agentService.streamResearcher(researcherDto);
 
       // Convert Observable to async generator
       const chunks: string[] = [];
@@ -134,13 +142,13 @@ export class StreamConnectorSearchResultsService {
         },
       });
 
-      // Yield chunks as they arrive
+      // Yield chunks as they arrive - researcher already outputs in correct NDJSON format
       while (!streamComplete) {
         if (chunks.length > 0) {
           const chunk = chunks.shift();
           if (chunk) {
-            // Format the chunk for AI SDK
-            yield this.formatDataStreamChunk(chunk);
+            // Researcher outputs NDJSON already, just pass through
+            yield chunk;
           }
         } else {
           // Wait a bit before checking again
@@ -152,7 +160,7 @@ export class StreamConnectorSearchResultsService {
       while (chunks.length > 0) {
         const chunk = chunks.shift();
         if (chunk) {
-          yield this.formatDataStreamChunk(chunk);
+          yield chunk;
         }
       }
 
@@ -160,17 +168,16 @@ export class StreamConnectorSearchResultsService {
       if (streamError) {
         throw streamError;
       }
-
-      // Send finish chunk
-      yield this.formatFinishChunk();
     } catch (error) {
       this.logger.error(
         `Error streaming connector search results: ${error.message}`,
         error.stack,
       );
-      // Send error in AI SDK format
-      yield this.formatDataStreamChunk(`Error: ${error.message}`);
-      yield this.formatFinishChunk();
+      // Send error in NDJSON format
+      yield JSON.stringify({
+        type: 'ERROR',
+        data: { message: error.message },
+      }) + '\n';
     }
   }
 }
