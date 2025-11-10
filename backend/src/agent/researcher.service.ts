@@ -59,12 +59,15 @@ export class ResearcherService {
 						search_mode,
 						document_ids_to_add_in_context = [],
 						language,
-						thread_id,
 						chat_history = [],
 					} = researcherDto;
 
-					this.logger.log(`Researcher starting with connectors: ${JSON.stringify(connectors_to_search)}`);
-					this.logger.log(`Document IDs to add: ${JSON.stringify(document_ids_to_add_in_context)}`);
+					this.logger.log(
+						`Researcher starting with connectors: ${JSON.stringify(connectors_to_search)}`,
+					);
+					this.logger.log(
+						`Document IDs to add: ${JSON.stringify(document_ids_to_add_in_context)}`,
+					);
 
 					// Convert chat history to BaseMessage format
 					const chatHistoryMessages: BaseMessage[] = chat_history.map((msg) => {

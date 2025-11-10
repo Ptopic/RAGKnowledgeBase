@@ -1,16 +1,19 @@
+import {
+	BaseMessage,
+	HumanMessage,
+	SystemMessage,
+} from "@langchain/core/messages";
 import { Injectable, Logger } from "@nestjs/common";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { RerankerService } from "./reranker.service";
-import { LLMService } from "./llm.service";
 import { StreamingService } from "../streaming.service";
 import {
-    Document,
-    optimizeDocumentsForTokenLimit,
-    formatDocumentsSection,
-    langchainChatHistoryToStr,
-    calculateTokenCount,
+	calculateTokenCount,
+	Document,
+	formatDocumentsSection,
+	langchainChatHistoryToStr,
+	optimizeDocumentsForTokenLimit,
 } from "../utils/agent.utils";
-import { BaseMessage } from "@langchain/core/messages";
+import { LLMService } from "./llm.service";
+import { RerankerService } from "./reranker.service";
 
 interface QNAConfig {
 	userQuery: string;
@@ -61,7 +64,7 @@ export class QNAService {
 				),
 			);
 
-			let rerankedDocuments = await this.rerankDocuments(
+			const rerankedDocuments = await this.rerankDocuments(
 				userQuery + "\n" + reformulatedQuery,
 				relevantDocuments,
 			);
@@ -110,10 +113,16 @@ export class QNAService {
 			return [];
 		}
 
+		await this.logger.log(
+			`Reranking ${documents.map((doc) => doc.score)} documents for query.`,
+		);
 		try {
 			const reranked = await this.rerankerService.rerankDocuments(
 				query,
 				documents,
+			);
+			await this.logger.log(
+				`Reranking complete. ${reranked.map((doc) => doc.score)} documents returned.`,
 			);
 			return reranked;
 		} catch (error) {
@@ -281,7 +290,9 @@ export class QNAService {
 				),
 			);
 
-			return completeContent || "I couldn't generate an answer to this question.";
+			return (
+				completeContent || "I couldn't generate an answer to this question."
+			);
 		} catch (error) {
 			this.logger.error(
 				`Error generating answer: ${error.message}`,
