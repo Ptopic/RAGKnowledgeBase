@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
 import useGetChats from "@/api/chats/hooks/useGetChats";
 import type { Chat } from "@/api/chats/types";
@@ -84,10 +84,8 @@ export default function ChatsPageClient({
 	searchSpaceId,
 }: ChatsPageClientProps) {
 	const router = useRouter();
-	const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
-	const [totalPages, setTotalPages] = useState(1);
 	const [selectedType, setSelectedType] = useState<string>("all");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -126,13 +124,9 @@ export default function ChatsPageClient({
 		}
 	}, [searchParams]);
 
-	// Update filtered chats when chats data changes
-	useEffect(() => {
-		setFilteredChats(chats);
-	}, [chats]);
-
 	// Filter and sort chats based on search query, type, and sort order
-	useEffect(() => {
+	// Memoized to prevent unnecessary recalculations
+	const filteredChats = useMemo(() => {
 		let result = [...chats];
 
 		// Filter by search term
@@ -156,13 +150,18 @@ export default function ChatsPageClient({
 			return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
 		});
 
-		setFilteredChats(result);
-		const newTotalPages = Math.max(1, Math.ceil(result.length / chatsPerPage));
-		setTotalPages(newTotalPages);
-
-		// Reset to first page when filters change (but only if current page would be invalid)
-		setCurrentPage((prevPage) => (prevPage > newTotalPages ? 1 : prevPage));
+		return result;
 	}, [chats, searchQuery, selectedType, sortOrder]);
+
+	// Calculate pagination based on filtered chats
+	const totalPages = Math.max(1, Math.ceil(filteredChats.length / chatsPerPage));
+
+	// Reset to first page when total pages decrease and current page becomes invalid
+	useEffect(() => {
+		if (currentPage > totalPages) {
+			setCurrentPage(1);
+		}
+	}, [currentPage, totalPages]);
 
 	// Function to handle chat deletion
 	const handleDeleteChat = () => {
@@ -175,11 +174,11 @@ export default function ChatsPageClient({
 	const indexOfFirstChat = indexOfLastChat - chatsPerPage;
 	const currentChats = filteredChats.slice(indexOfFirstChat, indexOfLastChat);
 
-	// Get unique chat types for filter dropdown
-	const chatTypes = [
-		"all",
-		...Array.from(new Set(chats.map((chat) => chat.type))),
-	];
+	// Get unique chat types for filter dropdown (memoized to prevent infinite re-renders)
+	const chatTypes = useMemo(
+		() => ["all", ...Array.from(new Set(chats.map((chat) => chat.type)))],
+		[chats],
+	);
 
 	// Toggle chat selection
 	const toggleChatSelection = (chatId: number) => {
