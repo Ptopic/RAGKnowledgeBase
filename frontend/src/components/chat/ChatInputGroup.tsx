@@ -114,19 +114,17 @@ const ConnectorSelector = React.memo(
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
-		const { documentTypes, isLoading, isLoaded, fetchDocumentTypes } = useDocumentTypes(
+		// Don't use lazy loading - fetch document types on mount to populate the modal
+		const { documentTypes, isLoading } = useDocumentTypes(
 			Number(search_space_id),
-			true
+			false  // Changed from true to false - always fetch document types
 		);
 
 		const handleOpenChange = useCallback(
 			(open: boolean) => {
 				setIsOpen(open);
-				if (open && !isLoaded) {
-					fetchDocumentTypes(Number(search_space_id));
-				}
 			},
-			[fetchDocumentTypes, isLoaded, search_space_id]
+			[]
 		);
 
 		const handleConnectorToggle = useCallback(
