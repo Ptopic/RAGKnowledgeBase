@@ -14,7 +14,8 @@ const App = ({ children }: IProps) => {
 		<ReactQueryProvider>
 			<ThemeProvider
 				attribute="class"
-				forcedTheme="dark"
+				defaultTheme="dark"
+				enableSystem={false}
 				disableTransitionOnChange
 			>
 				{children}

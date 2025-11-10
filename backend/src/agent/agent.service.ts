@@ -9,7 +9,6 @@ import { ChatDto } from "./dtos/chat.dto";
 import { ResearcherDto } from "./dtos/researcher.dto";
 import { userPrompt } from "./prompts";
 import { ResearcherService } from "./researcher.service";
-import { retrievalTool } from "./tools";
 
 @Injectable()
 export class AgentService {
@@ -25,7 +24,7 @@ export class AgentService {
 
 	private readonly agent = createReactAgent({
 		llm: this.llm,
-		tools: [retrievalTool],
+		tools: [],
 		checkpointSaver: this.memorySaver,
 	});
 
@@ -91,7 +90,7 @@ export class AgentService {
 
 					const streamingAgent = createReactAgent({
 						llm: streamingLlm,
-						tools: [retrievalTool],
+						tools: [],
 						checkpointSaver: this.memorySaver,
 					});
 
@@ -173,7 +172,10 @@ export class AgentService {
 					transcript,
 					video_id,
 					title: title || "YouTube Video",
-					url: url || context.videoUrl || `https://www.youtube.com/watch?v=${video_id}`,
+					url:
+						url ||
+						context.videoUrl ||
+						`https://www.youtube.com/watch?v=${video_id}`,
 					searchSpaceId: context.searchSpaceId,
 					userId: context.userId,
 				});

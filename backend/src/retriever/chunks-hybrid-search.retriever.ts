@@ -25,12 +25,12 @@ export class ChunksHybridSearchRetriever {
     const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
     // Build WHERE clause conditions
-    const conditions: string[] = ['ss."userId" = $1'];
+    const conditions: string[] = ['ss."user_id" = $1'];
     const params: any[] = [userId];
     let paramIndex = 2;
 
     if (searchSpaceId !== undefined) {
-      conditions.push(`d."searchSpaceId" = $${paramIndex}`);
+      conditions.push(`d."search_space_id" = $${paramIndex}`);
       params.push(searchSpaceId);
       paramIndex++;
     }
@@ -39,19 +39,19 @@ export class ChunksHybridSearchRetriever {
 
     // Raw SQL query for vector similarity search
     const query = `
-      SELECT 
+      SELECT
         c.id,
         c.content,
         c.embedding,
-        c."documentId",
+        c."document_id",
         d.id as "document_id",
         d.title as "document_title",
-        d."documentType" as "document_type",
-        d."documentMetadata" as "document_metadata",
+        d."document_type" as "document_type",
+        d."document_metadata" as "document_metadata",
         c.embedding <=> $${paramIndex}::vector as distance
-      FROM "Chunk" c
-      INNER JOIN "Document" d ON c."documentId" = d.id
-      INNER JOIN "SearchSpace" ss ON d."searchSpaceId" = ss.id
+      FROM chunks c
+      INNER JOIN documents d ON c."document_id" = d.id
+      INNER JOIN searchspaces ss ON d."search_space_id" = ss.id
       ${whereClause}
       ORDER BY c.embedding <=> $${paramIndex}::vector
       LIMIT $${paramIndex + 1}
@@ -71,14 +71,14 @@ export class ChunksHybridSearchRetriever {
 
     // Build WHERE clause conditions
     const conditions: string[] = [
-      'ss."userId" = $1',
+      'ss."user_id" = $1',
       "to_tsvector('english', c.content) @@ plainto_tsquery('english', $2)",
     ];
     const params: any[] = [userId, queryText];
     let paramIndex = 3;
 
     if (searchSpaceId !== undefined) {
-      conditions.push(`d."searchSpaceId" = $${paramIndex}`);
+      conditions.push(`d."search_space_id" = $${paramIndex}`);
       params.push(searchSpaceId);
       paramIndex++;
     }
@@ -87,18 +87,18 @@ export class ChunksHybridSearchRetriever {
 
     // Raw SQL query for full-text search
     const query = `
-      SELECT 
+      SELECT
         c.id,
         c.content,
-        c."documentId",
+        c."document_id",
         d.id as "document_id",
         d.title as "document_title",
-        d."documentType" as "document_type",
-        d."documentMetadata" as "document_metadata",
+        d."document_type" as "document_type",
+        d."document_metadata" as "document_metadata",
         ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', $2)) as rank
-      FROM "Chunk" c
-      INNER JOIN "Document" d ON c."documentId" = d.id
-      INNER JOIN "SearchSpace" ss ON d."searchSpaceId" = ss.id
+      FROM chunks c
+      INNER JOIN documents d ON c."document_id" = d.id
+      INNER JOIN searchspaces ss ON d."search_space_id" = ss.id
       ${whereClause}
       ORDER BY rank DESC
       LIMIT $${paramIndex}
@@ -125,18 +125,18 @@ export class ChunksHybridSearchRetriever {
     const nResults = topK * 2; // Get more results for better fusion
 
     // Build base conditions
-    const conditions: string[] = ['ss."userId" = $1'];
+    const conditions: string[] = ['ss."user_id" = $1'];
     const params: any[] = [userId];
     let paramIndex = 2;
 
     if (searchSpaceId !== undefined) {
-      conditions.push(`d."searchSpaceId" = $${paramIndex}`);
+      conditions.push(`d."search_space_id" = $${paramIndex}`);
       params.push(searchSpaceId);
       paramIndex++;
     }
 
     if (documentType !== undefined) {
-      conditions.push(`d."documentType" = $${paramIndex}::text::"DocumentType"`);
+      conditions.push(`d."document_type" = $${paramIndex}::text::"DocumentType"`);
       params.push(documentType);
       paramIndex++;
     }
@@ -148,39 +148,39 @@ export class ChunksHybridSearchRetriever {
     // Raw SQL query using CTEs for hybrid search with RRF
     const query = `
       WITH semantic_search AS (
-        SELECT 
+        SELECT
           c.id,
           RANK() OVER (ORDER BY c.embedding <=> $${paramIndex + 1}::vector) as rank
-        FROM "Chunk" c
-        INNER JOIN "Document" d ON c."documentId" = d.id
-        INNER JOIN "SearchSpace" ss ON d."searchSpaceId" = ss.id
+        FROM chunks c
+        INNER JOIN documents d ON c."document_id" = d.id
+        INNER JOIN searchspaces ss ON d."search_space_id" = ss.id
         WHERE ${semanticWhere}
         ORDER BY c.embedding <=> $${paramIndex + 1}::vector
         LIMIT $${paramIndex + 2}
       ),
       keyword_search AS (
-        SELECT 
+        SELECT
           c.id,
           RANK() OVER (ORDER BY ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', $${paramIndex})) DESC) as rank
-        FROM "Chunk" c
-        INNER JOIN "Document" d ON c."documentId" = d.id
-        INNER JOIN "SearchSpace" ss ON d."searchSpaceId" = ss.id
+        FROM chunks c
+        INNER JOIN documents d ON c."document_id" = d.id
+        INNER JOIN searchspaces ss ON d."search_space_id" = ss.id
         WHERE ${keywordWhere}
         ORDER BY ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', $${paramIndex})) DESC
         LIMIT $${paramIndex + 2}
       )
-      SELECT 
+      SELECT
         c.id as chunk_id,
         c.content,
         d.id as document_id,
         d.title as document_title,
-        d."documentType" as document_type,
-        d."documentMetadata" as document_metadata,
+        d."document_type" as document_type,
+        d."document_metadata" as document_metadata,
         (COALESCE(1.0 / (${k} + sem.rank), 0.0) + COALESCE(1.0 / (${k} + kw.rank), 0.0)) as score
       FROM semantic_search sem
       FULL OUTER JOIN keyword_search kw ON sem.id = kw.id
-      INNER JOIN "Chunk" c ON c.id = COALESCE(sem.id, kw.id)
-      INNER JOIN "Document" d ON c."documentId" = d.id
+      INNER JOIN chunks c ON c.id = COALESCE(sem.id, kw.id)
+      INNER JOIN documents d ON c."document_id" = d.id
       ORDER BY score DESC
       LIMIT $${paramIndex + 3}
     `;

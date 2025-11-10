@@ -15,14 +15,14 @@ export default async function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" className="dark" style={{ colorScheme: "dark" }}>
+		<html lang="en" suppressHydrationWarning>
 			<body
 				id="app"
 				className={twMerge(
 					spaceGrotesk.variable,
 					exo.variable,
 					spaceMono.variable,
-					"bg-neutral1000 overscroll-none",
+					"bg-background overscroll-none",
 				)}
 			>
 				<App>
