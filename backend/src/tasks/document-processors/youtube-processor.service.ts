@@ -6,7 +6,7 @@ import * as crypto from "node:crypto";
 import { ChatOpenAI } from "@langchain/openai";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
-import { Document, DocumentType, Log } from "@prisma/client";
+import { DocumentType, Log } from "@prisma/client";
 import axios, { AxiosInstance } from "axios";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
@@ -380,11 +380,7 @@ export class YoutubeProcessorService {
 			const metadataSections: [string, string[]][] = [
 				[
 					"METADATA",
-					[
-						`TITLE: ${title}`,
-						`URL: ${url}`,
-						`VIDEO_ID: ${video_id}`,
-					],
+					[`TITLE: ${title}`, `URL: ${url}`, `VIDEO_ID: ${video_id}`],
 				],
 				[
 					"CONTENT",
