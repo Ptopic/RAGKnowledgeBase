@@ -50,40 +50,58 @@ export class StreamingService {
 	}
 
 	formatTerminalInfoDelta(text: string, messageType = "info"): string {
-		const message: TerminalMessage = {
-			id: this.terminalIdx++,
-			text,
-			type: messageType,
-		};
+		try {
+			const message: TerminalMessage = {
+				id: this.terminalIdx++,
+				text,
+				type: messageType,
+			};
 
-		this.messageAnnotations[0].content.push(message);
+			this.messageAnnotations[0].content.push(message);
 
-		const annotation = { type: "TERMINAL_INFO", data: message };
-		return `8:${JSON.stringify([annotation])}\n`;
+			const annotation = { type: "TERMINAL_INFO", data: message };
+			const serialized = JSON.stringify([annotation]);
+			return `8:${serialized}\n`;
+		} catch (error) {
+			console.error(
+				`[StreamingService] Error formatting terminal info: ${error.message}`,
+				{ text, messageType },
+			);
+			// Return a safe fallback that won't break the stream
+			return `8:${JSON.stringify([{ type: "TERMINAL_INFO", data: { id: this.terminalIdx++, text: "Processing...", type: "info" } }])}\n`;
+		}
 	}
 
 	formatSourcesDelta(sources: SourceGroup[]): string {
-		this.messageAnnotations[1].content = sources as any;
+		try {
+			this.messageAnnotations[1].content = sources as any;
 
-		const nodes: SourceNode[] = [];
+			const nodes: SourceNode[] = [];
 
-		for (const group of sources) {
-			for (const source of group.sources || []) {
-				nodes.push({
-					id: String(source.id || ""),
-					text: (source.description || "").trim(),
-					url: source.url || "",
-					metadata: {
-						title: source.title || "",
-						source_type: group.type || "",
-						group_name: group.name || "",
-					},
-				});
+			for (const group of sources) {
+				for (const source of group.sources || []) {
+					nodes.push({
+						id: String(source.id || ""),
+						text: (source.description || "").trim(),
+						url: source.url || "",
+						metadata: {
+							title: source.title || "",
+							source_type: group.type || "",
+							group_name: group.name || "",
+						},
+					});
+				}
 			}
-		}
 
-		const annotation = { type: "sources", data: { nodes } };
-		return `8:${JSON.stringify([annotation])}\n`;
+			const annotation = { type: "sources", data: { nodes } };
+			const serialized = JSON.stringify([annotation]);
+			return `8:${serialized}\n`;
+		} catch (error) {
+			console.error(
+				`[StreamingService] Error formatting sources: ${error.message}`,
+			);
+			return `8:${JSON.stringify([{ type: "sources", data: { nodes: [] } }])}\n`;
+		}
 	}
 
 	formatAnswerDelta(answerChunk: string): string {

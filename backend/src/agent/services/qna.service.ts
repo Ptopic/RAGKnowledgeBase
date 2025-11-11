@@ -301,32 +301,60 @@ Do NOT respond in English unless the question is in English.
 		let completeContent = "";
 
 		try {
+			this.logger.log(
+				`[TIMING] About to bind streaming LLM at ${new Date().toISOString()}`,
+			);
+			const bindStart = Date.now();
+
 			// Enable streaming on the LLM
 			const streamingLLM = llm.bind({
 				streaming: true,
 			} as any);
 
+			const bindEnd = Date.now();
+			this.logger.log(`[TIMING] LLM bind took ${bindEnd - bindStart}ms`);
+
+			this.logger.log(
+				`[TIMING] About to call streamingLLM.stream() at ${new Date().toISOString()}`,
+			);
+			subscriber.next(
+				streamingService.formatTerminalInfoDelta(
+					`⏳ Waiting for AI response...`,
+				),
+			);
+
+			const streamStart = Date.now();
 			const stream = await streamingLLM.stream(messagesWithChatHistory);
+			const streamEnd = Date.now();
+
+			this.logger.log(
+				`[TIMING] streamingLLM.stream() call took ${streamEnd - streamStart}ms to return`,
+			);
+			subscriber.next(
+				streamingService.formatTerminalInfoDelta(`✨ Streaming answer...`),
+			);
+
+			let chunkBuffer = "";
+			const CHUNK_SIZE = 5; // Send every 5 characters instead of every character
 
 			for await (const chunk of stream) {
 				const content = chunk.content;
 				if (content) {
 					const delta = String(content);
 					completeContent += delta;
+					chunkBuffer += delta;
 
-					// Stream to subscriber
-					subscriber.next(streamingService.formatTextChunk(delta));
-
-					// Update word count periodically
-					if (completeContent.length % 100 === 0) {
-						const wordCount = completeContent.split(/\s+/).length;
-						subscriber.next(
-							streamingService.formatTerminalInfoDelta(
-								`✍️ Writing answer... (${wordCount} words)`,
-							),
-						);
+					// Only send when buffer reaches threshold
+					if (chunkBuffer.length >= CHUNK_SIZE) {
+						subscriber.next(streamingService.formatTextChunk(chunkBuffer));
+						chunkBuffer = "";
 					}
 				}
+			}
+
+			// Send any remaining buffered content
+			if (chunkBuffer.length > 0) {
+				subscriber.next(streamingService.formatTextChunk(chunkBuffer));
 			}
 
 			// Final word count
@@ -345,6 +373,14 @@ Do NOT respond in English unless the question is in English.
 				`Error generating answer: ${error.message}`,
 				error.stack,
 			);
+
+			// Send error message to subscriber so frontend knows what happened
+			subscriber.next(
+				streamingService.formatError(
+					`Failed to generate answer: ${error.message}`,
+				),
+			);
+
 			throw error;
 		}
 	}

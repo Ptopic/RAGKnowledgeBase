@@ -12,11 +12,7 @@ import { LLMService } from "./services/llm.service";
 import { PromptsService } from "./services/prompts.service";
 import { QNAService } from "./services/qna.service";
 import { StreamingService } from "./streaming.service";
-import {
-	Document,
-	getConnectorEmoji,
-	getConnectorFriendlyName,
-} from "./utils/agent.utils";
+import { Document, getConnectorFriendlyName } from "./utils/agent.utils";
 
 interface ChatMessage {
 	role: string;
@@ -80,36 +76,27 @@ export class ResearcherService {
 					// Initialize connector service counter
 					await this.connectorService.initializeCounter(user_id);
 
-					// Step 1: Reformulate user query based on chat history
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							"🔄 Reformulating query based on chat history...",
-						),
-					);
+					// Step 1: Reformulate user query based on chat history (skip update if no history)
+					let reformulatedQuery = user_query;
+					if (chatHistoryMessages.length > 0) {
+						subscriber.next(
+							streamingService.formatTerminalInfoDelta(
+								"🔄 Reformulating query...",
+							),
+						);
 
-					const reformulatedQuery = await this.reformulateQuery(
-						user_query,
-						chatHistoryMessages,
-						user_id,
-						search_space_id,
-					);
-
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							`🧠 Reformulated query: "${reformulatedQuery.substring(0, 100)}..."`,
-						),
-					);
+						reformulatedQuery = await this.reformulateQuery(
+							user_query,
+							chatHistoryMessages,
+							user_id,
+							search_space_id,
+						);
+					}
 
 					// Step 2: Handle QNA workflow
 					subscriber.next(
 						streamingService.formatTerminalInfoDelta(
-							"🤔 Starting Q&A research workflow...",
-						),
-					);
-
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							`🔍 Researching: "${user_query.substring(0, 100)}..."`,
+							"🔍 Searching for relevant information...",
 						),
 					);
 
@@ -168,13 +155,7 @@ export class ResearcherService {
 					// Combine documents
 					const allDocuments = [...userSelectedDocuments, ...relevantDocuments];
 
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							`📚 Collected ${allDocuments.length} total sources (${userSelectedDocuments.length} user-selected + ${relevantDocuments.length} from connectors)`,
-						),
-					);
-
-					// Step 2c: Extract and stream sources
+					// Extract and stream sources
 					if (allDocuments.length > 0) {
 						const sourcesToStream =
 							this.extractSourcesFromDocuments(allDocuments);
@@ -183,14 +164,7 @@ export class ResearcherService {
 						);
 					}
 
-					// Step 2d: Generate answer using QNA agent
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							`🧠 Generating comprehensive answer using ${allDocuments.length} total sources...`,
-						),
-					);
-
-					// Call QNA agent with streaming
+					// Generate answer using QNA agent
 					const { answer, rerankedDocuments } = await this.qnaService.handleQNA(
 						{
 							userQuery: user_query,
@@ -205,19 +179,7 @@ export class ResearcherService {
 						streamingService,
 					);
 
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							"🎉 Q&A answer generated successfully!",
-						),
-					);
-
-					// Step 3: Generate follow-up questions
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							"🤔 Generating follow-up questions...",
-						),
-					);
-
+					// Generate follow-up questions
 					const followUpQuestions = await this.generateFollowUpQuestions(
 						user_query,
 						chatHistoryMessages,
@@ -441,16 +403,6 @@ Use this value as the authoritative current date for any questions about date or
 			return { relevantDocuments: [], allSources: userSelectedSources };
 		}
 
-		// Stream initial status
-		const connectorNames = connectorsToSearch.map((c) =>
-			getConnectorFriendlyName(c),
-		);
-		subscriber.next(
-			streamingService.formatTerminalInfoDelta(
-				`🔎 Starting research on ${researchQuestions.length} questions using ${connectorNames.join(", ")} data sources`,
-			),
-		);
-
 		const allRawDocuments: Document[] = [];
 		const allSources: any[] = [...userSelectedSources];
 
@@ -458,23 +410,8 @@ Use this value as the authoritative current date for any questions about date or
 		for (let i = 0; i < researchQuestions.length; i++) {
 			const userQuery = researchQuestions[i];
 
-			subscriber.next(
-				streamingService.formatTerminalInfoDelta(
-					`🧠 Researching question ${i + 1}/${researchQuestions.length}: "${userQuery.substring(0, 100)}..."`,
-				),
-			);
-
 			// Process each connector
 			for (const connector of connectorsToSearch) {
-				const connectorEmoji = getConnectorEmoji(connector);
-				const friendlyName = getConnectorFriendlyName(connector);
-
-				subscriber.next(
-					streamingService.formatTerminalInfoDelta(
-						`${connectorEmoji} Searching ${friendlyName} for relevant information...`,
-					),
-				);
-
 				try {
 					let result: any;
 
@@ -570,24 +507,8 @@ Use this value as the authoritative current date for any questions about date or
 							allSources.push(result.sourceObject);
 						}
 						allRawDocuments.push(...result.chunks);
-
-						subscriber.next(
-							streamingService.formatTerminalInfoDelta(
-								`${connectorEmoji} Found ${result.chunks.length} ${friendlyName} chunks related to your query`,
-							),
-						);
 					}
-				} catch (error) {
-					this.logger.error(
-						`Error searching connector ${connector}: ${error.message}`,
-						error.stack,
-					);
-					subscriber.next(
-						streamingService.formatError(
-							`Error searching ${friendlyName}: ${error.message}`,
-						),
-					);
-				}
+				} catch (error) {}
 			}
 		}
 
@@ -613,12 +534,6 @@ Use this value as the authoritative current date for any questions about date or
 			seenContentHashes.add(contentHash);
 			deduplicatedDocs.push(doc);
 		}
-
-		subscriber.next(
-			streamingService.formatTerminalInfoDelta(
-				`🧹 Found ${deduplicatedDocs.length} unique document chunks after removing duplicates`,
-			),
-		);
 
 		return { relevantDocuments: deduplicatedDocs, allSources };
 	}
