@@ -1,5 +1,4 @@
 // This is your Prisma schema file
-// Converted from backend_test/app/db.py
 
 generator client {
   provider        = "prisma-client-js"

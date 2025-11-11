@@ -5,16 +5,21 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { SearchSourceConnectorType } from "@prisma/client";
 import {
 	CreateSearchSourceConnectorDto,
 	SearchSourceConnectorDto,
 	UpdateSearchSourceConnectorDto,
 } from "../dtos/search-source-connector.dto";
 import { PrismaService } from "../prisma/prisma.service";
+import { QueueService } from "../queue/queue.service";
 
 @Injectable()
 export class SearchSourceConnectorsService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private queueService: QueueService,
+	) {}
 
 	async checkSearchSpaceOwnership(
 		searchSpaceId: number,
@@ -311,6 +316,68 @@ export class SearchSourceConnectorsService {
 
 			const indexingTo = endDate || today;
 
+			// Convert string dates to Date objects for queue
+			const startDateObj = indexingFrom ? new Date(indexingFrom) : undefined;
+			const endDateObj = indexingTo ? new Date(indexingTo) : undefined;
+
+			// Trigger the appropriate indexing job based on connector type
+			switch (connector.connectorType) {
+				case SearchSourceConnectorType.SLACK_CONNECTOR:
+					await this.queueService.indexSlackMessages(
+						connectorId,
+						searchSpaceId,
+						userId,
+						startDateObj,
+						endDateObj,
+					);
+					break;
+
+				case SearchSourceConnectorType.NOTION_CONNECTOR:
+					await this.queueService.indexNotionPages(
+						connectorId,
+						searchSpaceId,
+						userId,
+						startDateObj,
+						endDateObj,
+					);
+					break;
+
+				case SearchSourceConnectorType.GITHUB_CONNECTOR:
+					await this.queueService.indexGitHubRepos(
+						connectorId,
+						searchSpaceId,
+						userId,
+						startDateObj,
+						endDateObj,
+					);
+					break;
+
+				case SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR:
+					await this.queueService.indexGoogleCalendarEvents(
+						connectorId,
+						searchSpaceId,
+						userId,
+						startDateObj,
+						endDateObj,
+					);
+					break;
+
+				case SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR:
+					await this.queueService.indexGoogleGmailMessages(
+						connectorId,
+						searchSpaceId,
+						userId,
+						startDateObj,
+						endDateObj,
+					);
+					break;
+
+				default:
+					throw new BadRequestException(
+						`Indexing not supported for connector type: ${connector.connectorType}`,
+					);
+			}
+
 			return {
 				message: `${connector.connectorType} indexing started in the background`,
 				connector_id: connectorId,
@@ -319,7 +386,10 @@ export class SearchSourceConnectorsService {
 				indexing_to: indexingTo,
 			};
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof BadRequestException
+			) {
 				throw error;
 			}
 			throw new InternalServerErrorException(

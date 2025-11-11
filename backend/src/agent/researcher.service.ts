@@ -26,7 +26,6 @@ interface ChatMessage {
 /**
  * Researcher Service Implementation
  * Full-featured research agent with query reformulation, document retrieval, and Q&A
- * Mirrors the Python backend_test implementation using LangChain instead of LangGraph
  */
 @Injectable()
 export class ResearcherService {

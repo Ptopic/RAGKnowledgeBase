@@ -1,7 +1,7 @@
+import { createHash } from "node:crypto";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Logger } from "@nestjs/common";
 import { DocumentType } from "@prisma/client";
-import { createHash } from "node:crypto";
 import * as tiktoken from "tiktoken";
 import { SUMMARY_PROMPT_TEMPLATE } from "../prompts";
 
@@ -109,7 +109,9 @@ export function optimizeContentForContextWindow(
 	const availableTokens = contextWindow - reservedTokens;
 
 	if (availableTokens <= 100) {
-		logger.warn(`Very limited tokens available for content: ${availableTokens}`);
+		logger.warn(
+			`Very limited tokens available for content: ${availableTokens}`,
+		);
 		return content.slice(0, 500);
 	}
 
@@ -377,8 +379,12 @@ export function convertChunksToLangChainDocuments(
 export function generateContentHash(
 	content: string,
 	searchSpaceId: number,
+	uniqueIdentifier?: string,
 ): string {
-	const combinedData = `${content}-${searchSpaceId}`;
+	// If unique identifier is provided, include it to ensure uniqueness
+	const combinedData = uniqueIdentifier
+		? `${content}-${searchSpaceId}-${uniqueIdentifier}`
+		: `${content}-${searchSpaceId}`;
 	return createHash("sha256").update(combinedData, "utf-8").digest("hex");
 }
 
@@ -393,4 +399,59 @@ export function generateUniqueIdentifierHash(
 	const identifierStr = String(uniqueIdentifier);
 	const combinedData = `${documentType}-${identifierStr}-${searchSpaceId}`;
 	return createHash("sha256").update(combinedData, "utf-8").digest("hex");
+}
+
+/**
+ * Truncate content to fit within embedding model token limits.
+ * Uses actual token counting with binary search for precision.
+ * Default limit is 8000 tokens (safe for text-embedding-3-* models with 8191 limit).
+ */
+export function truncateContentForEmbedding(
+	content: string,
+	maxTokens: number = 8000,
+	modelName: string = "text-embedding-3-large",
+): string {
+	if (!content) {
+		return content;
+	}
+
+	// Check current token count
+	const currentTokens = countTokens(content, modelName);
+
+	if (currentTokens <= maxTokens) {
+		return content;
+	}
+
+	logger.log(
+		`Content has ${currentTokens} tokens, truncating to ${maxTokens} tokens`,
+	);
+
+	// Binary search to find optimal content length that fits token limit
+	let left = 0;
+	let right = content.length;
+	let optimalLength = 0;
+
+	while (left <= right) {
+		const mid = Math.floor((left + right) / 2);
+		const testContent = content.slice(0, mid);
+		const testTokens = countTokens(testContent, modelName);
+
+		if (testTokens <= maxTokens) {
+			optimalLength = mid;
+			left = mid + 1;
+		} else {
+			right = mid - 1;
+		}
+	}
+
+	const truncated =
+		optimalLength > 0
+			? content.slice(0, optimalLength)
+			: content.slice(0, 1000);
+
+	logger.log(
+		`Content truncated from ${content.length} chars (${currentTokens} tokens) to ${truncated.length} chars (${countTokens(truncated, modelName)} tokens)`,
+	);
+
+	return truncated;
 }
