@@ -64,6 +64,12 @@ export class QNAService {
 				),
 			);
 
+			// Log language parameter for debugging
+			this.logger.log(
+				`Language parameter received: ${language || "undefined/not set"}`,
+			);
+			this.logger.log(`User query: ${userQuery}`);
+
 			const rerankedDocuments = await this.rerankDocuments(
 				userQuery + "\n" + reformulatedQuery,
 				relevantDocuments,
@@ -156,6 +162,26 @@ export class QNAService {
 			throw new Error(errorMessage);
 		}
 
+		// ALWAYS get configured language from LLM config first (it takes priority)
+		const effectiveLanguage =
+			(await this.llmService.getUserFastLLMLanguage(userId, searchSpaceId)) ||
+			language ||
+			undefined;
+
+		// Log the language being used
+		this.logger.log(
+			`Language from LLM config: ${await this.llmService.getUserFastLLMLanguage(userId, searchSpaceId)}`,
+		);
+		this.logger.log(`Language from request: ${language || "not set"}`);
+		this.logger.log(
+			`Using effective language: ${effectiveLanguage || "auto-detect from query"}`,
+		);
+		subscriber.next(
+			streamingService.formatTerminalInfoDelta(
+				`🌐 Response language: ${effectiveLanguage || "auto-detect"}`,
+			),
+		);
+
 		// Get model name for token counting
 		const modelName = this.llmService.getModelName(llm);
 
@@ -181,7 +207,7 @@ export class QNAService {
 			// Use initial system prompt for token calculation
 			const initialSystemPrompt = this.getQnaCitationSystemPrompt(
 				chatHistoryStr,
-				language,
+				effectiveLanguage,
 			);
 			const baseMessages = [
 				new SystemMessage(initialSystemPrompt),
@@ -208,8 +234,8 @@ export class QNAService {
 
 		// Choose system prompt based on final document availability
 		const systemPrompt = hasDocuments
-			? this.getQnaCitationSystemPrompt(chatHistoryStr, language)
-			: this.getQnaNoDocumentsSystemPrompt(chatHistoryStr, language);
+			? this.getQnaCitationSystemPrompt(chatHistoryStr, effectiveLanguage)
+			: this.getQnaNoDocumentsSystemPrompt(chatHistoryStr, effectiveLanguage);
 
 		// Generate documents section
 		const documentsText = hasDocuments
@@ -219,12 +245,31 @@ export class QNAService {
 				)
 			: "";
 
-		// Create final human message content
-		const instructionText = hasDocuments
-			? "Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner."
-			: "Please provide a helpful answer to the user's question based on our conversation history and your general knowledge. Engage in a conversational manner.";
+		// Add CRITICAL language instruction - making it IMPOSSIBLE to ignore
+		const criticalLanguageInstruction = effectiveLanguage
+			? `🚨🚨🚨 CRITICAL INSTRUCTION - READ THIS FIRST 🚨🚨🚨
+Your ENTIRE response MUST be written in ${effectiveLanguage} language.
+Do NOT use English unless ${effectiveLanguage} is English.
+Use ONLY ${effectiveLanguage} language for EVERY word.
+This is MANDATORY and NON-NEGOTIABLE.
+🚨🚨🚨 END CRITICAL INSTRUCTION 🚨🚨🚨`
+			: `🚨🚨🚨 CRITICAL INSTRUCTION - READ THIS FIRST 🚨🚨🚨
+Look at the user's question below.
+If it contains Croatian words like "Sta je", "Što je", "kako", "zašto" = RESPOND IN CROATIAN
+If it contains English words = RESPOND IN ENGLISH
+If it contains Swedish words = RESPOND IN SWEDISH
+MATCH THE LANGUAGE OF THE QUESTION EXACTLY.
+Do NOT translate the user's question to English.
+Do NOT respond in English unless the question is in English.
+🚨🚨🚨 END CRITICAL INSTRUCTION 🚨🚨🚨`;
 
-		const humanMessageContent = `
+		// Create final human message content with language instruction FIRST
+		const instructionText = hasDocuments
+			? `Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner.${effectiveLanguage ? ` CRITICAL: Write your answer in ${effectiveLanguage} language!` : ""}`
+			: `Please provide a helpful answer to the user's question based on our conversation history and your general knowledge. Engage in a conversational manner.${effectiveLanguage ? ` CRITICAL: Write your answer in ${effectiveLanguage} language!` : ""}`;
+
+		const humanMessageContent = `${criticalLanguageInstruction}
+
     ${documentsText}
 
     User's question:
@@ -233,6 +278,8 @@ export class QNAService {
     </user_query>
 
     ${instructionText}
+
+    🚨 REMINDER: ${effectiveLanguage ? `Respond ONLY in ${effectiveLanguage} language!` : "Respond in the SAME LANGUAGE as the question above. Check the question's language and match it!"} 🚨
     `;
 
 		// Create final messages for the LLM
@@ -310,10 +357,40 @@ export class QNAService {
 		language?: string,
 	): string {
 		const languageInstruction = language
-			? `\n\nIMPORTANT: Please respond in ${language} language. All your responses, explanations, and analysis should be written in ${language}.`
-			: "";
+			? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL LANGUAGE REQUIREMENT 🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-		return `You are a helpful AI research assistant. Your task is to answer questions based on the user's personal knowledge base.
+You MUST respond ONLY in ${language} language.
+
+Every single word, sentence, explanation, and citation commentary must be in ${language}.
+
+Do NOT use English. Do NOT translate to English.
+
+This is MANDATORY and NON-NEGOTIABLE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+			: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL LANGUAGE REQUIREMENT 🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You MUST respond in the EXACT SAME LANGUAGE as the user's question.
+
+Language Detection Rules:
+- Croatian indicators: "Sta je", "Što je", "kako", "zašto", "koji" → Respond in CROATIAN
+- English indicators: "What is", "How", "Why" → Respond in ENGLISH  
+- Swedish indicators: "Vad är", "Hur" → Respond in SWEDISH
+
+NEVER translate the user's question to English.
+NEVER respond in English unless the question is in English.
+
+This is MANDATORY and NON-NEGOTIABLE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+		return `${languageInstruction}
+
+You are a helpful AI research assistant. Your task is to answer questions based on the user's personal knowledge base.
 
 ${chatHistory ? `Previous conversation:\n${chatHistory}` : ""}
 
@@ -329,7 +406,7 @@ ANSWER GUIDELINES:
 - Use markdown formatting for readability
 - If sources conflict, mention different perspectives with citations
 - If information is insufficient, acknowledge limitations
-- Be conversational and helpful${languageInstruction}`;
+- Be conversational and helpful`;
 	}
 
 	/**
@@ -340,10 +417,40 @@ ANSWER GUIDELINES:
 		language?: string,
 	): string {
 		const languageInstruction = language
-			? `\n\nIMPORTANT: Please respond in ${language} language. All your responses, explanations, and analysis should be written in ${language}.`
-			: "";
+			? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL LANGUAGE REQUIREMENT 🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-		return `You are a helpful AI assistant. Answer the user's question based on the conversation history and your general knowledge.
+You MUST respond ONLY in ${language} language.
+
+Every single word, sentence, and explanation must be in ${language}.
+
+Do NOT use English. Do NOT translate to English.
+
+This is MANDATORY and NON-NEGOTIABLE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+			: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL LANGUAGE REQUIREMENT 🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You MUST respond in the EXACT SAME LANGUAGE as the user's question.
+
+Language Detection Rules:
+- Croatian indicators: "Sta je", "Što je", "kako", "zašto", "koji" → Respond in CROATIAN
+- English indicators: "What is", "How", "Why" → Respond in ENGLISH
+- Swedish indicators: "Vad är", "Hur" → Respond in SWEDISH
+
+NEVER translate the user's question to English.
+NEVER respond in English unless the question is in English.
+
+This is MANDATORY and NON-NEGOTIABLE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+		return `${languageInstruction}
+
+You are a helpful AI assistant. Answer the user's question based on the conversation history and your general knowledge.
 
 ${chatHistory ? `Previous conversation:\n${chatHistory}` : ""}
 
@@ -351,6 +458,6 @@ ANSWER GUIDELINES:
 - Provide comprehensive, well-structured answers
 - Use markdown formatting for readability
 - Be conversational and helpful
-- If you're not certain, acknowledge limitations${languageInstruction}`;
+- If you're not certain, acknowledge limitations`;
 	}
 }

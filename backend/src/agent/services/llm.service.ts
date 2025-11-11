@@ -1,8 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { PrismaService } from "src/prisma/prisma.service";
-import { ChatOpenAI } from "@langchain/openai";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { ChatOpenAI } from "@langchain/openai";
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "src/prisma/prisma.service";
 
 /**
  * LLM Roles for different use cases
@@ -32,8 +32,8 @@ export class LLMService {
 	): Promise<BaseChatModel | null> {
 		try {
 			// Get user's LLM preferences for this search space
-			const preference =
-				await this.prisma.userSearchSpacePreference.findUnique({
+			const preference = await this.prisma.userSearchSpacePreference.findUnique(
+				{
 					where: {
 						uq_user_searchspace: {
 							userId,
@@ -45,7 +45,8 @@ export class LLMService {
 						fastLlm: true,
 						strategicLlm: true,
 					},
-				});
+				},
+			);
 
 			if (!preference) {
 				this.logger.error(
@@ -216,5 +217,75 @@ export class LLMService {
 			return llm.model || "claude-3-sonnet-20240229";
 		}
 		return "unknown";
+	}
+
+	/**
+	 * Get the configured language for a specific LLM role
+	 */
+	async getUserLLMLanguage(
+		userId: string,
+		searchSpaceId: number,
+		role: LLMRole,
+	): Promise<string | null> {
+		try {
+			// Get user's LLM preferences for this search space
+			const preference = await this.prisma.userSearchSpacePreference.findUnique(
+				{
+					where: {
+						uq_user_searchspace: {
+							userId,
+							searchSpaceId,
+						},
+					},
+					include: {
+						longContextLlm: true,
+						fastLlm: true,
+						strategicLlm: true,
+					},
+				},
+			);
+
+			if (!preference) {
+				return null;
+			}
+
+			// Get the appropriate LLM config based on role
+			let llmConfig: any = null;
+			if (role === LLMRole.LONG_CONTEXT) {
+				llmConfig = preference.longContextLlm;
+			} else if (role === LLMRole.FAST) {
+				llmConfig = preference.fastLlm;
+			} else if (role === LLMRole.STRATEGIC) {
+				llmConfig = preference.strategicLlm;
+			}
+
+			if (!llmConfig) {
+				return null;
+			}
+
+			// Log the config for debugging
+			this.logger.log(
+				`LLM Config for user ${userId}, role ${role}: name="${llmConfig.name}", language="${llmConfig.language}"`,
+			);
+
+			// Return the language from the config, default to English if not set
+			return llmConfig.language || "English";
+		} catch (error) {
+			this.logger.error(
+				`Error getting LLM language for user ${userId}, role ${role}: ${error.message}`,
+				error.stack,
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Get the configured language for fast LLM
+	 */
+	async getUserFastLLMLanguage(
+		userId: string,
+		searchSpaceId: number,
+	): Promise<string | null> {
+		return this.getUserLLMLanguage(userId, searchSpaceId, LLMRole.FAST);
 	}
 }

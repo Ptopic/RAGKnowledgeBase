@@ -1,6 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
-import { LLMService } from './llm.service';
+import {
+	AIMessage,
+	HumanMessage,
+	SystemMessage,
+} from "@langchain/core/messages";
+import { Injectable, Logger } from "@nestjs/common";
+import { LLMService } from "./llm.service";
 
 @Injectable()
 export class QueryService {
@@ -37,15 +41,17 @@ export class QueryService {
 			}
 
 			// Create system message with instructions
-			const todayDate = new Date().toISOString().split('T')[0];
+			const todayDate = new Date().toISOString().split("T")[0];
 			const systemMessage = new SystemMessage(`
+RUNTIME NOTE (server): The current date is ${todayDate}. Treat this value as authoritative for any questions about the current date or time; when asked for the current date, reply using this value.
+
 Today's date: ${todayDate}
 You are a highly skilled AI assistant specializing in query optimization for advanced research.
 Your primary objective is to transform a user's initial query into a highly effective search query.
 This reformulated query will be used to retrieve information from diverse data sources.
 
 **Chat History Context:**
-${chatHistoryStr || 'No prior conversation history is available.'}
+${chatHistoryStr || "No prior conversation history is available."}
 If chat history is provided, analyze it to understand the user's evolving information needs and the broader context of their request. Use this understanding to refine the current query, ensuring it builds upon or clarifies previous interactions.
 
 **Query Reformulation Guidelines:**
@@ -92,7 +98,7 @@ Your output should be a single, optimized query string, ready for immediate use 
 	 * Convert a list of chat history messages to a string.
 	 */
 	static langchainChatHistoryToStr(chatHistory: any[]): string {
-		let chatHistoryStr = '<chat_history>\n';
+		let chatHistoryStr = "<chat_history>\n";
 
 		for (const chatMessage of chatHistory) {
 			if (chatMessage instanceof HumanMessage) {
@@ -104,7 +110,7 @@ Your output should be a single, optimized query string, ready for immediate use 
 			}
 		}
 
-		chatHistoryStr += '</chat_history>';
+		chatHistoryStr += "</chat_history>";
 		return chatHistoryStr;
 	}
 }

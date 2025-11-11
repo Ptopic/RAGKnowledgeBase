@@ -296,7 +296,14 @@ Current Query: ${query}
 
 Reformulated Query (respond with only the reformulated query, nothing else):`;
 
+			const today = new Date().toISOString().split("T")[0];
+			const dateSystem = new SystemMessage(
+				`RUNTIME NOTE (server): The current date is ${today}.
+Use this value as the authoritative current date for any questions about date or time. When asked for the current date, reply with this value.`,
+			);
+
 			const response = await llm.invoke([
+				dateSystem,
 				new SystemMessage(systemPrompt),
 				new HumanMessage(reformulationPrompt),
 			]);
@@ -731,7 +738,16 @@ Do not include any other text or explanation. Only return the JSON.
 			const systemPrompt =
 				this.promptsService.getFurtherQuestionsSystemPrompt();
 
+			// Include the current date explicitly so the model has an authoritative
+			// timestamp independent of the system prompt content.
+			const today = new Date().toISOString().split("T")[0];
+			const dateSystem = new SystemMessage(
+				`RUNTIME NOTE (server): The current date is ${today}.
+Use this value as the authoritative current date for any questions about date or time. When asked for the current date, reply with this value.`,
+			);
+
 			const response = await llm.invoke([
+				dateSystem,
 				new SystemMessage(systemPrompt),
 				new HumanMessage(humanMessageContent),
 			]);
