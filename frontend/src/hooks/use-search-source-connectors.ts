@@ -7,7 +7,7 @@ import type {
 	CreateSearchSourceConnectorRequest,
 	UpdateSearchSourceConnectorRequest,
 } from "@api/search-source-connectors/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 // Re-export types for backward compatibility
 export type { SearchSourceConnector } from "@api/search-source-connectors/types";
@@ -47,32 +47,9 @@ export const useSearchSourceConnectors = (
 	const deleteConnectorMutation = useDeleteSearchSourceConnector();
 	const indexConnectorMutation = useIndexConnector();
 
-	const [connectorSourceItems, setConnectorSourceItems] = useState<
-		ConnectorSourceItem[]
-	>([
-		{
-			id: 1,
-			name: "Crawled URL",
-			type: "CRAWLED_URL",
-			sources: [],
-		},
-		{
-			id: 2,
-			name: "File",
-			type: "FILE",
-			sources: [],
-		},
-		{
-			id: 3,
-			name: "Youtube Video",
-			type: "YOUTUBE_VIDEO",
-			sources: [],
-		},
-	]);
-
-	// Update connector source items when connectors change
-	useEffect(() => {
-		// Start with the default hardcoded connectors
+	// Compute connector source items from hardcoded defaults + API connectors.
+	// useMemo avoids recreating the array on every render and removes the need
+	const connectorSourceItems: ConnectorSourceItem[] = useMemo(() => {
 		const defaultConnectors: ConnectorSourceItem[] = [
 			{
 				id: 1,
@@ -94,7 +71,6 @@ export const useSearchSourceConnectors = (
 			},
 		];
 
-		// Add the API connectors
 		const apiConnectors: ConnectorSourceItem[] = connectors.map(
 			(connector, index) => ({
 				id: 1000 + index, // Use a high ID to avoid conflicts with hardcoded IDs
@@ -104,7 +80,7 @@ export const useSearchSourceConnectors = (
 			}),
 		);
 
-		setConnectorSourceItems([...defaultConnectors, ...apiConnectors]);
+		return [...defaultConnectors, ...apiConnectors];
 	}, [connectors]);
 
 	// Wrapper functions to maintain backward compatibility
