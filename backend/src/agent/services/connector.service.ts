@@ -285,7 +285,7 @@ export class ConnectorService {
 				const metadata = document.documentMetadata || {};
 
 				return {
-					chunk_id: result.id || this.getNextSourceId(),
+					chunk_id: result.chunk_id || this.getNextSourceId(),
 					content: result.content || "",
 					score: result.score || 0,
 					document: {
