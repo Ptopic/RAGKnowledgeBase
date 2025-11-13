@@ -1,0 +1,7 @@
+onlyBuiltDependencies:
+  - '@sentry/cli'
+  - canvas
+  - es5-ext
+  - esbuild
+  - sharp
+  - unrs-resolver
