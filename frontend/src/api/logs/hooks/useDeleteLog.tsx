@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LOGS, LOGS_SUMMARY } from "@/shared/queryKeys";
 import logsClientRequests from "../authClientRequests";
 
 const useDeleteLog = (
@@ -14,9 +15,11 @@ const useDeleteLog = (
 	return useMutation({
 		mutationFn: (id: number) => logsClientRequests.deleteLog(id),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["logs"] });
-			queryClient.invalidateQueries({ queryKey: ["logsSummary"] });
 			toast.success("Log deleted successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [LOGS] });
+			queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY] });
 		},
 		onError: (error) => {
 			console.error("Error deleting log:", error);

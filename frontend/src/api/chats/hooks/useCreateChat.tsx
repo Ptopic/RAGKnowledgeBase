@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CHATS } from "@/shared/queryKeys";
 import chatsClientRequests from "../authClientRequests";
 import type { CreateChatRequest, CreateChatResponse } from "../types";
 
@@ -20,8 +21,8 @@ const useCreateChat = (
 	return useMutation({
 		mutationFn: (data: CreateChatRequest) =>
 			chatsClientRequests.createChat(data),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["chats"] });
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [CHATS] });
 		},
 		onError: (error) => {
 			console.error("Error creating chat:", error);

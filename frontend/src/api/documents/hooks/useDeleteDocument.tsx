@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { DOCUMENTS, SEARCH_DOCUMENTS } from "@/shared/queryKeys";
 import documentsClientRequests from "../authClientRequests";
 
 const useDeleteDocument = (
@@ -14,9 +15,11 @@ const useDeleteDocument = (
 	return useMutation({
 		mutationFn: (id: number) => documentsClientRequests.deleteDocument(id),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["documents"] });
-			queryClient.invalidateQueries({ queryKey: ["searchDocuments"] });
 			toast.success("Document deleted successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [DOCUMENTS] });
+			queryClient.invalidateQueries({ queryKey: [SEARCH_DOCUMENTS] });
 		},
 		onError: (error) => {
 			console.error("Error deleting document:", error);

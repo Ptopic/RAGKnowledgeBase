@@ -1,4 +1,5 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
+import { LOGS } from "@/shared/queryKeys";
 import logsClientRequests from "../authClientRequests";
 import type { GetLogsParams, Log } from "../types";
 
@@ -11,7 +12,7 @@ const useGetLogs = (
 ) => {
 	return useQuery<Log[], Error>({
 		queryKey: [
-			"logs",
+			LOGS,
 			params?.search_space_id,
 			params?.level,
 			params?.status,

@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { SEARCH_SPACES } from "@/shared/queryKeys";
 import searchSpacesClientRequests from "../authClientRequests";
 import type {
 	CreateSearchSpaceRequest,
@@ -25,11 +26,13 @@ const useCreateSearchSpace = (
 	return useMutation({
 		mutationFn: (data: CreateSearchSpaceRequest) =>
 			searchSpacesClientRequests.createSearchSpace(data),
-		onSuccess: (data, variables) => {
-			queryClient.invalidateQueries({ queryKey: ["searchSpaces"] });
+		onSuccess: (_, variables) => {
 			toast.success("Search space created successfully", {
 				description: `"${variables.name}" has been created.`,
 			});
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [SEARCH_SPACES] });
 			router.push("/dashboard");
 		},
 		onError: (error) => {

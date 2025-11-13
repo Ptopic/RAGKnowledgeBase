@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CONNECTORS } from "@/shared/queryKeys";
 import connectorsClientRequests from "../authClientRequests";
 import type { Connector, CreateConnectorRequest } from "../types";
 
@@ -21,8 +22,10 @@ const useCreateConnector = (
 		mutationFn: (data: CreateConnectorRequest) =>
 			connectorsClientRequests.createConnector(data),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["connectors"] });
 			toast.success("Connector created successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [CONNECTORS] });
 		},
 		onError: (error) => {
 			console.error("Error creating connector:", error);

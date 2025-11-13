@@ -1,6 +1,7 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
 import documentsClientRequests from "../authClientRequests";
 import type { DocumentTypeCount, GetDocumentTypeCountsParams } from "../types";
+import { DOCUMENT_TYPE_COUNTS } from "@/shared/queryKeys";
 
 const useGetDocumentTypeCounts = (
 	params?: GetDocumentTypeCountsParams,
@@ -15,7 +16,7 @@ const useGetDocumentTypeCounts = (
 	>,
 ) => {
 	return useQuery<DocumentTypeCount[], Error>({
-		queryKey: ["documentTypeCounts", params?.search_space_id],
+		queryKey: [DOCUMENT_TYPE_COUNTS, params?.search_space_id],
 		queryFn: () => documentsClientRequests.getDocumentTypeCounts(params),
 		...options,
 	});

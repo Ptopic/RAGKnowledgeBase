@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { SEARCH_SPACE_CONNECTORS } from "@/shared/queryKeys";
 import searchSourceConnectorsClientRequests from "../authClientRequests";
 import type {
 	CreateSearchSourceConnectorRequest,
@@ -21,7 +22,7 @@ const useCreateSearchSourceConnector = (
 		Error,
 		CreateSearchSourceConnectorParams,
 		unknown
-	>
+	>,
 ) => {
 	const queryClient = useQueryClient();
 
@@ -29,11 +30,13 @@ const useCreateSearchSourceConnector = (
 		mutationFn: ({ data, searchSpaceId }: CreateSearchSourceConnectorParams) =>
 			searchSourceConnectorsClientRequests.createSearchSourceConnector(
 				data,
-				searchSpaceId
+				searchSpaceId,
 			),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["searchSourceConnectors"] });
 			toast.success("Connector created successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [SEARCH_SPACE_CONNECTORS] });
 		},
 		onError: (error) => {
 			console.error("Error creating search source connector:", error);

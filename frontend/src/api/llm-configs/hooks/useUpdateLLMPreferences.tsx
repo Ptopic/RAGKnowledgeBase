@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LLM_PREFERENCES } from "@/shared/queryKeys";
 import llmConfigsClientRequests from "../authClientRequests";
 import type { LLMPreferences, UpdateLLMPreferencesParams } from "../types";
 
@@ -20,11 +21,11 @@ const useUpdateLLMPreferences = (
 	return useMutation({
 		mutationFn: (params: UpdateLLMPreferencesParams) =>
 			llmConfigsClientRequests.updateLLMPreferences(params),
-		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({
-				queryKey: ["llmPreferences", variables.search_space_id],
-			});
+		onSuccess: () => {
 			toast.success("LLM preferences updated successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [LLM_PREFERENCES] });
 		},
 		onError: (error) => {
 			console.error("Error updating LLM preferences:", error);

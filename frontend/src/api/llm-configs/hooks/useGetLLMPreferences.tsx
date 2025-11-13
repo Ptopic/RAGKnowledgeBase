@@ -1,4 +1,5 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
+import { LLM_PREFERENCES } from "@/shared/queryKeys";
 import llmConfigsClientRequests from "../authClientRequests";
 import type { GetLLMPreferencesParams, LLMPreferences } from "../types";
 
@@ -10,7 +11,7 @@ const useGetLLMPreferences = (
 	>,
 ) => {
 	return useQuery<LLMPreferences, Error>({
-		queryKey: ["llmPreferences", params?.search_space_id],
+		queryKey: [LLM_PREFERENCES, params?.search_space_id],
 		queryFn: () => {
 			if (!params) {
 				throw new Error("Search space ID is required");

@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { SEARCH_SPACE_CONNECTORS } from "@/shared/queryKeys";
 import searchSourceConnectorsClientRequests from "../authClientRequests";
 import type { IndexConnectorRequest, IndexConnectorResponse } from "../types";
 
@@ -13,7 +14,7 @@ const useIndexConnector = (
 		Error,
 		IndexConnectorRequest,
 		unknown
-	>
+	>,
 ) => {
 	const queryClient = useQueryClient();
 
@@ -21,10 +22,10 @@ const useIndexConnector = (
 		mutationFn: (params: IndexConnectorRequest) =>
 			searchSourceConnectorsClientRequests.indexConnector(params),
 		onSuccess: (data) => {
-			queryClient.invalidateQueries({ queryKey: ["searchSourceConnectors"] });
-			toast.success(
-				data.message || "Connector content indexed successfully"
-			);
+			toast.success(data.message || "Connector content indexed successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [SEARCH_SPACE_CONNECTORS] });
 		},
 		onError: (error) => {
 			console.error("Error indexing connector content:", error);

@@ -3,6 +3,7 @@ import {
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
+import { CHAT_DETAILS, CHATS } from "@/shared/queryKeys";
 import chatsClientRequests from "../authClientRequests";
 import type { UpdateChatRequest } from "../types";
 
@@ -19,10 +20,10 @@ const useUpdateChat = (
 	return useMutation({
 		mutationFn: ({ id, data }: UpdateChatParams) =>
 			chatsClientRequests.updateChat(id, data),
-		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({ queryKey: ["chats"] });
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [CHATS] });
 			queryClient.invalidateQueries({
-				queryKey: ["chatDetails", variables.id],
+				queryKey: [CHAT_DETAILS],
 			});
 		},
 		onError: (error) => {

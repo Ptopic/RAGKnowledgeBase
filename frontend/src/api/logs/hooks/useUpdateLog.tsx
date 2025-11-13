@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LOGS, LOGS_SUMMARY } from "@/shared/queryKeys";
 import logsClientRequests from "../authClientRequests";
 import type { Log, UpdateLogRequest } from "../types";
 
@@ -21,9 +22,11 @@ const useUpdateLog = (
 		mutationFn: ({ id, data }: UpdateLogParams) =>
 			logsClientRequests.updateLog(id, data),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["logs"] });
-			queryClient.invalidateQueries({ queryKey: ["logsSummary"] });
 			toast.success("Log updated successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [LOGS] });
+			queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY] });
 		},
 		onError: (error) => {
 			console.error("Error updating log:", error);

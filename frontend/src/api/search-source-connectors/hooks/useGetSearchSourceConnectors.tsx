@@ -4,6 +4,7 @@ import type {
 	GetSearchSourceConnectorsParams,
 	SearchSourceConnector,
 } from "../types";
+import { SEARCH_SPACE_CONNECTORS } from "@/shared/queryKeys";
 
 const useGetSearchSourceConnectors = (
 	params?: GetSearchSourceConnectorsParams | null,
@@ -15,13 +16,13 @@ const useGetSearchSourceConnectors = (
 			readonly unknown[]
 		>,
 		"queryKey" | "queryFn"
-	>
+	>,
 ) => {
 	return useQuery<SearchSourceConnector[], Error>({
-		queryKey: ["searchSourceConnectors", params?.search_space_id],
+		queryKey: [SEARCH_SPACE_CONNECTORS, params?.search_space_id],
 		queryFn: () =>
 			searchSourceConnectorsClientRequests.getSearchSourceConnectors(
-				params || undefined
+				params || undefined,
 			),
 		...options,
 	});

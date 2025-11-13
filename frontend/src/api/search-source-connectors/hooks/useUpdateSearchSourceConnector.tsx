@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { SEARCH_SPACE_CONNECTORS } from "@/shared/queryKeys";
 import searchSourceConnectorsClientRequests from "../authClientRequests";
 import type {
 	SearchSourceConnector,
@@ -21,16 +22,21 @@ const useUpdateSearchSourceConnector = (
 		Error,
 		UpdateSearchSourceConnectorParams,
 		unknown
-	>
+	>,
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: ({ id, data }: UpdateSearchSourceConnectorParams) =>
-			searchSourceConnectorsClientRequests.updateSearchSourceConnector(id, data),
+			searchSourceConnectorsClientRequests.updateSearchSourceConnector(
+				id,
+				data,
+			),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["searchSourceConnectors"] });
 			toast.success("Connector updated successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [SEARCH_SPACE_CONNECTORS] });
 		},
 		onError: (error) => {
 			console.error("Error updating search source connector:", error);

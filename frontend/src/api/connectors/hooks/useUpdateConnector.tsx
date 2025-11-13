@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CONNECTOR, CONNECTORS } from "@/shared/queryKeys";
 import connectorsClientRequests from "../authClientRequests";
 import type { Connector, UpdateConnectorRequest } from "../types";
 
@@ -25,12 +26,14 @@ const useUpdateConnector = (
 	return useMutation({
 		mutationFn: ({ id, data }: UpdateConnectorParams) =>
 			connectorsClientRequests.updateConnector(id, data),
-		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({ queryKey: ["connectors"] });
-			queryClient.invalidateQueries({
-				queryKey: ["connector", variables.id],
-			});
+		onSuccess: () => {
 			toast.success("Connector updated successfully");
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [CONNECTORS] });
+			queryClient.invalidateQueries({
+				queryKey: [CONNECTOR],
+			});
 		},
 		onError: (error) => {
 			console.error("Error updating connector:", error);
