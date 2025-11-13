@@ -173,7 +173,7 @@ const DashboardPage = () => {
 		avatar: "/icon-128.png", // Default avatar
 	};
 
-	if (loading) return <LoadingScreen />;
+	if (loading || fetching || refetching) return <LoadingScreen />;
 	if (error) return <ErrorScreen message={error.toString()} />;
 
 	const handleDeleteSearchSpace = (id: number) => {
@@ -216,15 +216,7 @@ const DashboardPage = () => {
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{loading || refetching || fetching ? (
-							<motion.div
-								animate={{ rotate: 360 }}
-								transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-							>
-								<Loader2 className="h-12 w-12 text-primary" />
-							</motion.div>
-						) : (
-							searchSpaces &&
+						{searchSpaces &&
 							searchSpaces.length > 0 &&
 							searchSpaces.map((space) => (
 								<motion.div
@@ -330,8 +322,7 @@ const DashboardPage = () => {
 										</div>
 									</Tilt>
 								</motion.div>
-							))
-						)}
+							))}
 
 						{searchSpaces && searchSpaces.length === 0 && (
 							<motion.div
