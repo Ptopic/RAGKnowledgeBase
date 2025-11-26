@@ -1,12 +1,53 @@
 "use client";
 
-import { getAnnotationData, type Message } from "@llamaindex/chat-ui";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export default function TerminalDisplay({ message, open }: { message: Message; open: boolean }) {
-	const [isCollapsed, setIsCollapsed] = useState(!open);
+interface Message {
+	annotations?: any[];
+}
 
+interface TerminalInfo {
+	id: number;
+	text: string;
+	type: string;
+}
+
+function getAnnotationData(message: Message, key: string): any {
+	if (!message.annotations || !Array.isArray(message.annotations)) {
+		return [];
+	}
+
+	const results: any[] = [];
+
+	for (const annotation of message.annotations) {
+		if (annotation && typeof annotation === "object") {
+			// Handle new format: { type: "KEY", data: ... }
+			if (
+				"type" in annotation &&
+				annotation.type === key &&
+				"data" in annotation
+			) {
+				results.push(annotation.data);
+			}
+			// Handle legacy format: { KEY: ... }
+			else if (key in annotation) {
+				return annotation[key];
+			}
+		}
+	}
+
+	return results;
+}
+
+export default function TerminalDisplay({
+	message,
+	open,
+}: {
+	message: Message;
+	open: boolean;
+}) {
+	const [isCollapsed, setIsCollapsed] = useState(!open);
 	const bottomRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -18,26 +59,27 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 		}
 	}, []);
 
-	// Get the last assistant message that's not being typed
 	if (!message) {
 		return null;
 	}
 
-	interface TerminalInfo {
-		id: number;
-		text: string;
-		type: string;
-	}
+	const rawEvents = getAnnotationData(message, "TERMINAL_INFO");
 
-	const events = getAnnotationData(message, "TERMINAL_INFO") as TerminalInfo[];
+	// Flatten array if needed (each annotation.data is a single event)
+	const events: TerminalInfo[] = Array.isArray(rawEvents)
+		? rawEvents
+				.flat()
+				.filter(
+					(e): e is TerminalInfo => e && typeof e === "object" && "text" in e,
+				)
+		: [];
 
 	if (events.length === 0) {
 		return null;
 	}
 
 	return (
-		<div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden font-mono text-sm shadow-lg">
-			{/* Terminal Header */}
+		<div className="bg-gray-900 w-full rounded-lg border border-gray-700 overflow-hidden font-mono text-sm shadow-lg mb-4">
 			<Button
 				className="w-full bg-gray-800 px-4 py-2 flex items-center gap-2 border-b border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
 				onClick={() => setIsCollapsed(!isCollapsed)}
@@ -45,17 +87,22 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 				type="button"
 			>
 				<div className="flex gap-2">
-					<div className="w-3 h-3 rounded-full bg-red-500"></div>
-					<div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-					<div className="w-3 h-3 rounded-full bg-green-500"></div>
+					<div className="w-3 h-3 rounded-full bg-red-500" />
+					<div className="w-3 h-3 rounded-full bg-yellow-500" />
+					<div className="w-3 h-3 rounded-full bg-green-500" />
 				</div>
 				<div className="text-gray-400 text-xs ml-2 flex-1">
 					Agent Process Terminal ({events.length} events)
 				</div>
 				<div className="text-gray-400">
 					{isCollapsed ? (
-						<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<title>Collapse</title>
+						<svg
+							className="w-4 h-4"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<title>Expand</title>
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -64,8 +111,13 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 							/>
 						</svg>
 					) : (
-						<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<title>Expand</title>
+						<svg
+							className="w-4 h-4"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<title>Collapse</title>
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -77,7 +129,6 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 				</div>
 			</Button>
 
-			{/* Terminal Content (animated expand/collapse) */}
 			<div
 				className={`overflow-hidden bg-gray-900 transition-[max-height,opacity] duration-300 ease-in-out ${
 					isCollapsed ? "max-h-0 opacity-0" : "max-h-64 opacity-100"
@@ -96,7 +147,9 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 						</div>
 					))}
 					{events.length === 0 && (
-						<div className="text-gray-500 italic">No agent events to display...</div>
+						<div className="text-gray-500 italic">
+							No agent events to display...
+						</div>
 					)}
 				</div>
 			</div>

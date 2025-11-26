@@ -1,15 +1,30 @@
 "use client";
 
-import { getAnnotationData, type Message } from "@llamaindex/chat-ui";
 import { ExternalLink, FileText } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { SourceDetailSheet } from "./SourceDetailSheet";
+
+interface Message {
+	annotations?: any[];
+}
 
 interface Source {
 	id: string;
@@ -26,7 +41,6 @@ interface SourceGroup {
 	sources: Source[];
 }
 
-// New interfaces for the updated data format
 interface NodeMetadata {
 	title: string;
 	source_type: string;
@@ -40,8 +54,34 @@ interface SourceNode {
 	metadata: NodeMetadata;
 }
 
+function getAnnotationData(message: Message, key: string): any {
+	if (!message.annotations || !Array.isArray(message.annotations)) {
+		return [];
+	}
+
+	const results: any[] = [];
+
+	for (const annotation of message.annotations) {
+		if (annotation && typeof annotation === "object") {
+			// Handle new format: { type: "KEY", data: ... }
+			if (
+				"type" in annotation &&
+				annotation.type === key &&
+				"data" in annotation
+			) {
+				results.push(annotation.data);
+			}
+			// Handle legacy format: { KEY: ... }
+			else if (key in annotation) {
+				return annotation[key];
+			}
+		}
+	}
+
+	return results;
+}
+
 function getSourceIcon(type: string) {
-	// Handle USER_SELECTED_ prefix
 	const normalizedType = type.startsWith("USER_SELECTED_")
 		? type.replace("USER_SELECTED_", "")
 		: type;
@@ -54,7 +94,6 @@ function SourceCard({ source }: { source: Source }) {
 	const sourceType = source.sourceType;
 	const [isOpen, setIsOpen] = useState(false);
 
-	// Clean up the description for better display
 	const cleanDescription = source.description
 		.replace(/## Metadata\n\n/g, "")
 		.replace(/\n+/g, " ")
@@ -84,7 +123,10 @@ function SourceCard({ source }: { source: Source }) {
 								{source.title}
 							</CardTitle>
 							<div className="flex items-center gap-1 flex-shrink-0">
-								<Badge variant="secondary" className="text-[10px] h-5 px-2 font-mono">
+								<Badge
+									variant="secondary"
+									className="text-[10px] h-5 px-2 font-mono"
+								>
 									#{chunkId}
 								</Badge>
 								{hasUrl && (
@@ -115,20 +157,22 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 	const [open, setOpen] = useState(false);
 	const annotations = getAnnotationData(message, "sources");
 
-	// Transform the new data format to the expected SourceGroup format
 	const sourceGroups: SourceGroup[] = [];
 
 	if (Array.isArray(annotations) && annotations.length > 0) {
-		// Extract all nodes from the response
 		const allNodes: SourceNode[] = [];
 
 		annotations.forEach((item) => {
-			if (item && typeof item === "object" && "nodes" in item && Array.isArray(item.nodes)) {
+			if (
+				item &&
+				typeof item === "object" &&
+				"nodes" in item &&
+				Array.isArray(item.nodes)
+			) {
 				allNodes.push(...item.nodes);
 			}
 		});
 
-		// Group nodes by source_type
 		const groupedByType = allNodes.reduce(
 			(acc, node) => {
 				const sourceType = node.metadata.source_type;
@@ -138,15 +182,14 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 				acc[sourceType].push(node);
 				return acc;
 			},
-			{} as Record<string, SourceNode[]>
+			{} as Record<string, SourceNode[]>,
 		);
 
-		// Convert grouped nodes to SourceGroup format
 		Object.entries(groupedByType).forEach(([sourceType, nodes], index) => {
 			if (nodes.length > 0) {
 				const firstNode = nodes[0];
 				sourceGroups.push({
-					id: index + 100, // Generate unique ID
+					id: index + 100,
 					name: firstNode.metadata.group_name,
 					type: sourceType,
 					sources: nodes.map((node) => ({
@@ -165,12 +208,15 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 		return null;
 	}
 
-	const totalSources = sourceGroups.reduce((acc, group) => acc + group.sources.length, 0);
+	const totalSources = sourceGroups.reduce(
+		(acc, group) => acc + group.sources.length,
+		0,
+	);
 
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
-				<Button variant="outline" size="sm" className="w-fit">
+				<Button variant="outline" size="sm" className="w-fit mb-4">
 					<FileText className="h-4 w-4 mr-2" />
 					View Sources ({totalSources})
 				</Button>
@@ -184,7 +230,10 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 						</Badge>
 					</div>
 				</SheetHeader>
-				<Tabs defaultValue={sourceGroups[0]?.type} className="flex-1 flex flex-col min-h-0">
+				<Tabs
+					defaultValue={sourceGroups[0]?.type}
+					className="flex-1 flex flex-col min-h-0"
+				>
 					<div className="flex-shrink-0 w-full overflow-x-auto px-6 pt-4 scrollbar-none">
 						<TabsList className="flex w-max min-w-full bg-muted/50">
 							{sourceGroups.map((group) => (
@@ -197,7 +246,10 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 									<span className="truncate max-w-[120px] md:max-w-[180px] lg:max-w-none">
 										{group.name}
 									</span>
-									<Badge variant="secondary" className="ml-1.5 h-5 text-xs flex-shrink-0">
+									<Badge
+										variant="secondary"
+										className="ml-1.5 h-5 text-xs flex-shrink-0"
+									>
 										{group.sources.length}
 									</Badge>
 								</TabsTrigger>

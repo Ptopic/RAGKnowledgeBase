@@ -87,14 +87,15 @@ Citation.displayName = "Citation";
 
 /**
  * Function to render text with citations
+ * Supports both [citation:123] and [123] formats
  */
 export const renderTextWithCitations = (
 	text: string,
 	getCitationSource: (id: number) => Source | null,
 ) => {
-	// Regular expression to find citation patterns like [1], [2], etc.
-	const citationRegex = /\[(\d+)\]/g;
-	const parts = [];
+	// Regular expression to find citation patterns like [citation:123] or [123]
+	const citationRegex = /\[(?:citation:)?(\d+)\]/g;
+	const parts: (string | JSX.Element)[] = [];
 	let lastIndex = 0;
 	let match: RegExpExecArray | null = citationRegex.exec(text);
 	let position = 0;

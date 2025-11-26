@@ -1,6 +1,5 @@
 "use client";
 
-import { ChatInput } from "@llamaindex/chat-ui";
 import { Brain, Check, FolderOpen, Zap } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useState } from "react";
@@ -46,14 +45,17 @@ const DocumentSelector = React.memo(
 			(documents: Document[]) => {
 				onSelectionChange?.(documents);
 			},
-			[onSelectionChange]
+			[onSelectionChange],
 		);
 
 		const handleDone = useCallback(() => {
 			setIsOpen(false);
 		}, []);
 
-		const selectedCount = React.useMemo(() => selectedDocuments.length, [selectedDocuments.length]);
+		const selectedCount = React.useMemo(
+			() => selectedDocuments.length,
+			[selectedDocuments.length],
+		);
 
 		return (
 			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -68,7 +70,10 @@ const DocumentSelector = React.memo(
 							{selectedCount > 0 ? `Selected` : "Documents"}
 						</span>
 						{selectedCount > 0 && (
-							<Badge variant="secondary" className="h-5 px-1.5 text-xs font-medium">
+							<Badge
+								variant="secondary"
+								className="h-5 px-1.5 text-xs font-medium"
+							>
 								{selectedCount}
 							</Badge>
 						)}
@@ -98,10 +103,12 @@ const DocumentSelector = React.memo(
 				</DialogContent>
 			</Dialog>
 		);
-	}
+	},
 );
 
 DocumentSelector.displayName = "DocumentSelector";
+
+export { DocumentSelector };
 
 const ConnectorSelector = React.memo(
 	({
@@ -117,15 +124,12 @@ const ConnectorSelector = React.memo(
 		// Don't use lazy loading - fetch document types on mount to populate the modal
 		const { documentTypes, isLoading } = useDocumentTypes(
 			Number(search_space_id),
-			false  // Changed from true to false - always fetch document types
+			false, // Changed from true to false - always fetch document types
 		);
 
-		const handleOpenChange = useCallback(
-			(open: boolean) => {
-				setIsOpen(open);
-			},
-			[]
-		);
+		const handleOpenChange = useCallback((open: boolean) => {
+			setIsOpen(open);
+		}, []);
 
 		const handleConnectorToggle = useCallback(
 			(connectorType: string) => {
@@ -135,7 +139,7 @@ const ConnectorSelector = React.memo(
 					: [...selectedConnectors, connectorType];
 				onSelectionChange?.(newSelection);
 			},
-			[selectedConnectors, onSelectionChange]
+			[selectedConnectors, onSelectionChange],
 		);
 
 		const handleSelectAll = useCallback(() => {
@@ -155,7 +159,9 @@ const ConnectorSelector = React.memo(
 		};
 
 		// Get selected document types with their counts
-		const selectedDocTypes = documentTypes.filter((dt) => selectedConnectors.includes(dt.type));
+		const selectedDocTypes = documentTypes.filter((dt) =>
+			selectedConnectors.includes(dt.type),
+		);
 
 		return (
 			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -179,7 +185,8 @@ const ConnectorSelector = React.memo(
 										))}
 									</div>
 									<span className="text-xs font-medium">
-										{selectedDocTypes.length} {selectedDocTypes.length === 1 ? "source" : "sources"}
+										{selectedDocTypes.length}{" "}
+										{selectedDocTypes.length === 1 ? "source" : "sources"}
 									</span>
 								</>
 							) : (
@@ -195,7 +202,9 @@ const ConnectorSelector = React.memo(
 				<DialogContent className="sm:max-w-2xl">
 					<div className="space-y-4">
 						<div>
-							<DialogTitle className="text-xl">Select Document Types</DialogTitle>
+							<DialogTitle className="text-xl">
+								Select Document Types
+							</DialogTitle>
 							<DialogDescription className="mt-1.5">
 								Choose which document types to include in your search
 							</DialogDescription>
@@ -212,9 +221,12 @@ const ConnectorSelector = React.memo(
 									<div className="rounded-full bg-muted p-4 mb-4">
 										<Brain className="h-8 w-8 text-muted-foreground" />
 									</div>
-									<h4 className="text-sm font-medium mb-1">No documents found</h4>
+									<h4 className="text-sm font-medium mb-1">
+										No documents found
+									</h4>
 									<p className="text-xs text-muted-foreground max-w-xs">
-										Add documents to this search space to enable filtering by type
+										Add documents to this search space to enable filtering by
+										type
 									</p>
 								</div>
 							) : (
@@ -234,12 +246,14 @@ const ConnectorSelector = React.memo(
 										>
 											<div
 												className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
-													isSelected ? "bg-primary/10" : "bg-muted group-hover:bg-primary/5"
+													isSelected
+														? "bg-primary/10"
+														: "bg-muted group-hover:bg-primary/5"
 												}`}
 											>
 												{getConnectorIcon(
 													docType.type,
-													`h-5 w-5 ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`
+													`h-5 w-5 ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`,
 												)}
 											</div>
 											<div className="flex-1 text-left min-w-0">
@@ -254,7 +268,8 @@ const ConnectorSelector = React.memo(
 													)}
 												</div>
 												<p className="text-xs text-muted-foreground mt-0.5">
-													{docType.count} {docType.count === 1 ? "document" : "documents"}
+													{docType.count}{" "}
+													{docType.count === 1 ? "document" : "documents"}
 												</p>
 											</div>
 										</button>
@@ -288,10 +303,12 @@ const ConnectorSelector = React.memo(
 				</DialogContent>
 			</Dialog>
 		);
-	}
+	},
 );
 
 ConnectorSelector.displayName = "ConnectorSelector";
+
+export { ConnectorSelector };
 
 const SearchModeSelector = React.memo(
 	({
@@ -340,16 +357,22 @@ const SearchModeSelector = React.memo(
 				</div>
 			</div>
 		);
-	}
+	},
 );
 
 SearchModeSelector.displayName = "SearchModeSelector";
+
+export { SearchModeSelector };
 
 const LLMSelector = React.memo(() => {
 	const { search_space_id } = useParams();
 	const searchSpaceId = Number(search_space_id);
 
-	const { llmConfigs, loading: llmLoading, error } = useLLMConfigs(searchSpaceId);
+	const {
+		llmConfigs,
+		loading: llmLoading,
+		error,
+	} = useLLMConfigs(searchSpaceId);
 	const {
 		preferences,
 		updatePreferences,
@@ -361,7 +384,9 @@ const LLMSelector = React.memo(() => {
 	// Memoize the selected config to avoid repeated lookups
 	const selectedConfig = React.useMemo(() => {
 		if (!preferences.fast_llm_id || !llmConfigs.length) return null;
-		return llmConfigs.find((config) => config.id === preferences.fast_llm_id) || null;
+		return (
+			llmConfigs.find((config) => config.id === preferences.fast_llm_id) || null
+		);
 	}, [preferences.fast_llm_id, llmConfigs]);
 
 	// Memoize the display value for the trigger
@@ -383,7 +408,7 @@ const LLMSelector = React.memo(() => {
 			const llmId = value ? parseInt(value, 10) : undefined;
 			updatePreferences({ fast_llm_id: llmId });
 		},
-		[updatePreferences]
+		[updatePreferences],
 	);
 
 	// Loading skeleton
@@ -425,7 +450,9 @@ const LLMSelector = React.memo(() => {
 					<div className="flex items-center gap-2 min-w-0">
 						<Zap className="h-3 w-3 text-primary flex-shrink-0" />
 						<SelectValue placeholder="Fast LLM" className="text-xs">
-							{displayValue || <span className="text-muted-foreground">Select LLM</span>}
+							{displayValue || (
+								<span className="text-muted-foreground">Select LLM</span>
+							)}
 						</SelectValue>
 					</div>
 				</SelectTrigger>
@@ -443,7 +470,9 @@ const LLMSelector = React.memo(() => {
 							<div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
 								<Brain className="h-5 w-5 text-muted-foreground" />
 							</div>
-							<h4 className="text-sm font-medium mb-1">No LLM configurations</h4>
+							<h4 className="text-sm font-medium mb-1">
+								No LLM configurations
+							</h4>
 							<p className="text-xs text-muted-foreground mb-3">
 								Configure AI models to get started
 							</p>
@@ -471,8 +500,13 @@ const LLMSelector = React.memo(() => {
 											</div>
 											<div className="min-w-0 flex-1">
 												<div className="flex items-center gap-2 mb-1">
-													<span className="font-medium text-sm truncate">{config.name}</span>
-													<Badge variant="outline" className="text-xs px-1.5 py-0.5 flex-shrink-0">
+													<span className="font-medium text-sm truncate">
+														{config.name}
+													</span>
+													<Badge
+														variant="outline"
+														className="text-xs px-1.5 py-0.5 flex-shrink-0"
+													>
 														{config.provider}
 													</Badge>
 												</div>
@@ -481,7 +515,6 @@ const LLMSelector = React.memo(() => {
 												</p>
 											</div>
 										</div>
-										
 									</div>
 								</SelectItem>
 							))}
@@ -494,6 +527,8 @@ const LLMSelector = React.memo(() => {
 });
 
 LLMSelector.displayName = "LLMSelector";
+
+export { LLMSelector };
 
 const CustomChatInputOptions = React.memo(
 	({
@@ -514,7 +549,7 @@ const CustomChatInputOptions = React.memo(
 		// Memoize the loading fallback to prevent recreation
 		const loadingFallback = React.useMemo(
 			() => <div className="h-9 w-24 animate-pulse bg-muted/50 rounded-md" />,
-			[]
+			[],
 		);
 
 		return (
@@ -534,12 +569,15 @@ const CustomChatInputOptions = React.memo(
 					</Suspense>
 				</div>
 				<div className="h-4 w-px bg-border hidden sm:block" />
-				<SearchModeSelector searchMode={searchMode} onSearchModeChange={onSearchModeChange} />
+				<SearchModeSelector
+					searchMode={searchMode}
+					onSearchModeChange={onSearchModeChange}
+				/>
 				<div className="h-4 w-px bg-border hidden sm:block" />
 				<LLMSelector />
 			</div>
 		);
-	}
+	},
 );
 
 CustomChatInputOptions.displayName = "CustomChatInputOptions";
@@ -561,22 +599,16 @@ export const ChatInputUI = React.memo(
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	}) => {
 		return (
-			<ChatInput>
-				<ChatInput.Form className="flex gap-2">
-					<ChatInput.Field className="flex-1" />
-					<ChatInput.Submit />
-				</ChatInput.Form>
-				<CustomChatInputOptions
-					onDocumentSelectionChange={onDocumentSelectionChange}
-					selectedDocuments={selectedDocuments}
-					onConnectorSelectionChange={onConnectorSelectionChange}
-					selectedConnectors={selectedConnectors}
-					searchMode={searchMode}
-					onSearchModeChange={onSearchModeChange}
-				/>
-			</ChatInput>
+			<CustomChatInputOptions
+				onDocumentSelectionChange={onDocumentSelectionChange}
+				selectedDocuments={selectedDocuments}
+				onConnectorSelectionChange={onConnectorSelectionChange}
+				selectedConnectors={selectedConnectors}
+				searchMode={searchMode}
+				onSearchModeChange={onSearchModeChange}
+			/>
 		);
-	}
+	},
 );
 
 ChatInputUI.displayName = "ChatInputUI";
