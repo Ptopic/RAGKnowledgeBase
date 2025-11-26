@@ -125,7 +125,7 @@ export class RerankerService {
 		}
 
 		try {
-			const model = this.config.model || "jina-reranker-v1-base-en";
+			const model = this.config.model || "jina-reranker-v2-multilingual";
 			const apiBase = this.config.apiBase || "https://api.jina.ai/v1";
 
 			// Prepare documents for Jina
