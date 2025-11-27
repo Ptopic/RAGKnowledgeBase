@@ -12,16 +12,10 @@ export class AuthService {
 		private jwtService: JwtService,
 	) {}
 
-	/**
-	 * Lifecycle hook: Called after user registration
-	 */
 	private async onAfterRegister(userId: string): Promise<void> {
 		this.logger.log(`User ${userId} has registered.`);
 	}
 
-	/**
-	 * Verify Google OAuth token and create/link user account
-	 */
 	async verifyGoogleToken(accessToken: string) {
 		try {
 			const tokenInfoResponse = await axios.get(
@@ -73,7 +67,8 @@ export class AuthService {
 				userId = existingUser.id;
 
 				const existingOAuthAccount = existingUser.oauthAccounts.find(
-					(account) => account.oauthName === "google" && account.accountId === sub,
+					(account) =>
+						account.oauthName === "google" && account.accountId === sub,
 				);
 
 				if (!existingOAuthAccount) {
@@ -134,9 +129,6 @@ export class AuthService {
 		return user;
 	}
 
-	/**
-	 * Update user's page usage (for ETL tracking)
-	 */
 	async incrementPagesUsed(userId: string, pagesUsed: number): Promise<void> {
 		await this.prisma.user.update({
 			where: { id: userId },
@@ -148,9 +140,6 @@ export class AuthService {
 		});
 	}
 
-	/**
-	 * Check if user has exceeded their page limit
-	 */
 	async hasExceededPageLimit(userId: string): Promise<boolean> {
 		const user = await this.prisma.user.findUnique({
 			where: { id: userId },
@@ -163,48 +152,4 @@ export class AuthService {
 
 		return user.pagesUsed >= user.pagesLimit;
 	}
-
-	// async register(payload: AuthPayloadDto) {
-	// 	const newUser = await this.prisma.user.create({
-	// 		data: {
-	// 			email: payload.email,
-	// 			password: await bcrypt.hash(payload.password, 10),
-	// 		},
-	// 	});
-
-	// 	const token = await this.jwtService.signAsync({
-	// 		sub: newUser.id,
-	// 		email: newUser.email,
-	// 	});
-
-	// 	return { token };
-	// }
-
-	// async login(payload: AuthPayloadDto) {
-	// 	const user = await this.prisma.user.findUnique({
-	// 		where: {
-	// 			email: payload.email,
-	// 		},
-	// 	});
-
-	// 	if (!user) {
-	// 		throw new ForbiddenException('Access denied');
-	// 	}
-
-	// 	const passwordMatches = await bcrypt.compare(
-	// 		payload.password,
-	// 		user.password
-	// 	);
-
-	// 	if (!passwordMatches) {
-	// 		throw new ForbiddenException('Access denied');
-	// 	}
-
-	// 	const token = await this.jwtService.signAsync({
-	// 		sub: user.id,
-	// 		email: user.email,
-	// 	});
-
-	// 	return { token };
-	// }
 }
