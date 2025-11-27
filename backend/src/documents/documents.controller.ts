@@ -19,14 +19,14 @@ import * as fs from "fs";
 import { diskStorage } from "multer";
 import * as path from "path";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { DocumentsService } from "./documents.service";
 import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
-} from "../dtos/document.dto";
-import { DocumentsService } from "./documents.service";
+} from "./dtos/document.dto";
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -36,10 +36,10 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Configure Multer storage
 const storage = diskStorage({
-	destination: (req, file, cb) => {
+	destination: (_req, _file, cb) => {
 		cb(null, uploadsDir);
 	},
-	filename: (req, file, cb) => {
+	filename: (_req, file, cb) => {
 		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 		const ext = path.extname(file.originalname);
 		const name = path.basename(file.originalname, ext);

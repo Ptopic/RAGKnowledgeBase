@@ -59,7 +59,9 @@ export class AgentController {
 		try {
 			// Process the BrightData webhook response with context from query params
 			await this.agentService.processBrightDataWebhook(body, {
-				searchSpaceId: searchSpaceId ? Number.parseInt(searchSpaceId, 10) : null,
+				searchSpaceId: searchSpaceId
+					? Number.parseInt(searchSpaceId, 10)
+					: null,
 				userId,
 				videoUrl,
 			});

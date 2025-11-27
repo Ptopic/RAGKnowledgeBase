@@ -6,13 +6,13 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { SearchSourceConnectorType } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { QueueService } from "../queue/queue.service";
 import {
 	CreateSearchSourceConnectorDto,
 	SearchSourceConnectorDto,
 	UpdateSearchSourceConnectorDto,
-} from "../dtos/search-source-connector.dto";
-import { PrismaService } from "../prisma/prisma.service";
-import { QueueService } from "../queue/queue.service";
+} from "./dtos/search-source-connector.dto";
 
 @Injectable()
 export class SearchSourceConnectorsService {

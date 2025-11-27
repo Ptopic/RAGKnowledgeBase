@@ -4,13 +4,13 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 import {
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
 	UpdateChatDto,
-} from "../dtos/chat.dto";
-import { PrismaService } from "../prisma/prisma.service";
+} from "./dtos/chat.dto";
 
 @Injectable()
 export class ChatsService {

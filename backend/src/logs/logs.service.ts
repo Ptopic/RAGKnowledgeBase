@@ -4,8 +4,8 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { LogLevel, LogStatus } from "@prisma/client";
-import { CreateLogDto, LogDto, UpdateLogDto } from "../dtos/log.dto";
 import { PrismaService } from "../prisma/prisma.service";
+import { CreateLogDto, LogDto, UpdateLogDto } from "./dtos/log.dto";
 
 @Injectable()
 export class LogsService {

@@ -6,15 +6,15 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { DocumentType } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { QueueService } from "../queue/queue.service";
 import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
-} from "../dtos/document.dto";
-import { PrismaService } from "../prisma/prisma.service";
-import { QueueService } from "../queue/queue.service";
+} from "./dtos/document.dto";
 
 @Injectable()
 export class DocumentsService {

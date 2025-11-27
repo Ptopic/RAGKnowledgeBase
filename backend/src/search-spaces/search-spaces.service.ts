@@ -3,12 +3,12 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 import {
 	CreateSearchSpaceDto,
 	SearchSpaceDto,
 	UpdateSearchSpaceDto,
-} from "../dtos/search-space.dto";
-import { PrismaService } from "../prisma/prisma.service";
+} from "./dtos/search-space.dto";
 
 @Injectable()
 export class SearchSpacesService {

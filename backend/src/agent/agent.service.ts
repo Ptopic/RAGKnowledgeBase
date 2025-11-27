@@ -6,7 +6,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { ChatDto } from "./dtos/chat.dto";
 import { ResearcherDto } from "./dtos/researcher.dto";
-import { agentSystemPrompt, agentUserPrompt, userPrompt } from "./prompts";
+import { agentUserPrompt, userPrompt } from "./prompts";
 import { ConnectorService } from "./services/connector.service";
 import { LLMService } from "./services/llm.service";
 import { PromptsService } from "./services/prompts.service";
@@ -204,7 +204,11 @@ export class AgentService {
 						{
 							messages: [{ role: "user", content: enhancedPrompt }],
 						},
-						{ configurable: { thread_id: `researcher_${user_id}_${Date.now()}` } },
+						{
+							configurable: {
+								thread_id: `researcher_${user_id}_${Date.now()}`,
+							},
+						},
 					);
 
 					subscriber.complete();

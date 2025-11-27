@@ -10,7 +10,7 @@ import {
 	LLMPreferencesDto,
 	LLMPreferencesUpdateDto,
 	UpdateLLMConfigDto,
-} from "../dtos/llm-config.dto";
+} from "./dtos/llm-config.dto";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
@@ -252,7 +252,7 @@ export class LLMConfigsService {
 
 			const languages = new Set<string>();
 
-			for (const [key, llmConfigId] of Object.entries(preferencesDto)) {
+			for (const [, llmConfigId] of Object.entries(preferencesDto)) {
 				if (llmConfigId !== null && llmConfigId !== undefined) {
 					const llmConfig = await this.prisma.lLMConfig.findFirst({
 						where: { id: llmConfigId, searchSpaceId },

@@ -15,15 +15,15 @@ import {
 } from "@nestjs/common";
 import { Response } from "express";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { StreamConnectorSearchResultsService } from "../tasks/stream-connector-search-results.service";
+import { ChatsService } from "./chats.service";
 import {
 	AISDKChatRequestDto,
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
 	UpdateChatDto,
-} from "../dtos/chat.dto";
-import { StreamConnectorSearchResultsService } from "../tasks/stream-connector-search-results.service";
-import { ChatsService } from "./chats.service";
+} from "./dtos/chat.dto";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
