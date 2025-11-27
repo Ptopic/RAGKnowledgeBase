@@ -19,7 +19,7 @@ interface TokenHandlerProps {
 const TokenHandler = ({
 	redirectPath = "/",
 	tokenParamName = "token",
-	storageKey = "surfsense_bearer_token",
+	storageKey = "app_bearer_token",
 }: TokenHandlerProps) => {
 	const router = useRouter();
 	const searchParams = useSearchParams();

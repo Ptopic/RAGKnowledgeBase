@@ -6,8 +6,19 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useApiKey } from "@/hooks/use-api-key";
 
 const fadeIn = {
@@ -39,7 +50,7 @@ const ApiKeyClient = () => {
 				<motion.div className="mb-8 text-center" variants={fadeIn}>
 					<h1 className="text-3xl font-bold tracking-tight">API Key</h1>
 					<p className="text-muted-foreground mt-2">
-						Your API key for authenticating with the SurfSense API.
+						Your API key for authenticating with the app.
 					</p>
 				</motion.div>
 
@@ -48,8 +59,8 @@ const ApiKeyClient = () => {
 						<IconKey className="h-4 w-4" />
 						<AlertTitle>Important</AlertTitle>
 						<AlertDescription>
-							Your API key grants full access to your account. Never share it publicly or with
-							unauthorized users.
+							Your API key grants full access to your account. Never share it
+							publicly or with unauthorized users.
 						</AlertDescription>
 					</Alert>
 				</motion.div>
@@ -58,7 +69,9 @@ const ApiKeyClient = () => {
 					<Card>
 						<CardHeader className="text-center">
 							<CardTitle>Your API Key</CardTitle>
-							<CardDescription>Use this key to authenticate your API requests.</CardDescription>
+							<CardDescription>
+								Use this key to authenticate your API requests.
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<AnimatePresence mode="wait">
@@ -139,7 +152,9 @@ const ApiKeyClient = () => {
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.3 }}
 				>
-					<h2 className="text-xl font-semibold mb-4 text-center">How to use your API key</h2>
+					<h2 className="text-xl font-semibold mb-4 text-center">
+						How to use your API key
+					</h2>
 					<Card>
 						<CardContent className="pt-6">
 							<motion.div
@@ -149,9 +164,12 @@ const ApiKeyClient = () => {
 								variants={staggerContainer}
 							>
 								<motion.div variants={fadeIn}>
-									<h3 className="font-medium mb-2 text-center">Authentication</h3>
+									<h3 className="font-medium mb-2 text-center">
+										Authentication
+									</h3>
 									<p className="text-sm text-muted-foreground text-center">
-										Include your API key in the Authorization header of your requests:
+										Include your API key in the Authorization header of your
+										requests:
 									</p>
 									<motion.pre
 										className="bg-muted p-3 rounded-md mt-2 overflow-x-auto"

@@ -94,7 +94,7 @@ export default function GoogleGmailConnectorPage() {
 							<CardTitle>Connect Your Gmail Account</CardTitle>
 							<CardDescription>
 								Securely connect your Gmail account to enable email search
-								within SurfSense. We'll only access your emails with read-only
+								within the app. We'll only access your emails with read-only
 								permissions.
 							</CardDescription>
 						</CardHeader>

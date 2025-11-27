@@ -4,7 +4,6 @@ import { useInView } from "motion/react";
 import { Manrope } from "next/font/google";
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import { RoughNotation, RoughNotationGroup } from "react-rough-notation";
-import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 // Font configuration - could be moved to a global font config file
@@ -50,7 +49,10 @@ type HighlightAction =
 	| { type: "SHOW_HIGHLIGHT" }
 	| { type: "HIDE_HIGHLIGHT" };
 
-const highlightReducer = (state: HighlightState, action: HighlightAction): HighlightState => {
+const highlightReducer = (
+	state: HighlightState,
+	action: HighlightAction,
+): HighlightState => {
 	switch (action.type) {
 		case "SIDEBAR_CHANGED":
 			return {
@@ -87,7 +89,7 @@ export function AnimatedEmptyState() {
 	const isInView = useInView(ref);
 	const [{ shouldShowHighlight, layoutStable }, dispatch] = useReducer(
 		highlightReducer,
-		initialState
+		initialState,
 	);
 
 	// Memoize class names to prevent unnecessary recalculations
@@ -95,14 +97,15 @@ export function AnimatedEmptyState() {
 		() =>
 			cn(
 				"text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 mb-6",
-				manrope.className
+				manrope.className,
 			),
-		[]
+		[],
 	);
 
 	const paragraphClassName = useMemo(
-		() => "text-lg sm:text-xl text-neutral-600 dark:text-neutral-300 mb-8 max-w-2xl mx-auto",
-		[]
+		() =>
+			"text-lg sm:text-xl text-neutral-600 dark:text-neutral-300 mb-8 max-w-2xl mx-auto",
+		[],
 	);
 
 	// Handle sidebar state changes
@@ -131,17 +134,22 @@ export function AnimatedEmptyState() {
 	}, [layoutStable, isInView]);
 
 	return (
-		<div ref={ref} className="flex-1 flex items-center justify-center w-full min-h-[400px]">
+		<div
+			ref={ref}
+			className="flex-1 flex items-center justify-center w-full min-h-[400px]"
+		>
 			<div className="max-w-4xl mx-auto px-4 py-10 text-center">
 				<RoughNotationGroup show={shouldShowHighlight}>
 					<h1 className={headingClassName}>
 						<RoughNotation {...ANIMATION_CONFIG.HIGHLIGHT}>
-							<span>SurfSense</span>
+							<span>Knowledge Base</span>
 						</RoughNotation>
 					</h1>
 
 					<p className={paragraphClassName}>
-						<RoughNotation {...ANIMATION_CONFIG.UNDERLINE}>Let's Start Surfing</RoughNotation>{" "}
+						<RoughNotation {...ANIMATION_CONFIG.UNDERLINE}>
+							Let's Start Searching
+						</RoughNotation>{" "}
 						through your knowledge base.
 					</p>
 				</RoughNotationGroup>

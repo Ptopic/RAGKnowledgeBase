@@ -1,5 +1,5 @@
 export const siteConfig = {
-   websiteTitle: 'Youtube AI',
-   websiteDescription: 'Youtube AI',
-   ogImage: '/og.jpeg',
+	websiteTitle: "Knowledge Base",
+	websiteDescription: "Knowledge Base",
+	ogImage: "/og.jpeg",
 };

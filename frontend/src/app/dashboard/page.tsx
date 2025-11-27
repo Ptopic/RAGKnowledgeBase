@@ -192,7 +192,7 @@ const DashboardPage = () => {
 					<div className="flex flex-row space-x-4">
 						<Logo className="w-10 h-10 rounded-md" />
 						<div className="flex flex-col space-y-2">
-							<h1 className="text-4xl font-bold">{"Surfsense Dashboard"}</h1>
+							<h1 className="text-4xl font-bold">{"Dashboard"}</h1>
 							<p className="text-muted-foreground">{"Welcome message"}</p>
 						</div>
 					</div>

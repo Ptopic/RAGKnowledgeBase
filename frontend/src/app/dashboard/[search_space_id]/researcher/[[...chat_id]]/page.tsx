@@ -56,7 +56,7 @@ export default function ResearcherPage() {
 
 	const getChatStateStorageKey = useCallback(
 		(searchSpaceId: string, chatId: string) =>
-			`surfsense_chat_state_${searchSpaceId}_${chatId}`,
+			`app_chat_state_${searchSpaceId}_${chatId}`,
 		[],
 	);
 

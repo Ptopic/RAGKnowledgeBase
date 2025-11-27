@@ -85,7 +85,7 @@ enum LogStatus {
 
 // ==================== Models ====================
 
-// User Model (with fastapi-users fields)
+// User Model
 model User {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now()) @map("created_at")
