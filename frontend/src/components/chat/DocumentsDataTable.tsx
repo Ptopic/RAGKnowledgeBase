@@ -13,11 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -34,11 +30,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import {
-	type Document,
-	type DocumentType,
-	useDocuments,
-} from "@/hooks/use-documents";
+import { type Document, type DocumentType, useDocuments } from "@/hooks/use-documents";
 
 interface DocumentsDataTableProps {
 	searchSpaceId: number;
@@ -62,8 +54,7 @@ const columns: ColumnDef<Document>[] = [
 		header: ({ table }) => (
 			<Checkbox
 				checked={
-					table.getIsAllPageRowsSelected() ||
-					(table.getIsSomePageRowsSelected() && "indeterminate")
+					table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")
 				}
 				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
 				aria-label="Select all"
@@ -133,9 +124,7 @@ const columns: ColumnDef<Document>[] = [
 					title={content}
 				>
 					<span className="sm:hidden">{content.substring(0, 30)}...</span>
-					<span className="hidden sm:inline">
-						{content.substring(0, 100)}...
-					</span>
+					<span className="hidden sm:inline">{content.substring(0, 100)}...</span>
 				</div>
 			);
 		},
@@ -197,17 +186,11 @@ export function DocumentsDataTable({
 	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
 
 	// Use server-side pagination, search, and filtering
-	const {
-		documents,
-		total,
-		loading,
-		fetchDocuments,
-		searchDocuments,
-		getDocumentTypeCounts,
-	} = useDocuments(searchSpaceId, {
-		page: pageIndex,
-		pageSize: pageSize,
-	});
+	const { documents, total, loading, fetchDocuments, searchDocuments, getDocumentTypeCounts } =
+		useDocuments(searchSpaceId, {
+			page: pageIndex,
+			pageSize: pageSize,
+		});
 
 	// Fetch document type counts on mount
 	useEffect(() => {
@@ -224,13 +207,13 @@ export function DocumentsDataTable({
 					debouncedSearch,
 					pageIndex,
 					pageSize,
-					documentTypeFilter.length > 0 ? documentTypeFilter : undefined,
+					documentTypeFilter.length > 0 ? documentTypeFilter : undefined
 				);
 			} else {
 				fetchDocuments?.(
 					pageIndex,
 					pageSize,
-					documentTypeFilter.length > 0 ? documentTypeFilter : undefined,
+					documentTypeFilter.length > 0 ? documentTypeFilter : undefined
 				);
 			}
 		}
@@ -256,13 +239,11 @@ export function DocumentsDataTable({
 	}, [initialSelectedDocuments]);
 
 	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>(
-		() => initialRowSelection,
+		() => initialRowSelection
 	);
 
 	// Maintain a separate state for actually selected documents (across all pages)
-	const [selectedDocumentsMap, setSelectedDocumentsMap] = useState<
-		Map<number, Document>
-	>(() => {
+	const [selectedDocumentsMap, setSelectedDocumentsMap] = useState<Map<number, Document>>(() => {
 		const map = new Map<number, Document>();
 		initialSelectedDocuments.forEach((doc) => map.set(doc.id, doc));
 		return map;
@@ -411,27 +392,21 @@ export function DocumentsDataTable({
 						</PopoverTrigger>
 						<PopoverContent className="w-64 p-3" align="start">
 							<div className="space-y-3">
-								<div className="text-xs font-medium text-muted-foreground">
-									Filter by Type
-								</div>
+								<div className="text-xs font-medium text-muted-foreground">Filter by Type</div>
 								<div className="space-y-2 max-h-[300px] overflow-y-auto">
 									{availableTypes.map((type) => (
 										<div key={type} className="flex items-center gap-2">
 											<Checkbox
 												id={`type-${type}`}
 												checked={documentTypeFilter.includes(type)}
-												onCheckedChange={(checked) =>
-													handleToggleType(type, !!checked)
-												}
+												onCheckedChange={(checked) => handleToggleType(type, !!checked)}
 											/>
 											<Label
 												htmlFor={`type-${type}`}
 												className="flex grow justify-between gap-2 font-normal text-sm cursor-pointer"
 											>
 												<span>{type.replace(/_/g, " ")}</span>
-												<span className="text-xs text-muted-foreground">
-													{typeCounts[type]}
-												</span>
+												<span className="text-xs text-muted-foreground">{typeCounts[type]}</span>
 											</Label>
 										</div>
 									))}
@@ -517,9 +492,7 @@ export function DocumentsDataTable({
 						<div className="flex items-center justify-center h-full">
 							<div className="text-center space-y-2">
 								<div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-								<p className="text-sm text-muted-foreground">
-									Loading documents...
-								</p>
+								<p className="text-sm text-muted-foreground">Loading documents...</p>
 							</div>
 						</div>
 					) : (
@@ -528,16 +501,10 @@ export function DocumentsDataTable({
 								{table.getHeaderGroups().map((headerGroup) => (
 									<TableRow key={headerGroup.id} className="border-b">
 										{headerGroup.headers.map((header) => (
-											<TableHead
-												key={header.id}
-												className="h-12 text-xs sm:text-sm"
-											>
+											<TableHead key={header.id} className="h-12 text-xs sm:text-sm">
 												{header.isPlaceholder
 													? null
-													: flexRender(
-															header.column.columnDef.header,
-															header.getContext(),
-														)}
+													: flexRender(header.column.columnDef.header, header.getContext())}
 											</TableHead>
 										))}
 									</TableRow>
@@ -552,14 +519,8 @@ export function DocumentsDataTable({
 											className="hover:bg-muted/30"
 										>
 											{row.getVisibleCells().map((cell) => (
-												<TableCell
-													key={cell.id}
-													className="py-3 text-xs sm:text-sm"
-												>
-													{flexRender(
-														cell.column.columnDef.cell,
-														cell.getContext(),
-													)}
+												<TableCell key={cell.id} className="py-3 text-xs sm:text-sm">
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
 												</TableCell>
 											))}
 										</TableRow>
@@ -583,8 +544,8 @@ export function DocumentsDataTable({
 			{/* Footer Pagination */}
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs sm:text-sm text-muted-foreground border-t pt-3 md:pt-4 flex-shrink-0">
 				<div className="text-center sm:text-left">
-					Showing {pageIndex * pageSize + 1} to{" "}
-					{Math.min((pageIndex + 1) * pageSize, total)} of {total} documents
+					Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, total)} of{" "}
+					{total} documents
 				</div>
 				<div className="flex items-center justify-center sm:justify-end space-x-2">
 					<Button

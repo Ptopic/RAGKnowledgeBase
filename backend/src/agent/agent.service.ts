@@ -4,15 +4,11 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
 import { Observable } from "rxjs";
+import { YoutubeProcessorService } from "../tasks/document-processors";
 import { ChatDto } from "./dtos/chat.dto";
 import { ResearcherDto } from "./dtos/researcher.dto";
-import { agentUserPrompt, userPrompt } from "./prompts";
-import { ConnectorService } from "./services/connector.service";
-import { LLMService } from "./services/llm.service";
-import { PromptsService } from "./services/prompts.service";
-import { QNAService } from "./services/qna.service";
-import { RerankerService } from "./services/reranker.service";
-import { createAgentTools } from "./tools";
+import { userPrompt } from "./prompts";
+import { ResearcherService } from "./researcher.service";
 
 @Injectable()
 export class AgentService {
@@ -26,41 +22,16 @@ export class AgentService {
 
 	private readonly promptTemplate = PromptTemplate.fromTemplate(userPrompt);
 
-	// Tools will be created with service dependencies
-	private readonly tools: ReturnType<typeof createAgentTools>;
-
-	// Agent will be initialized after tools are created
-	private readonly agent;
+	private readonly agent = createReactAgent({
+		llm: this.llm,
+		tools: [],
+		checkpointSaver: this.memorySaver,
+	});
 
 	constructor(
-		private readonly connectorService: ConnectorService,
-		private readonly llmService: LLMService,
-		private readonly promptsService: PromptsService,
-		private readonly qnaService: QNAService,
-		private readonly rerankerService: RerankerService,
-	) {
-		// Create tools with service dependencies
-		this.tools = createAgentTools(
-			this.connectorService,
-			this.llmService,
-			this.promptsService,
-			this.qnaService,
-			this.rerankerService,
-		);
-
-		// Create agent with tools
-		this.agent = createReactAgent({
-			llm: this.llm,
-			tools: [
-				this.tools.searchConnectorsTool,
-				this.tools.reformulateQueryTool,
-				this.tools.rerankDocumentsTool,
-				this.tools.generateAnswerTool,
-				this.tools.generateFollowUpQuestionsTool,
-			],
-			checkpointSaver: this.memorySaver,
-		});
-	}
+		private readonly researcherService: ResearcherService,
+		private readonly youtubeProcessorService: YoutubeProcessorService,
+	) {}
 
 	async chat(chatDto: ChatDto) {
 		const { message, thread_id } = chatDto;
@@ -139,88 +110,10 @@ export class AgentService {
 	}
 
 	/**
-	 * Researcher agent - uses LangChain ReAct agent with tools
+	 * Researcher agent - delegates to ResearcherService
 	 */
 	streamResearcher(researcherDto: ResearcherDto): Observable<string> {
-		const {
-			user_query,
-			connectors_to_search,
-			user_id,
-			search_space_id,
-			language,
-			chat_history = [],
-		} = researcherDto;
-
-		return new Observable((subscriber) => {
-			(async () => {
-				try {
-					this.logger.log(
-						`Starting agent-based researcher with query: ${user_query}`,
-					);
-
-					// Create enhanced prompt with context about available tools
-					const enhancedPrompt = agentUserPrompt(
-						user_query,
-						connectors_to_search,
-						language,
-						chat_history,
-					);
-
-					let isStreamingFinalResponse = false;
-
-					const streamingLlm = new ChatOpenAI({
-						modelName: "gpt-4o-mini",
-						streaming: true,
-						callbacks: [
-							{
-								handleLLMNewToken(token: string) {
-									if (isStreamingFinalResponse) {
-										subscriber.next(token);
-									}
-								},
-								handleLLMError(err: Error) {
-									subscriber.error(err);
-								},
-								handleLLMStart() {
-									isStreamingFinalResponse = true;
-								},
-							},
-						],
-					});
-
-					const streamingAgent = createReactAgent({
-						llm: streamingLlm,
-						tools: [
-							this.tools.searchConnectorsTool,
-							this.tools.reformulateQueryTool,
-							this.tools.rerankDocumentsTool,
-							this.tools.generateAnswerTool,
-							this.tools.generateFollowUpQuestionsTool,
-						],
-						checkpointSaver: this.memorySaver,
-					});
-
-					await streamingAgent.invoke(
-						{
-							messages: [{ role: "user", content: enhancedPrompt }],
-						},
-						{
-							configurable: {
-								thread_id: `researcher_${user_id}_${Date.now()}`,
-							},
-						},
-					);
-
-					subscriber.complete();
-				} catch (error) {
-					this.logger.error(
-						`Error in agent researcher: ${error.message}`,
-						error.stack,
-					);
-					subscriber.error(error);
-				}
-			})();
-		});
+		return this.researcherService.streamResearcher(researcherDto);
 	}
 
 	/**

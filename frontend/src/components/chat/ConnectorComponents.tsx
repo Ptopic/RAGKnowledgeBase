@@ -1,4 +1,5 @@
 import { ChevronDown, Plus } from "lucide-react";
+import type React from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Connector } from "./types";
@@ -6,13 +7,7 @@ import type { Connector } from "./types";
 /**
  * Displays a small icon for a connector type
  */
-export const ConnectorIcon = ({
-	type,
-	index = 0,
-}: {
-	type: string;
-	index?: number;
-}) => (
+export const ConnectorIcon = ({ type, index = 0 }: { type: string; index?: number }) => (
 	<div
 		className="w-4 h-4 rounded-full flex items-center justify-center bg-muted border border-background"
 		style={{ zIndex: 10 - index }}
@@ -50,9 +45,7 @@ export const ConnectorButton = ({
 
 	// Get the name of a single selected connector
 	const getSingleConnectorName = () => {
-		const connector = connectorSources.find(
-			(c) => c.type === selectedConnectors[0],
-		);
+		const connector = connectorSources.find((c) => c.type === selectedConnectors[0]);
 		return connector?.name || "";
 	};
 
@@ -95,9 +88,7 @@ export const ConnectorButton = ({
 			className="h-8 px-2 text-xs font-medium rounded-md border-border relative overflow-hidden group"
 			onClick={onClick}
 			aria-label={
-				selectedCount === 0
-					? "Select Connectors"
-					: `${selectedCount} connectors selected`
+				selectedCount === 0 ? "Select Connectors" : `${selectedCount} connectors selected`
 			}
 		>
 			{/* Progress indicator */}
