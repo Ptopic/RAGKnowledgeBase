@@ -2,7 +2,7 @@ import { LogLevel, LogStatus } from "@prisma/client";
 import { Type } from "class-transformer";
 import { IsEnum, IsInt, IsObject, IsOptional, IsString } from "class-validator";
 
-export class LogBaseDto {
+export class CreateLogDto {
 	@IsEnum(LogLevel)
 	level: LogLevel;
 
@@ -19,9 +19,7 @@ export class LogBaseDto {
 	@IsObject()
 	@IsOptional()
 	log_metadata?: Record<string, any>;
-}
 
-export class CreateLogDto extends LogBaseDto {
 	@IsInt()
 	search_space_id: number;
 }
@@ -48,9 +46,26 @@ export class UpdateLogDto {
 	log_metadata?: Record<string, any>;
 }
 
-export class LogDto extends LogBaseDto {
+export class LogDto {
 	@IsInt()
 	id: number;
+
+	@IsEnum(LogLevel)
+	level: LogLevel;
+
+	@IsEnum(LogStatus)
+	status: LogStatus;
+
+	@IsString()
+	message: string;
+
+	@IsString()
+	@IsOptional()
+	source?: string;
+
+	@IsObject()
+	@IsOptional()
+	log_metadata?: Record<string, any>;
 
 	@IsInt()
 	search_space_id: number;

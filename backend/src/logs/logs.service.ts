@@ -111,6 +111,82 @@ export class LogsService {
 		}
 	}
 
+	async getLogsSummary(
+		searchSpaceId: number,
+		userId: string,
+		hours: number = 24,
+	): Promise<any> {
+		try {
+			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+
+			const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+			const logs = await this.prisma.log.findMany({
+				where: {
+					searchSpaceId,
+					createdAt: { gte: since },
+				},
+				orderBy: { createdAt: "desc" },
+			});
+
+			const summary: any = {
+				total_logs: logs.length,
+				time_window_hours: hours,
+				by_status: {},
+				by_level: {},
+				by_source: {},
+				active_tasks: [],
+				recent_failures: [],
+			};
+
+			for (const log of logs) {
+				summary.by_status[log.status] =
+					(summary.by_status[log.status] || 0) + 1;
+				summary.by_level[log.level] = (summary.by_level[log.level] || 0) + 1;
+
+				if (log.source) {
+					summary.by_source[log.source] =
+						(summary.by_source[log.source] || 0) + 1;
+				}
+
+				if (log.status === LogStatus.IN_PROGRESS) {
+					const taskName = (log.logMetadata as any)?.task_name || "Unknown";
+					summary.active_tasks.push({
+						id: log.id,
+						task_name: taskName,
+						message: log.message,
+						started_at: log.createdAt,
+						source: log.source,
+					});
+				}
+
+				if (
+					log.status === LogStatus.FAILED &&
+					summary.recent_failures.length < 10
+				) {
+					const taskName = (log.logMetadata as any)?.task_name || "Unknown";
+					summary.recent_failures.push({
+						id: log.id,
+						task_name: taskName,
+						message: log.message,
+						failed_at: log.createdAt,
+						source: log.source,
+						error_details: (log.logMetadata as any)?.error_details,
+					});
+				}
+			}
+
+			return summary;
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to generate logs summary: ${error.message}`,
+			);
+		}
+	}
+
 	async findOne(id: number, userId: string): Promise<LogDto> {
 		try {
 			const log = await this.prisma.log.findFirst({
@@ -198,82 +274,6 @@ export class LogsService {
 			}
 			throw new InternalServerErrorException(
 				`Failed to delete log: ${error.message}`,
-			);
-		}
-	}
-
-	async getLogsSummary(
-		searchSpaceId: number,
-		userId: string,
-		hours: number = 24,
-	): Promise<any> {
-		try {
-			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
-
-			const since = new Date(Date.now() - hours * 60 * 60 * 1000);
-
-			const logs = await this.prisma.log.findMany({
-				where: {
-					searchSpaceId,
-					createdAt: { gte: since },
-				},
-				orderBy: { createdAt: "desc" },
-			});
-
-			const summary: any = {
-				total_logs: logs.length,
-				time_window_hours: hours,
-				by_status: {},
-				by_level: {},
-				by_source: {},
-				active_tasks: [],
-				recent_failures: [],
-			};
-
-			for (const log of logs) {
-				summary.by_status[log.status] =
-					(summary.by_status[log.status] || 0) + 1;
-				summary.by_level[log.level] = (summary.by_level[log.level] || 0) + 1;
-
-				if (log.source) {
-					summary.by_source[log.source] =
-						(summary.by_source[log.source] || 0) + 1;
-				}
-
-				if (log.status === LogStatus.IN_PROGRESS) {
-					const taskName = (log.logMetadata as any)?.task_name || "Unknown";
-					summary.active_tasks.push({
-						id: log.id,
-						task_name: taskName,
-						message: log.message,
-						started_at: log.createdAt,
-						source: log.source,
-					});
-				}
-
-				if (
-					log.status === LogStatus.FAILED &&
-					summary.recent_failures.length < 10
-				) {
-					const taskName = (log.logMetadata as any)?.task_name || "Unknown";
-					summary.recent_failures.push({
-						id: log.id,
-						task_name: taskName,
-						message: log.message,
-						failed_at: log.createdAt,
-						source: log.source,
-						error_details: (log.logMetadata as any)?.error_details,
-					});
-				}
-			}
-
-			return summary;
-		} catch (error) {
-			if (error instanceof NotFoundException) {
-				throw error;
-			}
-			throw new InternalServerErrorException(
-				`Failed to generate logs summary: ${error.message}`,
 			);
 		}
 	}

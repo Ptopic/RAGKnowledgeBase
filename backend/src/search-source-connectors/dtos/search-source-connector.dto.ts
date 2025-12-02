@@ -11,7 +11,7 @@ import {
 	ValidateIf,
 } from "class-validator";
 
-export class SearchSourceConnectorBaseDto {
+export class CreateSearchSourceConnectorDto {
 	@IsString()
 	name: string;
 
@@ -41,8 +41,6 @@ export class SearchSourceConnectorBaseDto {
 	@Type(() => Date)
 	next_scheduled_at?: Date;
 }
-
-export class CreateSearchSourceConnectorDto extends SearchSourceConnectorBaseDto {}
 
 export class UpdateSearchSourceConnectorDto {
 	@IsString()
@@ -78,7 +76,7 @@ export class UpdateSearchSourceConnectorDto {
 	next_scheduled_at?: Date;
 }
 
-export class SearchSourceConnectorDto extends SearchSourceConnectorBaseDto {
+export class SearchSourceConnectorDto {
 	@IsInt()
 	id: number;
 
@@ -90,6 +88,35 @@ export class SearchSourceConnectorDto extends SearchSourceConnectorBaseDto {
 
 	@Type(() => Date)
 	created_at: Date;
+
+	@IsString()
+	name: string;
+
+	@IsEnum(SearchSourceConnectorType)
+	connector_type: SearchSourceConnectorType;
+
+	@IsBoolean()
+	is_indexable: boolean;
+
+	@IsOptional()
+	@Type(() => Date)
+	last_indexed_at?: Date;
+
+	@IsObject()
+	config: Record<string, any>;
+
+	@IsBoolean()
+	@IsOptional()
+	periodic_indexing_enabled?: boolean;
+
+	@IsInt()
+	@IsOptional()
+	@ValidateIf((o) => o.periodic_indexing_enabled === true)
+	indexing_frequency_minutes?: number;
+
+	@IsOptional()
+	@Type(() => Date)
+	next_scheduled_at?: Date;
 }
 
 export class GitHubPATRequestDto {

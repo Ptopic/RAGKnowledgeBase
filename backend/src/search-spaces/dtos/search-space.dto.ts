@@ -7,7 +7,7 @@ import {
 	MaxLength,
 } from "class-validator";
 
-export class SearchSpaceBaseDto {
+export class CreateSearchSpaceDto {
 	@IsString()
 	@MaxLength(100)
 	name: string;
@@ -18,16 +18,32 @@ export class SearchSpaceBaseDto {
 	description?: string;
 }
 
-export class CreateSearchSpaceDto extends SearchSpaceBaseDto {}
+export class UpdateSearchSpaceDto {
+	@IsString()
+	@MaxLength(100)
+	name: string;
 
-export class UpdateSearchSpaceDto extends SearchSpaceBaseDto {}
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	description?: string;
+}
 
-export class SearchSpaceDto extends SearchSpaceBaseDto {
+export class SearchSpaceDto {
 	@IsInt()
 	id: number;
 
 	@IsUUID()
 	userId: string;
+
+	@IsString()
+	@MaxLength(100)
+	name: string;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	description?: string;
 
 	@Type(() => Date)
 	created_at: Date;
