@@ -1,20 +1,14 @@
 "use client";
 
-import {
-	ChatMessage as LlamaIndexChatMessage,
-	ChatMessages as LlamaIndexChatMessages,
-	type Message,
-	useChatUI,
-} from "@llamaindex/chat-ui";
-import { Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
+import { type Message, useChatUI } from "@llamaindex/chat-ui";
+import { Bot, Check, Copy, ThumbsDown, ThumbsUp, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatedEmptyState } from "@/components/chat/AnimatedEmptyState";
-import { CitationDisplay } from "@/components/chat/ChatCitation";
 import { ChatFurtherQuestions } from "@/components/chat/ChatFurtherQuestions";
 import ChatSourcesDisplay from "@/components/chat/ChatSources";
-import TerminalDisplay from "@/components/chat/ChatTerminal";
-import { languageRenderers } from "@/components/chat/CodeBlock";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import MarkdownWithCode from "../markdownWithCode/MarkdownWithCode";
 
 /**
  * Remove citation markers from text
@@ -75,24 +69,36 @@ function CustomMessageActions({ message }: { message: Message }) {
 }
 
 export function ChatMessagesUI() {
-	const { messages } = useChatUI();
+	const { messages, isLoading } = useChatUI();
+	const messagesEndRef = useRef<HTMLDivElement>(null);
+
+	const scrollToBottom = useCallback(() => {
+		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+	}, []);
+
+	useEffect(() => {
+		scrollToBottom();
+	}, [scrollToBottom]);
 
 	return (
-		<LlamaIndexChatMessages className="flex-1">
-			<LlamaIndexChatMessages.Empty>
-				<AnimatedEmptyState />
-			</LlamaIndexChatMessages.Empty>
-			<LlamaIndexChatMessages.List className="p-4">
-				{messages.map((message, index) => (
-					<ChatMessageUI
-						key={`Message-${index}`}
-						message={message}
-						isLast={index === messages.length - 1}
-					/>
-				))}
-			</LlamaIndexChatMessages.List>
-			<LlamaIndexChatMessages.Loading />
-		</LlamaIndexChatMessages>
+		<div className="flex-1 flex flex-col overflow-y-auto">
+			{messages.length === 0 ? (
+				<div className="flex-1 flex items-center justify-center">
+					<AnimatedEmptyState />
+				</div>
+			) : (
+				<div className="p-4 space-y-6">
+					{messages.map((message, index) => (
+						<ChatMessageUI
+							key={`Message-${index}`}
+							message={message}
+							isLast={index === messages.length - 1}
+						/>
+					))}
+					<div ref={messagesEndRef} />
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -103,43 +109,53 @@ function ChatMessageUI({
 	message: Message;
 	isLast: boolean;
 }) {
-	const bottomRef = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		if (isLast && bottomRef.current) {
-			bottomRef.current.scrollIntoView({ behavior: "smooth" });
-		}
-	}, [isLast]);
+	const isUser = message.role === "user";
+	const isAssistant = message.role === "assistant";
 
 	return (
-		<LlamaIndexChatMessage
-			message={message}
-			isLast={isLast}
-			className="flex flex-col "
-		>
-			{message.role === "assistant" ? (
-				<div className="flex-1 flex flex-col space-y-4">
-					<TerminalDisplay message={message} open={isLast} />
-					<ChatSourcesDisplay message={message} />
-					<LlamaIndexChatMessage.Content className="flex-1">
-						<LlamaIndexChatMessage.Content.Markdown
-							citationComponent={CitationDisplay}
-							languageRenderers={languageRenderers}
-						/>
-					</LlamaIndexChatMessage.Content>
-					<div ref={bottomRef} />
+		<div className={cn("flex items-start gap-3", isUser && "flex-row-reverse")}>
+			{/* Avatar */}
+			<div
+				className={cn(
+					"flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+					isUser ? "bg-muted" : "bg-primary",
+				)}
+			>
+				{isUser ? (
+					<User className="h-5 w-5 text-muted-foreground" />
+				) : (
+					<Bot className="h-5 w-5 text-primary-foreground" />
+				)}
+			</div>
+
+			{/* Message Content */}
+			<div
+				className={cn("flex-1 space-y-4", isUser && "flex flex-col items-end")}
+			>
+				{isAssistant && <ChatSourcesDisplay message={message} />}
+
+				<div
+					className={cn(
+						"rounded-lg px-4 py-3",
+						isUser
+							? "bg-primary text-primary-foreground max-w-[80%]"
+							: "bg-muted/50",
+					)}
+				>
+					<MarkdownWithCode
+						markdown={message.content}
+						isUser={isUser}
+						isStreaming={isLast && !message.content}
+					/>
+				</div>
+
+				{isAssistant && (
 					<div className="flex flex-row justify-end gap-2">
 						{isLast && <ChatFurtherQuestions message={message} />}
 						<CustomMessageActions message={message} />
 					</div>
-				</div>
-			) : (
-				<LlamaIndexChatMessage.Content className="flex-1">
-					<LlamaIndexChatMessage.Content.Markdown
-						languageRenderers={languageRenderers}
-					/>
-				</LlamaIndexChatMessage.Content>
-			)}
-		</LlamaIndexChatMessage>
+				)}
+			</div>
+		</div>
 	);
 }

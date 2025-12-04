@@ -1,6 +1,9 @@
 "use client";
 
-import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamaindex/chat-ui";
+import {
+	type ChatHandler,
+	ChatSection as LlamaIndexChatSection,
+} from "@llamaindex/chat-ui";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import type { Document } from "@/hooks/use-documents";
@@ -24,6 +27,13 @@ export default function ChatInterface({
 	searchMode,
 	onSearchModeChange,
 }: ChatInterfaceProps) {
+	const handleSubmit = (message: string) => {
+		handler.append({
+			role: "user",
+			content: message,
+		});
+	};
+
 	return (
 		<LlamaIndexChatSection handler={handler} className="flex h-full">
 			<div className="flex flex-1 flex-col">
@@ -36,6 +46,8 @@ export default function ChatInterface({
 						selectedConnectors={selectedConnectors}
 						searchMode={searchMode}
 						onSearchModeChange={onSearchModeChange}
+						onSubmit={handleSubmit}
+						isLoading={handler.isLoading}
 					/>
 				</div>
 			</div>
