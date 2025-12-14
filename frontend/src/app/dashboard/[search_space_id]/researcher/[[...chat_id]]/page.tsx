@@ -1,10 +1,9 @@
 "use client";
-
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import config from "@shared/config";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import ChatInterface from "@/components/chat/ChatInterface";
+import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
 
@@ -219,7 +218,7 @@ export default function ResearcherPage() {
 	}
 
 	return (
-		<ChatInterface
+		<TestChatInterface
 			handler={{
 				...handler,
 				append: isNewChat ? customHandlerAppend : handler.append,
