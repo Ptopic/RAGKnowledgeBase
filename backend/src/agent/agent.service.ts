@@ -65,12 +65,6 @@ export class AgentService {
 					const streamingLlm = new ChatOpenAI({
 						modelName: "gpt-4o-mini",
 						streaming: true,
-						configuration: {
-							baseURL: "http://localhost:8585/jawn/v1/gateway/oai/v1",
-							defaultHeaders: {
-								"Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
-							},
-						},
 						callbacks: [
 							{
 								handleLLMNewToken(token: string) {

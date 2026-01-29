@@ -7,7 +7,7 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getConnectorIcon } from "./ConnectorComponents";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Source } from "./types";
 
 type CitationProps = {

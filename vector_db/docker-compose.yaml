@@ -3,7 +3,7 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: youtube_rag
+      POSTGRES_DB: rag_knowledge_base
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:

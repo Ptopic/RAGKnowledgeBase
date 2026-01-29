@@ -22,6 +22,55 @@ function removeCitations(text: string): string {
 	return cleaned;
 }
 
+function removeAllMarkdownElements(text: string): string {
+	let result = text;
+
+	// Remove code blocks (```language ... ```)
+	result = result.replace(/```[\s\S]*?```/g, "");
+
+	// Remove inline code (`code`)
+	result = result.replace(/`([^`]+)`/g, "$1");
+
+	// Remove images ![alt](url)
+	result = result.replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1");
+
+	// Remove links [text](url) - keep the text
+	result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+	// Remove headers (# ## ### etc.) at start of line
+	result = result.replace(/^#{1,6}\s+/gm, "");
+
+	// Remove bold **text** or __text__ (lazy matching)
+	result = result.replace(/\*\*(.+?)\*\*/g, "$1");
+	result = result.replace(/__(.+?)__/g, "$1");
+
+	// Remove italic *text* or _text_ (lazy matching)
+	result = result.replace(/\*(.+?)\*/g, "$1");
+	result = result.replace(/\b_(.+?)_\b/g, "$1");
+
+	// Remove strikethrough ~~text~~
+	result = result.replace(/~~(.+?)~~/g, "$1");
+
+	// Remove blockquotes (> at start of line)
+	result = result.replace(/^>\s*/gm, "");
+
+	// Remove horizontal rules (---, ***, ___) - must be done BEFORE list markers
+	result = result.replace(/^[-*_]{3,}\s*$/gm, "");
+
+	// Remove unordered list markers (-, *, +) at start of line
+	result = result.replace(/^\s*[-*+]\s+/gm, "");
+
+	// Remove ordered list markers (1., 2., 3., etc.) at start of line
+	result = result.replace(/^\s*\d+\.\s+/gm, "");
+
+	// Remove markdown line breaks (two trailing spaces)
+	result = result.replace(/ {2}$/gm, "");
+
+	// Remove extra blank lines
+	result = result.replace(/\n{3,}/g, "\n\n");
+
+	return result.trim();
+}
 /**
  * Custom Actions component with citation-free copy
  */
@@ -31,7 +80,8 @@ function CustomMessageActions({ message }: { message: Message }) {
 	const handleCopy = useCallback(async () => {
 		if (message.content) {
 			const cleanedContent = removeCitations(message.content);
-			await navigator.clipboard.writeText(cleanedContent);
+			const contentWithoutMarkdown = removeAllMarkdownElements(cleanedContent);
+			await navigator.clipboard.writeText(contentWithoutMarkdown);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		}
