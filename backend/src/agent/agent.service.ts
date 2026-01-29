@@ -68,15 +68,14 @@ export class AgentService {
 	/**
 	 * Stream connector search results to the client.
 	 *
-	 * This is an async generator that yields search results as they become available.
-	 * Typically implemented using Server-Sent Events (SSE) or WebSockets.
+	 * Returns a Response object with text/event-stream for LangChain SDK compatibility.
 	 *
 	 * @param params - Search parameters
-	 * @yields Formatted response strings
+	 * @returns Response with streaming data
 	 */
-	async *streamConnectorSearchResults(
+	async streamConnectorSearchResults(
 		params: StreamConnectorSearchResultsParams,
-	): AsyncGenerator<string, void, unknown> {
+	): Promise<Response> {
 		this.logger.log(
 			`Starting connector search for user ${params.userId} in search space ${params.searchSpaceId}`,
 		);
@@ -109,17 +108,6 @@ export class AgentService {
 				`Researcher configuration: ${JSON.stringify(config.configurable)}`,
 			);
 
-			// Note: In the actual implementation, you would integrate with your
-			// LangGraph researcher workflow here. This is a placeholder that shows
-			// the structure.
-
-			// Initialize state with database session and streaming service
-			// const initialState = {
-			//   db_session: this.prisma,
-			//   streaming_service: streamingService,
-			//   chat_history: params.langchainChatHistory,
-			// };
-
 			// Run the graph directly
 			this.logger.log("Running the complete researcher workflow...");
 
@@ -136,68 +124,20 @@ export class AgentService {
 				chat_history: params.langchainChatHistory,
 			};
 
-			// Stream from researcher service and convert to AI SDK format
-			const stream = this.researcherService.streamResearcher(researcherDto);
-
-			// Convert Observable to async generator
-			const chunks: string[] = [];
-			let streamError: Error | null = null;
-			let streamComplete = false;
-
-			// Subscribe to the stream and collect chunks
-			stream.subscribe({
-				next: (chunk) => {
-					if (chunk && chunk.length > 0) {
-						chunks.push(chunk);
-					}
-				},
-				error: (error) => {
-					this.logger.error(`Stream error: ${error.message}`);
-					streamError = error;
-					streamComplete = true;
-				},
-				complete: () => {
-					this.logger.log("Agent stream completed");
-					streamComplete = true;
-				},
-			});
-
-			// Yield chunks as they arrive - researcher already outputs in correct NDJSON format
-			while (!streamComplete) {
-				if (chunks.length > 0) {
-					const chunk = chunks.shift();
-					if (chunk) {
-						// Researcher outputs NDJSON already, just pass through
-						yield chunk;
-					}
-				} else {
-					// Wait a bit before checking again
-					await new Promise((resolve) => setTimeout(resolve, 10));
-				}
-			}
-
-			// Yield any remaining chunks
-			while (chunks.length > 0) {
-				const chunk = chunks.shift();
-				if (chunk) {
-					yield chunk;
-				}
-			}
-
-			// If there was an error, throw it
-			if (streamError) {
-				throw streamError;
-			}
+			// Stream from researcher service - it now returns a Response directly
+			return await this.researcherService.streamResearcher(researcherDto);
 		} catch (error) {
 			this.logger.error(
 				`Error streaming connector search results: ${error.message}`,
 				error.stack,
 			);
-			// Send error in NDJSON format
-			yield JSON.stringify({
-				type: "ERROR",
-				data: { message: error.message },
-			}) + "\n";
+			return new Response(
+				JSON.stringify({
+					error:
+						error instanceof Error ? error.message : "Internal server error",
+				}),
+				{ status: 500, headers: { "Content-Type": "application/json" } },
+			);
 		}
 	}
 

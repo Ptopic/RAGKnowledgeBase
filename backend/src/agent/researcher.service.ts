@@ -3,8 +3,9 @@ import {
 	HumanMessage,
 	SystemMessage,
 } from "@langchain/core/messages";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
-import { Observable } from "rxjs";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ResearcherDto, SearchMode } from "./dtos/researcher.dto";
 import { ConnectorService } from "./services/connector.service";
@@ -36,185 +37,133 @@ export class ResearcherService {
 	) {}
 
 	/**
-	 * Main researcher agent workflow
+	 * Main researcher agent workflow using LangGraph streaming
 	 * Workflow: reformulate_query -> fetch_documents -> qna_workflow -> generate_follow_up_questions
 	 */
-	streamResearcher(researcherDto: ResearcherDto): Observable<string> {
-		return new Observable((subscriber) => {
-			(async () => {
-				const streamingService = new StreamingService();
-				streamingService.resetState();
+	async streamResearcher(researcherDto: ResearcherDto): Promise<Response> {
+		try {
+			const {
+				user_query,
+				connectors_to_search,
+				user_id,
+				search_space_id,
+				search_mode,
+				document_ids_to_add_in_context = [],
+				language,
+				chat_history = [],
+				thread_id,
+			} = researcherDto;
 
-				try {
-					const {
-						user_query,
-						connectors_to_search,
-						user_id,
-						search_space_id,
-						search_mode,
-						document_ids_to_add_in_context = [],
-						language,
-						chat_history = [],
-					} = researcherDto;
+			this.logger.log(
+				`Researcher starting with connectors: ${JSON.stringify(connectors_to_search)}`,
+			);
+			this.logger.log(
+				`Document IDs to add: ${JSON.stringify(document_ids_to_add_in_context)}`,
+			);
 
-					this.logger.log(
-						`Researcher starting with connectors: ${JSON.stringify(connectors_to_search)}`,
-					);
-					this.logger.log(
-						`Document IDs to add: ${JSON.stringify(document_ids_to_add_in_context)}`,
-					);
-
-					// Convert chat history to BaseMessage format
-					const chatHistoryMessages: BaseMessage[] = chat_history.map((msg) => {
-						if (msg.role === "user") {
-							return new HumanMessage(msg.content);
-						} else {
-							return new SystemMessage(msg.content);
-						}
-					});
-
-					// Initialize connector service counter
-					await this.connectorService.initializeCounter(user_id);
-
-					// Step 1: Reformulate user query based on chat history (skip update if no history)
-					let reformulatedQuery = user_query;
-					if (chatHistoryMessages.length > 0) {
-						subscriber.next(
-							streamingService.formatTerminalInfoDelta(
-								"🔄 Reformulating query...",
-							),
-						);
-
-						reformulatedQuery = await this.reformulateQuery(
-							user_query,
-							chatHistoryMessages,
-							user_id,
-							search_space_id,
-						);
-					}
-
-					// Step 2: Handle QNA workflow
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							"🔍 Searching for relevant information...",
-						),
-					);
-
-					// Step 2a: Fetch user-selected documents
-					let userSelectedDocuments: Document[] = [];
-					let userSelectedSources: any[] = [];
-
-					if (document_ids_to_add_in_context.length > 0) {
-						subscriber.next(
-							streamingService.formatTerminalInfoDelta(
-								`📋 Including ${document_ids_to_add_in_context.length} user-selected documents...`,
-							),
-						);
-
-						const result = await this.fetchDocumentsByIds(
-							document_ids_to_add_in_context,
-							user_id,
-							search_space_id,
-						);
-
-						userSelectedDocuments = result.documents;
-						userSelectedSources = result.sources;
-
-						if (userSelectedDocuments.length > 0) {
-							subscriber.next(
-								streamingService.formatTerminalInfoDelta(
-									`✅ Successfully added ${userSelectedDocuments.length} user-selected documents to context`,
-								),
-							);
-						}
-					}
-
-					// Step 2b: Fetch relevant documents from connectors
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							"🔍 Searching for relevant information across all connectors...",
-						),
-					);
-
-					const topK = search_mode === SearchMode.DOCUMENTS ? 5 : 20;
-
-					// Fetch documents from connectors
-					const { relevantDocuments, allSources } =
-						await this.fetchRelevantDocuments(
-							[reformulatedQuery, user_query],
-							user_id,
-							search_space_id,
-							connectors_to_search,
-							topK,
-							search_mode,
-							subscriber,
-							streamingService,
-							userSelectedSources,
-						);
-
-					// Combine documents
-					const allDocuments = [...userSelectedDocuments, ...relevantDocuments];
-
-					// Extract and stream sources
-					if (allDocuments.length > 0) {
-						const sourcesToStream =
-							this.extractSourcesFromDocuments(allDocuments);
-						subscriber.next(
-							streamingService.formatSourcesDelta(sourcesToStream),
-						);
-					}
-
-					// Generate answer using QNA agent
-					const { answer, rerankedDocuments } = await this.qnaService.handleQNA(
-						{
-							userQuery: user_query,
-							reformulatedQuery,
-							relevantDocuments: allDocuments,
-							userId: user_id,
-							searchSpaceId: search_space_id,
-							language,
-							chatHistory: chatHistoryMessages,
-						},
-						subscriber,
-						streamingService,
-					);
-
-					// Generate follow-up questions
-					const followUpQuestions = await this.generateFollowUpQuestions(
-						user_query,
-						chatHistoryMessages,
-						rerankedDocuments,
-						user_id,
-						search_space_id,
-						subscriber,
-						streamingService,
-					);
-
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta(
-							`✅ Generated ${followUpQuestions.length} contextual follow-up questions!`,
-						),
-					);
-
-					subscriber.next(
-						streamingService.formatFurtherQuestionsDelta(followUpQuestions),
-					);
-
-					// Complete
-					subscriber.next(
-						streamingService.formatTerminalInfoDelta("✅ Research complete!"),
-					);
-
-					subscriber.complete();
-				} catch (error) {
-					this.logger.error(`Researcher error: ${error.message}`, error.stack);
-					subscriber.next(
-						streamingService.formatError(`Error: ${error.message}`),
-					);
-					subscriber.error(error);
+			// Convert chat history to BaseMessage format
+			const chatHistoryMessages: BaseMessage[] = chat_history.map((msg) => {
+				if (msg.role === "user") {
+					return new HumanMessage(msg.content);
+				} else {
+					return new SystemMessage(msg.content);
 				}
-			})();
-		});
+			});
+
+			// Get user's LLM instance
+			const userLlm = await this.llmService.getUserFastLLM(
+				user_id,
+				search_space_id,
+			);
+			const modelName = userLlm
+				? this.llmService.getModelName(userLlm)
+				: "gpt-4o-mini";
+
+			// Create streaming LLM
+			const streamingLlm = new ChatOpenAI({
+				modelName: modelName as string,
+				temperature: 1.0,
+				streaming: true,
+			});
+
+			// TODO: Add your tool calls here
+			// Example tools that you'll implement:
+			// - reformulateQueryTool
+			// - fetchDocumentsTool
+			// - qnaWorkflowTool
+			// - generateFollowUpQuestionsTool
+			const tools: any[] = [];
+
+			// Create the streaming agent
+			const streamingAgent = createReactAgent({
+				llm: streamingLlm,
+				tools,
+				// TODO: Add checkpointSaver if you want persistent state
+				// checkpointSaver: yourCheckpointSaver,
+			});
+
+			// Build messages array
+			const messagesToSend: BaseMessage[] = [
+				new SystemMessage(
+					`You are a research assistant. Your task is to:
+1. Reformulate the user's query based on chat history if needed
+2. Fetch relevant documents from the selected connectors
+3. Generate a comprehensive answer using the QNA workflow
+4. Provide contextual follow-up questions
+
+User query: ${user_query}
+Selected connectors: ${connectors_to_search.join(", ")}
+Search mode: ${search_mode}
+Language: ${language || "English"}`,
+				),
+			];
+
+			// Add chat history
+			messagesToSend.push(...chatHistoryMessages);
+
+			// Add current user message
+			messagesToSend.push(new HumanMessage(user_query));
+
+			// Use persistent thread_id for checkpoint state
+			const persistentThreadId =
+				thread_id || `research-${user_id}-${search_space_id}`;
+
+			this.logger.log(
+				`Using thread_id: ${persistentThreadId} for researcher agent`,
+			);
+
+			// Use LangGraph's streaming API
+			const stream = await streamingAgent.stream(
+				{
+					messages: [...messagesToSend],
+				},
+				{
+					streamMode: ["messages", "custom"],
+					configurable: { thread_id: persistentThreadId },
+					// TODO: Add callbacks if needed
+					// callbacks: [langsmithHandler, customEventHandler],
+				},
+			);
+
+			const responseHeaders: HeadersInit = {
+				"Content-Type": "text/event-stream",
+				"Cache-Control": "no-cache",
+				Connection: "keep-alive",
+			};
+
+			return new Response(stream, {
+				headers: responseHeaders,
+			});
+		} catch (error) {
+			this.logger.error(`Researcher error: ${error.message}`, error.stack);
+			return new Response(
+				JSON.stringify({
+					error:
+						error instanceof Error ? error.message : "Internal server error",
+				}),
+				{ status: 500, headers: { "Content-Type": "application/json" } },
+			);
+		}
 	}
 
 	/**

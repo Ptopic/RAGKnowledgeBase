@@ -6,9 +6,7 @@ import {
 	Post,
 	Query,
 	Req,
-	Res,
 } from "@nestjs/common";
-import { Response } from "express";
 import { AISDKChatRequestDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
 
@@ -19,11 +17,7 @@ export class AgentController {
 	constructor(private readonly agentService: AgentService) {}
 
 	@Post("chat")
-	async handleChatData(
-		@Body() request: AISDKChatRequestDto,
-		@Req() req: any,
-		@Res() res: Response,
-	) {
+	async handleChatData(@Body() request: AISDKChatRequestDto, @Req() req: any) {
 		try {
 			const messages = request.messages;
 
@@ -55,12 +49,7 @@ export class AgentController {
 				content: msg.content,
 			}));
 
-			res.setHeader("Content-Type", "text/event-stream");
-			res.setHeader("Cache-Control", "no-cache");
-			res.setHeader("Connection", "keep-alive");
-			res.setHeader("x-vercel-ai-data-stream", "v1");
-
-			const generator = this.agentService.streamConnectorSearchResults({
+			const response = await this.agentService.streamConnectorSearchResults({
 				userQuery,
 				userId: req.user.id,
 				searchSpaceId,
@@ -72,11 +61,8 @@ export class AgentController {
 				language,
 			});
 
-			for await (const chunk of generator) {
-				res.write(chunk);
-			}
-
-			res.end();
+			// Return the Response object directly
+			return response;
 		} catch (error) {
 			if (error instanceof BadRequestException) {
 				throw error;
