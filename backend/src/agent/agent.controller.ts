@@ -1,8 +1,16 @@
-import { Body, Controller, Logger, Post, Query, Res } from "@nestjs/common";
-import type { Response } from "express";
+import {
+	BadRequestException,
+	Body,
+	Controller,
+	Logger,
+	Post,
+	Query,
+	Req,
+	Res,
+} from "@nestjs/common";
+import { Response } from "express";
+import { AISDKChatRequestDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
-import type { ChatDto } from "./dtos/chat.dto";
-import type { ResearcherDto } from "./dtos/researcher.dto";
 
 @Controller("agent")
 export class AgentController {
@@ -11,35 +19,69 @@ export class AgentController {
 	constructor(private readonly agentService: AgentService) {}
 
 	@Post("chat")
-	chat(@Body() body: ChatDto) {
-		return this.agentService.chat(body);
-	}
-
-	@Post("chat/stream")
-	async streamChat(@Body() body: ChatDto, @Res() res: Response) {
-		res.setHeader("Content-Type", "text/plain; charset=utf-8");
-		res.setHeader("Cache-Control", "no-cache");
-		res.setHeader("Connection", "keep-alive");
-
+	async handleChatData(
+		@Body() request: AISDKChatRequestDto,
+		@Req() req: any,
+		@Res() res: Response,
+	) {
 		try {
-			const stream = this.agentService.streamChat(body);
+			const messages = request.messages;
 
-			stream.subscribe({
-				next: (chunk) => {
-					res.write(chunk);
-				},
-				error: (error) => {
-					console.error("Streaming error:", error);
-					res.write(`\n\nError: ${error.message}`);
-					res.end();
-				},
-				complete: () => {
-					res.end();
-				},
+			if (!messages || messages.length === 0) {
+				throw new BadRequestException("Messages array is required");
+			}
+
+			if (messages[messages.length - 1].role !== "user") {
+				throw new BadRequestException("Last message must be a user message");
+			}
+
+			const userQuery = messages[messages.length - 1].content;
+			const requestData = request.data || {};
+
+			const searchSpaceId = requestData.search_space_id;
+			if (!searchSpaceId) {
+				throw new BadRequestException("search_space_id is required");
+			}
+
+			const researchMode = requestData.research_mode || "standard";
+			const selectedConnectors = requestData.selected_connectors || [];
+			const documentIdsToAddInContext =
+				requestData.document_ids_to_add_in_context || [];
+			const searchMode = requestData.search_mode || "CHUNKS";
+			const language = requestData.language || "English";
+
+			const langchainChatHistory = messages.slice(0, -1).map((msg: any) => ({
+				role: msg.role,
+				content: msg.content,
+			}));
+
+			res.setHeader("Content-Type", "text/event-stream");
+			res.setHeader("Cache-Control", "no-cache");
+			res.setHeader("Connection", "keep-alive");
+			res.setHeader("x-vercel-ai-data-stream", "v1");
+
+			const generator = this.agentService.streamConnectorSearchResults({
+				userQuery,
+				userId: req.user.id,
+				searchSpaceId,
+				researchMode,
+				selectedConnectors,
+				langchainChatHistory,
+				searchModeStr: searchMode,
+				documentIdsToAddInContext,
+				language,
 			});
+
+			for await (const chunk of generator) {
+				res.write(chunk);
+			}
+
+			res.end();
 		} catch (error) {
-			console.error("Stream setup error:", error);
-			res.status(500).json({ error: "Failed to setup stream" });
+			if (error instanceof BadRequestException) {
+				throw error;
+			}
+			throw new BadRequestException(`Failed to process chat: ${error.message}`);
 		}
 	}
 
@@ -73,39 +115,6 @@ export class AgentController {
 				error.stack,
 			);
 			return { message: "Error processing webhook", error: error.message };
-		}
-	}
-
-	@Post("researcher/stream")
-	async streamResearcher(@Body() body: ResearcherDto, @Res() res: Response) {
-		res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
-		res.setHeader("Cache-Control", "no-cache");
-		res.setHeader("Connection", "keep-alive");
-
-		try {
-			const stream = this.agentService.streamResearcher(body);
-
-			stream.subscribe({
-				next: (chunk) => {
-					res.write(chunk);
-				},
-				error: (error) => {
-					console.error("Researcher streaming error:", error);
-					res.write(
-						JSON.stringify({
-							type: "error",
-							message: `Error: ${error.message}`,
-						}) + "\n",
-					);
-					res.end();
-				},
-				complete: () => {
-					res.end();
-				},
-			});
-		} catch (error) {
-			console.error("Researcher stream setup error:", error);
-			res.status(500).json({ error: "Failed to setup researcher stream" });
 		}
 	}
 }

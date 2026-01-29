@@ -1,5 +1,4 @@
 import {
-	BadRequestException,
 	Body,
 	Controller,
 	Delete,
@@ -10,15 +9,11 @@ import {
 	Put,
 	Query,
 	Req,
-	Res,
 	UseGuards,
 } from "@nestjs/common";
-import { Response } from "express";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
-import { StreamConnectorSearchResultsService } from "../tasks/stream-connector-search-results.service";
 import { ChatsService } from "./chats.service";
 import {
-	AISDKChatRequestDto,
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
@@ -28,77 +23,7 @@ import {
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ChatsController {
-	constructor(
-		private readonly chatsService: ChatsService,
-		private readonly streamService: StreamConnectorSearchResultsService,
-	) {}
-
-	@Post("chat")
-	async handleChatData(
-		@Body() request: AISDKChatRequestDto,
-		@Req() req: any,
-		@Res() res: Response,
-	) {
-		try {
-			const messages = request.messages;
-
-			if (!messages || messages.length === 0) {
-				throw new BadRequestException("Messages array is required");
-			}
-
-			if (messages[messages.length - 1].role !== "user") {
-				throw new BadRequestException("Last message must be a user message");
-			}
-
-			const userQuery = messages[messages.length - 1].content;
-			const requestData = request.data || {};
-
-			const searchSpaceId = requestData.search_space_id;
-			if (!searchSpaceId) {
-				throw new BadRequestException("search_space_id is required");
-			}
-
-			const researchMode = requestData.research_mode || "standard";
-			const selectedConnectors = requestData.selected_connectors || [];
-			const documentIdsToAddInContext =
-				requestData.document_ids_to_add_in_context || [];
-			const searchMode = requestData.search_mode || "CHUNKS";
-			const language = requestData.language || "English";
-
-			const langchainChatHistory = messages.slice(0, -1).map((msg: any) => ({
-				role: msg.role,
-				content: msg.content,
-			}));
-
-			res.setHeader("Content-Type", "text/event-stream");
-			res.setHeader("Cache-Control", "no-cache");
-			res.setHeader("Connection", "keep-alive");
-			res.setHeader("x-vercel-ai-data-stream", "v1");
-
-			const generator = this.streamService.streamConnectorSearchResults({
-				userQuery,
-				userId: req.user.id,
-				searchSpaceId,
-				researchMode,
-				selectedConnectors,
-				langchainChatHistory,
-				searchModeStr: searchMode,
-				documentIdsToAddInContext,
-				language,
-			});
-
-			for await (const chunk of generator) {
-				res.write(chunk);
-			}
-
-			res.end();
-		} catch (error) {
-			if (error instanceof BadRequestException) {
-				throw error;
-			}
-			throw new BadRequestException(`Failed to process chat: ${error.message}`);
-		}
-	}
+	constructor(private readonly chatsService: ChatsService) {}
 
 	@Post("chats")
 	async create(

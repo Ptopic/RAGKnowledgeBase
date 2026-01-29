@@ -11,17 +11,12 @@
  * - stream-connector-search-results.service.ts - Real-time search streaming
  */
 
-// Main module
-export { TasksModule } from './tasks.module';
+// Connector Indexers
+export * from "./connector-indexers";
 
 // Document Processors
-export * from './document-processors';
-
-// Connector Indexers
-export * from './connector-indexers';
-
+export * from "./document-processors";
 // Queue Tasks (Bull Processors)
-export * from './queue-tasks';
-
-// Stream Service
-export { StreamConnectorSearchResultsService } from './stream-connector-search-results.service';
+export * from "./queue-tasks";
+// Main module
+export { TasksModule } from "./tasks.module";
