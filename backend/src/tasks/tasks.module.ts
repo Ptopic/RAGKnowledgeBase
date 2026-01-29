@@ -39,9 +39,6 @@ import {
 	ScheduleCheckerProcessor,
 } from "./queue-tasks";
 
-// Stream Service
-import { StreamConnectorSearchResultsService } from "./stream-connector-search-results.service";
-
 @Module({
 	imports: [
 		PrismaModule,
@@ -83,9 +80,6 @@ import { StreamConnectorSearchResultsService } from "./stream-connector-search-r
 		ConnectorTasksProcessor,
 		DocumentTasksProcessor,
 		ScheduleCheckerProcessor,
-
-		// Stream Service
-		StreamConnectorSearchResultsService,
 	],
 	exports: [
 		// Export document processors for use in other modules
@@ -105,9 +99,6 @@ import { StreamConnectorSearchResultsService } from "./stream-connector-search-r
 		GoogleGmailIndexerService,
 		NotionIndexerService,
 		SlackIndexerService,
-
-		// Export stream service
-		StreamConnectorSearchResultsService,
 	],
 })
 export class TasksModule {}

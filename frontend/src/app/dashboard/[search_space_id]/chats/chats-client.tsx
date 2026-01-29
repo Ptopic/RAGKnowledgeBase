@@ -17,7 +17,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
 import useGetChats from "@/api/chats/hooks/useGetChats";
-import type { Chat } from "@/api/chats/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -154,7 +153,10 @@ export default function ChatsPageClient({
 	}, [chats, searchQuery, selectedType, sortOrder]);
 
 	// Calculate pagination based on filtered chats
-	const totalPages = Math.max(1, Math.ceil(filteredChats.length / chatsPerPage));
+	const totalPages = Math.max(
+		1,
+		Math.ceil(filteredChats.length / chatsPerPage),
+	);
 
 	// Reset to first page when total pages decrease and current page becomes invalid
 	useEffect(() => {

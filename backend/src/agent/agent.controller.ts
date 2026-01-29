@@ -6,11 +6,14 @@ import {
 	Post,
 	Query,
 	Req,
+	UseGuards,
 } from "@nestjs/common";
+import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
 import { AISDKChatRequestDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
 
 @Controller("agent")
+@UseGuards(JwtAuthGuard)
 export class AgentController {
 	private readonly logger = new Logger(AgentController.name);
 
