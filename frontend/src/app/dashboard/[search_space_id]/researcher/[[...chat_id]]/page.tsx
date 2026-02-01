@@ -1,18 +1,81 @@
 "use client";
-import type { Message as AISDKMessage } from "@ai-sdk/react";
 import type { Message } from "@langchain/core/messages";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
+
+interface ChatState {
+	selectedDocuments: Document[];
+	selectedConnectors: string[];
+	searchMode: "DOCUMENTS" | "CHUNKS";
+	researchMode: "QNA";
+}
+
+const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
+	`knowledgebase_chat_state_${searchSpaceId}_${chatId}`;
+
+const storeChatState = (
+	searchSpaceId: string,
+	chatId: string,
+	state: ChatState,
+) => {
+	const key = getChatStateStorageKey(searchSpaceId, chatId);
+	localStorage.setItem(key, JSON.stringify(state));
+};
+
+const restoreChatState = (
+	searchSpaceId: string,
+	chatId: string,
+): ChatState | null => {
+	const key = getChatStateStorageKey(searchSpaceId, chatId);
+	const stored = localStorage.getItem(key);
+	if (stored) {
+		localStorage.removeItem(key); // Clean up after restoration
+		try {
+			return JSON.parse(stored);
+		} catch {
+			return null;
+		}
+	}
+	return null;
+};
+
+/**
+ * Convert backend message format to LangChain Message format
+ * Backend stores messages as nested exchanges: [[userMsg, assistantMsg], ...]
+ * This function flattens the structure for the frontend
+ */
+const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
+	// Helper to convert a single message
+	const convertSingleMessage = (msg: any, index: number): Message => {
+		const id = msg.id || `msg_${index}`;
+		if (msg.role === "user") {
+			return { type: "human", content: msg.content, id };
+		}
+		if (msg.role === "assistant") {
+			return { type: "ai", content: msg.content, id };
+		}
+		return { type: "system", content: msg.content, id };
+	};
+
+	// Check if messages are in nested exchange format
+	if (apiMessages.length > 0 && Array.isArray(apiMessages[0])) {
+		// Flatten the nested exchanges: [[msg1, msg2], [msg3, msg4]] -> [msg1, msg2, msg3, msg4]
+		const flatMessages = (apiMessages as any[]).flat();
+		return flatMessages.map(convertSingleMessage) as Message[];
+	}
+
+	// Otherwise, assume flat array format (for backward compatibility)
+	return apiMessages.map(convertSingleMessage) as Message[];
+};
 
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
 	const router = useRouter();
 
 	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
-	const isNewChat = !chatIdParam;
 
 	const {
 		token,
@@ -20,7 +83,6 @@ export default function ResearcherPage() {
 		setIsLoading,
 		searchMode,
 		setSearchMode,
-		// researchMode,
 		selectedConnectors,
 		setSelectedConnectors,
 		selectedDocuments,
@@ -30,220 +92,65 @@ export default function ResearcherPage() {
 		chat_id: chatIdParam,
 	});
 
-	// const { fetchChatDetails, updateChat, createChat } = useChatAPI({
-	// 	token,
-	// 	search_space_id: search_space_id as string,
-	// });
-
-	// Use generic Message type from LangChain for the interface
 	const [messages, setMessages] = useState<Message[]>([]);
+	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
+		chatIdParam ? Number.parseInt(chatIdParam, 10) : undefined,
+	);
 
-	// Track streaming state for auto-save
-	const [isStreaming, setIsStreaming] = useState(false);
-	const prevIsStreamingRef = useRef(false);
-
-	// Helper to convert LangChain messages to AI SDK messages for backend
-	const convertToAISDKMessages = (
-		langChainMessages: Message[],
-	): AISDKMessage[] => {
-		return langChainMessages
-			.filter((msg) => {
-				// Filter out system messages and question-type messages
-				return (
-					msg.type !== "system" &&
-					msg.type !== "question" &&
-					msg.type !== "tool"
-				);
-			})
-			.map((msg) => {
-				let role: "user" | "assistant" | "system" = "user";
-				if (msg.type === "ai") role = "assistant";
-				else if (msg.type === "system") role = "system";
-
-				return {
-					id: msg.id,
-					role,
-					content: msg.content as string,
-				} as AISDKMessage;
-			});
-	};
-
-	// Memoize document IDs to prevent infinite re-renders
-	// const documentIds = useMemo(() => {
-	// 	return selectedDocuments.map((doc) => doc.id);
-	// }, [selectedDocuments]);
-
-	// Memoize connector types to prevent infinite re-renders
-	// const connectorTypes = useMemo(() => {
-	// 	return selectedConnectors;
-	// }, [selectedConnectors]);
-
-	// Unified localStorage management for chat state
-	interface ChatState {
-		selectedDocuments: Document[];
-		selectedConnectors: string[];
-		searchMode: "DOCUMENTS" | "CHUNKS";
-		researchMode: "QNA"; // Always QNA mode
-	}
-
-	const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
-		`surfsense_chat_state_${searchSpaceId}_${chatId}`;
-
-	const storeChatState = (
-		searchSpaceId: string,
-		chatId: string,
-		state: ChatState,
-	) => {
-		const key = getChatStateStorageKey(searchSpaceId, chatId);
-		localStorage.setItem(key, JSON.stringify(state));
-	};
-
-	const restoreChatState = (
-		searchSpaceId: string,
-		chatId: string,
-	): ChatState | null => {
-		const key = getChatStateStorageKey(searchSpaceId, chatId);
-		const stored = localStorage.getItem(key);
-		if (stored) {
-			localStorage.removeItem(key); // Clean up after restoration
-			try {
-				return JSON.parse(stored);
-			} catch (error) {
-				console.error("Error parsing stored chat state:", error);
-				return null;
-			}
-		}
-		return null;
-	};
-
-	// Helper to convert backend/AI SDK messages to LangChain messages
-	const convertToLangChainMessages = (apiMessages: any[]): Message[] => {
-		return apiMessages.map((msg) => {
-			if (msg.role === "user") {
-				return { type: "human", content: msg.content, id: msg.id };
-			} else if (msg.role === "assistant") {
-				return { type: "ai", content: msg.content, id: msg.id };
-			}
-			// Fallback
-			return { type: "system", content: msg.content, id: msg.id };
-		}) as Message[];
-	};
-
-	const { fetchChatDetails, updateChat, createChat } = useChatAPI({
+	const { fetchChatDetails } = useChatAPI({
 		token,
 		search_space_id: search_space_id as string,
 	});
 
+	// Load chat data when chatId or token changes
 	useEffect(() => {
-		if (token && !isNewChat && chatIdParam) {
+		if (token && chatIdParam) {
 			setIsLoading(true);
-			loadChatData(chatIdParam);
+			fetchChatDetails(chatIdParam).then((chatData) => {
+				if (!chatData) {
+					setIsLoading(false);
+					return;
+				}
+
+				if (chatData.initial_connectors) {
+					setSelectedConnectors(chatData.initial_connectors);
+				}
+
+				if (chatData.messages) {
+					setMessages(convertToLangChainMessages(chatData.messages));
+				}
+				setIsLoading(false);
+			});
 		}
-	}, [token, isNewChat, chatIdParam]);
+	}, [token, chatIdParam]);
 
 	// Restore chat state from localStorage on page load
 	useEffect(() => {
-		if (chatIdParam && search_space_id) {
-			const restoredState = restoreChatState(
-				search_space_id as string,
-				chatIdParam,
-			);
-			if (restoredState) {
-				setSelectedDocuments(restoredState.selectedDocuments);
-				setSelectedConnectors(restoredState.selectedConnectors);
-				setSearchMode(restoredState.searchMode);
-				// researchMode is always "QNA", no need to restore
-			}
+		if (!chatIdParam || !search_space_id) return;
+
+		const restoredState = restoreChatState(search_space_id as string, chatIdParam);
+		if (restoredState) {
+			setSelectedDocuments(restoredState.selectedDocuments);
+			setSelectedConnectors(restoredState.selectedConnectors);
+			setSearchMode(restoredState.searchMode);
 		}
-	}, [
-		chatIdParam,
-		search_space_id,
-		setSelectedDocuments,
-		setSelectedConnectors,
-		setSearchMode,
-	]);
+	}, [chatIdParam, search_space_id, setSelectedDocuments, setSelectedConnectors, setSearchMode]);
 
-	const loadChatData = async (chatId: string) => {
-		try {
-			const chatData = await fetchChatDetails(chatId);
-			if (!chatData) return;
+	// Handle new chat creation from backend
+	const handleChatCreated = (newChatId: number) => {
+		setCurrentChatId(newChatId);
 
-			if (
-				chatData.initial_connectors &&
-				Array.isArray(chatData.initial_connectors)
-			) {
-				setSelectedConnectors(chatData.initial_connectors);
-			}
+		// Store chat state before navigation
+		storeChatState(search_space_id as string, String(newChatId), {
+			selectedDocuments,
+			selectedConnectors,
+			searchMode,
+			researchMode: "QNA",
+		});
 
-			// Load existing messages
-			if (chatData.messages && Array.isArray(chatData.messages)) {
-				const convertedMessages = convertToLangChainMessages(chatData.messages);
-				setMessages(convertedMessages);
-			}
-		} finally {
-			setIsLoading(false);
-		}
+		// Navigate to the new chat URL
+		router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
 	};
-
-	// Auto-update chat when stream finishes
-	useEffect(() => {
-		// Check if streaming just finished
-		if (prevIsStreamingRef.current && !isStreaming) {
-			console.log("Stream finished, checking for save...", {
-				messagesLength: messages.length,
-				lastMessage: messages[messages.length - 1],
-				chatIdParam,
-				isNewChat,
-			});
-
-			// Streaming just finished
-			if (messages.length > 0 && messages[messages.length - 1]?.type === "ai") {
-				const messagesToSave = convertToAISDKMessages(messages);
-				console.log("Messages to save:", messagesToSave);
-
-				// Check if we have a chat ID - if not, create new chat
-				if (!chatIdParam) {
-					console.log("Creating new chat...");
-					// Create new chat after streaming finishes with all messages
-					createChat(messagesToSave, "QNA", selectedConnectors).then(
-						(newChatId) => {
-							console.log("Chat created with ID:", newChatId);
-							if (newChatId) {
-								// Store chat state before navigation
-								storeChatState(search_space_id as string, newChatId, {
-									selectedDocuments,
-									selectedConnectors,
-									searchMode,
-									researchMode: "QNA",
-								});
-								// Navigate to the new chat
-								router.replace(
-									`/dashboard/${search_space_id}/researcher/${newChatId}`,
-								);
-							}
-						},
-					);
-				} else {
-					console.log("Updating existing chat:", chatIdParam);
-					// Update existing chat
-					updateChat(chatIdParam, messagesToSave, "QNA", selectedConnectors);
-				}
-			}
-		}
-		// Update the ref for next comparison
-		prevIsStreamingRef.current = isStreaming;
-	}, [
-		isStreaming,
-		messages,
-		chatIdParam,
-		updateChat,
-		createChat,
-		selectedConnectors,
-		selectedDocuments,
-		searchMode,
-		search_space_id,
-		router,
-	]);
 
 	if (isLoading) {
 		return (
@@ -264,17 +171,11 @@ export default function ResearcherPage() {
 			messages={messages}
 			setMessages={setMessages}
 			threadId={chatIdParam || "new_chat"}
-			userId={1} // Default user, should be dynamic if possible
+			chatId={currentChatId}
+			userId={1}
 			token={token}
 			searchSpaceId={search_space_id as string}
-			onStreamStart={() => {
-				console.log("page.tsx: onStreamStart called");
-				setIsStreaming(true);
-			}}
-			onStreamFinish={() => {
-				console.log("page.tsx: onStreamFinish called");
-				setIsStreaming(false);
-			}}
+			onChatCreated={handleChatCreated}
 		/>
 	);
 }

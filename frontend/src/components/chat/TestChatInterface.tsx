@@ -16,22 +16,16 @@ interface ChatInterfaceProps {
 	selectedConnectors?: string[];
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-	// Controlled state props
-	messages?: Message[];
-	setMessages?: Dispatch<SetStateAction<Message[]>>;
-	threadId?: string;
+	messages: Message[];
+	setMessages: Dispatch<SetStateAction<Message[]>>;
+	threadId: string;
+	chatId?: number;
 	userId?: number;
 	token?: string | null;
 	searchSpaceId: string;
-	// Streaming lifecycle callbacks
 	onStreamStart?: () => void;
-	onStreamFinish?: () => void;
+	onChatCreated?: (chatId: number) => void;
 }
-
-// Fixed values for integration as per original component context if needed,
-// but for now we default them or expect them to be provided if we want full functionality.
-const DEFAULT_THREAD_ID = "default_thread";
-const DEFAULT_USER_ID = 1;
 
 export default function TestChatInterface({
 	onDocumentSelectionChange,
@@ -40,26 +34,19 @@ export default function TestChatInterface({
 	selectedConnectors = [],
 	searchMode,
 	onSearchModeChange,
-	messages: externalMessages,
-	setMessages: externalSetMessages,
-	threadId = DEFAULT_THREAD_ID,
-	userId = DEFAULT_USER_ID,
+	messages,
+	setMessages,
+	threadId,
+	chatId,
+	userId = 1,
 	token,
 	searchSpaceId,
 	onStreamStart,
-	onStreamFinish,
+	onChatCreated,
 }: ChatInterfaceProps) {
-	const [localMessages, setLocalMessages] = useState<Message[]>([]);
 	const [inputText, setInputText] = useState("");
 
-	// Determine if controlled or uncontrolled
-	const isControlled =
-		externalMessages !== undefined && externalSetMessages !== undefined;
-	const messages = isControlled ? externalMessages : localMessages;
-	const setMessages = isControlled ? externalSetMessages : setLocalMessages;
-
 	const queryClient = useQueryClient();
-	// Use backend API URL from config
 	const endpoint = `${config.apiUrl}/agent/chat`;
 
 	const { isStreaming, sendMessage, handleInputChange } = useChatStream({
@@ -69,39 +56,26 @@ export default function TestChatInterface({
 		inputText,
 		setInputText,
 		threadId,
+		chatId,
 		endpoint,
 		userId,
 		token: token || undefined,
 		searchSpaceId,
 		selectedConnectors,
 		searchMode,
-		scrollContainerRef: { current: null }, // passed just to satisfy types if we don't use the returned ref for main container
-		onStreamStart: () => {
-			console.log("TestChatInterface: Stream started");
-			onStreamStart?.();
-		},
-		onStreamFinish: () => {
-			console.log("TestChatInterface: Stream finished");
+		scrollContainerRef: { current: null },
+		onStreamStart,
+		onStreamFinish: async (_messages, _userMessage, chatId) => {
+			// Invalidate queries to get latest data
 			queryClient.invalidateQueries({ queryKey: ["chats"] });
-			onStreamFinish?.();
+			if (chatId) {
+				queryClient.invalidateQueries({ queryKey: ["chatDetails", chatId] });
+			}
 		},
+		onChatCreated,
 	});
 
-	// We can use the handleKeyDown from hook if we want exact behavior from snippet,
-	// but ChatInputUI has its own. We should wire them up.
-	// ChatInputUI expects (message: string) => void for onSubmit.
-	// sendMessage from useChatStream can take an override string.
-
 	const handleSubmit = (message: string) => {
-		// We set input text to message just in case, but sendMessage(message) is better.
-		// Actually sendMessage in useChatStream primarily uses state `inputText`.
-		// We should ensure `inputText` is synced or pass valid arg.
-
-		// If the component calls onSubmit, it implies the text is ready to send.
-		// The default sendMessage() uses inputText state.
-		// If we strictly follow the hook, we should have text in state.
-		// ChatInputUI in controlled mode updates state via handleInputChange.
-		// So inputText should be up to date when onSubmit is called (if triggered by enter/button).
 		sendMessage(message);
 	};
 

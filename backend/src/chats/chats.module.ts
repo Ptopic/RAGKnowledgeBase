@@ -1,11 +1,11 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { AgentModule } from "../agent/agent.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { ChatsController } from "./chats.controller";
 import { ChatsService } from "./chats.service";
 
 @Module({
-	imports: [AgentModule],
+	imports: [forwardRef(() => AgentModule)],
 	controllers: [ChatsController],
 	providers: [ChatsService, PrismaService],
 	exports: [ChatsService],

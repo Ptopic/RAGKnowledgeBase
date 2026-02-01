@@ -9,7 +9,13 @@ async function bootstrap() {
 	app.use(bodyParser.json({ limit: "50mb" }));
 	app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
-	app.enableCors();
+	// Enable CORS with custom headers exposed
+	app.enableCors({
+		origin: true,
+		credentials: true,
+		exposedHeaders: ["X-Chat-Id"], // Expose custom header to frontend
+	});
+
 	app.useGlobalPipes(new ValidationPipe());
 
 	console.log(process.env.PORT);

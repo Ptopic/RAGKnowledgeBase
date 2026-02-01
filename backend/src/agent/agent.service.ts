@@ -3,10 +3,13 @@ import { MemorySaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
+import { ChatType } from "@prisma/client";
+import { ChatsService } from "src/chats/chats.service";
 import { SearchMode, StreamingService } from "src/services";
 import { YoutubeProcessorService } from "../tasks/document-processors";
 import { userPrompt } from "./prompts";
 import { ResearcherService } from "./researcher.service";
+import { ConversationMemoryService } from "./services";
 
 interface StreamConnectorSearchResultsParams {
 	userQuery: string;
@@ -14,10 +17,10 @@ interface StreamConnectorSearchResultsParams {
 	searchSpaceId: number;
 	researchMode: string;
 	selectedConnectors: string[];
-	langchainChatHistory: Array<{ role: string; content: string }>;
 	searchModeStr: string;
 	documentIdsToAddInContext: number[];
 	language?: string;
+	chatId?: number;
 }
 
 @Injectable()
@@ -43,6 +46,8 @@ export class AgentService {
 	constructor(
 		private readonly researcherService: ResearcherService,
 		private readonly youtubeProcessorService: YoutubeProcessorService,
+		private readonly chatsService: ChatsService,
+		private readonly conversationMemoryService: ConversationMemoryService,
 	) {}
 
 	/**
@@ -75,10 +80,36 @@ export class AgentService {
 	 */
 	async streamConnectorSearchResults(
 		params: StreamConnectorSearchResultsParams,
-	): Promise<any> {
-		this.logger.log(
-			`Starting connector search for user ${params.userId} in search space ${params.searchSpaceId}`,
-		);
+	): Promise<{ stream: any; chatId?: number; chatWasCreated: boolean }> {
+		let currentChatId = params.chatId;
+		let chatWasCreated = false;
+
+		// Auto-create chat if no chatId provided
+		if (!currentChatId) {
+			const chatTitleSummary = params.userQuery.substring(0, 50);
+			const newChat = await this.chatsService.create(
+				{
+					type: ChatType.QNA,
+					title: chatTitleSummary,
+					initial_connectors: params.selectedConnectors,
+					messages: [], // Will be updated after streaming
+					search_space_id: params.searchSpaceId,
+				},
+				params.userId,
+			);
+			currentChatId = newChat.id;
+			chatWasCreated = true;
+		}
+
+		// Fetch recent messages from the chat if chatId exists
+		let recentMessages: Array<{ role: string; content: string }> = [];
+		if (currentChatId) {
+			recentMessages = await this.conversationMemoryService.getRecentMessages(
+				currentChatId,
+				params.userId,
+				10, // Get last 10 messages
+			);
+		}
 
 		try {
 			// Convert search mode string to enum
@@ -90,6 +121,11 @@ export class AgentService {
 			} else {
 				searchMode = SearchMode.CHUNKS; // Default
 			}
+
+			// Use chatId as thread_id for persistent checkpoint state
+			const persistentThreadId = currentChatId
+				? `chat-${currentChatId}`
+				: `${params.userId}_${params.searchSpaceId}`;
 
 			// Sample configuration
 			const config = {
@@ -104,13 +140,6 @@ export class AgentService {
 				},
 			};
 
-			this.logger.debug(
-				`Researcher configuration: ${JSON.stringify(config.configurable)}`,
-			);
-
-			// Run the graph directly
-			this.logger.log("Running the complete researcher workflow...");
-
 			// Call the researcher service with proper DTO
 			const researcherDto = {
 				user_query: params.userQuery,
@@ -120,12 +149,15 @@ export class AgentService {
 				search_mode: searchMode,
 				document_ids_to_add_in_context: params.documentIdsToAddInContext,
 				language: params.language,
-				thread_id: `${params.userId}_${params.searchSpaceId}`,
-				chat_history: params.langchainChatHistory,
+				thread_id: persistentThreadId,
+				chat_history: recentMessages,
 			};
 
 			// Stream from researcher service
-			return await this.researcherService.streamResearcher(researcherDto);
+			const stream =
+				await this.researcherService.streamResearcher(researcherDto);
+
+			return { stream, chatId: currentChatId, chatWasCreated };
 		} catch (error) {
 			this.logger.error(
 				`Error streaming connector search results: ${error.message}`,
@@ -133,6 +165,27 @@ export class AgentService {
 			);
 			throw error;
 		}
+	}
+
+	/**
+	 * Save messages to a chat after streaming completes
+	 */
+	async saveMessages(
+		chatId: number,
+		userId: string,
+		messages: Array<{ role: string; content: string }>,
+	): Promise<void> {
+		// Convert messages to the format expected by ConversationMemoryService
+		const messagesToAdd = messages.map((msg) => ({
+			role: msg.role as "user" | "assistant",
+			content: msg.content,
+		}));
+
+		await this.conversationMemoryService.addMessages(
+			chatId,
+			userId,
+			messagesToAdd,
+		);
 	}
 
 	/**

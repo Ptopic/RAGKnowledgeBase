@@ -83,4 +83,16 @@ export class AISDKChatRequestDto {
 	@IsObject()
 	@IsOptional()
 	data?: Record<string, any>;
+
+	@IsInt()
+	@IsOptional()
+	chat_id?: number;
+}
+
+export class SaveMessagesDto {
+	@IsInt()
+	chat_id: number;
+
+	@IsArray()
+	messages: Array<{ role: string; content: string }>;
 }

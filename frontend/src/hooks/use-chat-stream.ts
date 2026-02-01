@@ -21,7 +21,8 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { ChatMessage, OrderedStreamMessage } from "@/types/chat.types";
+import type { OrderedStreamMessage } from "@/types/chat.types";
+import { config } from "@/shared/config/config";
 
 function isAIMessage(message: Message): boolean {
 	return message.type === "ai";
@@ -45,21 +46,12 @@ export interface UseChatStreamOptions {
 	setInputText: Dispatch<SetStateAction<string>>;
 	threadId: string;
 	endpoint: string;
-	// chatId: number | undefined;
+	chatId?: number;
 	userId: number;
 	token?: string;
 	searchSpaceId: string;
 	selectedConnectors?: string[];
 	searchMode?: "DOCUMENTS" | "CHUNKS";
-	// selectedFilters?: IChatSearchFilters | ITranscriptChatSearchFilters;
-	// articleId?: number;
-	// articleContent?: {
-	// 	title: string;
-	// 	ingress: string;
-	// 	content: string;
-	// };
-	// selectedArticleContent?: string;
-	// setSelectedArticleContent?: Dispatch<SetStateAction<string | null>>;
 	scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 
 	// Lifecycle callbacks
@@ -67,20 +59,19 @@ export interface UseChatStreamOptions {
 	onToolComplete?: (toolMessage: ToolMessage) => void;
 	onStreamStart?: () => void;
 	onStreamFinish?: (
-		orderedMessages: Array<OrderedStreamMessage>,
+		messages: Message[],
 		userMessage: string,
-	) => void;
+		chatId: number,
+	) => Promise<void>;
 	onStreamError?: (error: Error | string) => void;
 	onMessageUpdate?: (messages: Message[]) => void;
-	// onChatCreated?: (chatId: number) => void;
-	// language?: string;
+	onChatCreated?: (chatId: number) => void;
 }
 
 export interface UseChatStreamReturn {
 	isStreaming: boolean;
 	isStreamingFinished: boolean;
 	isStartingStreaming: boolean;
-	// currentChatId: number | undefined;
 	toolCallsByMessage: Map<Message, ToolCallState[]>;
 	errorMessage: string | undefined;
 	lastUserMessageRef: React.RefObject<HTMLDivElement | null>;
@@ -90,7 +81,6 @@ export interface UseChatStreamReturn {
 	handleKeyDown: (e: React.KeyboardEvent) => void;
 	scrollToBottom: () => void;
 	scrollToLastUserMessage: () => void;
-	// setCurrentChatId: Dispatch<SetStateAction<number | undefined>>;
 }
 
 export function useChatStream(
@@ -104,39 +94,36 @@ export function useChatStream(
 		setInputText,
 		threadId,
 		endpoint,
-		// chatId,
+		chatId,
 		userId,
 		token,
 		searchSpaceId,
 		selectedConnectors,
 		searchMode,
-		// selectedFilters,
-		// articleId,
-		// articleContent,
-		// selectedArticleContent,
 		scrollContainerRef,
-		// setSelectedArticleContent,
 		onToolCall,
 		onToolComplete,
 		onStreamStart,
 		onStreamFinish,
 		onStreamError,
 		onMessageUpdate,
-		// onChatCreated,
-		// language,
+		onChatCreated,
 	} = options;
 
 	const [isStartingStreaming, setIsStartingStreaming] = useState(false);
-
 	const [isStreamingFinished, setIsStreamingFinished] = useState(true);
+	const [currentChatId, setCurrentChatId] = useState<number | undefined>(chatId);
 
-	// Use ref to track messages immediately for transport (fixes closure stale data issue)
-	const messagesRef = useRef<Message[]>(messages);
+	// Use ref to track the current chat ID - this updates dynamically when chat is created
+	const currentChatIdRef = useRef<number | undefined>(chatId);
 
-	// Sync ref when messages prop changes
+	// Sync state and ref when chatId prop changes
 	useEffect(() => {
-		messagesRef.current = messages;
-	}, [messages]);
+		if (chatId !== undefined) {
+			setCurrentChatId(chatId);
+			currentChatIdRef.current = chatId;
+		}
+	}, [chatId]);
 
 	const transport = useMemo(() => {
 		return new FetchStreamTransport({
@@ -146,32 +133,42 @@ export function useChatStream(
 				if (token) {
 					headers.set("Authorization", `Bearer ${token}`);
 				}
+
 				const response = await fetch(url, {
 					...init,
 					headers,
 				});
 
+				// Check for X-Chat-Id header to detect new chat creation
+				const chatIdHeader = response.headers.get("X-Chat-Id");
+
+				if (chatIdHeader) {
+					const newChatId = Number.parseInt(chatIdHeader, 10);
+					// Always update if we get a chatId header and don't have one set yet
+					if (!currentChatIdRef.current) {
+						currentChatIdRef.current = newChatId;
+						setCurrentChatId(newChatId);
+						onChatCreated?.(newChatId);
+					}
+				}
+
 				return response;
 			},
 			onRequest: async (_url: string, init: RequestInit) => {
-				// Use ref to get latest messages (avoid closure stale data)
-				const currentMessages = messagesRef.current;
+				// Transform LangChain request format to custom backend format
+				const langchainBody = JSON.parse(init.body as string) || {};
+				const lastMessage =
+					langchainBody.input?.messages?.[
+						langchainBody.input.messages.length - 1
+					];
+				const messageContent = lastMessage?.content || "";
 
-				const mappedMessages = currentMessages.map((msg: any) => {
-					let role = "user";
-					if (msg.type === "ai") role = "assistant";
-					else if (msg.type === "system") role = "system";
-					else if (msg.type === "tool") role = "tool";
-
-					return {
-						role,
-						content: msg.content,
-						...msg,
-					};
-				});
+				const langchainThreadId =
+					langchainBody.config?.configurable?.thread_id || threadId;
 
 				const customBody = {
-					messages: mappedMessages,
+					messages: [{ content: messageContent, role: "user" }],
+					chat_id: currentChatIdRef.current,
 					data: {
 						search_space_id: searchSpaceId,
 						research_mode: type,
@@ -191,7 +188,6 @@ export function useChatStream(
 		});
 	}, [
 		endpoint,
-		userId,
 		threadId,
 		type,
 		token,
@@ -199,13 +195,12 @@ export function useChatStream(
 		selectedConnectors,
 		searchMode,
 		onStreamStart,
+		onChatCreated,
 	]);
 
 	const stream = useStream({
 		transport,
 		onCustomEvent: (data: any) => {
-			console.log("✅ CUSTOM EVENT DATA:", data);
-
 			if (data?.type === "question") {
 				const jsonData = JSON.stringify(data);
 
@@ -216,44 +211,18 @@ export function useChatStream(
 						type: "question",
 						content: jsonData,
 						additional_kwargs: { options: data.options },
-					} as ChatMessage,
+					} as Message,
 				]);
-
-				// questionMessagesRef.current.push({
-				// 	type: "question",
-				// 	content: jsonData,
-				// 	options: data.options,
-				// });
 			}
 		},
 	});
 
-	// const { mutateAsync: addMessagesToMemory } =
-	// 	useAddMessagesToConversationMemory();
-
-	// const handleAddMessagesToMemory = async (
-	// 	chatId: number,
-	// 	userMessage: string,
-	// 	orderedMessages: OrderedStreamMessage[],
-	// 	type: "archive" | "transcript" | "article",
-	// 	articleId?: number,
-	// ) => {
-	// 	await addMessagesToMemory({
-	// 		chatId,
-	// 		userMessage,
-	// 		orderedMessages,
-	// 		type,
-	// 		articleId,
-	// 	});
-	// };
-
 	const prevLoading = useRef(stream.isLoading);
-	// const lastUserMessageContentRef = useRef<string>("");
+	const lastUserMessageContentRef = useRef<string>("");
 	const lastUserMessageRef = useRef<HTMLDivElement>(null);
 	const processedToolCallIds = useRef<Set<string>>(new Set());
 	const completedToolCallIds = useRef<Set<string>>(new Set());
 	const notifiedToolCallIds = useRef<Set<string>>(new Set());
-	// const questionMessagesRef = useRef<OrderedStreamMessage[]>([]);
 
 	// Extract tool calls logic
 	const toolCallsByMessage = useMemo(() => {
@@ -290,13 +259,21 @@ export function useChatStream(
 					const toolMessage = toolMessages.find(
 						(tm) => tm.tool_call_id === toolCall.id,
 					);
-					toolCallStates.push({ toolCall, toolMessage });
+					toolCallStates.push({
+						toolCall,
+						toolMessage,
+					});
+
+					if (onToolCall) {
+						onToolCall(toolCall, aiMessage);
+					}
 				}
 				map.set(message, toolCallStates);
 			}
 		});
+
 		return map;
-	}, [messages]);
+	}, [messages, onToolCall]);
 
 	useEffect(() => {
 		messages.forEach((message) => {
@@ -320,29 +297,87 @@ export function useChatStream(
 
 				if (toolCallId && !completedToolCallIds.current.has(toolCallId)) {
 					completedToolCallIds.current.add(toolCallId);
-					// handleToolCompletions({
-					// 	type,
-					// 	tool: toolMessage,
-					// 	setArticleResults,
-					// 	setTranscriptResults,
-					// });
 					onToolComplete?.(toolMessage);
 				}
 			}
 		});
-	}, [messages, onToolCall, onToolComplete, type]);
+	}, [messages, onToolCall, onToolComplete]);
 
 	// Handle stream finish
 	useEffect(() => {
 		if (prevLoading.current && !stream.isLoading) {
-			console.log("Stream finished!");
 			setIsStreamingFinished(true);
 
-			// Call the onStreamFinish callback to notify parent component
-			onStreamFinish?.();
+			const userMessage = lastUserMessageContentRef.current;
+
+			// Only save messages from the current stream, not all messages in state
+			// Filter stream messages (exclude system, tool, question messages)
+			const streamMessagesToSave = stream.messages.filter((msg) => {
+				return (
+					msg.type !== "system" &&
+					msg.type !== "question" &&
+					msg.type !== "tool"
+				);
+			});
+
+			// Convert to backend format (role, content)
+			// Start with user message, then add AI messages from stream
+			const messagesForBackend: Array<{ role: string; content: string }> = [];
+
+			// Add user message first
+			if (userMessage) {
+				messagesForBackend.push({ role: "user", content: userMessage });
+			}
+
+			// Add AI messages from stream
+			for (const msg of streamMessagesToSave) {
+				if (msg.type === "ai") {
+					// Handle different content types
+					let contentStr = "";
+					if (typeof msg.content === "string") {
+						contentStr = msg.content;
+					} else if (msg.content === null || msg.content === undefined) {
+						contentStr = "";
+					} else if (typeof msg.content === "object") {
+						// Handle complex content structures
+						if (Array.isArray(msg.content)) {
+							contentStr = msg.content.map(c => typeof c === 'string' ? c : JSON.stringify(c)).join("\n");
+						} else {
+							contentStr = JSON.stringify(msg.content);
+						}
+					} else {
+						contentStr = String(msg.content);
+					}
+
+					messagesForBackend.push({ role: "assistant", content: contentStr });
+				}
+			}
+
+			// Use the ref to get the current chat ID (updates dynamically)
+			const chatIdFromRef = currentChatIdRef.current;
+
+			// If we have a chatId, save messages to backend
+			if (chatIdFromRef && token) {
+				saveMessagesToBackend(chatIdFromRef, messagesForBackend, token)
+					.then(() => {
+						return onStreamFinish?.(
+							streamMessagesToSave,
+							userMessage,
+							chatIdFromRef,
+						);
+					})
+					.catch((error) => {
+						console.error("Error saving messages to backend:", error);
+						onStreamFinish?.(
+							streamMessagesToSave,
+							userMessage,
+							chatIdFromRef,
+						);
+					});
+			}
 		}
 		prevLoading.current = stream.isLoading;
-	}, [stream.isLoading, onStreamFinish]);
+	}, [stream.isLoading, onStreamFinish, token]);
 
 	const isStreaming = useMemo(() => stream.isLoading, [stream.isLoading]);
 
@@ -360,10 +395,8 @@ export function useChatStream(
 				let hasChanges = false;
 
 				for (const streamMsg of stream.messages) {
-					// 1. Skip System Messages
 					if (streamMsg.type === "system") continue;
 
-					// 2. Handle Tool Messages
 					if (streamMsg.type === "tool") {
 						const toolMsg = streamMsg as ToolMessage;
 						const toolCallId = toolMsg.tool_call_id;
@@ -386,12 +419,12 @@ export function useChatStream(
 						continue;
 					}
 
-					// 3. Handle AI Messages (Filter JSON)
 					if (streamMsg.type === "ai") {
 						const content =
-							typeof streamMsg.content === "string" ? streamMsg.content : "";
+							typeof streamMsg.content === "string"
+								? streamMsg.content
+								: "";
 
-						// If starts with {, it's likely our raw JSON control message. Skip it.
 						if (content.trim().startsWith("{")) {
 							continue;
 						}
@@ -419,7 +452,7 @@ export function useChatStream(
 				setIsStartingStreaming(false);
 				shouldHideLoadingIndicator = false;
 			}
-		}, 50); // Fast poll
+		}, 50);
 
 		return () => clearInterval(intervalId);
 	}, [isStreaming, onMessageUpdate]);
@@ -452,6 +485,7 @@ export function useChatStream(
 		[setInputText],
 	);
 
+	// Message sending
 	const sendMessage = useCallback(
 		async (messageOverride?: string) => {
 			const textToSend = messageOverride || inputText;
@@ -464,39 +498,29 @@ export function useChatStream(
 			}
 
 			processedToolCallIds.current.clear();
-			// questionMessagesRef.current = [];
-			// lastUserMessageContentRef.current = textToSend;
+			lastUserMessageContentRef.current = textToSend;
 
 			const timestamp = Date.now();
 			const userMessageId = `${timestamp.toString()}_user`;
-			const messageToSend = textToSend;
-
-			// if (selectedArticleContent) {
-			// 	messageToSend = `Article Content: ${selectedArticleContent} User Query: ${messageToSend}`;
-			// }
 
 			const newMessage = {
 				id: userMessageId,
 				type: "human",
-				content: messageToSend,
+				content: textToSend,
 			} as Message;
 			const newMessages = [...messages, newMessage];
 
-			// Update ref immediately so onRequest can access it (fixes closure stale data)
-			messagesRef.current = newMessages;
 			setMessages(newMessages);
-
 			setInputText("");
 			setIsStartingStreaming(true);
 			setIsStreamingFinished(false);
-			// setSelectedArticleContent?.(null);
 
 			setTimeout(() => {
 				scrollToLastUserMessage();
 			}, 200);
 
 			await stream.submit({
-				messages: newMessages,
+				messages: [{ content: textToSend, type: "human" }],
 			});
 		},
 		[
@@ -506,7 +530,6 @@ export function useChatStream(
 			setInputText,
 			scrollToLastUserMessage,
 			setMessages,
-			scrollContainerRef,
 			setIsStreamingFinished,
 			messages,
 		],
@@ -549,9 +572,6 @@ export function useChatStream(
 		isStreaming,
 		isStartingStreaming,
 		isStreamingFinished,
-		// currentChatId,
-		// articleResults,
-		// transcriptResults,
 		toolCallsByMessage,
 		errorMessage,
 		lastUserMessageRef,
@@ -561,6 +581,29 @@ export function useChatStream(
 		handleKeyDown,
 		scrollToBottom,
 		scrollToLastUserMessage,
-		// setCurrentChatId,
 	};
+}
+
+// API call to save messages after stream finishes
+async function saveMessagesToBackend(
+	chatId: number,
+	messages: Array<{ role: string; content: string }>,
+	token: string,
+): Promise<void> {
+	const response = await fetch(`${config.apiUrl}/agent/save-messages`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token}`,
+		},
+		body: JSON.stringify({
+			chat_id: chatId,
+			messages,
+		}),
+	});
+
+	if (!response.ok) {
+		const error = await response.json();
+		throw new Error(error.message || "Failed to save messages");
+	}
 }
