@@ -130,24 +130,13 @@ export function useChatStream(
 
 	const [isStreamingFinished, setIsStreamingFinished] = useState(true);
 
-	// const [currentChatId, setCurrentChatId] = useState<number | undefined>(
-	// 	chatId,
-	// );
-	// // Use ref to track chat ID immediately for transport
-	// const currentChatIdRef = useRef<number | undefined>(chatId);
+	// Use ref to track messages immediately for transport (fixes closure stale data issue)
+	const messagesRef = useRef<Message[]>(messages);
 
-	// // Sync state and ref when chatId prop changes
-	// useEffect(() => {
-	// 	if (chatId !== currentChatId) {
-	// 		setCurrentChatId(chatId);
-	// 		currentChatIdRef.current = chatId;
-	// 	}
-	// }, [chatId]);
-
-	// // Sync ref when state changes
-	// useEffect(() => {
-	// 	currentChatIdRef.current = currentChatId;
-	// }, [currentChatId]);
+	// Sync ref when messages prop changes
+	useEffect(() => {
+		messagesRef.current = messages;
+	}, [messages]);
 
 	const transport = useMemo(() => {
 		return new FetchStreamTransport({
@@ -165,7 +154,10 @@ export function useChatStream(
 				return response;
 			},
 			onRequest: async (_url: string, init: RequestInit) => {
-				const mappedMessages = messages.map((msg: any) => {
+				// Use ref to get latest messages (avoid closure stale data)
+				const currentMessages = messagesRef.current;
+
+				const mappedMessages = currentMessages.map((msg: any) => {
 					let role = "user";
 					if (msg.type === "ai") role = "assistant";
 					else if (msg.type === "system") role = "system";
@@ -206,7 +198,6 @@ export function useChatStream(
 		searchSpaceId,
 		selectedConnectors,
 		searchMode,
-		messages,
 		onStreamStart,
 	]);
 
@@ -520,6 +511,8 @@ export function useChatStream(
 			} as Message;
 			const newMessages = [...messages, newMessage];
 
+			// Update ref immediately so onRequest can access it (fixes closure stale data)
+			messagesRef.current = newMessages;
 			setMessages(newMessages);
 
 			setInputText("");
