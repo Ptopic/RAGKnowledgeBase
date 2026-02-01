@@ -1,6 +1,6 @@
 "use client";
-import type { Message } from "@langchain/core/messages";
 import type { Message as AISDKMessage } from "@ai-sdk/react";
+import type { Message } from "@langchain/core/messages";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import TestChatInterface from "@/components/chat/TestChatInterface";
@@ -43,7 +43,9 @@ export default function ResearcherPage() {
 	const prevIsStreamingRef = useRef(false);
 
 	// Helper to convert LangChain messages to AI SDK messages for backend
-	const convertToAISDKMessages = (langChainMessages: Message[]): AISDKMessage[] => {
+	const convertToAISDKMessages = (
+		langChainMessages: Message[],
+	): AISDKMessage[] => {
 		return langChainMessages
 			.filter((msg) => {
 				// Filter out system messages and question-type messages
@@ -195,10 +197,7 @@ export default function ResearcherPage() {
 			});
 
 			// Streaming just finished
-			if (
-				messages.length > 0 &&
-				messages[messages.length - 1]?.type === "ai"
-			) {
+			if (messages.length > 0 && messages[messages.length - 1]?.type === "ai") {
 				const messagesToSave = convertToAISDKMessages(messages);
 				console.log("Messages to save:", messagesToSave);
 
@@ -206,35 +205,28 @@ export default function ResearcherPage() {
 				if (!chatIdParam) {
 					console.log("Creating new chat...");
 					// Create new chat after streaming finishes with all messages
-					createChat(
-						messagesToSave,
-						"QNA",
-						selectedConnectors,
-					).then((newChatId) => {
-						console.log("Chat created with ID:", newChatId);
-						if (newChatId) {
-							// Store chat state before navigation
-							storeChatState(search_space_id as string, newChatId, {
-								selectedDocuments,
-								selectedConnectors,
-								searchMode,
-								researchMode: "QNA",
-							});
-							// Navigate to the new chat
-							router.replace(
-								`/dashboard/${search_space_id}/researcher/${newChatId}`,
-							);
-						}
-					});
+					createChat(messagesToSave, "QNA", selectedConnectors).then(
+						(newChatId) => {
+							console.log("Chat created with ID:", newChatId);
+							if (newChatId) {
+								// Store chat state before navigation
+								storeChatState(search_space_id as string, newChatId, {
+									selectedDocuments,
+									selectedConnectors,
+									searchMode,
+									researchMode: "QNA",
+								});
+								// Navigate to the new chat
+								router.replace(
+									`/dashboard/${search_space_id}/researcher/${newChatId}`,
+								);
+							}
+						},
+					);
 				} else {
 					console.log("Updating existing chat:", chatIdParam);
 					// Update existing chat
-					updateChat(
-						chatIdParam,
-						messagesToSave,
-						"QNA",
-						selectedConnectors,
-					);
+					updateChat(chatIdParam, messagesToSave, "QNA", selectedConnectors);
 				}
 			}
 		}
