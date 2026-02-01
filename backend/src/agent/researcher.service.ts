@@ -1,9 +1,12 @@
 import {
+	AIMessage,
 	BaseMessage,
 	HumanMessage,
 	SystemMessage,
 } from "@langchain/core/messages";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -40,7 +43,7 @@ export class ResearcherService {
 	 * Main researcher agent workflow using LangGraph streaming
 	 * Workflow: reformulate_query -> fetch_documents -> qna_workflow -> generate_follow_up_questions
 	 */
-	async streamResearcher(researcherDto: ResearcherDto): Promise<Response> {
+	async streamResearcher(researcherDto: ResearcherDto): Promise<any> {
 		try {
 			const {
 				user_query,
@@ -95,11 +98,41 @@ export class ResearcherService {
 			const tools: any[] = [];
 
 			// Create the streaming agent
-			const streamingAgent = createReactAgent({
-				llm: streamingLlm,
-				tools,
-				// TODO: Add checkpointSaver if you want persistent state
-				// checkpointSaver: yourCheckpointSaver,
+			// Define the agent state graph
+			const toolNode = new ToolNode(tools);
+
+			const model = streamingLlm.bindTools(tools);
+
+			// Define the function that calls the model
+			const callModel = async (state: typeof MessagesAnnotation.State) => {
+				const { messages } = state;
+				const response = await model.invoke(messages);
+				return { messages: [response] };
+			};
+
+			// Define the function that determines whether to continue or not
+			const shouldContinue = (state: typeof MessagesAnnotation.State) => {
+				const { messages } = state;
+				const lastMessage = messages[messages.length - 1] as AIMessage;
+				// If there is no function call, then we finish
+				if (!lastMessage.tool_calls || lastMessage.tool_calls.length === 0) {
+					return "__end__";
+				}
+				// Otherwise if there is, we continue
+				return "tools";
+			};
+
+			// Define and compile the graph
+			const workflow = new StateGraph(MessagesAnnotation)
+				.addNode("agent", callModel)
+				.addNode("tools", toolNode)
+				.addEdge("__start__", "agent")
+				.addConditionalEdges("agent", shouldContinue)
+				.addEdge("tools", "agent");
+
+			const streamingAgent = workflow.compile({
+				// TODO: Add checkpointer if you want persistent state
+				// checkpointer: yourCheckpointSaver,
 			});
 
 			// Build messages array
@@ -145,24 +178,11 @@ Language: ${language || "English"}`,
 				},
 			);
 
-			const responseHeaders: HeadersInit = {
-				"Content-Type": "text/event-stream",
-				"Cache-Control": "no-cache",
-				Connection: "keep-alive",
-			};
-
-			return new Response(stream, {
-				headers: responseHeaders,
-			});
+			this.logger.log(`Researcher stream created successfully`);
+			return stream;
 		} catch (error) {
 			this.logger.error(`Researcher error: ${error.message}`, error.stack);
-			return new Response(
-				JSON.stringify({
-					error:
-						error instanceof Error ? error.message : "Internal server error",
-				}),
-				{ status: 500, headers: { "Content-Type": "application/json" } },
-			);
+			throw error;
 		}
 	}
 

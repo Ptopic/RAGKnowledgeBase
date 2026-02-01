@@ -75,7 +75,7 @@ export class AgentService {
 	 */
 	async streamConnectorSearchResults(
 		params: StreamConnectorSearchResultsParams,
-	): Promise<Response> {
+	): Promise<any> {
 		this.logger.log(
 			`Starting connector search for user ${params.userId} in search space ${params.searchSpaceId}`,
 		);
@@ -124,20 +124,14 @@ export class AgentService {
 				chat_history: params.langchainChatHistory,
 			};
 
-			// Stream from researcher service - it now returns a Response directly
+			// Stream from researcher service
 			return await this.researcherService.streamResearcher(researcherDto);
 		} catch (error) {
 			this.logger.error(
 				`Error streaming connector search results: ${error.message}`,
 				error.stack,
 			);
-			return new Response(
-				JSON.stringify({
-					error:
-						error instanceof Error ? error.message : "Internal server error",
-				}),
-				{ status: 500, headers: { "Content-Type": "application/json" } },
-			);
+			throw error;
 		}
 	}
 

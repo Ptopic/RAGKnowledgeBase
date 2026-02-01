@@ -1,11 +1,13 @@
 "use client";
 
-import { type Message, useChatUI } from "@llamaindex/chat-ui";
+import type {
+	Message,
+	MessageType,
+	StandardMessageStructure,
+} from "@langchain/core/messages";
 import { Bot, Check, Copy, ThumbsDown, ThumbsUp, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatedEmptyState } from "@/components/chat/AnimatedEmptyState";
-import { ChatFurtherQuestions } from "@/components/chat/ChatFurtherQuestions";
-import ChatSourcesDisplay from "@/components/chat/ChatSources";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MarkdownWithCode from "../markdownWithCode/MarkdownWithCode";
@@ -78,8 +80,13 @@ function CustomMessageActions({ message }: { message: Message }) {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = useCallback(async () => {
-		if (message.content) {
-			const cleanedContent = removeCitations(message.content);
+		const content =
+			typeof message.content === "string"
+				? message.content
+				: JSON.stringify(message.content);
+
+		if (content) {
+			const cleanedContent = removeCitations(content);
 			const contentWithoutMarkdown = removeAllMarkdownElements(cleanedContent);
 			await navigator.clipboard.writeText(contentWithoutMarkdown);
 			setCopied(true);
@@ -118,8 +125,12 @@ function CustomMessageActions({ message }: { message: Message }) {
 	);
 }
 
-export function ChatMessagesUI() {
-	const { messages, isLoading } = useChatUI();
+interface ChatMessagesUIProps {
+	messages: Message<StandardMessageStructure, MessageType>[];
+	isLoading?: boolean;
+}
+
+export function ChatMessagesUI({ messages, isLoading }: ChatMessagesUIProps) {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	const scrollToBottom = useCallback(() => {
@@ -128,7 +139,7 @@ export function ChatMessagesUI() {
 
 	useEffect(() => {
 		scrollToBottom();
-	}, [scrollToBottom]);
+	}, [scrollToBottom, messages.length]);
 
 	return (
 		<div className="flex-1 flex flex-col overflow-y-auto">
@@ -140,7 +151,7 @@ export function ChatMessagesUI() {
 				<div className="p-4 space-y-6">
 					{messages.map((message, index) => (
 						<ChatMessageUI
-							key={`Message-${index}`}
+							key={`Message-${message.id || index}`}
 							message={message}
 							isLast={index === messages.length - 1}
 						/>
@@ -159,8 +170,14 @@ function ChatMessageUI({
 	message: Message;
 	isLast: boolean;
 }) {
-	const isUser = message.role === "user";
-	const isAssistant = message.role === "assistant";
+	const isUser = message.type === "human";
+	const isAssistant = message.type === "ai";
+
+	// Handle content being potentially varied types in LangChain
+	const content =
+		typeof message.content === "string"
+			? message.content
+			: JSON.stringify(message.content);
 
 	return (
 		<div className={cn("flex items-start gap-3", isUser && "flex-row-reverse")}>
@@ -182,7 +199,8 @@ function ChatMessageUI({
 			<div
 				className={cn("flex-1 space-y-4", isUser && "flex flex-col items-end")}
 			>
-				{isAssistant && <ChatSourcesDisplay message={message} />}
+				{/* Note: Disabling ChatSourcesDisplay and ChatFurtherQuestions as they likely depend on LlamaIndex Message types. 
+				    If the user needs them, they'll need to be adapted to LangChain types. */}
 
 				<div
 					className={cn(
@@ -193,15 +211,14 @@ function ChatMessageUI({
 					)}
 				>
 					<MarkdownWithCode
-						markdown={message.content}
+						markdown={content}
 						isUser={isUser}
-						isStreaming={isLast && !message.content}
+						isStreaming={isLast && !content}
 					/>
 				</div>
 
 				{isAssistant && (
 					<div className="flex flex-row justify-end gap-2">
-						{isLast && <ChatFurtherQuestions message={message} />}
 						<CustomMessageActions message={message} />
 					</div>
 				)}

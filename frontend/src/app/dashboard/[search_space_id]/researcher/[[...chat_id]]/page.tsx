@@ -1,15 +1,14 @@
 "use client";
-import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
-import config from "@shared/config";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import type { Message } from "@langchain/core/messages";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
 
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
-	const router = useRouter();
+	// const router = useRouter();
 
 	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
 	const isNewChat = !chatIdParam;
@@ -20,7 +19,7 @@ export default function ResearcherPage() {
 		setIsLoading,
 		searchMode,
 		setSearchMode,
-		researchMode,
+		// researchMode,
 		selectedConnectors,
 		setSelectedConnectors,
 		selectedDocuments,
@@ -30,20 +29,23 @@ export default function ResearcherPage() {
 		chat_id: chatIdParam,
 	});
 
-	const { fetchChatDetails, updateChat, createChat } = useChatAPI({
-		token,
-		search_space_id: search_space_id as string,
-	});
+	// const { fetchChatDetails, updateChat, createChat } = useChatAPI({
+	// 	token,
+	// 	search_space_id: search_space_id as string,
+	// });
+
+	// Use generic Message type from LangChain for the interface
+	const [messages, setMessages] = useState<Message[]>([]);
 
 	// Memoize document IDs to prevent infinite re-renders
-	const documentIds = useMemo(() => {
-		return selectedDocuments.map((doc) => doc.id);
-	}, [selectedDocuments]);
+	// const documentIds = useMemo(() => {
+	// 	return selectedDocuments.map((doc) => doc.id);
+	// }, [selectedDocuments]);
 
 	// Memoize connector types to prevent infinite re-renders
-	const connectorTypes = useMemo(() => {
-		return selectedConnectors;
-	}, [selectedConnectors]);
+	// const connectorTypes = useMemo(() => {
+	// 	return selectedConnectors;
+	// }, [selectedConnectors]);
 
 	// Unified localStorage management for chat state
 	interface ChatState {
@@ -56,14 +58,14 @@ export default function ResearcherPage() {
 	const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
 		`surfsense_chat_state_${searchSpaceId}_${chatId}`;
 
-	const storeChatState = (
-		searchSpaceId: string,
-		chatId: string,
-		state: ChatState,
-	) => {
-		const key = getChatStateStorageKey(searchSpaceId, chatId);
-		localStorage.setItem(key, JSON.stringify(state));
-	};
+	// const storeChatState = (
+	// 	searchSpaceId: string,
+	// 	chatId: string,
+	// 	state: ChatState,
+	// ) => {
+	// 	const key = getChatStateStorageKey(searchSpaceId, chatId);
+	// 	localStorage.setItem(key, JSON.stringify(state));
+	// };
 
 	const restoreChatState = (
 		searchSpaceId: string,
@@ -83,48 +85,23 @@ export default function ResearcherPage() {
 		return null;
 	};
 
-	const handler = useChat({
-		api: `${config.apiUrl}/agent/chat`,
-		streamProtocol: "data",
-		initialMessages: [],
-		headers: {
-			...(token && { Authorization: `Bearer ${token}` }),
-		},
-		body: {
-			data: {
-				search_space_id: search_space_id,
-				selected_connectors: connectorTypes,
-				research_mode: researchMode,
-				search_mode: searchMode,
-				document_ids_to_add_in_context: documentIds,
-			},
-		},
-		onError: (error) => {
-			console.error("Chat error:", error);
-		},
-	});
-
-	const customHandlerAppend = async (
-		message: Message | CreateMessage,
-		chatRequestOptions?: { data?: any },
-	) => {
-		const newChatId = await createChat(
-			message.content,
-			researchMode,
-			selectedConnectors,
-		);
-		if (newChatId) {
-			// Store chat state before navigation
-			storeChatState(search_space_id as string, newChatId, {
-				selectedDocuments,
-				selectedConnectors,
-				searchMode,
-				researchMode,
-			});
-			router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
-		}
-		return newChatId;
+	// Helper to convert backend/AI SDK messages to LangChain messages
+	const convertToLangChainMessages = (apiMessages: any[]): Message[] => {
+		return apiMessages.map((msg) => {
+			if (msg.role === "user") {
+				return { type: "human", content: msg.content, id: msg.id };
+			} else if (msg.role === "assistant") {
+				return { type: "ai", content: msg.content, id: msg.id };
+			}
+			// Fallback
+			return { type: "system", content: msg.content, id: msg.id };
+		}) as Message[];
 	};
+
+	const { fetchChatDetails } = useChatAPI({
+		token,
+		search_space_id: search_space_id as string,
+	});
 
 	useEffect(() => {
 		if (token && !isNewChat && chatIdParam) {
@@ -160,9 +137,6 @@ export default function ResearcherPage() {
 			const chatData = await fetchChatDetails(chatId);
 			if (!chatData) return;
 
-			// Update configuration from chat data
-			// researchMode is always "QNA", no need to set from chat data
-
 			if (
 				chatData.initial_connectors &&
 				Array.isArray(chatData.initial_connectors)
@@ -172,19 +146,8 @@ export default function ResearcherPage() {
 
 			// Load existing messages
 			if (chatData.messages && Array.isArray(chatData.messages)) {
-				if (
-					chatData.messages.length === 1 &&
-					chatData.messages[0].role === "user"
-				) {
-					// Single user message - append to trigger LLM response
-					handler.append({
-						role: "user",
-						content: chatData.messages[0].content,
-					});
-				} else if (chatData.messages.length > 1) {
-					// Multiple messages - set them all
-					handler.setMessages(chatData.messages);
-				}
+				const convertedMessages = convertToLangChainMessages(chatData.messages);
+				setMessages(convertedMessages);
 			}
 		} finally {
 			setIsLoading(false);
@@ -192,22 +155,11 @@ export default function ResearcherPage() {
 	};
 
 	// Auto-update chat when messages change (only for existing chats)
-	useEffect(() => {
-		if (
-			!isNewChat &&
-			chatIdParam &&
-			handler.status === "ready" &&
-			handler.messages.length > 0 &&
-			handler.messages[handler.messages.length - 1]?.role === "assistant"
-		) {
-			updateChat(
-				chatIdParam,
-				handler.messages,
-				researchMode,
-				selectedConnectors,
-			);
-		}
-	}, [handler.messages, handler.status, chatIdParam, isNewChat]);
+	// NOTE: Disabled/Refactored because handler is removed.
+	// If we want to auto-save chat history to backend on new messages,
+	// we should rely on the stream handling completion or explicit save.
+	// The original code used `updateChat` here.
+	// `useChatStream` might NOT save to backend unless 'endpoint' does it implicitly.
 
 	if (isLoading) {
 		return (
@@ -219,16 +171,18 @@ export default function ResearcherPage() {
 
 	return (
 		<TestChatInterface
-			handler={{
-				...handler,
-				append: isNewChat ? customHandlerAppend : handler.append,
-			}}
 			onDocumentSelectionChange={setSelectedDocuments}
 			selectedDocuments={selectedDocuments}
 			onConnectorSelectionChange={setSelectedConnectors}
 			selectedConnectors={selectedConnectors}
 			searchMode={searchMode}
 			onSearchModeChange={setSearchMode}
+			messages={messages}
+			setMessages={setMessages}
+			threadId={chatIdParam || "new_chat"}
+			userId={1} // Default user, should be dynamic if possible
+			token={token}
+			searchSpaceId={search_space_id as string}
 		/>
 	);
 }

@@ -6,8 +6,10 @@ import {
 	Post,
 	Query,
 	Req,
+	Res,
 	UseGuards,
 } from "@nestjs/common";
+import { Response as ExpressResponse } from "express";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
 import { AISDKChatRequestDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
@@ -20,7 +22,11 @@ export class AgentController {
 	constructor(private readonly agentService: AgentService) {}
 
 	@Post("chat")
-	async handleChatData(@Body() request: AISDKChatRequestDto, @Req() req: any) {
+	async handleChatData(
+		@Body() request: AISDKChatRequestDto,
+		@Req() req: any,
+		@Res() res: ExpressResponse,
+	) {
 		try {
 			const messages = request.messages;
 
@@ -52,7 +58,7 @@ export class AgentController {
 				content: msg.content,
 			}));
 
-			const response = await this.agentService.streamConnectorSearchResults({
+			const stream = await this.agentService.streamConnectorSearchResults({
 				userQuery,
 				userId: req.user.id,
 				searchSpaceId,
@@ -64,8 +70,35 @@ export class AgentController {
 				language,
 			});
 
-			// Return the Response object directly
-			return response;
+			res.setHeader("Content-Type", "text/event-stream");
+			res.setHeader("Cache-Control", "no-cache");
+			res.setHeader("Connection", "keep-alive");
+
+			try {
+				for await (const chunk of stream) {
+					let dataToSend = chunk;
+					let eventType = "data";
+					if (
+						Array.isArray(chunk) &&
+						chunk.length === 2 &&
+						chunk[0] === "messages"
+					) {
+						eventType = "messages";
+						dataToSend = chunk[1];
+					} else if (chunk.messages) {
+						eventType = "messages";
+						dataToSend = chunk.messages;
+					}
+					res.write(`event: ${eventType}\n`);
+					res.write(`data: ${JSON.stringify(dataToSend)}\n\n`);
+				}
+				res.end();
+			} catch (error) {
+				this.logger.error(`Streaming error: ${error.message}`);
+				res.write("event: error\n");
+				res.write(`data: ${JSON.stringify({ message: error.message })}\n\n`);
+				res.end();
+			}
 		} catch (error) {
 			if (error instanceof BadRequestException) {
 				throw error;
@@ -88,7 +121,6 @@ export class AgentController {
 		this.logger.debug(`Webhook payload: ${JSON.stringify(body)}`);
 
 		try {
-			// Process the BrightData webhook response with context from query params
 			await this.agentService.processBrightDataWebhook(body, {
 				searchSpaceId: searchSpaceId
 					? Number.parseInt(searchSpaceId, 10)

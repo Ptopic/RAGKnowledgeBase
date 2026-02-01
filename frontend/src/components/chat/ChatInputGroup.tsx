@@ -584,6 +584,8 @@ export const ChatInputUI = React.memo(
 		onSearchModeChange,
 		onSubmit,
 		isLoading,
+		value,
+		onInputChange,
 	}: {
 		onDocumentSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
@@ -593,45 +595,59 @@ export const ChatInputUI = React.memo(
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 		onSubmit?: (message: string) => void;
 		isLoading?: boolean;
+		value?: string;
+		onInputChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
 	}) => {
-		const [input, setInput] = useState("");
+		const [internalInput, setInternalInput] = useState("");
+
+		const isControlled = value !== undefined;
+		const inputValue = isControlled ? value : internalInput;
+
+		const handleInputChange = useCallback(
+			(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+				if (onInputChange) {
+					onInputChange(e);
+				}
+				if (!isControlled) {
+					setInternalInput(e.target.value);
+				}
+			},
+			[isControlled, onInputChange],
+		);
 
 		const handleSubmit = useCallback(
 			(e: React.FormEvent) => {
 				e.preventDefault();
-				if (input.trim() && !isLoading) {
-					onSubmit?.(input);
-					setInput("");
+				if (inputValue.trim() && !isLoading) {
+					onSubmit?.(inputValue);
+					if (!isControlled) {
+						setInternalInput("");
+					}
 				}
 			},
-			[input, isLoading, onSubmit],
-		);
-
-		const handleInputChange = useCallback(
-			(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-				setInput(e.target.value);
-			},
-			[],
+			[inputValue, isLoading, onSubmit, isControlled],
 		);
 
 		const handleKeyDown = useCallback(
 			(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 				if (e.key === "Enter" && !e.shiftKey) {
 					e.preventDefault();
-					if (input.trim() && !isLoading) {
-						onSubmit?.(input);
-						setInput("");
+					if (inputValue.trim() && !isLoading) {
+						onSubmit?.(inputValue);
+						if (!isControlled) {
+							setInternalInput("");
+						}
 					}
 				}
 			},
-			[input, isLoading, onSubmit],
+			[inputValue, isLoading, onSubmit, isControlled],
 		);
 
 		return (
 			<div className="flex flex-col gap-3">
 				<form onSubmit={handleSubmit} className="flex gap-2">
 					<textarea
-						value={input}
+						value={inputValue}
 						onChange={handleInputChange}
 						onKeyDown={handleKeyDown}
 						placeholder="Ask a question..."
@@ -646,7 +662,7 @@ export const ChatInputUI = React.memo(
 					<Button
 						type="submit"
 						size="icon"
-						disabled={!input.trim() || isLoading}
+						disabled={!inputValue.trim() || isLoading}
 						className="h-11 w-11 shrink-0"
 					>
 						<Send className="h-4 w-4" />
@@ -664,7 +680,5 @@ export const ChatInputUI = React.memo(
 		);
 	},
 );
-
-ChatInputUI.displayName = "ChatInputUI";
 
 ChatInputUI.displayName = "ChatInputUI";
