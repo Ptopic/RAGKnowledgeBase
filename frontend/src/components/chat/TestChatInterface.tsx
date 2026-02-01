@@ -36,9 +36,7 @@ export default function TestChatInterface({
 	onSearchModeChange,
 	messages,
 	setMessages,
-	threadId,
 	chatId,
-	userId = 1,
 	token,
 	searchSpaceId,
 	onStreamStart,
@@ -50,15 +48,12 @@ export default function TestChatInterface({
 	const endpoint = `${config.apiUrl}/agent/chat`;
 
 	const { isStreaming, sendMessage, handleInputChange } = useChatStream({
-		type: "archive",
 		messages,
 		setMessages,
 		inputText,
 		setInputText,
-		threadId,
 		chatId,
 		endpoint,
-		userId,
 		token: token || undefined,
 		searchSpaceId,
 		selectedConnectors,
@@ -66,7 +61,6 @@ export default function TestChatInterface({
 		scrollContainerRef: { current: null },
 		onStreamStart,
 		onStreamFinish: async (_messages, _userMessage, chatId) => {
-			// Invalidate queries to get latest data
 			queryClient.invalidateQueries({ queryKey: ["chats"] });
 			if (chatId) {
 				queryClient.invalidateQueries({ queryKey: ["chatDetails", chatId] });

@@ -21,7 +21,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { OrderedStreamMessage } from "@/types/chat.types";
 import { config } from "@/shared/config/config";
 
 function isAIMessage(message: Message): boolean {
@@ -39,15 +38,12 @@ export interface ToolCallState {
 }
 
 export interface UseChatStreamOptions {
-	type: "archive" | "transcript" | "article";
 	messages: Message<StandardMessageStructure, MessageType>[];
 	setMessages: Dispatch<SetStateAction<Message[]>>;
 	inputText: string;
 	setInputText: Dispatch<SetStateAction<string>>;
-	threadId: string;
 	endpoint: string;
 	chatId?: number;
-	userId: number;
 	token?: string;
 	searchSpaceId: string;
 	selectedConnectors?: string[];
@@ -87,15 +83,12 @@ export function useChatStream(
 	options: UseChatStreamOptions,
 ): UseChatStreamReturn {
 	const {
-		type,
 		messages,
 		setMessages,
 		inputText,
 		setInputText,
-		threadId,
 		endpoint,
 		chatId,
-		userId,
 		token,
 		searchSpaceId,
 		selectedConnectors,
@@ -112,16 +105,13 @@ export function useChatStream(
 
 	const [isStartingStreaming, setIsStartingStreaming] = useState(false);
 	const [isStreamingFinished, setIsStreamingFinished] = useState(true);
-	const [currentChatId, setCurrentChatId] = useState<number | undefined>(chatId);
+	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
+		chatId,
+	);
 
-	// Use ref to track the current chat ID - this updates dynamically when chat is created
-	const currentChatIdRef = useRef<number | undefined>(chatId);
-
-	// Sync state and ref when chatId prop changes
 	useEffect(() => {
 		if (chatId !== undefined) {
 			setCurrentChatId(chatId);
-			currentChatIdRef.current = chatId;
 		}
 	}, [chatId]);
 
@@ -144,9 +134,7 @@ export function useChatStream(
 
 				if (chatIdHeader) {
 					const newChatId = Number.parseInt(chatIdHeader, 10);
-					// Always update if we get a chatId header and don't have one set yet
-					if (!currentChatIdRef.current) {
-						currentChatIdRef.current = newChatId;
+					if (!currentChatId) {
 						setCurrentChatId(newChatId);
 						onChatCreated?.(newChatId);
 					}
@@ -163,15 +151,13 @@ export function useChatStream(
 					];
 				const messageContent = lastMessage?.content || "";
 
-				const langchainThreadId =
-					langchainBody.config?.configurable?.thread_id || threadId;
-
 				const customBody = {
 					messages: [{ content: messageContent, role: "user" }],
-					chat_id: currentChatIdRef.current,
+					chat_id: currentChatId,
 					data: {
 						search_space_id: searchSpaceId,
-						research_mode: type,
+						// TODO: Fix research mode later
+						research_mode: "QNA",
 						selected_connectors: selectedConnectors,
 						search_mode: searchMode,
 					},
@@ -188,8 +174,6 @@ export function useChatStream(
 		});
 	}, [
 		endpoint,
-		threadId,
-		type,
 		token,
 		searchSpaceId,
 		selectedConnectors,
@@ -315,7 +299,7 @@ export function useChatStream(
 			const streamMessagesToSave = stream.messages.filter((msg) => {
 				return (
 					msg.type !== "system" &&
-					msg.type !== "question" &&
+					// msg.type !== "question" &&
 					msg.type !== "tool"
 				);
 			});
@@ -341,7 +325,9 @@ export function useChatStream(
 					} else if (typeof msg.content === "object") {
 						// Handle complex content structures
 						if (Array.isArray(msg.content)) {
-							contentStr = msg.content.map(c => typeof c === 'string' ? c : JSON.stringify(c)).join("\n");
+							contentStr = msg.content
+								.map((c) => (typeof c === "string" ? c : JSON.stringify(c)))
+								.join("\n");
 						} else {
 							contentStr = JSON.stringify(msg.content);
 						}
@@ -353,26 +339,19 @@ export function useChatStream(
 				}
 			}
 
-			// Use the ref to get the current chat ID (updates dynamically)
-			const chatIdFromRef = currentChatIdRef.current;
-
 			// If we have a chatId, save messages to backend
-			if (chatIdFromRef && token) {
-				saveMessagesToBackend(chatIdFromRef, messagesForBackend, token)
+			if (currentChatId && token) {
+				saveMessagesToBackend(currentChatId, messagesForBackend, token)
 					.then(() => {
 						return onStreamFinish?.(
 							streamMessagesToSave,
 							userMessage,
-							chatIdFromRef,
+							currentChatId,
 						);
 					})
 					.catch((error) => {
 						console.error("Error saving messages to backend:", error);
-						onStreamFinish?.(
-							streamMessagesToSave,
-							userMessage,
-							chatIdFromRef,
-						);
+						onStreamFinish?.(streamMessagesToSave, userMessage, currentChatId);
 					});
 			}
 		}
@@ -421,9 +400,7 @@ export function useChatStream(
 
 					if (streamMsg.type === "ai") {
 						const content =
-							typeof streamMsg.content === "string"
-								? streamMsg.content
-								: "";
+							typeof streamMsg.content === "string" ? streamMsg.content : "";
 
 						if (content.trim().startsWith("{")) {
 							continue;

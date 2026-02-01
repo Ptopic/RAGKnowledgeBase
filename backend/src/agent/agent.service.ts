@@ -79,6 +79,7 @@ export class AgentService {
 				searchMode = SearchMode.CHUNKS;
 			}
 
+			// TODO: Check if thread id works
 			const persistentThreadId = currentChatId
 				? `chat-${currentChatId}`
 				: `${params.userId}_${params.searchSpaceId}`;

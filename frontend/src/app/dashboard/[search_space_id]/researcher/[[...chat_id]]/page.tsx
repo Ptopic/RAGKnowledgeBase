@@ -32,7 +32,7 @@ const restoreChatState = (
 	const key = getChatStateStorageKey(searchSpaceId, chatId);
 	const stored = localStorage.getItem(key);
 	if (stored) {
-		localStorage.removeItem(key); // Clean up after restoration
+		localStorage.removeItem(key);
 		try {
 			return JSON.parse(stored);
 		} catch {
@@ -48,7 +48,6 @@ const restoreChatState = (
  * This function flattens the structure for the frontend
  */
 const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
-	// Helper to convert a single message
 	const convertSingleMessage = (msg: any, index: number): Message => {
 		const id = msg.id || `msg_${index}`;
 		if (msg.role === "user") {
@@ -60,14 +59,10 @@ const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
 		return { type: "system", content: msg.content, id };
 	};
 
-	// Check if messages are in nested exchange format
 	if (apiMessages.length > 0 && Array.isArray(apiMessages[0])) {
-		// Flatten the nested exchanges: [[msg1, msg2], [msg3, msg4]] -> [msg1, msg2, msg3, msg4]
 		const flatMessages = (apiMessages as any[]).flat();
 		return flatMessages.map(convertSingleMessage) as Message[];
 	}
-
-	// Otherwise, assume flat array format (for backward compatibility)
 	return apiMessages.map(convertSingleMessage) as Message[];
 };
 
@@ -102,7 +97,6 @@ export default function ResearcherPage() {
 		search_space_id: search_space_id as string,
 	});
 
-	// Load chat data when chatId or token changes
 	useEffect(() => {
 		if (token && chatIdParam) {
 			setIsLoading(true);
@@ -124,23 +118,29 @@ export default function ResearcherPage() {
 		}
 	}, [token, chatIdParam]);
 
-	// Restore chat state from localStorage on page load
 	useEffect(() => {
 		if (!chatIdParam || !search_space_id) return;
 
-		const restoredState = restoreChatState(search_space_id as string, chatIdParam);
+		const restoredState = restoreChatState(
+			search_space_id as string,
+			chatIdParam,
+		);
 		if (restoredState) {
 			setSelectedDocuments(restoredState.selectedDocuments);
 			setSelectedConnectors(restoredState.selectedConnectors);
 			setSearchMode(restoredState.searchMode);
 		}
-	}, [chatIdParam, search_space_id, setSelectedDocuments, setSelectedConnectors, setSearchMode]);
+	}, [
+		chatIdParam,
+		search_space_id,
+		setSelectedDocuments,
+		setSelectedConnectors,
+		setSearchMode,
+	]);
 
-	// Handle new chat creation from backend
 	const handleChatCreated = (newChatId: number) => {
 		setCurrentChatId(newChatId);
 
-		// Store chat state before navigation
 		storeChatState(search_space_id as string, String(newChatId), {
 			selectedDocuments,
 			selectedConnectors,
@@ -148,7 +148,6 @@ export default function ResearcherPage() {
 			researchMode: "QNA",
 		});
 
-		// Navigate to the new chat URL
 		router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
 	};
 
