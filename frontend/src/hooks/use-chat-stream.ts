@@ -338,40 +338,11 @@ export function useChatStream(
 			console.log("Stream finished!");
 			setIsStreamingFinished(true);
 
-			// const userMessage = lastUserMessageContentRef.current;
-			// const orderedMessages = getOrderedMessages(stream.messages, type);
-			// const questionMessages = questionMessagesRef.current;
-
-			// FILTER: Remove raw JSON control messages before saving to DB
-			// const messagesToSave = orderedMessages.filter((msg) => {
-			// 	const content = msg.content;
-			// 	const isJsonMessage =
-			// 		msg.type === "ai" &&
-			// 		typeof content === "string" &&
-			// 		content.trim().startsWith("{");
-			// 	return !isJsonMessage;
-			// });
-			// messagesToSave.push(...questionMessages);
-
-			// const chatIdToUse = currentChatIdRef.current;
-			// if (chatIdToUse && userMessage) {
-			// 	handleAddMessagesToMemory(
-			// 		chatIdToUse,
-			// 		userMessage,
-			// 		messagesToSave,
-			// 		type,
-			// 		articleId,
-			// 	).then(() => {
-			// 		onStreamFinish?.(messagesToSave, userMessage);
-			// 		questionMessagesRef.current = [];
-			// 	});
-			// } else {
-			// 	questionMessagesRef.current = [];
-			// }
-			// questionMessagesRef.current = [];
+			// Call the onStreamFinish callback to notify parent component
+			onStreamFinish?.();
 		}
 		prevLoading.current = stream.isLoading;
-	}, [stream.isLoading, onStreamFinish, type]);
+	}, [stream.isLoading, onStreamFinish]);
 
 	const isStreaming = useMemo(() => stream.isLoading, [stream.isLoading]);
 

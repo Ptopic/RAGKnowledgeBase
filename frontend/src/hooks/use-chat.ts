@@ -89,7 +89,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 
 	const createChat = useCallback(
 		async (
-			initialMessage: string,
+			messagesOrInitialMessage: string | Message[],
 			researchMode: ResearchMode,
 			selectedConnectors: string[],
 		): Promise<string | null> => {
@@ -99,17 +99,33 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 			}
 
 			try {
-				const request: CreateChatRequest = {
-					type: researchMode,
-					title: "Untitled Chat",
-					initial_connectors: selectedConnectors,
-					messages: [
+				// Handle both string (initial message) and Message[] (all messages)
+				let messages: Message[];
+				let title = "Untitled Chat";
+
+				if (typeof messagesOrInitialMessage === "string") {
+					// Old API: string initial message
+					messages = [
 						{
 							id: `temp-${Date.now()}`,
 							role: "user",
-							content: initialMessage,
+							content: messagesOrInitialMessage,
 						} as Message,
-					],
+					];
+					title = messagesOrInitialMessage;
+				} else {
+					// New API: array of messages
+					messages = messagesOrInitialMessage;
+					// Use first user message as title
+					const firstUserMessage = messages.find((m) => m.role === "user");
+					title = firstUserMessage?.content?.substring(0, 50) || "New Chat";
+				}
+
+				const request: CreateChatRequest = {
+					type: researchMode,
+					title,
+					initial_connectors: selectedConnectors,
+					messages,
 					search_space_id: Number(search_space_id),
 				};
 

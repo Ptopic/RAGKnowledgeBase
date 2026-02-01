@@ -23,6 +23,9 @@ interface ChatInterfaceProps {
 	userId?: number;
 	token?: string | null;
 	searchSpaceId: string;
+	// Streaming lifecycle callbacks
+	onStreamStart?: () => void;
+	onStreamFinish?: () => void;
 }
 
 // Fixed values for integration as per original component context if needed,
@@ -43,6 +46,8 @@ export default function TestChatInterface({
 	userId = DEFAULT_USER_ID,
 	token,
 	searchSpaceId,
+	onStreamStart,
+	onStreamFinish,
 }: ChatInterfaceProps) {
 	const [localMessages, setLocalMessages] = useState<Message[]>([]);
 	const [inputText, setInputText] = useState("");
@@ -71,9 +76,14 @@ export default function TestChatInterface({
 		selectedConnectors,
 		searchMode,
 		scrollContainerRef: { current: null }, // passed just to satisfy types if we don't use the returned ref for main container
-		onStreamStart: () => console.log("Stream started"),
+		onStreamStart: () => {
+			console.log("TestChatInterface: Stream started");
+			onStreamStart?.();
+		},
 		onStreamFinish: () => {
+			console.log("TestChatInterface: Stream finished");
 			queryClient.invalidateQueries({ queryKey: ["chats"] });
+			onStreamFinish?.();
 		},
 	});
 

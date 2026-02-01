@@ -1,14 +1,15 @@
 "use client";
 import type { Message } from "@langchain/core/messages";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import type { Message as AISDKMessage } from "@ai-sdk/react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
 
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
-	// const router = useRouter();
+	const router = useRouter();
 
 	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
 	const isNewChat = !chatIdParam;
@@ -37,6 +38,34 @@ export default function ResearcherPage() {
 	// Use generic Message type from LangChain for the interface
 	const [messages, setMessages] = useState<Message[]>([]);
 
+	// Track streaming state for auto-save
+	const [isStreaming, setIsStreaming] = useState(false);
+	const prevIsStreamingRef = useRef(false);
+
+	// Helper to convert LangChain messages to AI SDK messages for backend
+	const convertToAISDKMessages = (langChainMessages: Message[]): AISDKMessage[] => {
+		return langChainMessages
+			.filter((msg) => {
+				// Filter out system messages and question-type messages
+				return (
+					msg.type !== "system" &&
+					msg.type !== "question" &&
+					msg.type !== "tool"
+				);
+			})
+			.map((msg) => {
+				let role: "user" | "assistant" | "system" = "user";
+				if (msg.type === "ai") role = "assistant";
+				else if (msg.type === "system") role = "system";
+
+				return {
+					id: msg.id,
+					role,
+					content: msg.content as string,
+				} as AISDKMessage;
+			});
+	};
+
 	// Memoize document IDs to prevent infinite re-renders
 	// const documentIds = useMemo(() => {
 	// 	return selectedDocuments.map((doc) => doc.id);
@@ -58,14 +87,14 @@ export default function ResearcherPage() {
 	const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
 		`surfsense_chat_state_${searchSpaceId}_${chatId}`;
 
-	// const storeChatState = (
-	// 	searchSpaceId: string,
-	// 	chatId: string,
-	// 	state: ChatState,
-	// ) => {
-	// 	const key = getChatStateStorageKey(searchSpaceId, chatId);
-	// 	localStorage.setItem(key, JSON.stringify(state));
-	// };
+	const storeChatState = (
+		searchSpaceId: string,
+		chatId: string,
+		state: ChatState,
+	) => {
+		const key = getChatStateStorageKey(searchSpaceId, chatId);
+		localStorage.setItem(key, JSON.stringify(state));
+	};
 
 	const restoreChatState = (
 		searchSpaceId: string,
@@ -98,7 +127,7 @@ export default function ResearcherPage() {
 		}) as Message[];
 	};
 
-	const { fetchChatDetails } = useChatAPI({
+	const { fetchChatDetails, updateChat, createChat } = useChatAPI({
 		token,
 		search_space_id: search_space_id as string,
 	});
@@ -154,12 +183,75 @@ export default function ResearcherPage() {
 		}
 	};
 
-	// Auto-update chat when messages change (only for existing chats)
-	// NOTE: Disabled/Refactored because handler is removed.
-	// If we want to auto-save chat history to backend on new messages,
-	// we should rely on the stream handling completion or explicit save.
-	// The original code used `updateChat` here.
-	// `useChatStream` might NOT save to backend unless 'endpoint' does it implicitly.
+	// Auto-update chat when stream finishes
+	useEffect(() => {
+		// Check if streaming just finished
+		if (prevIsStreamingRef.current && !isStreaming) {
+			console.log("Stream finished, checking for save...", {
+				messagesLength: messages.length,
+				lastMessage: messages[messages.length - 1],
+				chatIdParam,
+				isNewChat,
+			});
+
+			// Streaming just finished
+			if (
+				messages.length > 0 &&
+				messages[messages.length - 1]?.type === "ai"
+			) {
+				const messagesToSave = convertToAISDKMessages(messages);
+				console.log("Messages to save:", messagesToSave);
+
+				// Check if we have a chat ID - if not, create new chat
+				if (!chatIdParam) {
+					console.log("Creating new chat...");
+					// Create new chat after streaming finishes with all messages
+					createChat(
+						messagesToSave,
+						"QNA",
+						selectedConnectors,
+					).then((newChatId) => {
+						console.log("Chat created with ID:", newChatId);
+						if (newChatId) {
+							// Store chat state before navigation
+							storeChatState(search_space_id as string, newChatId, {
+								selectedDocuments,
+								selectedConnectors,
+								searchMode,
+								researchMode: "QNA",
+							});
+							// Navigate to the new chat
+							router.replace(
+								`/dashboard/${search_space_id}/researcher/${newChatId}`,
+							);
+						}
+					});
+				} else {
+					console.log("Updating existing chat:", chatIdParam);
+					// Update existing chat
+					updateChat(
+						chatIdParam,
+						messagesToSave,
+						"QNA",
+						selectedConnectors,
+					);
+				}
+			}
+		}
+		// Update the ref for next comparison
+		prevIsStreamingRef.current = isStreaming;
+	}, [
+		isStreaming,
+		messages,
+		chatIdParam,
+		updateChat,
+		createChat,
+		selectedConnectors,
+		selectedDocuments,
+		searchMode,
+		search_space_id,
+		router,
+	]);
 
 	if (isLoading) {
 		return (
@@ -183,6 +275,14 @@ export default function ResearcherPage() {
 			userId={1} // Default user, should be dynamic if possible
 			token={token}
 			searchSpaceId={search_space_id as string}
+			onStreamStart={() => {
+				console.log("page.tsx: onStreamStart called");
+				setIsStreaming(true);
+			}}
+			onStreamFinish={() => {
+				console.log("page.tsx: onStreamFinish called");
+				setIsStreaming(false);
+			}}
 		/>
 	);
 }
