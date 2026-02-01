@@ -1,3 +1,4 @@
+import { ChatAnthropic } from "@langchain/anthropic";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
@@ -111,13 +112,13 @@ export class LLMService {
 						...litellmParams,
 					});
 
-				// case "ANTHROPIC":
-				// 	return new ChatAnthropic({
-				// 		modelName,
-				// 		anthropicApiKey: apiKey,
-				// 		anthropicApiUrl: apiBase,
-				// 		...litellmParams,
-				// 	});
+				case "ANTHROPIC":
+					return new ChatAnthropic({
+						modelName,
+						anthropicApiKey: apiKey,
+						anthropicApiUrl: apiBase,
+						...litellmParams,
+					});
 
 				case "GROQ":
 					return new ChatOpenAI({

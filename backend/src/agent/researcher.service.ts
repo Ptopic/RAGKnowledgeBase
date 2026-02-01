@@ -6,7 +6,6 @@ import {
 } from "@langchain/core/messages";
 import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -17,11 +16,6 @@ import { PromptsService } from "./services/prompts.service";
 import { QNAService } from "./services/qna.service";
 import { StreamingService } from "./streaming.service";
 import { Document, getConnectorFriendlyName } from "./utils/agent.utils";
-
-interface ChatMessage {
-	role: string;
-	content: string;
-}
 
 /**
  * Researcher Service Implementation

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 
 export interface ChatMessage {
@@ -71,12 +72,10 @@ export class ConversationMemoryService {
 			const flatMessages = exchanges.flat();
 
 			// Return last N messages (sliding window)
-			return flatMessages
-				.slice(-limit)
-				.map((msg) => ({
-					role: (msg.role || "user") as "user" | "assistant" | "system",
-					content: msg.content || "",
-				}));
+			return flatMessages.slice(-limit).map((msg) => ({
+				role: (msg.role || "user") as "user" | "assistant" | "system",
+				content: msg.content || "",
+			}));
 		} catch (error) {
 			if (error instanceof NotFoundException) {
 				throw error;
@@ -118,7 +117,7 @@ export class ConversationMemoryService {
 		// Update chat
 		await this.prisma.chat.update({
 			where: { id: chatId },
-			data: { messages: updatedMessages },
+			data: { messages: updatedMessages as Prisma.InputJsonValue },
 		});
 	}
 }

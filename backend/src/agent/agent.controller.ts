@@ -11,10 +11,7 @@ import {
 } from "@nestjs/common";
 import { Response as ExpressResponse } from "express";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
-import {
-	AISDKChatRequestDto,
-	SaveMessagesDto,
-} from "src/chats/dtos/chat.dto";
+import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
 
 @Controller("agent")
@@ -26,7 +23,7 @@ export class AgentController {
 
 	@Post("chat")
 	async handleChatData(
-		@Body() request: AISDKChatRequestDto,
+		@Body() request: AgentChatRequestDto,
 		@Req() req: any,
 		@Res() res: ExpressResponse,
 	) {
@@ -51,50 +48,44 @@ export class AgentController {
 
 			const researchMode = requestData.research_mode || "QNA";
 			const selectedConnectors = requestData.selected_connectors || [];
-			const documentIdsToAddInContext =
-				(requestData.document_ids_to_add_in_context || []).map(Number);
+			const documentIdsToAddInContext = (
+				requestData.document_ids_to_add_in_context || []
+			).map(Number);
 			const searchMode = requestData.search_mode || "CHUNKS";
 			const language = requestData.language || "English";
 			const chatId = request.chat_id;
 
-			const { stream, chatId: createdChatId, chatWasCreated } =
-				await this.agentService.streamConnectorSearchResults({
-					userQuery,
-					userId: req.user.id,
-					searchSpaceId,
-					researchMode,
-					selectedConnectors,
-					searchModeStr: searchMode,
-					documentIdsToAddInContext,
-					language,
-					chatId,
-				});
+			const {
+				stream,
+				chatId: createdChatId,
+				chatWasCreated,
+			} = await this.agentService.streamConnectorSearchResults({
+				userQuery,
+				userId: req.user.id,
+				searchSpaceId,
+				researchMode,
+				selectedConnectors,
+				searchModeStr: searchMode,
+				documentIdsToAddInContext,
+				language,
+				chatId,
+			});
 
 			res.setHeader("Content-Type", "text/event-stream");
 			res.setHeader("Cache-Control", "no-cache");
 			res.setHeader("Connection", "keep-alive");
 
-			// Set X-Chat-Id header if chat was created
 			if (chatWasCreated && createdChatId) {
 				res.setHeader("X-Chat-Id", createdChatId.toString());
 			}
 
 			try {
-				// Handle LangGraph stream format
-				// The stream yields chunks with different formats based on streamMode
 				for await (const chunk of stream) {
-					// LangGraph stream with streamMode: ["messages", "custom"] yields:
-					// - { event: 'messages/chat', data: [...] } for message updates
-					// - { event: 'custom/...', data: {...} } for custom events
-					// - Or simple arrays/tuples in some cases
-
 					let eventType = "data";
 					let dataToSend = chunk;
 
-					// Handle LangGraph event format
 					if (chunk && typeof chunk === "object") {
 						if ("event" in chunk && "data" in chunk) {
-							// LangGraph event format: { event: 'messages/chat', data: [...] }
 							eventType = chunk.event;
 							dataToSend = chunk.data;
 						} else if (
@@ -102,17 +93,14 @@ export class AgentController {
 							chunk.length === 2 &&
 							chunk[0] === "messages"
 						) {
-							// Tuple format: ["messages", [...]]
 							eventType = "messages";
 							dataToSend = chunk[1];
 						} else if ("messages" in chunk) {
-							// Object with messages property
 							eventType = "messages";
 							dataToSend = chunk.messages;
 						}
 					}
 
-					// Send SSE event
 					res.write(`event: ${eventType}\n`);
 					res.write(`data: ${JSON.stringify(dataToSend)}\n\n`);
 				}
@@ -127,10 +115,7 @@ export class AgentController {
 			if (error instanceof BadRequestException) {
 				throw error;
 			}
-			this.logger.error(
-				`Chat processing error: ${error.message}`,
-				error.stack,
-			);
+			this.logger.error(`Chat processing error: ${error.message}`, error.stack);
 			throw new BadRequestException(`Failed to process chat: ${error.message}`);
 		}
 	}
@@ -149,10 +134,7 @@ export class AgentController {
 
 			return { success: true, message: "Messages saved successfully" };
 		} catch (error) {
-			this.logger.error(
-				`Error saving messages: ${error.message}`,
-				error.stack,
-			);
+			this.logger.error(`Error saving messages: ${error.message}`, error.stack);
 			throw new BadRequestException(
 				`Failed to save messages: ${error.message}`,
 			);

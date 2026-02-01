@@ -76,7 +76,7 @@ export class ChatWithoutMessagesDto {
 	created_at: Date;
 }
 
-export class AISDKChatRequestDto {
+export class AgentChatRequestDto {
 	@IsArray()
 	messages: any[];
 

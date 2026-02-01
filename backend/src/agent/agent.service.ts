@@ -1,13 +1,8 @@
-import { PromptTemplate } from "@langchain/core/prompts";
-import { MemorySaver } from "@langchain/langgraph";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
 import { ChatType } from "@prisma/client";
 import { ChatsService } from "src/chats/chats.service";
-import { SearchMode, StreamingService } from "src/services";
+import { SearchMode } from "src/services";
 import { YoutubeProcessorService } from "../tasks/document-processors";
-import { userPrompt } from "./prompts";
 import { ResearcherService } from "./researcher.service";
 import { ConversationMemoryService } from "./services";
 
@@ -27,48 +22,12 @@ interface StreamConnectorSearchResultsParams {
 export class AgentService {
 	private readonly logger = new Logger(AgentService.name);
 
-	private readonly llm = new ChatOpenAI({
-		modelName: "gpt-4o-mini",
-	});
-
-	private readonly memorySaver = new MemorySaver();
-
-	private readonly streamingService = new StreamingService();
-
-	private readonly promptTemplate = PromptTemplate.fromTemplate(userPrompt);
-
-	private readonly agent = createReactAgent({
-		llm: this.llm,
-		tools: [],
-		checkpointSaver: this.memorySaver,
-	});
-
 	constructor(
 		private readonly researcherService: ResearcherService,
 		private readonly youtubeProcessorService: YoutubeProcessorService,
 		private readonly chatsService: ChatsService,
 		private readonly conversationMemoryService: ConversationMemoryService,
 	) {}
-
-	/**
-	 * Format data for AI SDK data stream protocol
-	 * Format: 0:"text content"\n
-	 */
-	private formatDataStreamChunk(text: string): string {
-		// Escape quotes and newlines in the text
-		const escaped = text
-			.replace(/\\/g, "\\\\")
-			.replace(/"/g, '\\"')
-			.replace(/\n/g, "\\n");
-		return `0:"${escaped}"\n`;
-	}
-
-	/**
-	 * Format finish message for AI SDK data stream protocol
-	 */
-	private formatFinishChunk(): string {
-		return 'd:{"finishReason":"stop"}\n';
-	}
 
 	/**
 	 * Stream connector search results to the client.
@@ -92,7 +51,7 @@ export class AgentService {
 					type: ChatType.QNA,
 					title: chatTitleSummary,
 					initial_connectors: params.selectedConnectors,
-					messages: [], // Will be updated after streaming
+					messages: [],
 					search_space_id: params.searchSpaceId,
 				},
 				params.userId,
@@ -101,46 +60,29 @@ export class AgentService {
 			chatWasCreated = true;
 		}
 
-		// Fetch recent messages from the chat if chatId exists
 		let recentMessages: Array<{ role: string; content: string }> = [];
 		if (currentChatId) {
 			recentMessages = await this.conversationMemoryService.getRecentMessages(
 				currentChatId,
 				params.userId,
-				10, // Get last 10 messages
+				10,
 			);
 		}
 
 		try {
-			// Convert search mode string to enum
 			let searchMode: SearchMode;
 			if (params.searchModeStr === "CHUNKS") {
 				searchMode = SearchMode.CHUNKS;
 			} else if (params.searchModeStr === "DOCUMENTS") {
 				searchMode = SearchMode.DOCUMENTS;
 			} else {
-				searchMode = SearchMode.CHUNKS; // Default
+				searchMode = SearchMode.CHUNKS;
 			}
 
-			// Use chatId as thread_id for persistent checkpoint state
 			const persistentThreadId = currentChatId
 				? `chat-${currentChatId}`
 				: `${params.userId}_${params.searchSpaceId}`;
 
-			// Sample configuration
-			const config = {
-				configurable: {
-					user_query: params.userQuery,
-					connectors_to_search: params.selectedConnectors,
-					user_id: params.userId,
-					search_space_id: params.searchSpaceId,
-					search_mode: searchMode,
-					document_ids_to_add_in_context: params.documentIdsToAddInContext,
-					language: params.language,
-				},
-			};
-
-			// Call the researcher service with proper DTO
 			const researcherDto = {
 				user_query: params.userQuery,
 				connectors_to_search: params.selectedConnectors,
@@ -153,7 +95,6 @@ export class AgentService {
 				chat_history: recentMessages,
 			};
 
-			// Stream from researcher service
 			const stream =
 				await this.researcherService.streamResearcher(researcherDto);
 
@@ -175,7 +116,6 @@ export class AgentService {
 		userId: string,
 		messages: Array<{ role: string; content: string }>,
 	): Promise<void> {
-		// Convert messages to the format expected by ConversationMemoryService
 		const messagesToAdd = messages.map((msg) => ({
 			role: msg.role as "user" | "assistant",
 			content: msg.content,
@@ -203,8 +143,6 @@ export class AgentService {
 		try {
 			this.logger.log("Processing BrightData webhook data");
 
-			// Extract data from webhook payload
-			// BrightData sends an array of results
 			if (
 				!webhookData ||
 				!Array.isArray(webhookData) ||
@@ -214,7 +152,6 @@ export class AgentService {
 				return;
 			}
 
-			// Validate context from query parameters
 			if (!context.searchSpaceId || !context.userId || !context.videoUrl) {
 				this.logger.error(
 					"Missing required context in webhook URL query parameters",
@@ -225,7 +162,6 @@ export class AgentService {
 				);
 			}
 
-			// Process each result in the webhook
 			for (const result of webhookData) {
 				const { transcript, video_id, title, url } = result;
 
@@ -238,8 +174,6 @@ export class AgentService {
 					`Processing YouTube video: ${title || video_id} for search space ${context.searchSpaceId}`,
 				);
 
-				// Use the existing YouTube processor to add to vector store
-				// Context (searchSpaceId, userId) comes from webhook URL query params
 				await this.youtubeProcessorService.addYTVideoToVectorStore({
 					transcript,
 					video_id,
