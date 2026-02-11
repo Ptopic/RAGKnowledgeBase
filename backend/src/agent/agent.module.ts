@@ -8,6 +8,7 @@ import { AgentService } from "./agent.service";
 import { ResearcherService } from "./researcher.service";
 import { ConnectorService } from "./services/connector.service";
 import { ConversationMemoryService } from "./services/conversation-memory.service";
+import { DeepAgentService } from "./services/deep-agent.service";
 import { LLMService } from "./services/llm.service";
 import { PromptsService } from "./services/prompts.service";
 import { QNAService } from "./services/qna.service";
@@ -27,6 +28,7 @@ import { StreamingService } from "./streaming.service";
 		StreamingService,
 		ConnectorService,
 		ConversationMemoryService,
+		DeepAgentService,
 		QNAService,
 		LLMService,
 		RerankerService,
@@ -38,6 +40,7 @@ import { StreamingService } from "./streaming.service";
 		ResearcherService,
 		ConnectorService,
 		ConversationMemoryService,
+		DeepAgentService,
 		QNAService,
 		LLMService,
 		RerankerService,

@@ -13,13 +13,116 @@ import { Response as ExpressResponse } from "express";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
 import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
+import { DeepAgentService } from "./services/deep-agent.service";
 
 @Controller("agent")
 @UseGuards(JwtAuthGuard)
 export class AgentController {
 	private readonly logger = new Logger(AgentController.name);
 
-	constructor(private readonly agentService: AgentService) {}
+	constructor(
+		private readonly agentService: AgentService,
+		private readonly deepAgentService: DeepAgentService,
+	) {}
+
+	@Post("chatWithDeepAgent")
+	async chatWithDeepAgent(
+		@Body() request: AgentChatRequestDto,
+		@Req() req: any,
+		@Res() res: ExpressResponse,
+	) {
+		try {
+			const messages = request.messages;
+
+			if (!messages || messages.length === 0) {
+				throw new BadRequestException("Messages array is required");
+			}
+
+			if (messages[messages.length - 1].role !== "user") {
+				throw new BadRequestException("Last message must be a user message");
+			}
+
+			const userQuery = messages[messages.length - 1].content;
+			const requestData = request.data || {};
+			const searchSpaceId = Number(requestData.search_space_id);
+
+			if (!searchSpaceId) {
+				throw new BadRequestException("search_space_id is required");
+			}
+
+			const selectedConnectors = requestData.selected_connectors || [];
+			const documentIdsToAddInContext = (
+				requestData.document_ids_to_add_in_context || []
+			).map(Number);
+			const language = requestData.language || "English";
+			const chatId = request.chat_id;
+
+			const {
+				stream,
+				chatId: createdChatId,
+				chatWasCreated,
+			} = await this.deepAgentService.streamDeepAgent({
+				userQuery,
+				userId: req.user.id,
+				searchSpaceId,
+				selectedConnectors,
+				documentIdsToAddInContext,
+				language,
+				chatId,
+			});
+
+			res.setHeader("Content-Type", "text/event-stream");
+			res.setHeader("Cache-Control", "no-cache");
+			res.setHeader("Connection", "keep-alive");
+
+			if (chatWasCreated && createdChatId) {
+				res.setHeader("X-Chat-Id", createdChatId.toString());
+			}
+
+			try {
+				for await (const chunk of stream) {
+					let eventType = "data";
+					let dataToSend = chunk;
+
+					if (chunk && typeof chunk === "object") {
+						if (
+							Array.isArray(chunk) &&
+							chunk.length === 2 &&
+							chunk[0] === "messages"
+						) {
+							eventType = "messages";
+							dataToSend = chunk[1];
+						} else if (
+							Array.isArray(chunk) &&
+							chunk.length === 2 &&
+							chunk[0] === "updates"
+						) {
+							eventType = "updates";
+							dataToSend = chunk[1];
+						} else if ("messages" in chunk) {
+							eventType = "messages";
+							dataToSend = (chunk as any).messages;
+						}
+					}
+
+					res.write(`event: ${eventType}\n`);
+					res.write(`data: ${JSON.stringify(dataToSend)}\n\n`);
+				}
+				res.end();
+			} catch (error) {
+				this.logger.error(`Streaming error: ${error.message}`, error.stack);
+				res.write("event: error\n");
+				res.write(`data: ${JSON.stringify({ message: error.message })}\n\n`);
+				res.end();
+			}
+		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw error;
+			}
+			this.logger.error(`Chat processing error: ${error.message}`, error.stack);
+			throw new BadRequestException(`Failed to process chat: ${error.message}`);
+		}
+	}
 
 	@Post("chat")
 	async handleChatData(

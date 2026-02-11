@@ -21,6 +21,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import type { Document } from "@/hooks/use-documents";
 import { config } from "@/shared/config/config";
 
 function isAIMessage(message: Message): boolean {
@@ -47,6 +48,7 @@ export interface UseChatStreamOptions {
 	token?: string;
 	searchSpaceId: string;
 	selectedConnectors?: string[];
+	selectedDocuments?: Document[];
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 
@@ -92,6 +94,7 @@ export function useChatStream(
 		token,
 		searchSpaceId,
 		selectedConnectors,
+		selectedDocuments,
 		searchMode,
 		scrollContainerRef,
 		onToolCall,
@@ -136,7 +139,7 @@ export function useChatStream(
 					const newChatId = Number.parseInt(chatIdHeader, 10);
 					if (!currentChatId) {
 						setCurrentChatId(newChatId);
-						onChatCreated?.(newChatId);
+						pendingCreatedChatIdRef.current = newChatId;
 					}
 				}
 
@@ -159,7 +162,15 @@ export function useChatStream(
 						// TODO: Fix research mode later
 						research_mode: "QNA",
 						selected_connectors: selectedConnectors,
-						search_mode: searchMode,
+						selected_documents: (selectedDocuments || []).map((doc) => ({
+							id: doc.id,
+							title: doc.title,
+							document_type: doc.document_type,
+						})),
+						document_ids_to_add_in_context: (selectedDocuments || []).map(
+							(doc) => doc.id,
+						),
+						search_mode: "CHUNKS",
 					},
 				};
 
@@ -175,11 +186,11 @@ export function useChatStream(
 	}, [
 		endpoint,
 		token,
+		currentChatId,
 		searchSpaceId,
 		selectedConnectors,
-		searchMode,
+		selectedDocuments,
 		onStreamStart,
-		onChatCreated,
 	]);
 
 	const stream = useStream({
@@ -207,6 +218,7 @@ export function useChatStream(
 	const processedToolCallIds = useRef<Set<string>>(new Set());
 	const completedToolCallIds = useRef<Set<string>>(new Set());
 	const notifiedToolCallIds = useRef<Set<string>>(new Set());
+	const pendingCreatedChatIdRef = useRef<number | null>(null);
 
 	// Extract tool calls logic
 	const toolCallsByMessage = useMemo(() => {
@@ -339,24 +351,37 @@ export function useChatStream(
 				}
 			}
 
+			const finalizeChatCreated = () => {
+				if (pendingCreatedChatIdRef.current) {
+					onChatCreated?.(pendingCreatedChatIdRef.current);
+					pendingCreatedChatIdRef.current = null;
+				}
+			};
+
 			// If we have a chatId, save messages to backend
 			if (currentChatId && token) {
 				saveMessagesToBackend(currentChatId, messagesForBackend, token)
 					.then(() => {
-						return onStreamFinish?.(
+						const result = onStreamFinish?.(
 							streamMessagesToSave,
 							userMessage,
 							currentChatId,
 						);
+						finalizeChatCreated();
+						return result;
 					})
 					.catch((error) => {
 						console.error("Error saving messages to backend:", error);
 						onStreamFinish?.(streamMessagesToSave, userMessage, currentChatId);
+						finalizeChatCreated();
 					});
+			} else {
+				onStreamFinish?.(streamMessagesToSave, userMessage, currentChatId || 0);
+				finalizeChatCreated();
 			}
 		}
 		prevLoading.current = stream.isLoading;
-	}, [stream.isLoading, onStreamFinish, token]);
+	}, [stream.isLoading, onStreamFinish, token, currentChatId, onChatCreated]);
 
 	const isStreaming = useMemo(() => stream.isLoading, [stream.isLoading]);
 
@@ -429,7 +454,7 @@ export function useChatStream(
 				setIsStartingStreaming(false);
 				shouldHideLoadingIndicator = false;
 			}
-		}, 50);
+		}, 20);
 
 		return () => clearInterval(intervalId);
 	}, [isStreaming, onMessageUpdate]);
