@@ -23,6 +23,8 @@ import {
 } from "react";
 import type { Document } from "@/hooks/use-documents";
 import { config } from "@/shared/config/config";
+import { getOrderedMessages } from "@/lib/chat/message-ordering";
+import type { OrderedStreamMessage } from "@/types/chat.types";
 
 function isAIMessage(message: Message): boolean {
 	return message.type === "ai";
@@ -306,50 +308,8 @@ export function useChatStream(
 
 			const userMessage = lastUserMessageContentRef.current;
 
-			// Only save messages from the current stream, not all messages in state
-			// Filter stream messages (exclude system, tool, question messages)
-			const streamMessagesToSave = stream.messages.filter((msg) => {
-				return (
-					msg.type !== "system" &&
-					// msg.type !== "question" &&
-					msg.type !== "tool"
-				);
-			});
-
-			// Convert to backend format (role, content)
-			// Start with user message, then add AI messages from stream
-			const messagesForBackend: Array<{ role: string; content: string }> = [];
-
-			// Add user message first
-			if (userMessage) {
-				messagesForBackend.push({ role: "user", content: userMessage });
-			}
-
-			// Add AI messages from stream
-			for (const msg of streamMessagesToSave) {
-				if (msg.type === "ai") {
-					// Handle different content types
-					let contentStr = "";
-					if (typeof msg.content === "string") {
-						contentStr = msg.content;
-					} else if (msg.content === null || msg.content === undefined) {
-						contentStr = "";
-					} else if (typeof msg.content === "object") {
-						// Handle complex content structures
-						if (Array.isArray(msg.content)) {
-							contentStr = msg.content
-								.map((c) => (typeof c === "string" ? c : JSON.stringify(c)))
-								.join("\n");
-						} else {
-							contentStr = JSON.stringify(msg.content);
-						}
-					} else {
-						contentStr = String(msg.content);
-					}
-
-					messagesForBackend.push({ role: "assistant", content: contentStr });
-				}
-			}
+			// Get ordered messages with tool metadata
+			const orderedMessages = getOrderedMessages(stream.messages);
 
 			const finalizeChatCreated = () => {
 				if (pendingCreatedChatIdRef.current) {
@@ -360,28 +320,28 @@ export function useChatStream(
 
 			// If we have a chatId, save messages to backend
 			if (currentChatId && token) {
-				saveMessagesToBackend(currentChatId, messagesForBackend, token)
+				saveMessagesToBackend(
+					currentChatId,
+					userMessage,
+					orderedMessages,
+					token,
+				)
 					.then(() => {
-						const result = onStreamFinish?.(
-							streamMessagesToSave,
-							userMessage,
-							currentChatId,
-						);
+						onStreamFinish?.(stream.messages, userMessage, currentChatId);
 						finalizeChatCreated();
-						return result;
 					})
 					.catch((error) => {
 						console.error("Error saving messages to backend:", error);
-						onStreamFinish?.(streamMessagesToSave, userMessage, currentChatId);
+						onStreamFinish?.(stream.messages, userMessage, currentChatId);
 						finalizeChatCreated();
 					});
 			} else {
-				onStreamFinish?.(streamMessagesToSave, userMessage, currentChatId || 0);
+				onStreamFinish?.(stream.messages, userMessage, currentChatId || 0);
 				finalizeChatCreated();
 			}
 		}
 		prevLoading.current = stream.isLoading;
-	}, [stream.isLoading, onStreamFinish, token, currentChatId, onChatCreated]);
+	}, [stream.isLoading, onStreamFinish, token, currentChatId, onChatCreated, stream.messages]);
 
 	const isStreaming = useMemo(() => stream.isLoading, [stream.isLoading]);
 
@@ -589,9 +549,38 @@ export function useChatStream(
 // API call to save messages after stream finishes
 async function saveMessagesToBackend(
 	chatId: number,
-	messages: Array<{ role: string; content: string }>,
+	userMessage: string,
+	orderedMessages: OrderedStreamMessage[],
 	token: string,
 ): Promise<void> {
+	// Build exchange: user message first, then AI messages + tool messages with metadata
+	const exchange: Array<{
+		role: "user" | "assistant";
+		content: string;
+		metadata?: Record<string, unknown>;
+	}> = [{ role: "user", content: userMessage }];
+
+	for (const msg of orderedMessages) {
+		if (msg.type === "ai") {
+			exchange.push({
+				role: "assistant",
+				content: msg.content,
+			});
+		} else if (msg.type === "tool") {
+			exchange.push({
+				role: "assistant",
+				content: msg.content,
+				metadata: {
+					kind: `tool_${msg.toolName}`,
+					toolName: msg.toolName,
+					runId: msg.runId,
+					data: msg.data,
+					status: msg.status,
+				},
+			});
+		}
+	}
+
 	const response = await fetch(`${config.apiUrl}/agent/save-messages`, {
 		method: "POST",
 		headers: {
@@ -600,7 +589,7 @@ async function saveMessagesToBackend(
 		},
 		body: JSON.stringify({
 			chat_id: chatId,
-			messages,
+			messages: exchange,
 		}),
 	});
 

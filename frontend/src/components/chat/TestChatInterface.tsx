@@ -48,7 +48,7 @@ export default function TestChatInterface({
 	const queryClient = useQueryClient();
 	const endpoint = `${config.apiUrl}/agent/chatWithDeepAgent`;
 
-	const { isStreaming, sendMessage, stopStreaming } = useChatStream({
+	const { isStreaming, sendMessage, stopStreaming, toolCallsByMessage } = useChatStream({
 		messages,
 		setMessages,
 		inputText,
@@ -59,7 +59,6 @@ export default function TestChatInterface({
 		searchSpaceId,
 		selectedConnectors,
 		selectedDocuments,
-		searchMode,
 		scrollContainerRef: { current: null },
 		onStreamStart,
 		onStreamFinish: async (_messages, _userMessage, chatId) => {
@@ -98,6 +97,7 @@ export default function TestChatInterface({
 					selectedConnectors={selectedConnectors}
 					searchMode={searchMode}
 					onSearchModeChange={onSearchModeChange}
+					toolCallsByMessage={toolCallsByMessage}
 				/>
 			</div>
 		</div>

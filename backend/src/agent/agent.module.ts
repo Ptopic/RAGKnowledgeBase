@@ -6,14 +6,13 @@ import { TasksModule } from "src/tasks/tasks.module";
 import { AgentController } from "./agent.controller";
 import { AgentService } from "./agent.service";
 import { ResearcherService } from "./researcher.service";
+import { LLMService, PromptsService, QNAService } from "./services";
+import { ChatActionsService } from "./services/chat-actions.service";
 import { ConnectorService } from "./services/connector.service";
 import { ConversationMemoryService } from "./services/conversation-memory.service";
 import { DeepAgentService } from "./services/deep-agent.service";
-import { LLMService } from "./services/llm.service";
-import { PromptsService } from "./services/prompts.service";
-import { QNAService } from "./services/qna.service";
-import { RerankerService } from "./services/reranker.service";
 import { StreamingService } from "./streaming.service";
+import { RerankerService } from "./services/reranker.service";
 
 @Module({
 	imports: [
@@ -24,15 +23,16 @@ import { StreamingService } from "./streaming.service";
 	],
 	providers: [
 		AgentService,
+		ChatActionsService,
+		DeepAgentService,
 		ResearcherService,
+		LLMService,
+		QNAService,
+		PromptsService,
+		RerankerService,
 		StreamingService,
 		ConnectorService,
 		ConversationMemoryService,
-		DeepAgentService,
-		QNAService,
-		LLMService,
-		RerankerService,
-		PromptsService,
 	],
 	controllers: [AgentController],
 	exports: [

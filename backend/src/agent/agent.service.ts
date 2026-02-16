@@ -110,26 +110,6 @@ export class AgentService {
 	}
 
 	/**
-	 * Save messages to a chat after streaming completes
-	 */
-	async saveMessages(
-		chatId: number,
-		userId: string,
-		messages: Array<{ role: string; content: string }>,
-	): Promise<void> {
-		const messagesToAdd = messages.map((msg) => ({
-			role: msg.role as "user" | "assistant",
-			content: msg.content,
-		}));
-
-		await this.conversationMemoryService.addMessages(
-			chatId,
-			userId,
-			messagesToAdd,
-		);
-	}
-
-	/**
 	 * Process BrightData webhook response for YouTube transcript
 	 */
 	// biome-ignore lint/suspicious/noExplicitAny: Webhook payload structure varies

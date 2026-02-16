@@ -13,6 +13,7 @@ import { Response as ExpressResponse } from "express";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
 import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
+import { ChatActionsService } from "./services/chat-actions.service";
 import { DeepAgentService } from "./services/deep-agent.service";
 
 @Controller("agent")
@@ -23,6 +24,7 @@ export class AgentController {
 	constructor(
 		private readonly agentService: AgentService,
 		private readonly deepAgentService: DeepAgentService,
+		private readonly chatActionsService: ChatActionsService,
 	) {}
 
 	@Post("chatWithDeepAgent")
@@ -229,10 +231,14 @@ export class AgentController {
 		@Req() req: any,
 	) {
 		try {
-			await this.agentService.saveMessages(
+			// Messages are already formatted as an exchange on the frontend
+			// [user, ai, tool_with_metadata, ai, ...]
+			await this.chatActionsService.saveMessagesToRegularChat(
 				saveMessagesDto.chat_id,
 				req.user.id,
 				saveMessagesDto.messages,
+				saveMessagesDto.messages.findLast((msg) => msg.role === "user")
+					?.content || "",
 			);
 
 			return { success: true, message: "Messages saved successfully" };

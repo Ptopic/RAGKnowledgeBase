@@ -1,6 +1,7 @@
 import type { Message } from "@langchain/core/messages";
 import { CheckIcon, CopyIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { type FC, useMemo, useState } from "react";
+import type { ToolCallState } from "@/hooks/use-chat-stream";
 import {
 	extractThinkingStepsFromMessage,
 	messageContentToText,
@@ -9,6 +10,7 @@ import {
 import { BranchPicker } from "./branch-picker";
 import { MarkdownText } from "./markdown-text";
 import { ThinkingStepsDisplay } from "./thinking-steps";
+import { ToolCallBubble } from "./tool-call-bubble";
 import { TooltipIconButton } from "./tooltip-icon-button";
 
 interface AssistantMessageProps {
@@ -16,6 +18,7 @@ interface AssistantMessageProps {
 	isLast?: boolean;
 	isStreaming?: boolean;
 	onReload?: (message: Message) => void;
+	toolCalls?: ToolCallState[];
 }
 
 export const AssistantMessage: FC<AssistantMessageProps> = ({
@@ -23,10 +26,14 @@ export const AssistantMessage: FC<AssistantMessageProps> = ({
 	isLast = false,
 	isStreaming = false,
 	onReload,
+	toolCalls = [],
 }) => {
 	const [copied, setCopied] = useState(false);
 
-	const content = useMemo(() => messageContentToText(message.content), [message.content]);
+	const content = useMemo(
+		() => messageContentToText(message.content),
+		[message.content],
+	);
 	const thinkingSteps = useMemo<ThinkingStep[]>(
 		() => extractThinkingStepsFromMessage(message),
 		[message],
@@ -63,6 +70,18 @@ export const AssistantMessage: FC<AssistantMessageProps> = ({
 				</div>
 			)}
 
+			{toolCalls.length > 0 && (
+				<div className="space-y-2">
+					{toolCalls.map((toolCallState) => (
+						<ToolCallBubble
+							key={toolCallState.toolCall.id}
+							toolCallState={toolCallState}
+							isStreaming={isStreaming && !toolCallState.toolMessage}
+						/>
+					))}
+				</div>
+			)}
+
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
 				<MarkdownText text={content} />
 				{isLast && isStreaming && (
@@ -70,20 +89,28 @@ export const AssistantMessage: FC<AssistantMessageProps> = ({
 				)}
 			</div>
 
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex items-center gap-2">
-				<BranchPicker />
-				<div className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:border md:data-floating:bg-background md:data-floating:p-1 md:data-floating:shadow-sm [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]">
-					<TooltipIconButton tooltip="Copy" onClick={handleCopy}>
-						{copied ? <CheckIcon /> : <CopyIcon />}
-					</TooltipIconButton>
-					<TooltipIconButton tooltip="Export as Markdown" onClick={handleExportMarkdown}>
-						<DownloadIcon />
-					</TooltipIconButton>
-					<TooltipIconButton tooltip="Refresh" onClick={() => onReload?.(message)}>
-						<RefreshCwIcon />
-					</TooltipIconButton>
+			{message.type === "ai" && content && content.trim() !== "" && (
+				<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex items-center gap-2">
+					<BranchPicker />
+					<div className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:border md:data-floating:bg-background md:data-floating:p-1 md:data-floating:shadow-sm [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]">
+						<TooltipIconButton tooltip="Copy" onClick={handleCopy}>
+							{copied ? <CheckIcon /> : <CopyIcon />}
+						</TooltipIconButton>
+						<TooltipIconButton
+							tooltip="Export as Markdown"
+							onClick={handleExportMarkdown}
+						>
+							<DownloadIcon />
+						</TooltipIconButton>
+						<TooltipIconButton
+							tooltip="Refresh"
+							onClick={() => onReload?.(message)}
+						>
+							<RefreshCwIcon />
+						</TooltipIconButton>
+					</div>
 				</div>
-			</div>
+			)}
 		</div>
 	);
 };

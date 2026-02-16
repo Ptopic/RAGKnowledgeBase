@@ -34,6 +34,8 @@ import { toRenderableMessages } from "@/lib/chat/message-adapter";
 import { AssistantMessage } from "./assistant-message";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { UserMessage } from "./user-message";
+import type { ToolCallState } from "@/hooks/use-chat-stream";
+import { useRestoredToolCalls } from "@/hooks/use-restored-tool-calls";
 
 interface ThreadProps {
 	messages: Message[];
@@ -49,6 +51,7 @@ interface ThreadProps {
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	header?: ReactNode;
+	toolCallsByMessage?: Map<Message, ToolCallState[]>;
 }
 
 export const Thread: FC<ThreadProps> = ({
@@ -65,10 +68,19 @@ export const Thread: FC<ThreadProps> = ({
 	searchMode,
 	onSearchModeChange,
 	header,
+	toolCallsByMessage,
 }) => {
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const renderableMessages = useMemo(() => toRenderableMessages(messages), [messages]);
 	const isEmpty = renderableMessages.length === 0;
+
+	// Get restored tool calls from persisted messages
+	const restoredToolCalls = useRestoredToolCalls(renderableMessages);
+
+	// Merge runtime tool calls with restored ones
+	const mergedToolCalls = useMemo(() => {
+		return new Map([...restoredToolCalls, ...toolCallsByMessage]);
+	}, [toolCallsByMessage, restoredToolCalls]);
 
 	useEffect(() => {
 		const messageCount = renderableMessages.length;
@@ -131,6 +143,7 @@ export const Thread: FC<ThreadProps> = ({
 									isLast={isLast}
 									isStreaming={isRunning}
 									onReload={onReloadLast}
+									toolCalls={mergedToolCalls.get(message)}
 								/>
 							);
 						})}

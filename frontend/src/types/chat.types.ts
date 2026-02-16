@@ -20,6 +20,37 @@ export type ChatMessage =
 			additional_kwargs?: Record<string, any>;
 	  };
 
-export interface OrderedStreamMessage extends Message {
-	// any extra?
+// Tool call metadata stored in message
+export interface ToolMessageMetadata {
+	kind: `tool_${string}`;
+	toolName: string;
+	runId: string;
+	data: unknown;
+	status?: "success" | "error";
 }
+
+// Individual message in database (stored in nested exchanges)
+export interface StoredMessage {
+	role: "user" | "assistant" | "system";
+	content: string;
+	timestamp?: string;
+	metadata?: ToolMessageMetadata;
+}
+
+// Message exchange (one complete user-AI interaction with tools)
+export type MessageExchange = StoredMessage[];
+
+// Full conversation history (array of exchanges)
+export type ConversationHistory = MessageExchange[];
+
+// Ordered stream message (for saving after stream finishes)
+export type OrderedStreamMessage =
+	| { type: "ai"; content: string }
+	| {
+			type: "tool";
+			toolName: string;
+			runId: string;
+			data: unknown;
+			content: string;
+			status: "success" | "error" | undefined;
+	  };
