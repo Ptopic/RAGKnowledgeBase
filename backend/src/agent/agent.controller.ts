@@ -15,6 +15,10 @@ import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
 import { ChatActionsService } from "./services/chat-actions.service";
 import { DeepAgentService } from "./services/deep-agent.service";
+import {
+	getInitialThinkingStep,
+	resetThinkingStepCounter,
+} from "./utils/thinking-steps";
 
 @Controller("agent")
 @UseGuards(JwtAuthGuard)
@@ -59,19 +63,16 @@ export class AgentController {
 			const language = requestData.language || "English";
 			const chatId = request.chat_id;
 
-			const {
-				stream,
-				chatId: createdChatId,
-				chatWasCreated,
-			} = await this.deepAgentService.streamDeepAgent({
-				userQuery,
-				userId: req.user.id,
-				searchSpaceId,
-				selectedConnectors,
-				documentIdsToAddInContext,
-				language,
-				chatId,
-			});
+			const { stream, chatId: createdChatId, chatWasCreated } =
+				await this.deepAgentService.streamDeepAgent({
+					userQuery,
+					userId: req.user.id,
+					searchSpaceId,
+					selectedConnectors,
+					documentIdsToAddInContext,
+					language,
+					chatId,
+				});
 
 			res.setHeader("Content-Type", "text/event-stream");
 			res.setHeader("Cache-Control", "no-cache");
@@ -81,34 +82,15 @@ export class AgentController {
 				res.setHeader("X-Chat-Id", createdChatId.toString());
 			}
 
+			resetThinkingStepCounter();
+
+			const initialStep = getInitialThinkingStep(userQuery);
+			res.write("event: custom\n");
+			res.write(`data: ${JSON.stringify({ type: "thinking", ...initialStep })}\n\n`);
+
 			try {
 				for await (const chunk of stream) {
-					let eventType = "data";
-					let dataToSend = chunk;
-
-					if (chunk && typeof chunk === "object") {
-						if (
-							Array.isArray(chunk) &&
-							chunk.length === 2 &&
-							chunk[0] === "messages"
-						) {
-							eventType = "messages";
-							dataToSend = chunk[1];
-						} else if (
-							Array.isArray(chunk) &&
-							chunk.length === 2 &&
-							chunk[0] === "updates"
-						) {
-							eventType = "updates";
-							dataToSend = chunk[1];
-						} else if ("messages" in chunk) {
-							eventType = "messages";
-							dataToSend = (chunk as any).messages;
-						}
-					}
-
-					res.write(`event: ${eventType}\n`);
-					res.write(`data: ${JSON.stringify(dataToSend)}\n\n`);
+					res.write(chunk);
 				}
 				res.end();
 			} catch (error) {

@@ -34,6 +34,13 @@ function isToolMessage(message: Message): boolean {
 	return message.type === "tool";
 }
 
+export interface ThinkingStep {
+	step_id: string;
+	title: string;
+	status: "in_progress" | "completed";
+	items?: string[];
+}
+
 export interface ToolCallState {
 	toolCall: ToolCall;
 	toolMessage?: ToolMessage;
@@ -66,6 +73,7 @@ export interface UseChatStreamOptions {
 	onStreamError?: (error: Error | string) => void;
 	onMessageUpdate?: (messages: Message[]) => void;
 	onChatCreated?: (chatId: number) => void;
+	onThinkingStep?: (step: ThinkingStep) => void;
 }
 
 export interface UseChatStreamReturn {
@@ -73,6 +81,7 @@ export interface UseChatStreamReturn {
 	isStreamingFinished: boolean;
 	isStartingStreaming: boolean;
 	toolCallsByMessage: Map<Message, ToolCallState[]>;
+	thinkingSteps: ThinkingStep[];
 	errorMessage: string | undefined;
 	lastUserMessageRef: React.RefObject<HTMLDivElement | null>;
 	sendMessage: (messageOverride?: string) => Promise<void>;
@@ -106,6 +115,7 @@ export function useChatStream(
 		onStreamError,
 		onMessageUpdate,
 		onChatCreated,
+		onThinkingStep,
 	} = options;
 
 	const [isStartingStreaming, setIsStartingStreaming] = useState(false);
@@ -113,6 +123,7 @@ export function useChatStream(
 	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
 		chatId,
 	);
+	const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
 
 	useEffect(() => {
 		if (chatId !== undefined) {
@@ -198,18 +209,21 @@ export function useChatStream(
 	const stream = useStream({
 		transport,
 		onCustomEvent: (data: any) => {
-			if (data?.type === "question") {
-				const jsonData = JSON.stringify(data);
-
-				setMessages((prev) => [
-					...prev,
-					{
-						id: `question_${Date.now()}`,
-						type: "question",
-						content: jsonData,
-						additional_kwargs: { options: data.options },
-					} as Message,
-				]);
+			console.log("onCustomEvent received:", data);
+			// Handle thinking steps from custom events
+			if (data?.type === "thinking" && data?.step_id && data?.title && data?.status) {
+				const step = data as ThinkingStep;
+				console.log("Updating thinking step:", step);
+				setThinkingSteps((prev) => {
+					const existing = prev.findIndex((s) => s.step_id === step.step_id);
+					if (existing >= 0) {
+						const updated = [...prev];
+						updated[existing] = step;
+						return updated;
+					}
+					return [...prev, step];
+				});
+				onThinkingStep?.(step);
 			}
 		},
 	});
@@ -461,6 +475,7 @@ export function useChatStream(
 
 			processedToolCallIds.current.clear();
 			lastUserMessageContentRef.current = textToSend;
+			setThinkingSteps([]);
 
 			const timestamp = Date.now();
 			const userMessageId = `${timestamp.toString()}_user`;
@@ -535,6 +550,7 @@ export function useChatStream(
 		isStartingStreaming,
 		isStreamingFinished,
 		toolCallsByMessage,
+		thinkingSteps,
 		errorMessage,
 		lastUserMessageRef,
 		sendMessage,

@@ -48,7 +48,7 @@ export default function TestChatInterface({
 	const queryClient = useQueryClient();
 	const endpoint = `${config.apiUrl}/agent/chatWithDeepAgent`;
 
-	const { isStreaming, sendMessage, stopStreaming, toolCallsByMessage } = useChatStream({
+	const { isStreaming, sendMessage, stopStreaming, toolCallsByMessage, thinkingSteps } = useChatStream({
 		messages,
 		setMessages,
 		inputText,
@@ -98,6 +98,7 @@ export default function TestChatInterface({
 					searchMode={searchMode}
 					onSearchModeChange={onSearchModeChange}
 					toolCallsByMessage={toolCallsByMessage}
+					thinkingSteps={thinkingSteps}
 				/>
 			</div>
 		</div>

@@ -34,7 +34,7 @@ import { toRenderableMessages } from "@/lib/chat/message-adapter";
 import { AssistantMessage } from "./assistant-message";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { UserMessage } from "./user-message";
-import type { ToolCallState } from "@/hooks/use-chat-stream";
+import type { ToolCallState, ThinkingStep } from "@/hooks/use-chat-stream";
 import { useRestoredToolCalls } from "@/hooks/use-restored-tool-calls";
 
 interface ThreadProps {
@@ -52,6 +52,7 @@ interface ThreadProps {
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	header?: ReactNode;
 	toolCallsByMessage?: Map<Message, ToolCallState[]>;
+	thinkingSteps?: ThinkingStep[];
 }
 
 export const Thread: FC<ThreadProps> = ({
@@ -69,6 +70,7 @@ export const Thread: FC<ThreadProps> = ({
 	onSearchModeChange,
 	header,
 	toolCallsByMessage,
+	thinkingSteps,
 }) => {
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const renderableMessages = useMemo(() => toRenderableMessages(messages), [messages]);
@@ -144,6 +146,7 @@ export const Thread: FC<ThreadProps> = ({
 									isStreaming={isRunning}
 									onReload={onReloadLast}
 									toolCalls={mergedToolCalls.get(message)}
+									thinkingSteps={isLast ? thinkingSteps : undefined}
 								/>
 							);
 						})}

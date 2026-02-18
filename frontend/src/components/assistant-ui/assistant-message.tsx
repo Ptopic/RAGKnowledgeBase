@@ -1,11 +1,11 @@
 import type { Message } from "@langchain/core/messages";
 import { CheckIcon, CopyIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { type FC, useMemo, useState } from "react";
-import type { ToolCallState } from "@/hooks/use-chat-stream";
+import type { ToolCallState, ThinkingStep } from "@/hooks/use-chat-stream";
 import {
 	extractThinkingStepsFromMessage,
 	messageContentToText,
-	type ThinkingStep,
+	type ThinkingStep as LocalThinkingStep,
 } from "@/lib/chat/message-adapter";
 import { BranchPicker } from "./branch-picker";
 import { MarkdownText } from "./markdown-text";
@@ -19,6 +19,7 @@ interface AssistantMessageProps {
 	isStreaming?: boolean;
 	onReload?: (message: Message) => void;
 	toolCalls?: ToolCallState[];
+	thinkingSteps?: ThinkingStep[];
 }
 
 export const AssistantMessage: FC<AssistantMessageProps> = ({
@@ -27,6 +28,7 @@ export const AssistantMessage: FC<AssistantMessageProps> = ({
 	isStreaming = false,
 	onReload,
 	toolCalls = [],
+	thinkingSteps: externalThinkingSteps,
 }) => {
 	const [copied, setCopied] = useState(false);
 
@@ -34,10 +36,23 @@ export const AssistantMessage: FC<AssistantMessageProps> = ({
 		() => messageContentToText(message.content),
 		[message.content],
 	);
-	const thinkingSteps = useMemo<ThinkingStep[]>(
+	
+	const extractedSteps = useMemo<LocalThinkingStep[]>(
 		() => extractThinkingStepsFromMessage(message),
 		[message],
 	);
+
+	const thinkingSteps = useMemo<LocalThinkingStep[]>(() => {
+		if (externalThinkingSteps && externalThinkingSteps.length > 0) {
+			return externalThinkingSteps.map((step) => ({
+				id: step.step_id,
+				title: step.title,
+				status: step.status,
+				items: step.items || [],
+			}));
+		}
+		return extractedSteps;
+	}, [externalThinkingSteps, extractedSteps]);
 
 	const handleCopy = async () => {
 		if (!content) return;

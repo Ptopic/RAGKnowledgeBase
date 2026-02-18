@@ -13,6 +13,7 @@ import { ConversationMemoryService } from "./services/conversation-memory.servic
 import { DeepAgentService } from "./services/deep-agent.service";
 import { StreamingService } from "./streaming.service";
 import { RerankerService } from "./services/reranker.service";
+import { CheckpointerModule } from "./checkpointer/checkpointer.module";
 
 @Module({
 	imports: [
@@ -20,6 +21,7 @@ import { RerankerService } from "./services/reranker.service";
 		RetrieverModule,
 		forwardRef(() => TasksModule),
 		forwardRef(() => ChatsModule),
+		CheckpointerModule,
 	],
 	providers: [
 		AgentService,

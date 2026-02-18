@@ -13,8 +13,8 @@ export interface StreamDeepAgentParams {
 }
 
 export interface DeepAgentStreamResult {
-	stream: AsyncIterable<unknown>;
-	chatId?: number;
+	stream: AsyncIterable<string>;
+	chatId: number;
 	chatWasCreated: boolean;
 }
 
