@@ -3,7 +3,7 @@
 import type { Message } from "@langchain/core/messages";
 import config from "@shared/config";
 import { useQueryClient } from "@tanstack/react-query";
-import { type Dispatch, type SetStateAction, useState } from "react";
+import { type Dispatch, type SetStateAction, useRef, useState } from "react";
 import { Thread } from "@/components/assistant-ui";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { useChatStream } from "@/hooks/use-chat-stream";
@@ -44,11 +44,12 @@ export default function TestChatInterface({
 	onChatCreated,
 }: ChatInterfaceProps) {
 	const [inputText, setInputText] = useState("");
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
 	const queryClient = useQueryClient();
 	const endpoint = `${config.apiUrl}/agent/chatWithDeepAgent`;
 
-	const { isStreaming, sendMessage, stopStreaming, toolCallsByMessage, thinkingSteps } = useChatStream({
+	const { isStreaming, sendMessage, stopStreaming, toolCallsByMessage, thinkingSteps, scrollToBottom } = useChatStream({
 		messages,
 		setMessages,
 		inputText,
@@ -59,7 +60,7 @@ export default function TestChatInterface({
 		searchSpaceId,
 		selectedConnectors,
 		selectedDocuments,
-		scrollContainerRef: { current: null },
+		scrollContainerRef,
 		onStreamStart,
 		onStreamFinish: async (_messages, _userMessage, chatId) => {
 			queryClient.invalidateQueries({ queryKey: ["chats"] });

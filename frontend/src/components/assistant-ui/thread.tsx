@@ -75,27 +75,46 @@ export const Thread: FC<ThreadProps> = ({
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const renderableMessages = useMemo(() => toRenderableMessages(messages), [messages]);
 	const isEmpty = renderableMessages.length === 0;
+	const prevIsRunningRef = useRef(isRunning);
 
-	// Get restored tool calls from persisted messages
 	const restoredToolCalls = useRestoredToolCalls(renderableMessages);
 
-	// Merge runtime tool calls with restored ones
 	const mergedToolCalls = useMemo(() => {
-		return new Map([...restoredToolCalls, ...toolCallsByMessage]);
+		const merged = new Map<Message, ToolCallState[]>();
+		Array.from(restoredToolCalls.entries()).forEach(([key, value]) => {
+			merged.set(key, value);
+		});
+		if (toolCallsByMessage) {
+			Array.from(toolCallsByMessage.entries()).forEach(([key, value]) => {
+				merged.set(key, value);
+			});
+		}
+		return merged;
 	}, [toolCallsByMessage, restoredToolCalls]);
 
 	useEffect(() => {
-		const messageCount = renderableMessages.length;
-		if (!viewportRef.current) return;
-		if (messageCount === 0) return;
-		viewportRef.current.scrollTo({
-			top: viewportRef.current.scrollHeight,
-			behavior: "smooth",
-		});
-	}, [renderableMessages.length]);
+		const wasRunning = prevIsRunningRef.current;
+		prevIsRunningRef.current = isRunning;
+
+		if (wasRunning && !isRunning && viewportRef.current) {
+			viewportRef.current.scrollTo({
+				top: viewportRef.current.scrollHeight,
+				behavior: "smooth",
+			});
+		}
+	}, [isRunning]);
 
 	const handleSubmit = (message: string) => {
 		onSubmit(message);
+
+		setTimeout(() => {
+			if (viewportRef.current) {
+				viewportRef.current.scrollTo({
+					top: viewportRef.current.scrollHeight,
+					behavior: "smooth",
+				});
+			}
+		}, 100);
 	};
 
 	return (

@@ -409,7 +409,7 @@ export function useChatStream(
 				setIsStartingStreaming(false);
 				shouldHideLoadingIndicator = false;
 			}
-		}, 150);
+		}, 50);
 
 		return () => clearInterval(intervalId);
 	}, [isStreaming]);

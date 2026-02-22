@@ -1,8 +1,8 @@
 "use client";
 
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { type FC, type ReactNode, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { type FC, type ReactNode, memo, useMemo, useState } from "react";
+import { Streamdown } from "streamdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "@/components/chat/CodeBlock";
 import { InlineCitation } from "@/components/assistant-ui/inline-citation";
@@ -11,30 +11,29 @@ import { cn } from "@/lib/utils";
 
 const CITATION_REGEX = /[[【]\u200B?citation:(doc-)?(\d+)\u200B?[\]】]/g;
 
-let chunkIdToCitationNumber: Map<string, number> = new Map();
-let nextCitationNumber = 1;
+let citationMap = new Map<string, number>();
+let citationCounter = 1;
 
-export function resetCitationCounter() {
-	chunkIdToCitationNumber = new Map();
-	nextCitationNumber = 1;
+function resetCitations() {
+	citationMap = new Map();
+	citationCounter = 1;
 }
 
 function getCitationNumber(chunkId: number, isDocsChunk: boolean): number {
 	const key = isDocsChunk ? `doc-${chunkId}` : String(chunkId);
-	const existingNumber = chunkIdToCitationNumber.get(key);
-	if (existingNumber === undefined) {
-		chunkIdToCitationNumber.set(key, nextCitationNumber++);
-	}
-	return chunkIdToCitationNumber.get(key) || 1;
+	const existing = citationMap.get(key);
+	if (existing !== undefined) return existing;
+	citationMap.set(key, citationCounter++);
+	return citationCounter - 1;
 }
 
-function parseTextWithCitations(text: string): ReactNode[] {
+function processTextWithCitations(text: string): ReactNode[] {
 	const parts: ReactNode[] = [];
 	let lastIndex = 0;
-	let match = CITATION_REGEX.exec(text);
 	let instanceIndex = 0;
 
 	CITATION_REGEX.lastIndex = 0;
+	let match = CITATION_REGEX.exec(text);
 
 	while (match !== null) {
 		if (match.index > lastIndex) {
@@ -67,18 +66,18 @@ function parseTextWithCitations(text: string): ReactNode[] {
 
 function processChildrenWithCitations(children: ReactNode): ReactNode {
 	if (typeof children === "string") {
-		const parsed = parseTextWithCitations(children);
+		const parsed = processTextWithCitations(children);
 		return parsed.length === 1 && typeof parsed[0] === "string" ? children : <>{parsed}</>;
 	}
 
 	if (Array.isArray(children)) {
-		return children.map((child) => {
+		return children.map((child, idx) => {
 			if (typeof child === "string") {
-				const parsed = parseTextWithCitations(child);
+				const parsed = processTextWithCitations(child);
 				return parsed.length === 1 && typeof parsed[0] === "string" ? (
 					child
 				) : (
-					<span key={`citation-child-${child.slice(0, 20)}`}>{parsed}</span>
+					<span key={`citation-child-${idx}-${child.slice(0, 20)}`}>{parsed}</span>
 				);
 			}
 			return child;
@@ -114,16 +113,18 @@ const CodeHeader: FC<{ language?: string; code: string }> = ({ language, code })
 	);
 };
 
-export const MarkdownText: FC<MarkdownTextProps> = ({ text, className }) => {
-	const content = useMemo(() => {
-		resetCitationCounter();
-		return text || "";
-	}, [text]);
+const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
+	useMemo(() => {
+		resetCitations();
+	}, []);
+
+	const content = text || "";
 
 	return (
 		<div className={cn("aui-md", className)}>
-			<ReactMarkdown
+			<Streamdown
 				remarkPlugins={[remarkGfm]}
+				rehypePlugins={[]}
 				components={{
 					h1: ({ className: c, children, ...props }) => (
 						<h1 className={cn("mb-8 scroll-m-20 font-extrabold text-4xl tracking-tight last:mb-0", c)} {...props}>
@@ -181,7 +182,11 @@ export const MarkdownText: FC<MarkdownTextProps> = ({ text, className }) => {
 				}}
 			>
 				{content}
-			</ReactMarkdown>
+			</Streamdown>
 		</div>
 	);
-};
+});
+
+MarkdownText.displayName = "MarkdownText";
+
+export { MarkdownText };
