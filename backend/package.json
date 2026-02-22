@@ -59,6 +59,7 @@
 		"class-transformer": "^0.5.1",
 		"class-validator": "^0.14.1",
 		"cloudinary": "^2.5.1",
+		"deepagents": "^1.8.0",
 		"form-data": "^4.0.4",
 		"google-auth-library": "^10.5.0",
 		"googleapis": "^164.1.0",

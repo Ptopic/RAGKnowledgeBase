@@ -1,12 +1,8 @@
 import {
-	AIMessage,
 	BaseMessage,
 	HumanMessage,
-	SystemMessage,
 } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
-import { StateGraph } from "@langchain/langgraph";
-import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
 import { ChatType } from "@prisma/client";
@@ -18,13 +14,74 @@ import type {
 	StreamDeepAgentParams,
 	ToolDependencies,
 } from "../types/agent-types";
-import { SurfSenseAgentAnnotation, type SurfSenseAgentState } from "../state/agent-state";
 import { ConnectorService } from "./connector.service";
 import { ConversationMemoryService } from "./conversation-memory.service";
 import { buildSystemPrompt } from "../prompts/system-prompt";
 import { CheckpointerService } from "../checkpointer/checkpointer.service";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { ThinkingStepCallbackHandler } from "../utils/custom-event-handler";
+import { createDeepAgent } from "deepagents";
+
+interface SelectedDocument {
+	id: number;
+	title: string;
+	documentType: string;
+	documentMetadata: Record<string, unknown> | null;
+	chunks: Array<{ id: number; content: string }>;
+}
+
+function escapeXml(input: string): string {
+	return input
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&apos;");
+}
+
+function formatSelectedDocumentsAsContext(documents: SelectedDocument[]): string {
+	if (!documents.length) {
+		return "";
+	}
+
+	const contextParts: string[] = ["<mentioned_documents>"];
+	contextParts.push(
+		"The user has explicitly selected the following documents from their knowledge base. " +
+		"These documents are directly relevant to the query and should be prioritized as primary sources. " +
+		"Use [citation:CHUNK_ID] format for citations (e.g., [citation:123]).",
+	);
+	contextParts.push("");
+
+	for (const doc of documents) {
+		const metadata = doc.documentMetadata || {};
+		const metadataJson = JSON.stringify(metadata);
+		const url = (metadata.url as string) || (metadata.source as string) || "";
+
+		contextParts.push("<document>");
+		contextParts.push("<document_metadata>");
+		contextParts.push(`  <document_id>${doc.id}</document_id>`);
+		contextParts.push(`  <document_type>${escapeXml(doc.documentType)}</document_type>`);
+		contextParts.push(`  <title><![CDATA[${doc.title}]]></title>`);
+		contextParts.push(`  <url><![CDATA[${url}]]></url>`);
+		contextParts.push(`  <metadata_json><![CDATA[${metadataJson}]]></metadata_json>`);
+		contextParts.push("</document_metadata>");
+		contextParts.push("");
+		contextParts.push("<document_content>");
+
+		if (doc.chunks && doc.chunks.length > 0) {
+			for (const chunk of doc.chunks) {
+				contextParts.push(`  <chunk id='${chunk.id}'><![CDATA[${chunk.content}]]></chunk>`);
+			}
+		}
+
+		contextParts.push("</document_content>");
+		contextParts.push("</document>");
+		contextParts.push("");
+	}
+
+	contextParts.push("</mentioned_documents>");
+	return contextParts.join("\n");
+}
 
 @Injectable()
 export class DeepAgentService {
@@ -50,51 +107,14 @@ export class DeepAgentService {
 		});
 
 		const tools = buildTools(dependencies);
-		const toolNode = new ToolNode(tools);
-		const model = llm.bindTools(tools);
-		const systemPrompt = new SystemMessage(buildSystemPrompt(language));
+		const systemPrompt = buildSystemPrompt(language);
 
-		const callModel = async (state: SurfSenseAgentState) => {
-			const response = await model.invoke([systemPrompt, ...state.messages]);
-			return { messages: [response] };
-		};
-
-		const shouldContinue = (state: SurfSenseAgentState) => {
-			const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
-			if (!lastMessage?.tool_calls || lastMessage.tool_calls.length === 0) {
-				return "__end__";
-			}
-			return "tools";
-		};
-
-		const graphBuilder = new StateGraph(SurfSenseAgentAnnotation)
-			.addNode("agent", callModel)
-			.addNode("tools", toolNode)
-			.addEdge("__start__", "agent")
-			.addConditionalEdges("agent", shouldContinue)
-			.addEdge("tools", "agent");
-
-		if (checkpointer) {
-			return graphBuilder.compile({ checkpointer });
-		}
-
-		return graphBuilder.compile();
-	}
-
-	private toBaseMessages(
-		recentMessages: Array<{ role: string; content: string }>,
-		userQuery: string,
-	): BaseMessage[] {
-		const messages: BaseMessage[] = [];
-		for (const msg of recentMessages) {
-			if (msg.role === "user") {
-				messages.push(new HumanMessage(msg.content));
-			} else if (msg.role === "assistant") {
-				messages.push(new AIMessage(msg.content));
-			}
-		}
-		messages.push(new HumanMessage(userQuery));
-		return messages;
+		return createDeepAgent({
+			model: llm,
+			tools: tools,
+			systemPrompt: systemPrompt,
+			checkpointer: checkpointer,
+		});
 	}
 
 	async streamDeepAgent(
@@ -143,9 +163,43 @@ export class DeepAgentService {
 				: {},
 		};
 
+		let finalQuery = params.userQuery;
+
+		if (params.documentIdsToAddInContext && params.documentIdsToAddInContext.length > 0) {
+			const documents = await this.prisma.document.findMany({
+				where: {
+					id: { in: params.documentIdsToAddInContext },
+					searchSpaceId: params.searchSpaceId,
+					searchSpace: { userId: params.userId },
+				},
+				include: {
+					chunks: {
+						orderBy: { id: "asc" },
+						take: 30,
+					},
+				},
+			});
+
+			const selectedDocs: SelectedDocument[] = documents.map((doc) => ({
+				id: doc.id,
+				title: doc.title,
+				documentType: doc.documentType,
+				documentMetadata: (doc.documentMetadata as Record<string, unknown>) || {},
+				chunks: doc.chunks.map((chunk) => ({
+					id: chunk.id,
+					content: chunk.content,
+				})),
+			}));
+
+			if (selectedDocs.length > 0) {
+				const documentContext = formatSelectedDocumentsAsContext(selectedDocs);
+				finalQuery = `${documentContext}\n\n<user_query>${params.userQuery}</user_query>`;
+				this.logger.log(`Injected ${selectedDocs.length} selected documents into context`);
+			}
+		}
+
 		const inputState = {
-			messages: [new HumanMessage(params.userQuery)] as BaseMessage[],
-			search_space_id: params.searchSpaceId,
+			messages: [new HumanMessage(finalQuery)] as BaseMessage[],
 		};
 
 		const stream = await graph.stream(inputState, {

@@ -22,8 +22,8 @@ import {
 	useState,
 } from "react";
 import type { Document } from "@/hooks/use-documents";
-import { config } from "@/shared/config/config";
 import { getOrderedMessages } from "@/lib/chat/message-ordering";
+import { config } from "@/shared/config/config";
 import type { OrderedStreamMessage } from "@/types/chat.types";
 
 function isAIMessage(message: Message): boolean {
@@ -58,7 +58,6 @@ export interface UseChatStreamOptions {
 	searchSpaceId: string;
 	selectedConnectors?: string[];
 	selectedDocuments?: Document[];
-	searchMode?: "DOCUMENTS" | "CHUNKS";
 	scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 
 	// Lifecycle callbacks
@@ -106,14 +105,12 @@ export function useChatStream(
 		searchSpaceId,
 		selectedConnectors,
 		selectedDocuments,
-		searchMode,
 		scrollContainerRef,
 		onToolCall,
 		onToolComplete,
 		onStreamStart,
 		onStreamFinish,
 		onStreamError,
-		onMessageUpdate,
 		onChatCreated,
 		onThinkingStep,
 	} = options;
@@ -125,11 +122,21 @@ export function useChatStream(
 	);
 	const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
 
+	// Use ref to track chat ID immediately for transport (avoids transport recreation)
+	const currentChatIdRef = useRef<number | undefined>(chatId);
+
+	// Sync state and ref when chatId prop changes
 	useEffect(() => {
-		if (chatId !== undefined) {
+		if (chatId !== currentChatId) {
 			setCurrentChatId(chatId);
+			currentChatIdRef.current = chatId;
 		}
-	}, [chatId]);
+	}, [chatId, currentChatId]);
+
+	// Sync ref when state changes
+	useEffect(() => {
+		currentChatIdRef.current = currentChatId;
+	}, [currentChatId]);
 
 	const transport = useMemo(() => {
 		return new FetchStreamTransport({
@@ -148,12 +155,11 @@ export function useChatStream(
 				// Check for X-Chat-Id header to detect new chat creation
 				const chatIdHeader = response.headers.get("X-Chat-Id");
 
-				if (chatIdHeader) {
+				if (chatIdHeader && !currentChatIdRef.current) {
 					const newChatId = Number.parseInt(chatIdHeader, 10);
-					if (!currentChatId) {
-						setCurrentChatId(newChatId);
-						pendingCreatedChatIdRef.current = newChatId;
-					}
+					currentChatIdRef.current = newChatId;
+					setCurrentChatId(newChatId);
+					onChatCreated?.(newChatId);
 				}
 
 				return response;
@@ -169,17 +175,11 @@ export function useChatStream(
 
 				const customBody = {
 					messages: [{ content: messageContent, role: "user" }],
-					chat_id: currentChatId,
+					chat_id: currentChatIdRef.current,
 					data: {
 						search_space_id: searchSpaceId,
-						// TODO: Fix research mode later
 						research_mode: "QNA",
 						selected_connectors: selectedConnectors,
-						selected_documents: (selectedDocuments || []).map((doc) => ({
-							id: doc.id,
-							title: doc.title,
-							document_type: doc.document_type,
-						})),
 						document_ids_to_add_in_context: (selectedDocuments || []).map(
 							(doc) => doc.id,
 						),
@@ -199,19 +199,25 @@ export function useChatStream(
 	}, [
 		endpoint,
 		token,
-		currentChatId,
 		searchSpaceId,
 		selectedConnectors,
 		selectedDocuments,
 		onStreamStart,
+		onChatCreated,
 	]);
 
 	const stream = useStream({
 		transport,
+		// biome-ignore lint/suspicious/noExplicitAny: LangGraph custom event data has dynamic shape
 		onCustomEvent: (data: any) => {
 			console.log("onCustomEvent received:", data);
 			// Handle thinking steps from custom events
-			if (data?.type === "thinking" && data?.step_id && data?.title && data?.status) {
+			if (
+				data?.type === "thinking" &&
+				data?.step_id &&
+				data?.title &&
+				data?.status
+			) {
 				const step = data as ThinkingStep;
 				console.log("Updating thinking step:", step);
 				setThinkingSteps((prev) => {
@@ -234,58 +240,41 @@ export function useChatStream(
 	const processedToolCallIds = useRef<Set<string>>(new Set());
 	const completedToolCallIds = useRef<Set<string>>(new Set());
 	const notifiedToolCallIds = useRef<Set<string>>(new Set());
-	const pendingCreatedChatIdRef = useRef<number | null>(null);
 
 	// Extract tool calls logic
 	const toolCallsByMessage = useMemo(() => {
 		const map = new Map<Message, ToolCallState[]>();
+		const toolMessagesByCallId = new Map<string, ToolMessage>();
+
+		for (const msg of messages) {
+			if (!isToolMessage(msg)) continue;
+			const toolMessage = msg as ToolMessage;
+			if (toolMessage.tool_call_id) {
+				toolMessagesByCallId.set(toolMessage.tool_call_id, toolMessage);
+			}
+		}
 
 		messages.forEach((message) => {
 			if (!isAIMessage(message as AIMessage)) return;
 
 			const aiMessage = message as AIMessage;
-			let toolCalls: ToolCall[] = [];
-
-			if (aiMessage.tool_calls && Array.isArray(aiMessage.tool_calls)) {
-				toolCalls = aiMessage.tool_calls as ToolCall[];
-			}
-
-			const toolMessages: ToolMessage[] = [];
-
-			for (const msg of messages) {
-				if (isToolMessage(msg)) {
-					const toolMessage = msg as ToolMessage;
-					const toolCallId = toolMessage.tool_call_id;
-
-					if (toolCallId && toolCalls.some((tc) => tc.id === toolCallId)) {
-						if (!toolMessages.find((tm) => tm.tool_call_id === toolCallId)) {
-							toolMessages.push(msg as ToolMessage);
-						}
-					}
-				}
-			}
+			const toolCalls = Array.isArray(aiMessage.tool_calls)
+				? (aiMessage.tool_calls as ToolCall[])
+				: [];
 
 			if (toolCalls.length > 0) {
-				const toolCallStates: ToolCallState[] = [];
-				for (const toolCall of toolCalls) {
-					const toolMessage = toolMessages.find(
-						(tm) => tm.tool_call_id === toolCall.id,
-					);
-					toolCallStates.push({
-						toolCall,
-						toolMessage,
-					});
-
-					if (onToolCall) {
-						onToolCall(toolCall, aiMessage);
-					}
-				}
+				const toolCallStates: ToolCallState[] = toolCalls.map((toolCall) => ({
+					toolCall,
+					toolMessage: toolCall.id
+						? toolMessagesByCallId.get(toolCall.id)
+						: undefined,
+				}));
 				map.set(message, toolCallStates);
 			}
 		});
 
 		return map;
-	}, [messages, onToolCall]);
+	}, [messages]);
 
 	useEffect(() => {
 		messages.forEach((message) => {
@@ -325,13 +314,6 @@ export function useChatStream(
 			// Get ordered messages with tool metadata
 			const orderedMessages = getOrderedMessages(stream.messages);
 
-			const finalizeChatCreated = () => {
-				if (pendingCreatedChatIdRef.current) {
-					onChatCreated?.(pendingCreatedChatIdRef.current);
-					pendingCreatedChatIdRef.current = null;
-				}
-			};
-
 			// If we have a chatId, save messages to backend
 			if (currentChatId && token) {
 				saveMessagesToBackend(
@@ -342,24 +324,23 @@ export function useChatStream(
 				)
 					.then(() => {
 						onStreamFinish?.(stream.messages, userMessage, currentChatId);
-						finalizeChatCreated();
 					})
 					.catch((error) => {
 						console.error("Error saving messages to backend:", error);
 						onStreamFinish?.(stream.messages, userMessage, currentChatId);
-						finalizeChatCreated();
 					});
 			} else {
 				onStreamFinish?.(stream.messages, userMessage, currentChatId || 0);
-				finalizeChatCreated();
 			}
 		}
 		prevLoading.current = stream.isLoading;
-	}, [stream.isLoading, onStreamFinish, token, currentChatId, onChatCreated, stream.messages]);
+	}, [stream.isLoading, onStreamFinish, token, currentChatId, stream.messages]);
 
 	const isStreaming = useMemo(() => stream.isLoading, [stream.isLoading]);
 
 	// POLL MESSAGES: Filter Logic
+	// Intentionally only depends on streaming state - we poll stream.messages at 50ms intervals
+	// biome-ignore lint/correctness/useExhaustiveDependencies: setMessages is stable, stream.messages polled via interval
 	useEffect(() => {
 		if (!isStreaming) return;
 
@@ -428,10 +409,10 @@ export function useChatStream(
 				setIsStartingStreaming(false);
 				shouldHideLoadingIndicator = false;
 			}
-		}, 20);
+		}, 150);
 
 		return () => clearInterval(intervalId);
-	}, [isStreaming, onMessageUpdate]);
+	}, [isStreaming]);
 
 	// Scroll actions
 	const scrollToLastUserMessage = useCallback(() => {
@@ -507,7 +488,6 @@ export function useChatStream(
 			setInputText,
 			scrollToLastUserMessage,
 			setMessages,
-			setIsStreamingFinished,
 			messages,
 		],
 	);

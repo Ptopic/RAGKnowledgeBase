@@ -1,6 +1,6 @@
 "use client";
-import { AIMessage, ToolMessage, type Message } from "@langchain/core/messages";
-import { useParams, useRouter } from "next/navigation";
+import { AIMessage, type Message, ToolMessage } from "@langchain/core/messages";
+import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
@@ -112,7 +112,6 @@ const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
 
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
-	const router = useRouter();
 
 	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
 
@@ -139,6 +138,7 @@ export default function ResearcherPage() {
 	// Refs to track current state for useEffect access without dependency issues
 	const chatIdRef = useRef(currentChatId);
 	const messagesRef = useRef(messages);
+	const justCreatedChatIdRef = useRef<number | null>(null);
 
 	// Sync refs with state
 	useEffect(() => {
@@ -156,7 +156,14 @@ export default function ResearcherPage() {
 
 	useEffect(() => {
 		if (token && chatIdParam) {
-			setIsLoading(true);
+			const localHasContent = messagesRef.current.length > 0;
+			const isJustCreatedChat =
+				justCreatedChatIdRef.current === Number.parseInt(chatIdParam, 10);
+
+			if (!localHasContent && !isJustCreatedChat) {
+				setIsLoading(true);
+			}
+
 			fetchChatDetails(chatIdParam).then((chatData) => {
 				if (!chatData) {
 					setIsLoading(false);
@@ -170,26 +177,38 @@ export default function ResearcherPage() {
 				if (chatData.messages) {
 					const uiMessages = convertToLangChainMessages(chatData.messages);
 
-					// RACE CONDITION PREVENTION
+					// Preserve optimistic local stream messages until backend save catches up
 					const currentChatIdState = chatIdRef.current;
 					const currentMessagesState = messagesRef.current;
 
-					const isFirstLoadOfNewChat = !currentChatIdState && chatData.id;
+					const isFirstLoadOfNewChat =
+						justCreatedChatIdRef.current === chatData.id ||
+						(!currentChatIdState && !!chatData.id);
 					const serverIsEmpty = uiMessages.length === 0;
 					const localHasContent = currentMessagesState.length > 0;
 
 					if (isFirstLoadOfNewChat && serverIsEmpty && localHasContent) {
-						// Don't overwrite local messages - just update ID
+						// Don't overwrite local messages - they will be persisted on stream finish
 						setCurrentChatId(chatData.id);
+						justCreatedChatIdRef.current = null;
 					} else {
 						setMessages(uiMessages);
 						setCurrentChatId(chatData.id);
+						if (justCreatedChatIdRef.current === chatData.id) {
+							justCreatedChatIdRef.current = null;
+						}
 					}
 				}
 				setIsLoading(false);
 			});
 		}
-	}, [token, chatIdParam]);
+	}, [
+		token,
+		chatIdParam,
+		fetchChatDetails,
+		setIsLoading,
+		setSelectedConnectors,
+	]);
 
 	useEffect(() => {
 		if (!chatIdParam || !search_space_id) return;
@@ -212,6 +231,7 @@ export default function ResearcherPage() {
 	]);
 
 	const handleChatCreated = (newChatId: number) => {
+		justCreatedChatIdRef.current = newChatId;
 		setCurrentChatId(newChatId);
 
 		storeChatState(search_space_id as string, String(newChatId), {
@@ -221,7 +241,8 @@ export default function ResearcherPage() {
 			researchMode: "QNA",
 		});
 
-		router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
+		const nextUrl = `/dashboard/${search_space_id}/researcher/${newChatId}`;
+		window.history.replaceState(null, "", nextUrl);
 	};
 
 	if (isLoading) {
