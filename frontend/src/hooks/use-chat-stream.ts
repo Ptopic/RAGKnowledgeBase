@@ -304,9 +304,74 @@ export function useChatStream(
 		});
 	}, [messages, onToolCall, onToolComplete]);
 
+	// Helper function to sync messages from stream to state
+	const syncMessagesFromStream = useCallback(
+		(prev: Message[]): Message[] => {
+			if (stream.messages.length === 0) return prev;
+
+			const updated = [...prev];
+			let hasChanges = false;
+
+			for (const streamMsg of stream.messages) {
+				if (streamMsg.type === "system") continue;
+
+				if (streamMsg.type === "tool") {
+					const toolMsg = streamMsg as ToolMessage;
+					const toolCallId = toolMsg.tool_call_id;
+
+					if (toolCallId && processedToolCallIds.current.has(toolCallId)) {
+						continue;
+					}
+
+					const exists = updated.some(
+						(msg) =>
+							msg.type === "tool" &&
+							(msg as ToolMessage).tool_call_id === toolCallId,
+					);
+
+					if (!exists && toolCallId) {
+						updated.push(streamMsg);
+						processedToolCallIds.current.add(toolCallId);
+						hasChanges = true;
+					}
+					continue;
+				}
+
+				if (streamMsg.type === "ai") {
+					const content =
+						typeof streamMsg.content === "string" ? streamMsg.content : "";
+
+					if (content.trim().startsWith("{")) {
+						continue;
+					}
+
+					const existingIndex = updated.findIndex(
+						(msg) => msg.id === streamMsg.id,
+					);
+
+					if (existingIndex !== -1) {
+						if (updated[existingIndex].content !== streamMsg.content) {
+							updated[existingIndex] = streamMsg;
+							hasChanges = true;
+						}
+					} else {
+						updated.push(streamMsg);
+						hasChanges = true;
+					}
+				}
+			}
+			return hasChanges ? updated : prev;
+		},
+		[stream.messages],
+	);
+
 	// Handle stream finish
+	// biome-ignore lint/correctness/useExhaustiveDependencies: setMessages is stable, final sync needs stream state
 	useEffect(() => {
 		if (prevLoading.current && !stream.isLoading) {
+			// Final sync: capture any remaining messages before marking stream complete
+			setMessages((prev) => syncMessagesFromStream(prev));
+
 			setIsStreamingFinished(true);
 
 			const userMessage = lastUserMessageContentRef.current;
@@ -334,7 +399,7 @@ export function useChatStream(
 			}
 		}
 		prevLoading.current = stream.isLoading;
-	}, [stream.isLoading, onStreamFinish, token, currentChatId, stream.messages]);
+	}, [stream.isLoading, onStreamFinish, token, currentChatId, stream.messages, syncMessagesFromStream]);
 
 	const isStreaming = useMemo(() => stream.isLoading, [stream.isLoading]);
 

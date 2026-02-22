@@ -1,12 +1,12 @@
 "use client";
 
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { type FC, type ReactNode, memo, useMemo, useState } from "react";
-import { Streamdown } from "streamdown";
+import { type FC, memo, type ReactNode, useMemo, useState } from "react";
 import remarkGfm from "remark-gfm";
-import { CodeBlock } from "@/components/chat/CodeBlock";
+import { Streamdown } from "streamdown";
 import { InlineCitation } from "@/components/assistant-ui/inline-citation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { CodeBlock } from "@/components/chat/CodeBlock";
 import { cn } from "@/lib/utils";
 
 const CITATION_REGEX = /[[【]\u200B?citation:(doc-)?(\d+)\u200B?[\]】]/g;
@@ -19,8 +19,8 @@ function resetCitations() {
 	citationCounter = 1;
 }
 
-function getCitationNumber(chunkId: number, isDocsChunk: boolean): number {
-	const key = isDocsChunk ? `doc-${chunkId}` : String(chunkId);
+function getCitationNumber(chunkId: number): number {
+	const key = String(chunkId);
 	const existing = citationMap.get(key);
 	if (existing !== undefined) return existing;
 	citationMap.set(key, citationCounter++);
@@ -40,15 +40,13 @@ function processTextWithCitations(text: string): ReactNode[] {
 			parts.push(text.substring(lastIndex, match.index));
 		}
 
-		const isDocsChunk = match[1] === "doc-";
 		const chunkId = Number.parseInt(match[2], 10);
-		const citationNumber = getCitationNumber(chunkId, isDocsChunk);
+		const citationNumber = getCitationNumber(chunkId);
 		parts.push(
 			<InlineCitation
-				key={`citation-${isDocsChunk ? "doc-" : ""}${chunkId}-${instanceIndex}`}
+				key={`citation-${chunkId}-${instanceIndex}`}
 				chunkId={chunkId}
 				citationNumber={citationNumber}
-				isDocsChunk={isDocsChunk}
 			/>,
 		);
 
@@ -67,7 +65,11 @@ function processTextWithCitations(text: string): ReactNode[] {
 function processChildrenWithCitations(children: ReactNode): ReactNode {
 	if (typeof children === "string") {
 		const parsed = processTextWithCitations(children);
-		return parsed.length === 1 && typeof parsed[0] === "string" ? children : <>{parsed}</>;
+		return parsed.length === 1 && typeof parsed[0] === "string" ? (
+			children
+		) : (
+			<>{parsed}</>
+		);
 	}
 
 	if (Array.isArray(children)) {
@@ -77,7 +79,9 @@ function processChildrenWithCitations(children: ReactNode): ReactNode {
 				return parsed.length === 1 && typeof parsed[0] === "string" ? (
 					child
 				) : (
-					<span key={`citation-child-${idx}-${child.slice(0, 20)}`}>{parsed}</span>
+					<span key={`citation-child-${idx}-${child.slice(0, 20)}`}>
+						{parsed}
+					</span>
 				);
 			}
 			return child;
@@ -92,7 +96,10 @@ interface MarkdownTextProps {
 	className?: string;
 }
 
-const CodeHeader: FC<{ language?: string; code: string }> = ({ language, code }) => {
+const CodeHeader: FC<{ language?: string; code: string }> = ({
+	language,
+	code,
+}) => {
 	const [copied, setCopied] = useState(false);
 
 	const onCopy = async () => {
@@ -127,30 +134,57 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 				rehypePlugins={[]}
 				components={{
 					h1: ({ className: c, children, ...props }) => (
-						<h1 className={cn("mb-8 scroll-m-20 font-extrabold text-4xl tracking-tight last:mb-0", c)} {...props}>
+						<h1
+							className={cn(
+								"mb-8 scroll-m-20 font-extrabold text-4xl tracking-tight last:mb-0",
+								c,
+							)}
+							{...props}
+						>
 							{processChildrenWithCitations(children)}
 						</h1>
 					),
 					h2: ({ className: c, children, ...props }) => (
-						<h2 className={cn("mt-8 mb-4 scroll-m-20 font-semibold text-3xl tracking-tight first:mt-0 last:mb-0", c)} {...props}>
+						<h2
+							className={cn(
+								"mt-8 mb-4 scroll-m-20 font-semibold text-3xl tracking-tight first:mt-0 last:mb-0",
+								c,
+							)}
+							{...props}
+						>
 							{processChildrenWithCitations(children)}
 						</h2>
 					),
 					p: ({ className: c, children, ...props }) => (
-						<p className={cn("mt-5 mb-5 leading-7 first:mt-0 last:mb-0", c)} {...props}>
+						<p
+							className={cn("mt-5 mb-5 leading-7 first:mt-0 last:mb-0", c)}
+							{...props}
+						>
 							{processChildrenWithCitations(children)}
 						</p>
 					),
 					a: ({ className: c, children, ...props }) => (
-						<a className={cn("font-medium text-primary underline underline-offset-4", c)} {...props}>
+						<a
+							className={cn(
+								"font-medium text-primary underline underline-offset-4",
+								c,
+							)}
+							{...props}
+						>
 							{processChildrenWithCitations(children)}
 						</a>
 					),
 					ul: ({ className: c, ...props }) => (
-						<ul className={cn("my-5 ml-6 list-disc [&>li]:mt-2", c)} {...props} />
+						<ul
+							className={cn("my-5 ml-6 list-disc [&>li]:mt-2", c)}
+							{...props}
+						/>
 					),
 					ol: ({ className: c, ...props }) => (
-						<ol className={cn("my-5 ml-6 list-decimal [&>li]:mt-2", c)} {...props} />
+						<ol
+							className={cn("my-5 ml-6 list-decimal [&>li]:mt-2", c)}
+							{...props}
+						/>
 					),
 					li: ({ className: c, children, ...props }) => (
 						<li className={cn("", c)} {...props}>
@@ -158,13 +192,25 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 						</li>
 					),
 					pre: ({ className: c, ...props }) => (
-						<pre className={cn("overflow-x-auto rounded-t-none! rounded-b-lg bg-black p-4 text-white", c)} {...props} />
+						<pre
+							className={cn(
+								"overflow-x-auto rounded-t-none! rounded-b-lg bg-black p-4 text-white",
+								c,
+							)}
+							{...props}
+						/>
 					),
 					code: ({ className: c, children, ...props }) => {
 						const match = /language-(\w+)/.exec(c || "");
 						if (!match) {
 							return (
-								<code className={cn("rounded border bg-muted px-1 py-0.5 font-semibold", c)} {...props}>
+								<code
+									className={cn(
+										"rounded border bg-muted px-1 py-0.5 font-semibold",
+										c,
+									)}
+									{...props}
+								>
 									{children}
 								</code>
 							);

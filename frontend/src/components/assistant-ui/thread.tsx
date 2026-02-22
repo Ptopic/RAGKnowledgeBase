@@ -17,8 +17,6 @@ import {
 	ComposerAddAttachment,
 	ComposerAttachments,
 } from "@/components/assistant-ui/attachment";
-import { CustomChatInputOptions } from "@/components/chat/ChatInputGroup";
-import { AnimatedEmptyState } from "@/components/chat/AnimatedEmptyState";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -28,14 +26,16 @@ import {
 	type InlineMentionEditorRef,
 	type MentionedDocument,
 } from "@/components/assistant-ui/inline-mention-editor";
+import { AnimatedEmptyState } from "@/components/chat/AnimatedEmptyState";
+import { CustomChatInputOptions } from "@/components/chat/ChatInputGroup";
 import { Button } from "@/components/ui/button";
+import type { ThinkingStep, ToolCallState } from "@/hooks/use-chat-stream";
 import type { Document } from "@/hooks/use-documents";
+import { useRestoredToolCalls } from "@/hooks/use-restored-tool-calls";
 import { toRenderableMessages } from "@/lib/chat/message-adapter";
 import { AssistantMessage } from "./assistant-message";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { UserMessage } from "./user-message";
-import type { ToolCallState, ThinkingStep } from "@/hooks/use-chat-stream";
-import { useRestoredToolCalls } from "@/hooks/use-restored-tool-calls";
 
 interface ThreadProps {
 	messages: Message[];
@@ -73,7 +73,10 @@ export const Thread: FC<ThreadProps> = ({
 	thinkingSteps,
 }) => {
 	const viewportRef = useRef<HTMLDivElement>(null);
-	const renderableMessages = useMemo(() => toRenderableMessages(messages), [messages]);
+	const renderableMessages = useMemo(
+		() => toRenderableMessages(messages),
+		[messages],
+	);
 	const isEmpty = renderableMessages.length === 0;
 	const prevIsRunningRef = useRef(isRunning);
 
@@ -155,7 +158,9 @@ export const Thread: FC<ThreadProps> = ({
 						{renderableMessages.map((message, index) => {
 							const isLast = index === renderableMessages.length - 1;
 							if (message.type === "human") {
-								return <UserMessage key={message.id || index} message={message} />;
+								return (
+									<UserMessage key={message.id || index} message={message} />
+								);
 							}
 							return (
 								<AssistantMessage
@@ -169,6 +174,10 @@ export const Thread: FC<ThreadProps> = ({
 								/>
 							);
 						})}
+
+						{isRunning && (
+							<div className="min-h-[max(50px,calc(100svh-420px))]"></div>
+						)}
 
 						<div className="sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
 							<TooltipIconButton
@@ -306,12 +315,14 @@ const ThreadComposer: FC<ThreadComposerProps> = ({
 			<div className="flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2">
 				<ComposerAttachments
 					attachments={attachments}
-					onRemove={(id) => setAttachments((prev) => prev.filter((a) => a.id !== id))}
+					onRemove={(id) =>
+						setAttachments((prev) => prev.filter((a) => a.id !== id))
+					}
 				/>
 				<div ref={editorContainerRef} className="px-3 pt-3 pb-4">
 					<InlineMentionEditor
 						ref={editorRef}
-						placeholder="Ask SurfSense anything or @mention docs."
+						placeholder="Ask anything or @mention docs."
 						onMentionTrigger={handleMentionTrigger}
 						onMentionClose={handleMentionClose}
 						onChange={(text, docs) => {

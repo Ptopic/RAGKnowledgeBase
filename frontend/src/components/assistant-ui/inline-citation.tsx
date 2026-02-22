@@ -6,13 +6,11 @@ import { SourceDetailSheet } from "@/components/chat/SourceDetailSheet";
 interface InlineCitationProps {
 	chunkId: number;
 	citationNumber: number;
-	isDocsChunk?: boolean;
 }
 
 export const InlineCitation: FC<InlineCitationProps> = ({
 	chunkId,
 	citationNumber,
-	isDocsChunk = false,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -21,8 +19,8 @@ export const InlineCitation: FC<InlineCitationProps> = ({
 			open={isOpen}
 			onOpenChange={setIsOpen}
 			chunkId={chunkId}
-			sourceType={isDocsChunk ? "SURFSENSE_DOCS" : "FILE"}
-			title={isDocsChunk ? "Surfsense Documentation" : "Source"}
+			sourceType={"FILE"}
+			title={"Source"}
 			description=""
 			url=""
 		>
