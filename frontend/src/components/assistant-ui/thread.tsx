@@ -6,6 +6,7 @@ import {
 	type FC,
 	type KeyboardEvent,
 	type ReactNode,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -79,6 +80,21 @@ export const Thread: FC<ThreadProps> = ({
 	);
 	const isEmpty = renderableMessages.length === 0;
 	const prevIsRunningRef = useRef(isRunning);
+	const [isScrolledUp, setIsScrolledUp] = useState(false);
+
+	const checkScrollPosition = useCallback(() => {
+		const container = viewportRef.current;
+		if (!container) return false;
+		const { scrollTop, scrollHeight, clientHeight } = container;
+		const tolerance = 140;
+		const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+		return distanceFromBottom > tolerance;
+	}, []);
+
+	const handleScroll = useCallback(() => {
+		const scrolledUp = checkScrollPosition();
+		setIsScrolledUp(scrolledUp);
+	}, [checkScrollPosition]);
 
 	const restoredToolCalls = useRestoredToolCalls(renderableMessages);
 
@@ -129,6 +145,7 @@ export const Thread: FC<ThreadProps> = ({
 		>
 			<div
 				ref={viewportRef}
+				onScroll={handleScroll}
 				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 transition-[padding] duration-300 ease-out"
 			>
 				{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
@@ -180,20 +197,22 @@ export const Thread: FC<ThreadProps> = ({
 						)}
 
 						<div className="sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
-							<TooltipIconButton
-								tooltip="Scroll to bottom"
-								variant="outline"
-								className="-top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
-								onClick={() => {
-									if (!viewportRef.current) return;
-									viewportRef.current.scrollTo({
-										top: viewportRef.current.scrollHeight,
-										behavior: "smooth",
-									});
-								}}
-							>
-								<ArrowDownIcon />
-							</TooltipIconButton>
+							{isScrolledUp && (
+								<TooltipIconButton
+									tooltip="Scroll to bottom"
+									variant="outline"
+									className="-top-12 absolute z-10 self-center rounded-full p-4 dark:bg-background dark:hover:bg-accent"
+									onClick={() => {
+										if (!viewportRef.current) return;
+										viewportRef.current.scrollTo({
+											top: viewportRef.current.scrollHeight,
+											behavior: "smooth",
+										});
+									}}
+								>
+									<ArrowDownIcon />
+								</TooltipIconButton>
+							)}
 
 							<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both border-t pt-4">
 								<ThreadComposer
