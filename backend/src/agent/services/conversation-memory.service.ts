@@ -7,9 +7,14 @@ export interface ChatMessage {
 	content: string;
 }
 
+/**
+ * Message content can be:
+ * - string: plain text or AI message content
+ * - object: serialized tool call (will be stored as JSON string in database)
+ */
 export interface MessageToAdd {
 	role: "user" | "assistant";
-	content: string;
+	content: string | Record<string, unknown>;
 	metadata?: Record<string, unknown>;
 }
 
@@ -58,6 +63,9 @@ export class ConversationMemoryService {
 	 * Get recent messages from a chat
 	 * Returns messages in the format expected by LangChain (flat array)
 	 * Messages are stored as nested exchanges: [[msg1, msg2], [msg3, msg4]]
+	 *
+	 * Note: Tool calls are stored as JSON strings and will be returned as strings.
+	 * Use parsePersistedMessage() from message-adapter to parse them back to objects.
 	 */
 	async getRecentMessages(
 		chatId: number,
@@ -72,9 +80,12 @@ export class ConversationMemoryService {
 			const flatMessages = exchanges.flat();
 
 			// Return last N messages (sliding window)
+			// Note: Object content (tool calls) is stored as JSON strings
 			return flatMessages.slice(-limit).map((msg) => ({
 				role: (msg.role || "user") as "user" | "assistant" | "system",
-				content: msg.content || "",
+				content: typeof msg.content === "object"
+					? JSON.stringify(msg.content)
+					: (msg.content || ""),
 			}));
 		} catch (error) {
 			if (error instanceof NotFoundException) {
@@ -89,6 +100,8 @@ export class ConversationMemoryService {
 	 * Add messages to a chat
 	 * Appends new messages as an exchange (wrapped in an array) to the existing messages array
 	 * Format: [[msg1, msg2], [msg3, msg4]] where each inner array is a message exchange
+	 *
+	 * Note: Object content (tool calls) will be serialized as JSON strings for database storage.
 	 */
 	async addMessages(
 		chatId: number,
@@ -101,9 +114,12 @@ export class ConversationMemoryService {
 		const existingMessages = (chat.messages || []) as ConversationHistory;
 
 		// Format new messages as a single exchange (wrapped in an array)
+		// Note: Object content (tool calls) is serialized as JSON string
 		const newExchange: MessageExchange = messagesToAdd.map((msg) => ({
 			role: msg.role,
-			content: msg.content,
+			content: typeof msg.content === "object"
+				? JSON.stringify(msg.content)
+				: msg.content,
 			timestamp: new Date().toISOString(),
 			...(msg.metadata ? { metadata: msg.metadata } : {}),
 		}));

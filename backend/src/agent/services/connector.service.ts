@@ -3,6 +3,7 @@ import { DocumentType } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { RetrieverService } from "src/retriever/retriever.service";
 import { SearchMode } from "../dtos/researcher.dto";
+import { getConnectorFriendlyName } from "../utils/agent.utils";
 import { Document } from "../utils/agent.utils";
 
 interface SourceObject {
@@ -813,5 +814,27 @@ export class ConnectorService {
 		chunk: Document,
 	): { id: string | number; title: string; description: string; url: string } {
 		return this.formatSourceEntry(documentType, chunk);
+	}
+
+	/**
+	 * Public generic search entrypoint for any document type.
+	 */
+	async searchByDocumentType(
+		documentType: string,
+		userQuery: string,
+		userId: string,
+		searchSpaceId: number,
+		topK: number,
+		searchMode: SearchMode,
+	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
+		return this.searchDocumentType(
+			documentType,
+			getConnectorFriendlyName(documentType),
+			userQuery,
+			userId,
+			searchSpaceId,
+			topK,
+			searchMode,
+		);
 	}
 }

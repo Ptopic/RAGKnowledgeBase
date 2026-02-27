@@ -9,6 +9,12 @@ import {
 	IsString,
 } from "class-validator";
 
+export interface ChatMessageDto {
+	role: string;
+	content: string | Record<string, unknown>;
+	metadata?: Record<string, unknown>;
+}
+
 export class ChatBaseDto {
 	@IsEnum(ChatType)
 	type: ChatType;
@@ -21,7 +27,7 @@ export class ChatBaseDto {
 	initial_connectors?: string[];
 
 	@IsArray()
-	messages: any[];
+	messages: ChatMessageDto[];
 
 	@IsInt()
 	search_space_id: number;
@@ -44,7 +50,7 @@ export class UpdateChatDto {
 
 	@IsArray()
 	@IsOptional()
-	messages?: any[];
+	messages?: ChatMessageDto[];
 }
 
 export class ChatDto extends ChatBaseDto {
@@ -78,11 +84,11 @@ export class ChatWithoutMessagesDto {
 
 export class AgentChatRequestDto {
 	@IsArray()
-	messages: any[];
+	messages: ChatMessageDto[];
 
 	@IsObject()
 	@IsOptional()
-	data?: Record<string, any>;
+	data?: Record<string, unknown>;
 
 	@IsInt()
 	@IsOptional()
@@ -94,5 +100,9 @@ export class SaveMessagesDto {
 	chat_id: number;
 
 	@IsArray()
-	messages: Array<{ role: string; content: string }>;
+	messages: Array<{
+		role: string;
+		content: string | Record<string, unknown>;
+		metadata?: Record<string, unknown>;
+	}>;
 }

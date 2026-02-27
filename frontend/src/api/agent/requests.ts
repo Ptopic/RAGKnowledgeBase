@@ -5,7 +5,7 @@ import type { IAgentChatDto } from "./types";
 
 export const chat =
 	(request: ICallableRequestBuilder<any>) => async (chatDto: IAgentChatDto) =>
-		request.call(`${config.apiUrl}/agent/chat`, (init) => ({
+		request.call(`${config.apiUrl}/agent/chatWithDeepAgent`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -19,7 +19,7 @@ export const streamChat = async function* (
 	chatDto: IAgentChatDto,
 ): AsyncGenerator<string, void, unknown> {
 	try {
-		const response = await fetch(`${config.apiUrl}/agent/chat/stream`, {
+		const response = await fetch(`${config.apiUrl}/agent/chatWithDeepAgent`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",

@@ -3,11 +3,12 @@
 import type { Message } from "@langchain/core/messages";
 import config from "@shared/config";
 import { useQueryClient } from "@tanstack/react-query";
-import { type Dispatch, type SetStateAction, useState } from "react";
-import { ChatInputUI } from "@/components/chat/ChatInputGroup";
-import { ChatMessagesUI } from "@/components/chat/ChatMessages";
+import { type Dispatch, type SetStateAction, useRef, useState } from "react";
+import { Thread } from "@/components/assistant-ui";
+import { ChatHeader } from "@/components/new-chat/chat-header";
 import { useChatStream } from "@/hooks/use-chat-stream";
 import type { Document } from "@/hooks/use-documents";
+import { messageContentToText } from "@/lib/chat/message-adapter";
 
 interface ChatInterfaceProps {
 	onDocumentSelectionChange?: (documents: Document[]) => void;
@@ -43,11 +44,12 @@ export default function TestChatInterface({
 	onChatCreated,
 }: ChatInterfaceProps) {
 	const [inputText, setInputText] = useState("");
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
 	const queryClient = useQueryClient();
-	const endpoint = `${config.apiUrl}/agent/chat`;
+	const endpoint = `${config.apiUrl}/agent/chatWithDeepAgent`;
 
-	const { isStreaming, sendMessage, handleInputChange } = useChatStream({
+	const { isStreaming, sendMessage, stopStreaming, toolCallsByMessage, thinkingSteps, scrollToBottom } = useChatStream({
 		messages,
 		setMessages,
 		inputText,
@@ -57,8 +59,8 @@ export default function TestChatInterface({
 		token: token || undefined,
 		searchSpaceId,
 		selectedConnectors,
-		searchMode,
-		scrollContainerRef: { current: null },
+		selectedDocuments,
+		scrollContainerRef,
 		onStreamStart,
 		onStreamFinish: async (_messages, _userMessage, chatId) => {
 			queryClient.invalidateQueries({ queryKey: ["chats"] });
@@ -73,24 +75,32 @@ export default function TestChatInterface({
 		sendMessage(message);
 	};
 
+	const handleReloadLast = () => {
+		const lastUserMessage = [...messages].reverse().find((message) => message.type === "human");
+		if (!lastUserMessage) return;
+		sendMessage(messageContentToText(lastUserMessage.content));
+	};
+
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex h-[calc(100dvh-80px)] flex-col">
-				<ChatMessagesUI messages={messages} isLoading={isStreaming} />
-				<div className="border-t p-4">
-					<ChatInputUI
-						onDocumentSelectionChange={onDocumentSelectionChange}
-						selectedDocuments={selectedDocuments}
-						onConnectorSelectionChange={onConnectorSelectionChange}
-						selectedConnectors={selectedConnectors}
-						searchMode={searchMode}
-						onSearchModeChange={onSearchModeChange}
-						onSubmit={handleSubmit}
-						isLoading={isStreaming}
-						value={inputText}
-						onInputChange={handleInputChange}
-					/>
-				</div>
+				<Thread
+					messages={messages}
+					isRunning={isStreaming}
+					onSubmit={handleSubmit}
+					onCancel={stopStreaming}
+					onReloadLast={handleReloadLast}
+					searchSpaceId={Number.parseInt(searchSpaceId, 10)}
+					header={<ChatHeader />}
+					onDocumentSelectionChange={onDocumentSelectionChange}
+					selectedDocuments={selectedDocuments}
+					onConnectorSelectionChange={onConnectorSelectionChange}
+					selectedConnectors={selectedConnectors}
+					searchMode={searchMode}
+					onSearchModeChange={onSearchModeChange}
+					toolCallsByMessage={toolCallsByMessage}
+					thinkingSteps={thinkingSteps}
+				/>
 			</div>
 		</div>
 	);

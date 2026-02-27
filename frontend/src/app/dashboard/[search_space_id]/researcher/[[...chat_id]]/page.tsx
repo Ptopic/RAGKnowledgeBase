@@ -1,7 +1,7 @@
 "use client";
-import type { Message } from "@langchain/core/messages";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { AIMessage, type Message, ToolMessage } from "@langchain/core/messages";
+import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
@@ -44,8 +44,8 @@ const restoreChatState = (
 
 /**
  * Convert backend message format to LangChain Message format
- * Backend stores messages as nested exchanges: [[userMsg, assistantMsg], ...]
- * This function flattens the structure for the frontend
+ * Backend stores messages as nested exchanges: [[userMsg, assistantMsg, toolMsg], ...]
+ * This function flattens structure for frontend and reconstructs tool calls from metadata
  */
 const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
 	const convertSingleMessage = (msg: any, index: number): Message => {
@@ -59,16 +59,59 @@ const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
 		return { type: "system", content: msg.content, id };
 	};
 
+	// Handle nested exchange format with tool reconstruction
 	if (apiMessages.length > 0 && Array.isArray(apiMessages[0])) {
 		const flatMessages = (apiMessages as any[]).flat();
-		return flatMessages.map(convertSingleMessage) as Message[];
+		const reconstructed: Message[] = [];
+
+		for (let i = 0; i < flatMessages.length; i++) {
+			const msg = flatMessages[i];
+
+			// Check if this has tool metadata
+			if (msg.metadata?.kind?.startsWith("tool_")) {
+				const metadata = msg.metadata;
+				const runId = metadata.runId || `${msg.timestamp}`;
+				const toolName = metadata.toolName || "unknown";
+
+				// Create AIMessage with tool_calls
+				reconstructed.push(
+					new AIMessage({
+						id: `${msg.timestamp}_tool_call_${i}`,
+						content: "",
+						tool_calls: [
+							{
+								id: runId,
+								name: toolName,
+								args: {},
+							},
+						],
+					}),
+				);
+
+				// Create ToolMessage with result
+				reconstructed.push(
+					new ToolMessage({
+						tool_call_id: runId,
+						content: JSON.stringify({ data: metadata.data }),
+						status: metadata.status,
+					}),
+				);
+
+				continue;
+			}
+
+			// Regular message
+			reconstructed.push(convertSingleMessage(msg, reconstructed.length));
+		}
+
+		return reconstructed as Message[];
 	}
+
 	return apiMessages.map(convertSingleMessage) as Message[];
 };
 
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
-	const router = useRouter();
 
 	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
 
@@ -92,6 +135,20 @@ export default function ResearcherPage() {
 		chatIdParam ? Number.parseInt(chatIdParam, 10) : undefined,
 	);
 
+	// Refs to track current state for useEffect access without dependency issues
+	const chatIdRef = useRef(currentChatId);
+	const messagesRef = useRef(messages);
+	const justCreatedChatIdRef = useRef<number | null>(null);
+
+	// Sync refs with state
+	useEffect(() => {
+		chatIdRef.current = currentChatId;
+	}, [currentChatId]);
+
+	useEffect(() => {
+		messagesRef.current = messages;
+	}, [messages]);
+
 	const { fetchChatDetails } = useChatAPI({
 		token,
 		search_space_id: search_space_id as string,
@@ -99,7 +156,14 @@ export default function ResearcherPage() {
 
 	useEffect(() => {
 		if (token && chatIdParam) {
-			setIsLoading(true);
+			const localHasContent = messagesRef.current.length > 0;
+			const isJustCreatedChat =
+				justCreatedChatIdRef.current === Number.parseInt(chatIdParam, 10);
+
+			if (!localHasContent && !isJustCreatedChat) {
+				setIsLoading(true);
+			}
+
 			fetchChatDetails(chatIdParam).then((chatData) => {
 				if (!chatData) {
 					setIsLoading(false);
@@ -111,12 +175,40 @@ export default function ResearcherPage() {
 				}
 
 				if (chatData.messages) {
-					setMessages(convertToLangChainMessages(chatData.messages));
+					const uiMessages = convertToLangChainMessages(chatData.messages);
+
+					// Preserve optimistic local stream messages until backend save catches up
+					const currentChatIdState = chatIdRef.current;
+					const currentMessagesState = messagesRef.current;
+
+					const isFirstLoadOfNewChat =
+						justCreatedChatIdRef.current === chatData.id ||
+						(!currentChatIdState && !!chatData.id);
+					const serverIsEmpty = uiMessages.length === 0;
+					const localHasContent = currentMessagesState.length > 0;
+
+					if (isFirstLoadOfNewChat && serverIsEmpty && localHasContent) {
+						// Don't overwrite local messages - they will be persisted on stream finish
+						setCurrentChatId(chatData.id);
+						justCreatedChatIdRef.current = null;
+					} else {
+						setMessages(uiMessages);
+						setCurrentChatId(chatData.id);
+						if (justCreatedChatIdRef.current === chatData.id) {
+							justCreatedChatIdRef.current = null;
+						}
+					}
 				}
 				setIsLoading(false);
 			});
 		}
-	}, [token, chatIdParam]);
+	}, [
+		token,
+		chatIdParam,
+		fetchChatDetails,
+		setIsLoading,
+		setSelectedConnectors,
+	]);
 
 	useEffect(() => {
 		if (!chatIdParam || !search_space_id) return;
@@ -139,6 +231,7 @@ export default function ResearcherPage() {
 	]);
 
 	const handleChatCreated = (newChatId: number) => {
+		justCreatedChatIdRef.current = newChatId;
 		setCurrentChatId(newChatId);
 
 		storeChatState(search_space_id as string, String(newChatId), {
@@ -148,7 +241,8 @@ export default function ResearcherPage() {
 			researchMode: "QNA",
 		});
 
-		router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
+		const nextUrl = `/dashboard/${search_space_id}/researcher/${newChatId}`;
+		window.history.replaceState(null, "", nextUrl);
 	};
 
 	if (isLoading) {

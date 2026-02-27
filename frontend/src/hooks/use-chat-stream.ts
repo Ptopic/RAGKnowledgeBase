@@ -21,7 +21,10 @@ import {
 	useRef,
 	useState,
 } from "react";
+import type { Document } from "@/hooks/use-documents";
+import { getOrderedMessages } from "@/lib/chat/message-ordering";
 import { config } from "@/shared/config/config";
+import type { OrderedStreamMessage } from "@/types/chat.types";
 
 function isAIMessage(message: Message): boolean {
 	return message.type === "ai";
@@ -29,6 +32,13 @@ function isAIMessage(message: Message): boolean {
 
 function isToolMessage(message: Message): boolean {
 	return message.type === "tool";
+}
+
+export interface ThinkingStep {
+	step_id: string;
+	title: string;
+	status: "in_progress" | "completed";
+	items?: string[];
 }
 
 export interface ToolCallState {
@@ -47,7 +57,7 @@ export interface UseChatStreamOptions {
 	token?: string;
 	searchSpaceId: string;
 	selectedConnectors?: string[];
-	searchMode?: "DOCUMENTS" | "CHUNKS";
+	selectedDocuments?: Document[];
 	scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 
 	// Lifecycle callbacks
@@ -62,6 +72,7 @@ export interface UseChatStreamOptions {
 	onStreamError?: (error: Error | string) => void;
 	onMessageUpdate?: (messages: Message[]) => void;
 	onChatCreated?: (chatId: number) => void;
+	onThinkingStep?: (step: ThinkingStep) => void;
 }
 
 export interface UseChatStreamReturn {
@@ -69,6 +80,7 @@ export interface UseChatStreamReturn {
 	isStreamingFinished: boolean;
 	isStartingStreaming: boolean;
 	toolCallsByMessage: Map<Message, ToolCallState[]>;
+	thinkingSteps: ThinkingStep[];
 	errorMessage: string | undefined;
 	lastUserMessageRef: React.RefObject<HTMLDivElement | null>;
 	sendMessage: (messageOverride?: string) => Promise<void>;
@@ -92,15 +104,15 @@ export function useChatStream(
 		token,
 		searchSpaceId,
 		selectedConnectors,
-		searchMode,
+		selectedDocuments,
 		scrollContainerRef,
 		onToolCall,
 		onToolComplete,
 		onStreamStart,
 		onStreamFinish,
 		onStreamError,
-		onMessageUpdate,
 		onChatCreated,
+		onThinkingStep,
 	} = options;
 
 	const [isStartingStreaming, setIsStartingStreaming] = useState(false);
@@ -108,12 +120,23 @@ export function useChatStream(
 	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
 		chatId,
 	);
+	const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
 
+	// Use ref to track chat ID immediately for transport (avoids transport recreation)
+	const currentChatIdRef = useRef<number | undefined>(chatId);
+
+	// Sync state and ref when chatId prop changes
 	useEffect(() => {
-		if (chatId !== undefined) {
+		if (chatId !== currentChatId) {
 			setCurrentChatId(chatId);
+			currentChatIdRef.current = chatId;
 		}
-	}, [chatId]);
+	}, [chatId, currentChatId]);
+
+	// Sync ref when state changes
+	useEffect(() => {
+		currentChatIdRef.current = currentChatId;
+	}, [currentChatId]);
 
 	const transport = useMemo(() => {
 		return new FetchStreamTransport({
@@ -132,12 +155,11 @@ export function useChatStream(
 				// Check for X-Chat-Id header to detect new chat creation
 				const chatIdHeader = response.headers.get("X-Chat-Id");
 
-				if (chatIdHeader) {
+				if (chatIdHeader && !currentChatIdRef.current) {
 					const newChatId = Number.parseInt(chatIdHeader, 10);
-					if (!currentChatId) {
-						setCurrentChatId(newChatId);
-						onChatCreated?.(newChatId);
-					}
+					currentChatIdRef.current = newChatId;
+					setCurrentChatId(newChatId);
+					onChatCreated?.(newChatId);
 				}
 
 				return response;
@@ -153,13 +175,15 @@ export function useChatStream(
 
 				const customBody = {
 					messages: [{ content: messageContent, role: "user" }],
-					chat_id: currentChatId,
+					chat_id: currentChatIdRef.current,
 					data: {
 						search_space_id: searchSpaceId,
-						// TODO: Fix research mode later
 						research_mode: "QNA",
 						selected_connectors: selectedConnectors,
-						search_mode: searchMode,
+						document_ids_to_add_in_context: (selectedDocuments || []).map(
+							(doc) => doc.id,
+						),
+						search_mode: "CHUNKS",
 					},
 				};
 
@@ -177,26 +201,35 @@ export function useChatStream(
 		token,
 		searchSpaceId,
 		selectedConnectors,
-		searchMode,
+		selectedDocuments,
 		onStreamStart,
 		onChatCreated,
 	]);
 
 	const stream = useStream({
 		transport,
+		// biome-ignore lint/suspicious/noExplicitAny: LangGraph custom event data has dynamic shape
 		onCustomEvent: (data: any) => {
-			if (data?.type === "question") {
-				const jsonData = JSON.stringify(data);
-
-				setMessages((prev) => [
-					...prev,
-					{
-						id: `question_${Date.now()}`,
-						type: "question",
-						content: jsonData,
-						additional_kwargs: { options: data.options },
-					} as Message,
-				]);
+			console.log("onCustomEvent received:", data);
+			// Handle thinking steps from custom events
+			if (
+				data?.type === "thinking" &&
+				data?.step_id &&
+				data?.title &&
+				data?.status
+			) {
+				const step = data as ThinkingStep;
+				console.log("Updating thinking step:", step);
+				setThinkingSteps((prev) => {
+					const existing = prev.findIndex((s) => s.step_id === step.step_id);
+					if (existing >= 0) {
+						const updated = [...prev];
+						updated[existing] = step;
+						return updated;
+					}
+					return [...prev, step];
+				});
+				onThinkingStep?.(step);
 			}
 		},
 	});
@@ -211,53 +244,37 @@ export function useChatStream(
 	// Extract tool calls logic
 	const toolCallsByMessage = useMemo(() => {
 		const map = new Map<Message, ToolCallState[]>();
+		const toolMessagesByCallId = new Map<string, ToolMessage>();
+
+		for (const msg of messages) {
+			if (!isToolMessage(msg)) continue;
+			const toolMessage = msg as ToolMessage;
+			if (toolMessage.tool_call_id) {
+				toolMessagesByCallId.set(toolMessage.tool_call_id, toolMessage);
+			}
+		}
 
 		messages.forEach((message) => {
 			if (!isAIMessage(message as AIMessage)) return;
 
 			const aiMessage = message as AIMessage;
-			let toolCalls: ToolCall[] = [];
-
-			if (aiMessage.tool_calls && Array.isArray(aiMessage.tool_calls)) {
-				toolCalls = aiMessage.tool_calls as ToolCall[];
-			}
-
-			const toolMessages: ToolMessage[] = [];
-
-			for (const msg of messages) {
-				if (isToolMessage(msg)) {
-					const toolMessage = msg as ToolMessage;
-					const toolCallId = toolMessage.tool_call_id;
-
-					if (toolCallId && toolCalls.some((tc) => tc.id === toolCallId)) {
-						if (!toolMessages.find((tm) => tm.tool_call_id === toolCallId)) {
-							toolMessages.push(msg as ToolMessage);
-						}
-					}
-				}
-			}
+			const toolCalls = Array.isArray(aiMessage.tool_calls)
+				? (aiMessage.tool_calls as ToolCall[])
+				: [];
 
 			if (toolCalls.length > 0) {
-				const toolCallStates: ToolCallState[] = [];
-				for (const toolCall of toolCalls) {
-					const toolMessage = toolMessages.find(
-						(tm) => tm.tool_call_id === toolCall.id,
-					);
-					toolCallStates.push({
-						toolCall,
-						toolMessage,
-					});
-
-					if (onToolCall) {
-						onToolCall(toolCall, aiMessage);
-					}
-				}
+				const toolCallStates: ToolCallState[] = toolCalls.map((toolCall) => ({
+					toolCall,
+					toolMessage: toolCall.id
+						? toolMessagesByCallId.get(toolCall.id)
+						: undefined,
+				}));
 				map.set(message, toolCallStates);
 			}
 		});
 
 		return map;
-	}, [messages, onToolCall]);
+	}, [messages]);
 
 	useEffect(() => {
 		messages.forEach((message) => {
@@ -287,80 +304,108 @@ export function useChatStream(
 		});
 	}, [messages, onToolCall, onToolComplete]);
 
+	// Helper function to sync messages from stream to state
+	const syncMessagesFromStream = useCallback(
+		(prev: Message[]): Message[] => {
+			if (stream.messages.length === 0) return prev;
+
+			const updated = [...prev];
+			let hasChanges = false;
+
+			for (const streamMsg of stream.messages) {
+				if (streamMsg.type === "system") continue;
+
+				if (streamMsg.type === "tool") {
+					const toolMsg = streamMsg as ToolMessage;
+					const toolCallId = toolMsg.tool_call_id;
+
+					if (toolCallId && processedToolCallIds.current.has(toolCallId)) {
+						continue;
+					}
+
+					const exists = updated.some(
+						(msg) =>
+							msg.type === "tool" &&
+							(msg as ToolMessage).tool_call_id === toolCallId,
+					);
+
+					if (!exists && toolCallId) {
+						updated.push(streamMsg);
+						processedToolCallIds.current.add(toolCallId);
+						hasChanges = true;
+					}
+					continue;
+				}
+
+				if (streamMsg.type === "ai") {
+					const content =
+						typeof streamMsg.content === "string" ? streamMsg.content : "";
+
+					if (content.trim().startsWith("{")) {
+						continue;
+					}
+
+					const existingIndex = updated.findIndex(
+						(msg) => msg.id === streamMsg.id,
+					);
+
+					if (existingIndex !== -1) {
+						if (updated[existingIndex].content !== streamMsg.content) {
+							updated[existingIndex] = streamMsg;
+							hasChanges = true;
+						}
+					} else {
+						updated.push(streamMsg);
+						hasChanges = true;
+					}
+				}
+			}
+			return hasChanges ? updated : prev;
+		},
+		[stream.messages],
+	);
+
 	// Handle stream finish
+	// biome-ignore lint/correctness/useExhaustiveDependencies: setMessages is stable, final sync needs stream state
 	useEffect(() => {
 		if (prevLoading.current && !stream.isLoading) {
+			// Final sync: capture any remaining messages before marking stream complete
+			setMessages((prev) => syncMessagesFromStream(prev));
+
 			setIsStreamingFinished(true);
 
 			const userMessage = lastUserMessageContentRef.current;
 
-			// Only save messages from the current stream, not all messages in state
-			// Filter stream messages (exclude system, tool, question messages)
-			const streamMessagesToSave = stream.messages.filter((msg) => {
-				return (
-					msg.type !== "system" &&
-					// msg.type !== "question" &&
-					msg.type !== "tool"
-				);
-			});
-
-			// Convert to backend format (role, content)
-			// Start with user message, then add AI messages from stream
-			const messagesForBackend: Array<{ role: string; content: string }> = [];
-
-			// Add user message first
-			if (userMessage) {
-				messagesForBackend.push({ role: "user", content: userMessage });
-			}
-
-			// Add AI messages from stream
-			for (const msg of streamMessagesToSave) {
-				if (msg.type === "ai") {
-					// Handle different content types
-					let contentStr = "";
-					if (typeof msg.content === "string") {
-						contentStr = msg.content;
-					} else if (msg.content === null || msg.content === undefined) {
-						contentStr = "";
-					} else if (typeof msg.content === "object") {
-						// Handle complex content structures
-						if (Array.isArray(msg.content)) {
-							contentStr = msg.content
-								.map((c) => (typeof c === "string" ? c : JSON.stringify(c)))
-								.join("\n");
-						} else {
-							contentStr = JSON.stringify(msg.content);
-						}
-					} else {
-						contentStr = String(msg.content);
-					}
-
-					messagesForBackend.push({ role: "assistant", content: contentStr });
-				}
-			}
+			// Get ordered messages with tool metadata
+			const orderedMessages = getOrderedMessages(stream.messages);
 
 			// If we have a chatId, save messages to backend
 			if (currentChatId && token) {
-				saveMessagesToBackend(currentChatId, messagesForBackend, token)
+				saveMessagesToBackend(
+					currentChatId,
+					userMessage,
+					orderedMessages,
+					token,
+				)
 					.then(() => {
-						return onStreamFinish?.(
-							streamMessagesToSave,
-							userMessage,
-							currentChatId,
-						);
+						onStreamFinish?.(stream.messages, userMessage, currentChatId);
 					})
 					.catch((error) => {
 						console.error("Error saving messages to backend:", error);
-						onStreamFinish?.(streamMessagesToSave, userMessage, currentChatId);
+						onStreamFinish?.(stream.messages, userMessage, currentChatId);
 					});
+			} else {
+				onStreamFinish?.(stream.messages, userMessage, currentChatId || 0);
 			}
 		}
 		prevLoading.current = stream.isLoading;
-	}, [stream.isLoading, onStreamFinish, token]);
+	}, [stream.isLoading, onStreamFinish, token, currentChatId, stream.messages, syncMessagesFromStream]);
 
 	const isStreaming = useMemo(() => stream.isLoading, [stream.isLoading]);
 
 	// POLL MESSAGES: Filter Logic
+	// Intentionally only depends on streaming state - we poll stream.messages at 50ms intervals
+	// biome-ignore lint/correctness/useExhaustiveDependencies: setMessages is stable, stream.messages polled via interval
 	useEffect(() => {
 		if (!isStreaming) return;
 
@@ -432,7 +477,7 @@ export function useChatStream(
 		}, 50);
 
 		return () => clearInterval(intervalId);
-	}, [isStreaming, onMessageUpdate]);
+	}, [isStreaming]);
 
 	// Scroll actions
 	const scrollToLastUserMessage = useCallback(() => {
@@ -476,6 +521,7 @@ export function useChatStream(
 
 			processedToolCallIds.current.clear();
 			lastUserMessageContentRef.current = textToSend;
+			setThinkingSteps([]);
 
 			const timestamp = Date.now();
 			const userMessageId = `${timestamp.toString()}_user`;
@@ -507,7 +553,6 @@ export function useChatStream(
 			setInputText,
 			scrollToLastUserMessage,
 			setMessages,
-			setIsStreamingFinished,
 			messages,
 		],
 	);
@@ -550,6 +595,7 @@ export function useChatStream(
 		isStartingStreaming,
 		isStreamingFinished,
 		toolCallsByMessage,
+		thinkingSteps,
 		errorMessage,
 		lastUserMessageRef,
 		sendMessage,
@@ -564,9 +610,38 @@ export function useChatStream(
 // API call to save messages after stream finishes
 async function saveMessagesToBackend(
 	chatId: number,
-	messages: Array<{ role: string; content: string }>,
+	userMessage: string,
+	orderedMessages: OrderedStreamMessage[],
 	token: string,
 ): Promise<void> {
+	// Build exchange: user message first, then AI messages + tool messages with metadata
+	const exchange: Array<{
+		role: "user" | "assistant";
+		content: string;
+		metadata?: Record<string, unknown>;
+	}> = [{ role: "user", content: userMessage }];
+
+	for (const msg of orderedMessages) {
+		if (msg.type === "ai") {
+			exchange.push({
+				role: "assistant",
+				content: msg.content,
+			});
+		} else if (msg.type === "tool") {
+			exchange.push({
+				role: "assistant",
+				content: msg.content,
+				metadata: {
+					kind: `tool_${msg.toolName}`,
+					toolName: msg.toolName,
+					runId: msg.runId,
+					data: msg.data,
+					status: msg.status,
+				},
+			});
+		}
+	}
+
 	const response = await fetch(`${config.apiUrl}/agent/save-messages`, {
 		method: "POST",
 		headers: {
@@ -575,7 +650,7 @@ async function saveMessagesToBackend(
 		},
 		body: JSON.stringify({
 			chat_id: chatId,
-			messages,
+			messages: exchange,
 		}),
 	});
 
