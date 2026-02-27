@@ -21,7 +21,6 @@ import {
 } from "./utils/thinking-steps";
 
 @Controller("agent")
-@UseGuards(JwtAuthGuard)
 export class AgentController {
 	private readonly logger = new Logger(AgentController.name);
 
@@ -32,6 +31,7 @@ export class AgentController {
 	) {}
 
 	@Post("chatWithDeepAgent")
+	@UseGuards(JwtAuthGuard)
 	async chatWithDeepAgent(
 		@Body() request: AgentChatRequestDto,
 		@Req() req: any,
@@ -109,6 +109,7 @@ export class AgentController {
 	}
 
 	@Post("chat")
+	@UseGuards(JwtAuthGuard)
 	async handleChatData(
 		@Body() request: AgentChatRequestDto,
 		@Req() req: any,
@@ -208,6 +209,7 @@ export class AgentController {
 	}
 
 	@Post("save-messages")
+	@UseGuards(JwtAuthGuard)
 	async saveMessages(
 		@Body() saveMessagesDto: SaveMessagesDto,
 		@Req() req: any,
