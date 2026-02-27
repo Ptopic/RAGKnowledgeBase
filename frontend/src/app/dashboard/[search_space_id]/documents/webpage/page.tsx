@@ -16,9 +16,6 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
-// URL validation regex
-const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
-
 export default function WebpageCrawler() {
 	const params = useParams();
 	const router = useRouter();
@@ -36,7 +33,12 @@ export default function WebpageCrawler() {
 
 	// Function to validate a URL
 	const isValidUrl = (url: string): boolean => {
-		return urlRegex.test(url);
+		try {
+			const parsed = new URL(url);
+			return parsed.protocol === "http:" || parsed.protocol === "https:";
+		} catch {
+			return false;
+		}
 	};
 
 	// Function to handle URL submission
