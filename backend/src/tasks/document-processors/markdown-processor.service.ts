@@ -4,13 +4,12 @@
 
 import * as crypto from "node:crypto";
 import { ChatOpenAI } from "@langchain/openai";
-import { InjectQueue } from "@nestjs/bull";
 import { Injectable, Logger } from "@nestjs/common";
-import { Queue } from "bull";
 import { Document, DocumentType, Log } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
 import { EmbeddingService } from "../../retriever/embedding.service";
+import { ImageAnalysisService } from "../../services/image-analysis.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
 import { optimizeContentForContextWindow } from "../../utils/document-converters";
 import {
@@ -29,7 +28,7 @@ export class MarkdownProcessorService {
 		private prisma: PrismaService,
 		private baseService: DocumentProcessorBaseService,
 		private embeddingService: EmbeddingService,
-		@InjectQueue("document-tasks") private documentTasksQueue: Queue,
+		private imageAnalysisService: ImageAnalysisService,
 	) {}
 
 	/**
@@ -348,11 +347,12 @@ export class MarkdownProcessorService {
 			const images = extractImageCandidatesFromMarkdown(markdown);
 			if (images.length === 0) return;
 
-			await this.documentTasksQueue.add(
-				"analyze_document_images",
-				{ documentId, searchSpaceId, sourceType, images },
-				{ removeOnComplete: true, attempts: 2 },
-			);
+			await this.imageAnalysisService.analyzeDocumentImages({
+				documentId,
+				searchSpaceId,
+				sourceType,
+				images,
+			});
 		} catch (error) {
 			this.logger.warn(`Failed to enqueue image analysis: ${error.message}`);
 		}
