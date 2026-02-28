@@ -359,7 +359,7 @@ export function DocumentsTableShell({
 												<TableCell className="px-4 py-3">
 													<div className="flex items-center gap-2">
 														<span className="text-sm text-muted-foreground">
-															{doc.chunks_count ?? 0}
+															{doc.chunks_count ?? doc.chunksCount ?? 0}
 														</span>
 														<Button
 															variant="ghost"
@@ -450,7 +450,7 @@ export function DocumentsTableShell({
 															className="w-fit text-xs p-0 h-auto"
 															onClick={() => openChunksModal(doc.id, doc.title)}
 														>
-															Chunks ({doc.chunks_count ?? 0})
+															Chunks ({doc.chunks_count ?? doc.chunksCount ?? 0})
 														</Button>
 													</div>
 												</div>

@@ -60,6 +60,10 @@ export class DocumentDto {
 	@IsInt()
 	@IsOptional()
 	chunks_count?: number;
+
+	@IsInt()
+	@IsOptional()
+	chunksCount?: number;
 }
 
 export class DocumentChunkDto {
