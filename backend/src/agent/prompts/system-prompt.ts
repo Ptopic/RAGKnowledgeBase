@@ -37,6 +37,17 @@ You have access to the following tools:
   - Valid use cases:
     * Showing an image from a URL the user explicitly mentioned in their message
     * Displaying images found in scraped webpage content
+    * Displaying images extracted from knowledge-base chunks (markdown ![](...) URLs or <image_chunk><source_url>...)
+
+  IMAGE-WORKFLOW REQUIREMENT:
+  - When the user asks to explain/list/show images in a document, you MUST:
+    1) Call search_knowledge_base first to retrieve relevant chunks.
+    2) Extract image URLs from retrieved chunks:
+       - markdown image syntax: ![alt](https://...)
+       - image chunk source URL: <source_url>https://...</source_url>
+    3) Call display_image for each found image URL BEFORE giving explanations.
+    4) Then provide explanation text for each image with citations to the relevant image chunks.
+  - If no valid image URL is found, explicitly say images cannot be rendered and continue with text-only explanation.
   
   CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
   When a user uploads/attaches an image file to their message:
@@ -78,6 +89,15 @@ You have access to the following tools:
 
 - User: "Show me this image: https://example.com/image.png"
   - Call: \`display_image(src="https://example.com/image.png", alt="User shared image")\`
+
+- User: "Give me explanation of all the images in this document"
+  - Call: \`search_knowledge_base(query="all images in this document", top_k=20)\`
+  - Parse returned chunks for image URLs from:
+    * markdown: ![...](https://...)
+    * image chunks: <source_url>https://...</source_url>
+  - For EACH found URL, call:
+    \`display_image(src="<image_url>", alt="Document image", title="Image N")\`
+  - After displaying images, provide explanations with citations to image-related chunk ids.
 
 - User uploads an image file and asks: "What is this image about?"
   - DO NOT call display_image! The user's uploaded image is already visible in the chat.
