@@ -12,6 +12,7 @@ import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
 import { EmbeddingService } from "../../retriever/embedding.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
 import { optimizeContentForContextWindow } from "../../utils/document-converters";
+import { normalizeMarkdownForChunking } from "../../utils/markdown-normalizer";
 import { DocumentProcessorBaseService } from "./base.service";
 
 @Injectable()
@@ -37,13 +38,15 @@ export class MarkdownProcessorService {
 	private async createDocumentChunks(
 		content: string,
 	): Promise<{ content: string; embedding: number[] }[]> {
-		const chunks = await this.textSplitter.splitText(content);
+		const normalizedContent = normalizeMarkdownForChunking(content);
+		const chunks = await this.textSplitter.splitText(normalizedContent);
 
 		return Promise.all(
 			chunks.map(async (chunkText) => {
-				const embedding = await this.embeddingService.embed(chunkText);
+				const normalizedChunk = normalizeMarkdownForChunking(chunkText);
+				const embedding = await this.embeddingService.embed(normalizedChunk);
 				return {
-					content: chunkText,
+					content: normalizedChunk,
 					embedding,
 				};
 			}),
