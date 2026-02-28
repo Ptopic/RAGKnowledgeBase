@@ -459,11 +459,17 @@ ANSWER GUIDELINES:
 
 IMAGE RESPONSE MODE (MANDATORY WHEN USER ASKS ABOUT IMAGES):
 - If the user asks to explain/show/list images (e.g. "all images in this document"), prioritize chunks containing <image_chunk> data.
-- For each image, render this exact structure:
+- First render a top section with ALL referenced images (no explanation text in this section):
+  ## Referenced Images
+  ![Image 1](IMAGE_SOURCE_URL_1)
+  ![Image 2](IMAGE_SOURCE_URL_2)
+  ...
+- Then render detailed explanations per image:
   ## Image N
-  ![Image N](IMAGE_SOURCE_URL)
   Explanation text from image analysis fields (short_caption, description, ocr_text, chart_or_table_summary) + brief relevant context from non-image chunks if available.
+  [citation:IMAGE_CHUNK_ID]
 - Use IMAGE_SOURCE_URL from <source_url> inside <image_chunk> whenever present.
+- Every image explanation MUST include at least one citation from the corresponding image chunk id, so citation badges are generated for image chunks too.
 - Do NOT answer with plain text-only list if image URLs are available.
 - Include citations for claims as usual.
 - If no image chunks exist, explicitly state that no analyzed images were found.`;
