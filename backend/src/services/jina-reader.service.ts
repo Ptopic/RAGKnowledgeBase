@@ -217,15 +217,7 @@ export class JinaReaderService {
         throw new Error('Jina Reader returned empty content');
       }
 
-      // Extract title from the first line (usually # Title in markdown)
-      let title = url;
-      const lines = markdownContent.split('\n');
-      for (const line of lines) {
-        if (line.trim().startsWith('# ')) {
-          title = line.replace(/^#\s+/, '').trim();
-          break;
-        }
-      }
+      const title = this.extractTitleFromJinaMarkdown(markdownContent, url);
 
       this.logger.log(`Successfully scraped ${url} - ${markdownContent.length} characters`);
 
@@ -247,5 +239,33 @@ export class JinaReaderService {
       this.logger.error(`Jina Reader scrape failed for ${url}: ${error.message}`, error.stack);
       throw error;
     }
+  }
+
+  private extractTitleFromJinaMarkdown(markdownContent: string, fallbackUrl: string): string {
+    const lines = markdownContent
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    for (const line of lines) {
+      if (line.startsWith('# ')) {
+        return line.replace(/^#\s+/, '').trim();
+      }
+    }
+
+    for (const line of lines) {
+      const titleMatch = line.match(/^title\s*:\s*(.+)$/i);
+      if (titleMatch?.[1]) {
+        return titleMatch[1].trim();
+      }
+    }
+
+    for (const line of lines) {
+      if (line.length >= 8) {
+        return line.slice(0, 200);
+      }
+    }
+
+    return fallbackUrl;
   }
 }
