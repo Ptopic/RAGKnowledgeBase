@@ -5,7 +5,6 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import { ChatOpenAI } from "@langchain/openai";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Injectable, Logger } from "@nestjs/common";
 import { Document, DocumentType, Log } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -16,7 +15,10 @@ import { DoclingService } from "../../services/docling.service";
 import { LlamaCloudService } from "../../services/llamacloud.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
 import { optimizeContentForContextWindow } from "../../utils/document-converters";
-import { normalizeMarkdownForChunking } from "../../utils/markdown-normalizer";
+import {
+	chunkMarkdownContent,
+	createMarkdownAwareSplitter,
+} from "../../utils/chunking";
 import { DocumentProcessorBaseService } from "./base.service";
 import { MarkdownProcessorService } from "./markdown-processor.service";
 
@@ -29,7 +31,7 @@ interface LangChainDocument {
 @Injectable()
 export class FileProcessorsService {
 	private readonly logger = new Logger(FileProcessorsService.name);
-	private textSplitter: RecursiveCharacterTextSplitter;
+	private readonly textSplitter = createMarkdownAwareSplitter();
 
 	constructor(
 		private prisma: PrismaService,
@@ -39,13 +41,7 @@ export class FileProcessorsService {
 		private doclingService: DoclingService,
 		private llamaCloudService: LlamaCloudService,
 		private deepgramService: DeepgramService,
-	) {
-		// Initialize text splitter with reasonable defaults
-		this.textSplitter = new RecursiveCharacterTextSplitter({
-			chunkSize: 1000,
-			chunkOverlap: 200,
-		});
-	}
+	) {}
 
 	/**
 	 * Create document chunks with embeddings.
@@ -53,18 +49,25 @@ export class FileProcessorsService {
 	private async createDocumentChunks(
 		content: string,
 	): Promise<{ content: string; embedding: number[] }[]> {
-		const normalizedContent = normalizeMarkdownForChunking(content);
-		const chunks = await this.textSplitter.splitText(normalizedContent);
+		const chunks = await chunkMarkdownContent(
+			content,
+			this.textSplitter,
+			"generic",
+		);
+		const avgChunkChars =
+			chunks.length > 0
+				? Math.round(chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length)
+				: 0;
+		const tinyChunkCount = chunks.filter((chunk) => chunk.length < 120).length;
+		this.logger.debug(
+			`Chunking stats[file]: raw=${content.length} chunks=${chunks.length} avg=${avgChunkChars} tiny=${tinyChunkCount}`,
+		);
 
 		return Promise.all(
-			chunks.map(async (chunkText) => {
-				const normalizedChunk = normalizeMarkdownForChunking(chunkText);
-				const embedding = await this.embeddingService.embed(normalizedChunk);
-				return {
-					content: normalizedChunk,
-					embedding,
-				};
-			}),
+			chunks.map(async (chunkText) => ({
+				content: chunkText,
+				embedding: await this.embeddingService.embed(chunkText),
+			})),
 		);
 	}
 
