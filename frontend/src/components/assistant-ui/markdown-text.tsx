@@ -175,16 +175,15 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 						</a>
 					),
 					img: ({ className: c, alt, src, ...props }) => (
-						<img
-							className={cn(
-								"my-4 max-w-full h-auto rounded-md border border-border",
-								c,
-							)}
-							alt={alt || "Image"}
-							src={typeof src === "string" ? src : ""}
-							loading="lazy"
-							{...props}
-						/>
+						<span className="my-4 block max-w-md overflow-hidden rounded-lg border bg-card">
+							<img
+								className={cn("w-full h-auto object-cover", c)}
+								alt={alt || "Image"}
+								src={typeof src === "string" ? src : ""}
+								loading="lazy"
+								{...props}
+							/>
+						</span>
 					),
 					ul: ({ className: c, ...props }) => (
 						<ul
