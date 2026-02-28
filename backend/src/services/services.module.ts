@@ -9,6 +9,7 @@ import { PageLimitService } from './page-limit.service';
 import { DoclingService } from './docling.service';
 import { STTService } from './stt.service';
 import { JinaReaderService } from './jina-reader.service';
+import { CrawleeImpitFallbackService } from './crawlee-impit-fallback.service';
 
 /**
  * Global Services Module
@@ -28,6 +29,7 @@ import { JinaReaderService } from './jina-reader.service';
 		DoclingService,
 		STTService,
 		JinaReaderService,
+		CrawleeImpitFallbackService,
 	],
 	exports: [
 		LLMService,
@@ -38,6 +40,7 @@ import { JinaReaderService } from './jina-reader.service';
 		DoclingService,
 		STTService,
 		JinaReaderService,
+		CrawleeImpitFallbackService,
 	],
 })
 export class ServicesModule {}

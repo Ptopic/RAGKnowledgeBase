@@ -5,6 +5,7 @@
  */
 
 export * from "./connector.service";
+export * from "./crawlee-impit-fallback.service";
 export * from "./docling.service";
 export * from "./jina-reader.service";
 export * from "./llm.service";

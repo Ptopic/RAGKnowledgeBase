@@ -73,6 +73,30 @@ export default () => ({
     },
     jinaReader: {
       enabled: (process.env.JINA_READER_ENABLED || 'TRUE').toUpperCase() === 'TRUE',
+      apiKey: process.env.JINA_READER_API_KEY || process.env.JINA_API_KEY,
+      fallback: {
+        enabled:
+          (process.env.JINA_READER_FALLBACK_CRAWLEE_ENABLED || 'TRUE').toUpperCase() ===
+          'TRUE',
+        timeoutMs: parseInt(process.env.CRAWLEE_IMPIT_TIMEOUT_MS || '45000', 10),
+        impitBrowser: process.env.CRAWLEE_IMPIT_BROWSER || 'firefox',
+        http3: (process.env.CRAWLEE_IMPIT_HTTP3 || 'FALSE').toUpperCase() === 'TRUE',
+      },
+      proxy: {
+        enabled: (process.env.JINA_READER_PROXY_ENABLED || 'FALSE').toUpperCase() === 'TRUE',
+        protocol: ((process.env.JINA_READER_PROXY_PROTOCOL || 'http').toLowerCase() === 'https'
+          ? 'https'
+          : 'http') as 'http' | 'https',
+        host: process.env.JINA_READER_PROXY_HOST,
+        port: process.env.JINA_READER_PROXY_PORT
+          ? parseInt(process.env.JINA_READER_PROXY_PORT, 10)
+          : undefined,
+        username: process.env.JINA_READER_PROXY_USERNAME,
+        password: process.env.JINA_READER_PROXY_PASSWORD,
+        checkIpOnEachRequest:
+          (process.env.JINA_READER_PROXY_CHECK_IP_ON_EACH_REQUEST || 'FALSE').toUpperCase() ===
+          'TRUE',
+      },
     },
   },
 

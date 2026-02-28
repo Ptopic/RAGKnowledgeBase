@@ -70,6 +70,26 @@ export interface LlamaCloudConfig {
 
 export interface JinaReaderConfig {
 	enabled: boolean;
+	apiKey?: string;
+	fallback: JinaReaderFallbackConfig;
+	proxy: JinaReaderProxyConfig;
+}
+
+export interface JinaReaderFallbackConfig {
+	enabled: boolean;
+	timeoutMs: number;
+	impitBrowser: string;
+	http3: boolean;
+}
+
+export interface JinaReaderProxyConfig {
+	enabled: boolean;
+	protocol: "http" | "https";
+	host?: string;
+	port?: number;
+	username?: string;
+	password?: string;
+	checkIpOnEachRequest: boolean;
 }
 
 export interface ETLConfig {
