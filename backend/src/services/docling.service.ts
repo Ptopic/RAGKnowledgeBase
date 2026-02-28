@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "../config/config.service";
 import axios, { AxiosInstance } from "axios";
-import * as FormData from "form-data";
+import FormData = require("form-data");
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";

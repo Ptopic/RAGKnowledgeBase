@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance } from "axios";
-import * as FormData from "form-data";
+import FormData = require("form-data");
 import { ConfigService } from "../config/config.service";
 
 export interface LlamaCloudDocument {
