@@ -382,6 +382,38 @@ export class DocumentsService {
 		}
 	}
 
+	async findOneWithChunks(
+		id: number,
+		userId: string,
+	): Promise<DocumentWithChunksDto> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+				include: {
+					chunks: {
+						orderBy: { createdAt: "asc" },
+					},
+				},
+			});
+
+			if (!document) {
+				throw new NotFoundException(`Document with id ${id} not found`);
+			}
+
+			return this.toWithChunksDto(document);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to fetch document with chunks: ${error.message}`,
+			);
+		}
+	}
+
 	async update(
 		id: number,
 		updateDto: UpdateDocumentDto,

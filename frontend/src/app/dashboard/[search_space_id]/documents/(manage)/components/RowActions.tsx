@@ -3,7 +3,10 @@
 import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import documentsClientRequests from "@/api/documents/authClientRequests";
+import type { DocumentWithChunks } from "@/api/documents/types";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,6 +25,14 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Document } from "./types";
 
 export function RowActions({
@@ -35,6 +46,10 @@ export function RowActions({
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [chunksOpen, setChunksOpen] = useState(false);
+	const [chunksLoading, setChunksLoading] = useState(false);
+	const [documentWithChunks, setDocumentWithChunks] =
+		useState<DocumentWithChunks | null>(null);
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -49,6 +64,20 @@ export function RowActions({
 		} finally {
 			setIsDeleting(false);
 			setIsOpen(false);
+		}
+	};
+
+	const handleViewChunks = async () => {
+		setChunksOpen(true);
+		setChunksLoading(true);
+		try {
+			const data = await documentsClientRequests.getDocumentWithChunks(document.id);
+			setDocumentWithChunks(data);
+		} catch (error) {
+			console.error("Error loading chunks:", error);
+			toast.error("Failed to load document chunks");
+		} finally {
+			setChunksLoading(false);
 		}
 	};
 
@@ -71,6 +100,14 @@ export function RowActions({
 							</DropdownMenuItem>
 						}
 					/>
+					<DropdownMenuItem
+						onSelect={(e) => {
+							e.preventDefault();
+							handleViewChunks();
+						}}
+					>
+						View Chunks
+					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<AlertDialog open={isOpen} onOpenChange={setIsOpen}>
 						<AlertDialogTrigger asChild>
@@ -104,6 +141,47 @@ export function RowActions({
 					</AlertDialog>
 				</DropdownMenuContent>
 			</DropdownMenu>
+
+			<Dialog
+				open={chunksOpen}
+				onOpenChange={(open) => {
+					setChunksOpen(open);
+					if (!open) setDocumentWithChunks(null);
+				}}
+			>
+				<DialogContent className="max-w-5xl">
+					<DialogHeader>
+						<DialogTitle>Document Chunks</DialogTitle>
+						<DialogDescription>
+							{document.title}
+							{documentWithChunks
+								? ` • ${documentWithChunks.chunks.length} chunks`
+								: ""}
+						</DialogDescription>
+					</DialogHeader>
+
+					{chunksLoading ? (
+						<div className="py-6 text-sm text-muted-foreground">Loading chunks...</div>
+					) : !documentWithChunks ? (
+						<div className="py-6 text-sm text-muted-foreground">
+							No chunk data available.
+						</div>
+					) : (
+						<ScrollArea className="h-[70vh] pr-2">
+							<div className="space-y-4">
+								{documentWithChunks.chunks.map((chunk, idx) => (
+									<div key={chunk.id} className="rounded-md border p-3">
+										<div className="mb-2 text-xs text-muted-foreground">
+											Chunk {idx + 1} • #{chunk.id}
+										</div>
+										<MarkdownViewer content={chunk.content} className="max-w-none" />
+									</div>
+								))}
+							</div>
+						</ScrollArea>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

@@ -151,6 +151,14 @@ export class DocumentsController {
 		return this.documentsService.getDocumentByChunkId(chunkId, req.user.id);
 	}
 
+	@Get(":id/chunks")
+	async findOneWithChunks(
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<DocumentWithChunksDto> {
+		return this.documentsService.findOneWithChunks(id, req.user.id);
+	}
+
 	@Get(":id")
 	async findOne(
 		@Param("id", ParseIntPipe) id: number,
