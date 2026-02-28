@@ -174,6 +174,18 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 							{processChildrenWithCitations(children)}
 						</a>
 					),
+					img: ({ className: c, alt, src, ...props }) => (
+						<img
+							className={cn(
+								"my-4 max-w-full h-auto rounded-md border border-border",
+								c,
+							)}
+							alt={alt || "Image"}
+							src={typeof src === "string" ? src : ""}
+							loading="lazy"
+							{...props}
+						/>
+					),
 					ul: ({ className: c, ...props }) => (
 						<ul
 							className={cn("my-5 ml-6 list-disc [&>li]:mt-2", c)}
