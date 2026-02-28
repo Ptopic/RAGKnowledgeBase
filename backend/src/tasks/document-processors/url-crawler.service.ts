@@ -5,7 +5,9 @@
 
 import * as crypto from 'node:crypto';
 import { ChatOpenAI } from '@langchain/openai';
+import { InjectQueue } from '@nestjs/bull';
 import { Injectable, Logger } from '@nestjs/common';
+import { Queue } from 'bull';
 import { Document, DocumentType, Log } from '@prisma/client';
 import * as validator from 'validator';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -18,6 +20,7 @@ import {
   chunkMarkdownContent,
   createMarkdownAwareSplitter,
 } from '../../utils/chunking';
+import { extractImageCandidatesFromMarkdown } from '../../utils/image-markdown';
 import { DocumentProcessorBaseService } from './base.service';
 
 @Injectable()
@@ -30,6 +33,7 @@ export class UrlCrawlerService {
     private baseService: DocumentProcessorBaseService,
     private embeddingService: EmbeddingService,
     private jinaReaderService: JinaReaderService,
+    @InjectQueue('document-tasks') private documentTasksQueue: Queue,
   ) {}
 
   /**
@@ -364,6 +368,12 @@ export class UrlCrawlerService {
 
         // Insert chunks with embeddings using raw SQL
         await this.insertChunksWithEmbeddings(document.id, chunks);
+        await this.enqueueImageAnalysisJob(
+          document.id,
+          searchSpaceId,
+          contentInMarkdown,
+          'web',
+        );
       } else {
         // Create new document
         await taskLogger.logTaskProgress(
@@ -390,6 +400,12 @@ export class UrlCrawlerService {
 
         // Insert chunks with embeddings using raw SQL
         await this.insertChunksWithEmbeddings(document.id, chunks);
+        await this.enqueueImageAnalysisJob(
+          document.id,
+          searchSpaceId,
+          contentInMarkdown,
+          'web',
+        );
       }
 
       // Log success
@@ -419,6 +435,26 @@ export class UrlCrawlerService {
         error.stack,
       );
       throw new Error(`Failed to crawl URL: ${error.message}`);
+    }
+  }
+
+  private async enqueueImageAnalysisJob(
+    documentId: number,
+    searchSpaceId: number,
+    markdown: string,
+    sourceType: 'file' | 'web' | 'markdown' | 'youtube',
+  ): Promise<void> {
+    try {
+      const images = extractImageCandidatesFromMarkdown(markdown);
+      if (images.length === 0) return;
+
+      await this.documentTasksQueue.add(
+        'analyze_document_images',
+        { documentId, searchSpaceId, sourceType, images },
+        { removeOnComplete: true, attempts: 2 },
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to enqueue image analysis: ${error.message}`);
     }
   }
 

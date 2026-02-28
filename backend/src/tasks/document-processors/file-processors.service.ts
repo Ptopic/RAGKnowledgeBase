@@ -5,7 +5,9 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import { ChatOpenAI } from "@langchain/openai";
+import { InjectQueue } from "@nestjs/bull";
 import { Injectable, Logger } from "@nestjs/common";
+import { Queue } from "bull";
 import { Document, DocumentType, Log } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
@@ -19,6 +21,7 @@ import {
 	chunkMarkdownContent,
 	createMarkdownAwareSplitter,
 } from "../../utils/chunking";
+import { extractImageCandidatesFromMarkdown } from "../../utils/image-markdown";
 import { DocumentProcessorBaseService } from "./base.service";
 import { MarkdownProcessorService } from "./markdown-processor.service";
 
@@ -41,6 +44,7 @@ export class FileProcessorsService {
 		private doclingService: DoclingService,
 		private llamaCloudService: LlamaCloudService,
 		private deepgramService: DeepgramService,
+		@InjectQueue("document-tasks") private documentTasksQueue: Queue,
 	) {}
 
 	/**
@@ -252,6 +256,12 @@ export class FileProcessorsService {
 
 				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
+				await this.enqueueImageAnalysisJob(
+					updatedDocument.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				return updatedDocument;
 			} else {
@@ -277,6 +287,12 @@ export class FileProcessorsService {
 
 				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
+				await this.enqueueImageAnalysisJob(
+					document.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				return document;
 			}
@@ -379,6 +395,12 @@ export class FileProcessorsService {
 
 				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
+				await this.enqueueImageAnalysisJob(
+					updatedDocument.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				return updatedDocument;
 			} else {
@@ -404,6 +426,12 @@ export class FileProcessorsService {
 
 				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
+				await this.enqueueImageAnalysisJob(
+					document.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				return document;
 			}
@@ -741,6 +769,26 @@ export class FileProcessorsService {
 				error.stack,
 			);
 			throw error;
+		}
+	}
+
+	private async enqueueImageAnalysisJob(
+		documentId: number,
+		searchSpaceId: number,
+		markdown: string,
+		sourceType: "file" | "web" | "markdown" | "youtube",
+	): Promise<void> {
+		try {
+			const images = extractImageCandidatesFromMarkdown(markdown);
+			if (images.length === 0) return;
+
+			await this.documentTasksQueue.add(
+				"analyze_document_images",
+				{ documentId, searchSpaceId, sourceType, images },
+				{ removeOnComplete: true, attempts: 2 },
+			);
+		} catch (error) {
+			this.logger.warn(`Failed to enqueue image analysis: ${error.message}`);
 		}
 	}
 
