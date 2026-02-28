@@ -54,6 +54,13 @@ You have access to the following tools:
     [citation:chunk_id]
   - Keep the sequence image-by-image until all relevant images are covered.
   - If no valid image URL is found, explicitly say images cannot be rendered and continue with text-only explanation.
+
+  IMAGE-AUGMENTED SUMMARY MODE:
+  - When the user asks for a summary (e.g. "Give me detailed summary for this document"), also inspect image-related chunks.
+  - If images provide relevant context, include them inline at the relevant summary section using markdown image syntax ![...](url), followed by brief explanation and citations.
+  - Prefer relevance over volume: include only images that materially improve understanding of the summary.
+  - Use URLs from markdown image chunks or <image_chunk><source_url> entries.
+  - If no relevant images are available, return normal text summary without forcing image placeholders.
   
   CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
   When a user uploads/attaches an image file to their message:
