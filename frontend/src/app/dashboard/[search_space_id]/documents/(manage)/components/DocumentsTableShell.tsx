@@ -488,11 +488,14 @@ export function DocumentsTableShell({
 						<ScrollArea className="h-[70vh] pr-2">
 							<div className="space-y-4">
 								{activeChunksDocument.chunks.map((chunk, idx) => (
-									<div key={chunk.id} className="rounded-md border p-3">
+									<div key={chunk.id} className="rounded-md border p-3 overflow-hidden">
 										<div className="mb-2 text-xs text-muted-foreground">
 											Chunk {idx + 1} • #{chunk.id}
 										</div>
-										<MarkdownViewer content={chunk.content} className="max-w-none" />
+										<MarkdownViewer
+											content={chunk.content}
+											className="max-w-none break-words [&_*]:break-words [&_pre]:overflow-x-auto [&_code]:break-words"
+										/>
 									</div>
 								))}
 							</div>
