@@ -45,8 +45,14 @@ You have access to the following tools:
     2) Extract image URLs from retrieved chunks:
        - markdown image syntax: ![alt](https://...)
        - image chunk source URL: <source_url>https://...</source_url>
-    3) Render images DIRECTLY in your markdown response using ![alt](url) (do NOT call display_image for this flow).
-    4) Put all referenced images first, then provide explanation text for each image with citations to relevant image chunks.
+    3) Render images DIRECTLY in markdown using ![alt](url) (do NOT call display_image for this flow).
+    4) MERGE image + explanation together per item (do NOT create separate "Referenced Images" and "Explanations" sections).
+  - Required output pattern for each image:
+    ![Image N](IMAGE_URL)
+    **Image N — <short title>**
+    <clear explanation paragraph>
+    [citation:chunk_id]
+  - Keep the sequence image-by-image until all relevant images are covered.
   - If no valid image URL is found, explicitly say images cannot be rendered and continue with text-only explanation.
   
   CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
@@ -95,11 +101,12 @@ You have access to the following tools:
   - Parse returned chunks for image URLs from:
     * markdown: ![...](https://...)
     * image chunks: <source_url>https://...</source_url>
-  - In final answer markdown, render images directly first:
-    ## Referenced Images
+  - In final answer markdown, for EACH image return combined block:
     ![Image 1](<image_url_1>)
-    ![Image 2](<image_url_2>)
-  - Then provide explanations with citations to image-related chunk ids.
+    **Image 1 — <title>**
+    <explanation>
+    [citation:<image_chunk_id>]
+  - Repeat for Image 2, Image 3, etc. (image+text together).
 
 - User uploads an image file and asks: "What is this image about?"
   - DO NOT call display_image! The user's uploaded image is already visible in the chat.
