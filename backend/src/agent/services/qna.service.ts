@@ -299,10 +299,6 @@ Do NOT respond in English unless the question is in English.
 
 		// Call the LLM with streaming
 		let completeContent = "";
-		const imagePrefixMarkdown = this.buildImagePrefixMarkdown(
-			userQuery,
-			optimizedDocuments,
-		);
 
 		try {
 			this.logger.log(
@@ -340,11 +336,6 @@ Do NOT respond in English unless the question is in English.
 
 			let chunkBuffer = "";
 			const CHUNK_SIZE = 1; // Send every 5 characters instead of every character
-
-			if (imagePrefixMarkdown) {
-				completeContent += `${imagePrefixMarkdown}\n\n`;
-				subscriber.next(streamingService.formatTextChunk(`${imagePrefixMarkdown}\n\n`));
-			}
 
 			for await (const chunk of stream) {
 				const content = chunk.content;
@@ -392,47 +383,6 @@ Do NOT respond in English unless the question is in English.
 
 			throw error;
 		}
-	}
-
-	private isImageIntentQuery(query: string): boolean {
-		const q = (query || "").toLowerCase();
-		return /(all\s+images|images?\s+in\s+this\s+document|show\s+images?|explain\s+images?|image\s+explanation|slike|objasni\s+slike)/i.test(
-			q,
-		);
-	}
-
-	private extractImageUrlsFromDocuments(documents: Document[]): string[] {
-		const urls = new Set<string>();
-		for (const doc of documents || []) {
-			const content = doc?.content || "";
-			if (!content.includes("<image_chunk>")) continue;
-			const regex = /<source_url>(.*?)<\/source_url>/g;
-			let match: RegExpExecArray | null;
-			while ((match = regex.exec(content)) !== null) {
-				const url = (match[1] || "").trim();
-				if (url.startsWith("http://") || url.startsWith("https://")) {
-					urls.add(url);
-				}
-			}
-		}
-		return Array.from(urls);
-	}
-
-	private buildImagePrefixMarkdown(
-		userQuery: string,
-		documents: Document[],
-	): string {
-		if (!this.isImageIntentQuery(userQuery)) return "";
-		const urls = this.extractImageUrlsFromDocuments(documents);
-		if (!urls.length) return "";
-
-		const lines = ["## Referenced Images", ""];
-		urls.forEach((url, idx) => {
-			lines.push(`![Image ${idx + 1}](${url})`);
-			lines.push("");
-		});
-
-		return lines.join("\n").trim();
 	}
 
 	/**
@@ -508,21 +458,23 @@ ANSWER GUIDELINES:
 - Be conversational and helpful
 
 IMAGE RESPONSE MODE (MANDATORY WHEN USER ASKS ABOUT IMAGES):
-- If the user asks to explain/show/list images (e.g. "all images in this document"), prioritize chunks containing <image_chunk> data.
-- First render a top section with ALL referenced images (no explanation text in this section):
+- If the user asks to explain/show/list images (e.g. "all images in this document"), prioritize chunks containing either:
+  1) markdown image syntax: ![...](URL)
+  2) <image_chunk> blocks with <source_url>
+- In the final answer, ALWAYS include a top section that renders images first:
   ## Referenced Images
-  ![Image 1](IMAGE_SOURCE_URL_1)
-  ![Image 2](IMAGE_SOURCE_URL_2)
+  ![Image 1](URL_1)
+  ![Image 2](URL_2)
   ...
-- Then render detailed explanations per image:
+- For URLs: prefer markdown image URLs found directly in regular chunks; if missing, use <source_url> from <image_chunk>.
+- Then render explanations below:
   ## Image N
-  Explanation text from image analysis fields (short_caption, description, ocr_text, chart_or_table_summary) + brief relevant context from non-image chunks if available.
+  Explanation from image-analysis fields (short_caption, description, ocr_text, chart_or_table_summary) + brief relevant context from regular chunks.
   [citation:IMAGE_CHUNK_ID]
-- Use IMAGE_SOURCE_URL from <source_url> inside <image_chunk> whenever present.
 - Every image explanation MUST include at least one citation from the corresponding image chunk id, so citation badges are generated for image chunks too.
-- Do NOT answer with plain text-only list if image URLs are available.
+- Do NOT return plain text-only list if any image URL is available in retrieved chunks.
 - Include citations for claims as usual.
-- If no image chunks exist, explicitly state that no analyzed images were found.`;
+- If no image URLs are present in retrieved chunks, explicitly state that no renderable image URLs were found and then provide text-only explanations.`;
 	}
 
 	/**
