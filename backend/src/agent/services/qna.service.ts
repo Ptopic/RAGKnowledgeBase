@@ -455,7 +455,18 @@ ANSWER GUIDELINES:
 - Use markdown formatting for readability
 - If sources conflict, mention different perspectives with citations
 - If information is insufficient, acknowledge limitations
-- Be conversational and helpful`;
+- Be conversational and helpful
+
+IMAGE RESPONSE MODE (MANDATORY WHEN USER ASKS ABOUT IMAGES):
+- If the user asks to explain/show/list images (e.g. "all images in this document"), prioritize chunks containing <image_chunk> data.
+- For each image, render this exact structure:
+  ## Image N
+  ![Image N](IMAGE_SOURCE_URL)
+  Explanation text from image analysis fields (short_caption, description, ocr_text, chart_or_table_summary) + brief relevant context from non-image chunks if available.
+- Use IMAGE_SOURCE_URL from <source_url> inside <image_chunk> whenever present.
+- Do NOT answer with plain text-only list if image URLs are available.
+- Include citations for claims as usual.
+- If no image chunks exist, explicitly state that no analyzed images were found.`;
 	}
 
 	/**
