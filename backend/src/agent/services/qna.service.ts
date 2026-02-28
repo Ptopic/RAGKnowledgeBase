@@ -263,6 +263,8 @@ Do NOT translate the user's question to English.
 Do NOT respond in English unless the question is in English.
 🚨🚨🚨 END CRITICAL INSTRUCTION 🚨🚨🚨`;
 
+		const imageRenderHints = this.buildImageRenderHints(optimizedDocuments);
+
 		// Create final human message content with language instruction FIRST
 		const instructionText = hasDocuments
 			? `Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner.${effectiveLanguage ? ` CRITICAL: Write your answer in ${effectiveLanguage} language!` : ""}`
@@ -271,6 +273,8 @@ Do NOT respond in English unless the question is in English.
 		const humanMessageContent = `${criticalLanguageInstruction}
 
     ${documentsText}
+
+    ${imageRenderHints}
 
     User's question:
     <user_query>
@@ -383,6 +387,48 @@ Do NOT respond in English unless the question is in English.
 
 			throw error;
 		}
+	}
+
+	private extractImageUrlsFromDocuments(documents: Document[]): string[] {
+		const urls = new Set<string>();
+
+		for (const doc of documents || []) {
+			const content = doc?.content || "";
+
+			// 1) URLs from image chunks
+			const imageChunkRegex = /<source_url>(.*?)<\/source_url>/g;
+			let imageMatch: RegExpExecArray | null;
+			while ((imageMatch = imageChunkRegex.exec(content)) !== null) {
+				const url = (imageMatch[1] || "").trim();
+				if (url.startsWith("http://") || url.startsWith("https://")) {
+					urls.add(url);
+				}
+			}
+
+			// 2) URLs from raw markdown chunks
+			const markdownImageRegex = /!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g;
+			let mdMatch: RegExpExecArray | null;
+			while ((mdMatch = markdownImageRegex.exec(content)) !== null) {
+				const url = (mdMatch[1] || "").trim();
+				if (url) urls.add(url);
+			}
+		}
+
+		return Array.from(urls);
+	}
+
+	private buildImageRenderHints(documents: Document[]): string {
+		const urls = this.extractImageUrlsFromDocuments(documents);
+		if (!urls.length) return "";
+
+		const lines = [
+			"IMAGE URL SNIPPETS AVAILABLE (use these exact markdown lines when answering image-related requests):",
+		];
+		urls.slice(0, 24).forEach((url, idx) => {
+			lines.push(`![Image ${idx + 1}](${url})`);
+		});
+
+		return lines.join("\n");
 	}
 
 	/**
