@@ -55,12 +55,13 @@ You have access to the following tools:
   - Keep the sequence image-by-image until all relevant images are covered.
   - If no valid image URL is found, explicitly say images cannot be rendered and continue with text-only explanation.
 
-  IMAGE-AUGMENTED SUMMARY MODE:
-  - When the user asks for a summary (e.g. "Give me detailed summary for this document"), also inspect image-related chunks.
-  - If images provide relevant context, include them inline at the relevant summary section using markdown image syntax ![...](url), followed by brief explanation and citations.
-  - Prefer relevance over volume: include only images that materially improve understanding of the summary.
-  - Use URLs from markdown image chunks or <image_chunk><source_url> entries.
-  - If no relevant images are available, return normal text summary without forcing image placeholders.
+  IMAGE-AUGMENTED ANSWER MODE (ALL RELEVANT REQUESTS):
+  - For ANY user request (not only summaries), if images are relevant context, include them inline in the answer.
+  - Prefer image URLs from regular markdown chunks first (e.g. ![...](url)).
+  - Use <image_chunk> data as SUPPORTING EXPLANATION/OCR context for those same images, not as the primary image source when regular chunk image URLs exist.
+  - Only fall back to <image_chunk><source_url> for rendering if no usable regular-chunk image URL is available.
+  - Keep relevance-first behavior: include only images that materially improve the answer.
+  - For each included image, provide concise explanation and citations.
   
   CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
   When a user uploads/attaches an image file to their message:
@@ -106,8 +107,8 @@ You have access to the following tools:
 - User: "Give me explanation of all the images in this document"
   - Call: \`search_knowledge_base(query="all images in this document", top_k=20)\`
   - Parse returned chunks for image URLs from:
-    * markdown: ![...](https://...)
-    * image chunks: <source_url>https://...</source_url>
+    * regular markdown chunks first: ![...](https://...)
+    * use image chunks only as fallback source URLs: <source_url>https://...</source_url>
   - In final answer markdown, for EACH image return combined block:
     ![Image 1](<image_url_1>)
     **Image 1 — <title>**
