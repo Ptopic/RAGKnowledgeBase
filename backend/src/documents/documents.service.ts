@@ -201,6 +201,7 @@ export class DocumentsService {
 					where,
 					skip: offset,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			} else {
 				documents = await this.prisma.document.findMany({
@@ -208,6 +209,7 @@ export class DocumentsService {
 					skip: offset,
 					take: pageSize,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			}
 
@@ -261,6 +263,7 @@ export class DocumentsService {
 					where,
 					skip: offset,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			} else {
 				documents = await this.prisma.document.findMany({
@@ -268,6 +271,7 @@ export class DocumentsService {
 					skip: offset,
 					take: pageSize,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			}
 
@@ -488,6 +492,7 @@ export class DocumentsService {
 			content: document.content,
 			created_at: document.createdAt,
 			search_space_id: document.searchSpaceId,
+			chunks_count: document?._count?.chunks ?? 0,
 		};
 	}
 

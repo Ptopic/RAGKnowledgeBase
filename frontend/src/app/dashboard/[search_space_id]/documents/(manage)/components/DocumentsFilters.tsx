@@ -235,6 +235,7 @@ export function DocumentsFilters({
 								["title", "Title"],
 								["document_type", "Type"],
 								["content", "Content"],
+								["chunks", "Chunks"],
 								["created_at", "Created At"],
 							] as Array<[keyof ColumnVisibility, string]>
 						).map(([key, label]) => (

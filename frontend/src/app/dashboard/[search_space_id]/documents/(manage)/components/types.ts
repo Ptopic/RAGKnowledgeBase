@@ -8,11 +8,13 @@ export type Document = {
 	content: string;
 	created_at: string;
 	search_space_id: number;
+	chunks_count?: number;
 };
 
 export type ColumnVisibility = {
 	title: boolean;
 	document_type: boolean;
 	content: boolean;
+	chunks: boolean;
 	created_at: boolean;
 };

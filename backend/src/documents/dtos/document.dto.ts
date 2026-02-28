@@ -56,6 +56,10 @@ export class DocumentDto {
 
 	@IsInt()
 	search_space_id: number;
+
+	@IsInt()
+	@IsOptional()
+	chunks_count?: number;
 }
 
 export class DocumentChunkDto {
