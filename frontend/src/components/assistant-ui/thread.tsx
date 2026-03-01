@@ -79,7 +79,6 @@ export const Thread: FC<ThreadProps> = ({
 		[messages],
 	);
 	const isEmpty = renderableMessages.length === 0;
-	const prevIsRunningRef = useRef(isRunning);
 	const [isScrolledUp, setIsScrolledUp] = useState(false);
 
 	const checkScrollPosition = useCallback(() => {
@@ -111,17 +110,7 @@ export const Thread: FC<ThreadProps> = ({
 		return merged;
 	}, [toolCallsByMessage, restoredToolCalls]);
 
-	useEffect(() => {
-		const wasRunning = prevIsRunningRef.current;
-		prevIsRunningRef.current = isRunning;
-
-		if (wasRunning && !isRunning && viewportRef.current) {
-			viewportRef.current.scrollTo({
-				top: viewportRef.current.scrollHeight,
-				behavior: "smooth",
-			});
-		}
-	}, [isRunning]);
+	// Intentionally do not auto-scroll when streaming finishes.
 
 	const handleSubmit = (message: string) => {
 		onSubmit(message);
