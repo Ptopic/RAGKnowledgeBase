@@ -24,10 +24,14 @@ export const UserMessage: FC<UserMessageProps> = ({
 
 	return (
 		<div
-			className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
+			className={`aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto content-start gap-y-2 px-2 py-3 duration-150 ${
+				isEditing
+					? "grid-cols-1"
+					: "grid-cols-[minmax(72px,1fr)_auto] [&:where(>*)]:col-start-2"
+			}`}
 			data-role="user"
 		>
-			<div className="aui-user-message-content-wrapper col-start-2 min-w-0 flex items-end gap-2">
+			<div className={`aui-user-message-content-wrapper min-w-0 flex items-end gap-2 ${isEditing ? "col-start-1 w-full" : "col-start-2"}`}>
 				<div className="flex-1 min-w-0">
 					<div className="relative">
 						{isEditing ? (
@@ -81,11 +85,13 @@ export const UserMessage: FC<UserMessageProps> = ({
 						)}
 					</div>
 				</div>
-				<div className="shrink-0 mb-1.5">
-					<div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-						<User className="size-4" />
+				{!isEditing && (
+					<div className="shrink-0 mb-1.5">
+						<div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+							<User className="size-4" />
+						</div>
 					</div>
-				</div>
+				)}
 			</div>
 		</div>
 	);
