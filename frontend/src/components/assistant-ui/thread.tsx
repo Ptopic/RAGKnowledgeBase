@@ -129,6 +129,15 @@ export const Thread: FC<ThreadProps> = ({
 	const handleEditUserSubmit = useCallback(
 		(message: Message, editedContent: string) => {
 			onEditUserSubmit?.(message, editedContent);
+
+			setTimeout(() => {
+				if (viewportRef.current) {
+					viewportRef.current.scrollTo({
+						top: viewportRef.current.scrollHeight,
+						behavior: "smooth",
+					});
+				}
+			}, 100);
 		},
 		[onEditUserSubmit],
 	);
