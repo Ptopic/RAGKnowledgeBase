@@ -44,6 +44,7 @@ interface ThreadProps {
 	onSubmit: (message: string) => void;
 	onCancel?: () => void;
 	onReloadLast?: (message: Message) => void;
+	onEditUserMessage?: (message: Message) => void;
 	searchSpaceId: number;
 	onDocumentSelectionChange?: (documents: Document[]) => void;
 	selectedDocuments?: Document[];
@@ -62,6 +63,7 @@ export const Thread: FC<ThreadProps> = ({
 	onSubmit,
 	onCancel,
 	onReloadLast,
+	onEditUserMessage,
 	searchSpaceId,
 	onDocumentSelectionChange,
 	selectedDocuments,
@@ -126,13 +128,17 @@ export const Thread: FC<ThreadProps> = ({
 		}, 100);
 	};
 
-	const handleEditUserMessage = useCallback((message: Message) => {
-		const content =
-			typeof message.content === "string"
-				? message.content
-				: JSON.stringify(message.content);
-		setPrefillText(content);
-	}, []);
+	const handleEditUserMessage = useCallback(
+		(message: Message) => {
+			const content =
+				typeof message.content === "string"
+					? message.content
+					: JSON.stringify(message.content);
+			setPrefillText(content);
+			onEditUserMessage?.(message);
+		},
+		[onEditUserMessage],
+	);
 
 	return (
 		<div
