@@ -81,22 +81,8 @@ export default function TestChatInterface({
 		sendMessage(messageContentToText(lastUserMessage.content));
 	};
 
-	const handleEditUserMessage = (message: Message) => {
-		setMessages((prev) => {
-			const idxById = prev.findIndex((m) => m.id && m.id === message.id);
-			let idx = idxById;
-
-			if (idx < 0) {
-				idx = prev.findIndex(
-					(m) =>
-						m.type === "human" &&
-						messageContentToText(m.content) === messageContentToText(message.content),
-				);
-			}
-
-			if (idx < 0) return prev;
-			return prev.slice(0, idx);
-		});
+	const handleEditUserSubmit = (_message: Message, editedContent: string) => {
+		sendMessage(editedContent);
 	};
 
 	return (
@@ -108,7 +94,7 @@ export default function TestChatInterface({
 					onSubmit={handleSubmit}
 					onCancel={stopStreaming}
 					onReloadLast={handleReloadLast}
-					onEditUserMessage={handleEditUserMessage}
+					onEditUserSubmit={handleEditUserSubmit}
 					searchSpaceId={Number.parseInt(searchSpaceId, 10)}
 					header={<ChatHeader />}
 					onDocumentSelectionChange={onDocumentSelectionChange}
