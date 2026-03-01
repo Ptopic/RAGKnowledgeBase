@@ -15,6 +15,7 @@ import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
 import { ChatActionsService } from "./services/chat-actions.service";
 import { DeepAgentService } from "./services/deep-agent.service";
+import { LLMService } from "./services/llm.service";
 import {
 	getInitialThinkingStep,
 	resetThinkingStepCounter,
@@ -28,6 +29,7 @@ export class AgentController {
 		private readonly agentService: AgentService,
 		private readonly deepAgentService: DeepAgentService,
 		private readonly chatActionsService: ChatActionsService,
+		private readonly llmService: LLMService,
 	) {}
 
 	@Post("chatWithDeepAgent")
@@ -60,7 +62,11 @@ export class AgentController {
 			const documentIdsToAddInContext = (
 				requestData.document_ids_to_add_in_context || []
 			).map(Number);
-			const language = requestData.language || "English";
+			const configuredLanguage = await this.llmService.getUserFastLLMLanguage(
+				req.user.id,
+				searchSpaceId,
+			);
+			const language = configuredLanguage || requestData.language || "English";
 			const chatId = request.chat_id;
 
 			const { stream, chatId: createdChatId, chatWasCreated } =
@@ -140,7 +146,11 @@ export class AgentController {
 				requestData.document_ids_to_add_in_context || []
 			).map(Number);
 			const searchMode = requestData.search_mode || "CHUNKS";
-			const language = requestData.language || "English";
+			const configuredLanguage = await this.llmService.getUserFastLLMLanguage(
+				req.user.id,
+				searchSpaceId,
+			);
+			const language = configuredLanguage || requestData.language || "English";
 			const chatId = request.chat_id;
 
 			const {

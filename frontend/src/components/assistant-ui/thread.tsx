@@ -7,7 +7,6 @@ import {
 	type KeyboardEvent,
 	type ReactNode,
 	useCallback,
-	useEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -44,6 +43,7 @@ interface ThreadProps {
 	onSubmit: (message: string) => void;
 	onCancel?: () => void;
 	onReloadLast?: (message: Message) => void;
+	onEditUserSubmit?: (message: Message, editedContent: string) => void;
 	searchSpaceId: number;
 	onDocumentSelectionChange?: (documents: Document[]) => void;
 	selectedDocuments?: Document[];
@@ -62,6 +62,7 @@ export const Thread: FC<ThreadProps> = ({
 	onSubmit,
 	onCancel,
 	onReloadLast,
+	onEditUserSubmit,
 	searchSpaceId,
 	onDocumentSelectionChange,
 	selectedDocuments,
@@ -79,7 +80,6 @@ export const Thread: FC<ThreadProps> = ({
 		[messages],
 	);
 	const isEmpty = renderableMessages.length === 0;
-	const prevIsRunningRef = useRef(isRunning);
 	const [isScrolledUp, setIsScrolledUp] = useState(false);
 
 	const checkScrollPosition = useCallback(() => {
@@ -111,17 +111,7 @@ export const Thread: FC<ThreadProps> = ({
 		return merged;
 	}, [toolCallsByMessage, restoredToolCalls]);
 
-	useEffect(() => {
-		const wasRunning = prevIsRunningRef.current;
-		prevIsRunningRef.current = isRunning;
-
-		if (wasRunning && !isRunning && viewportRef.current) {
-			viewportRef.current.scrollTo({
-				top: viewportRef.current.scrollHeight,
-				behavior: "smooth",
-			});
-		}
-	}, [isRunning]);
+	// Intentionally do not auto-scroll when streaming finishes.
 
 	const handleSubmit = (message: string) => {
 		onSubmit(message);
@@ -135,6 +125,22 @@ export const Thread: FC<ThreadProps> = ({
 			}
 		}, 100);
 	};
+
+	const handleEditUserSubmit = useCallback(
+		(message: Message, editedContent: string) => {
+			onEditUserSubmit?.(message, editedContent);
+
+			setTimeout(() => {
+				if (viewportRef.current) {
+					viewportRef.current.scrollTo({
+						top: viewportRef.current.scrollHeight,
+						behavior: "smooth",
+					});
+				}
+			}, 100);
+		},
+		[onEditUserSubmit],
+	);
 
 	return (
 		<div
@@ -176,7 +182,11 @@ export const Thread: FC<ThreadProps> = ({
 							const isLast = index === renderableMessages.length - 1;
 							if (message.type === "human") {
 								return (
-									<UserMessage key={message.id || index} message={message} />
+									<UserMessage
+										key={message.id || index}
+										message={message}
+										onEditSubmit={handleEditUserSubmit}
+									/>
 								);
 							}
 							return (
@@ -269,6 +279,7 @@ const ThreadComposer: FC<ThreadComposerProps> = ({
 	const [draftText, setDraftText] = useState("");
 	const [mentionedDocs, setMentionedDocs] = useState<MentionedDocument[]>([]);
 	const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+
 
 	const hasContent = draftText.trim().length > 0 || attachments.length > 0;
 

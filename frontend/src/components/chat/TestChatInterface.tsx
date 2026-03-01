@@ -81,6 +81,10 @@ export default function TestChatInterface({
 		sendMessage(messageContentToText(lastUserMessage.content));
 	};
 
+	const handleEditUserSubmit = (_message: Message, editedContent: string) => {
+		sendMessage(editedContent);
+	};
+
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex h-[calc(100dvh-80px)] flex-col">
@@ -90,6 +94,7 @@ export default function TestChatInterface({
 					onSubmit={handleSubmit}
 					onCancel={stopStreaming}
 					onReloadLast={handleReloadLast}
+					onEditUserSubmit={handleEditUserSubmit}
 					searchSpaceId={Number.parseInt(searchSpaceId, 10)}
 					header={<ChatHeader />}
 					onDocumentSelectionChange={onDocumentSelectionChange}
