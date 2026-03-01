@@ -36,6 +36,7 @@ export default function DocumentsTable() {
 		title: true,
 		document_type: true,
 		content: true,
+		chunks: true,
 		created_at: true,
 	});
 	const [pageIndex, setPageIndex] = useState(0);

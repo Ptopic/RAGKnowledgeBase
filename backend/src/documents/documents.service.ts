@@ -201,6 +201,7 @@ export class DocumentsService {
 					where,
 					skip: offset,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			} else {
 				documents = await this.prisma.document.findMany({
@@ -208,6 +209,7 @@ export class DocumentsService {
 					skip: offset,
 					take: pageSize,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			}
 
@@ -261,6 +263,7 @@ export class DocumentsService {
 					where,
 					skip: offset,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			} else {
 				documents = await this.prisma.document.findMany({
@@ -268,6 +271,7 @@ export class DocumentsService {
 					skip: offset,
 					take: pageSize,
 					orderBy: { createdAt: "desc" },
+					include: { _count: { select: { chunks: true } } },
 				});
 			}
 
@@ -382,6 +386,38 @@ export class DocumentsService {
 		}
 	}
 
+	async findOneWithChunks(
+		id: number,
+		userId: string,
+	): Promise<DocumentWithChunksDto> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+				include: {
+					chunks: {
+						orderBy: { createdAt: "asc" },
+					},
+				},
+			});
+
+			if (!document) {
+				throw new NotFoundException(`Document with id ${id} not found`);
+			}
+
+			return this.toWithChunksDto(document);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to fetch document with chunks: ${error.message}`,
+			);
+		}
+	}
+
 	async update(
 		id: number,
 		updateDto: UpdateDocumentDto,
@@ -456,6 +492,7 @@ export class DocumentsService {
 			content: document.content,
 			created_at: document.createdAt,
 			search_space_id: document.searchSpaceId,
+			chunks_count: document?._count?.chunks ?? 0,
 		};
 	}
 

@@ -72,6 +72,7 @@ export interface Document {
 	content: string;
 	created_at: string;
 	search_space_id: number;
+	chunks_count?: number;
 }
 
 export interface GetDocumentsParams {

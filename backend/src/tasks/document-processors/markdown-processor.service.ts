@@ -4,32 +4,32 @@
 
 import * as crypto from "node:crypto";
 import { ChatOpenAI } from "@langchain/openai";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Injectable, Logger } from "@nestjs/common";
 import { Document, DocumentType, Log } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
 import { EmbeddingService } from "../../retriever/embedding.service";
+import { ImageAnalysisService } from "../../services/image-analysis.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
 import { optimizeContentForContextWindow } from "../../utils/document-converters";
+import {
+	chunkMarkdownContent,
+	createMarkdownAwareSplitter,
+} from "../../utils/chunking";
+import { extractImageCandidatesFromMarkdown } from "../../utils/image-markdown";
 import { DocumentProcessorBaseService } from "./base.service";
 
 @Injectable()
 export class MarkdownProcessorService {
 	private readonly logger = new Logger(MarkdownProcessorService.name);
-	private textSplitter: RecursiveCharacterTextSplitter;
+	private readonly textSplitter = createMarkdownAwareSplitter();
 
 	constructor(
 		private prisma: PrismaService,
 		private baseService: DocumentProcessorBaseService,
 		private embeddingService: EmbeddingService,
-	) {
-		// Initialize text splitter with reasonable defaults
-		this.textSplitter = new RecursiveCharacterTextSplitter({
-			chunkSize: 1000,
-			chunkOverlap: 200,
-		});
-	}
+		private imageAnalysisService: ImageAnalysisService,
+	) {}
 
 	/**
 	 * Create document chunks with embeddings.
@@ -37,16 +37,25 @@ export class MarkdownProcessorService {
 	private async createDocumentChunks(
 		content: string,
 	): Promise<{ content: string; embedding: number[] }[]> {
-		const chunks = await this.textSplitter.splitText(content);
+		const chunks = await chunkMarkdownContent(
+			content,
+			this.textSplitter,
+			"generic",
+		);
+		const avgChunkChars =
+			chunks.length > 0
+				? Math.round(chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length)
+				: 0;
+		const tinyChunkCount = chunks.filter((chunk) => chunk.length < 120).length;
+		this.logger.debug(
+			`Chunking stats[markdown]: raw=${content.length} chunks=${chunks.length} avg=${avgChunkChars} tiny=${tinyChunkCount}`,
+		);
 
 		return Promise.all(
-			chunks.map(async (chunkText) => {
-				const embedding = await this.embeddingService.embed(chunkText);
-				return {
-					content: chunkText,
-					embedding,
-				};
-			}),
+			chunks.map(async (chunkText) => ({
+				content: chunkText,
+				embedding: await this.embeddingService.embed(chunkText),
+			})),
 		);
 	}
 
@@ -263,6 +272,12 @@ export class MarkdownProcessorService {
 
 				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
+				await this.enqueueImageAnalysisJob(
+					document.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"markdown",
+				);
 			} else {
 				// Create new document
 				document = await this.prisma.document.create({
@@ -285,6 +300,12 @@ export class MarkdownProcessorService {
 
 				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
+				await this.enqueueImageAnalysisJob(
+					document.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"markdown",
+				);
 			}
 
 			// Log success
@@ -313,6 +334,27 @@ export class MarkdownProcessorService {
 				error.stack,
 			);
 			throw new Error(`Failed to process file document: ${error.message}`);
+		}
+	}
+
+	private async enqueueImageAnalysisJob(
+		documentId: number,
+		searchSpaceId: number,
+		markdown: string,
+		sourceType: "file" | "web" | "markdown" | "youtube",
+	): Promise<void> {
+		try {
+			const images = extractImageCandidatesFromMarkdown(markdown);
+			if (images.length === 0) return;
+
+			await this.imageAnalysisService.analyzeDocumentImages({
+				documentId,
+				searchSpaceId,
+				sourceType,
+				images,
+			});
+		} catch (error) {
+			this.logger.warn(`Failed to enqueue image analysis: ${error.message}`);
 		}
 	}
 

@@ -180,7 +180,7 @@ export class JinaReaderService {
 
       const headers: Record<string, string> = {
         'X-Base': 'final',
-        'X-Retain-Images': 'none',
+        'X-Retain-Images': 'all',
       };
 
       if (this.jinaApiKey) {

@@ -3,7 +3,10 @@
 import { ChevronDown, ChevronUp, FileX } from "lucide-react";
 import { motion } from "motion/react";
 import React from "react";
+import documentsClientRequests from "@/api/documents/authClientRequests";
+import type { DocumentWithChunks } from "@/api/documents/types";
 import { DocumentViewer } from "@/components/document-viewer";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -14,6 +17,14 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	Tooltip,
 	TooltipContent,
@@ -104,6 +115,26 @@ export function DocumentsTableShell({
 	};
 
 	const onSortHeader = (key: SortKey) => onSortChange(key);
+	const [chunksOpen, setChunksOpen] = React.useState(false);
+	const [chunksLoading, setChunksLoading] = React.useState(false);
+	const [activeChunksDocument, setActiveChunksDocument] =
+		React.useState<DocumentWithChunks | null>(null);
+	const [activeChunksTitle, setActiveChunksTitle] = React.useState<string>("");
+
+	const openChunksModal = async (documentId: number, title: string) => {
+		setActiveChunksTitle(title);
+		setChunksOpen(true);
+		setChunksLoading(true);
+		try {
+			const data = await documentsClientRequests.getDocumentWithChunks(documentId);
+			setActiveChunksDocument(data);
+		} catch (error) {
+			console.error("Error loading chunks:", error);
+			setActiveChunksDocument(null);
+		} finally {
+			setChunksLoading(false);
+		}
+	};
 
 	return (
 		<motion.div
@@ -208,6 +239,9 @@ export function DocumentsTableShell({
 										<TableHead style={{ width: 300 }}>
 											Content Summary
 										</TableHead>
+									)}
+									{columnVisibility.chunks && (
+										<TableHead style={{ width: 140 }}>Chunks</TableHead>
 									)}
 									{columnVisibility.created_at && (
 										<TableHead style={{ width: 120 }}>
@@ -321,6 +355,23 @@ export function DocumentsTableShell({
 													</div>
 												</TableCell>
 											)}
+											{columnVisibility.chunks && (
+												<TableCell className="px-4 py-3">
+													<div className="flex items-center gap-2">
+														<span className="text-sm text-muted-foreground">
+															{doc.chunks_count ?? 0}
+														</span>
+														<Button
+															variant="ghost"
+															size="sm"
+															className="h-7 px-2 text-xs"
+															onClick={() => openChunksModal(doc.id, doc.title)}
+														>
+															View
+														</Button>
+													</div>
+												</TableCell>
+											)}
 											{columnVisibility.created_at && (
 												<TableCell className="px-4 py-3">
 													{new Date(doc.created_at).toLocaleDateString()}
@@ -379,7 +430,7 @@ export function DocumentsTableShell({
 											{columnVisibility.content && (
 												<div className="mt-2 text-sm text-muted-foreground">
 													{truncate(doc.content)}
-													<div className="mt-1">
+													<div className="mt-1 flex items-center gap-3">
 														<DocumentViewer
 															title={doc.title}
 															content={doc.content}
@@ -393,6 +444,14 @@ export function DocumentsTableShell({
 																</Button>
 															}
 														/>
+														<Button
+															variant="ghost"
+															size="sm"
+															className="w-fit text-xs p-0 h-auto"
+															onClick={() => openChunksModal(doc.id, doc.title)}
+														>
+															Chunks ({doc.chunks_count ?? 0})
+														</Button>
 													</div>
 												</div>
 											)}
@@ -404,6 +463,46 @@ export function DocumentsTableShell({
 					</div>
 				</>
 			)}
+			<Dialog
+				open={chunksOpen}
+				onOpenChange={(open) => {
+					setChunksOpen(open);
+					if (!open) setActiveChunksDocument(null);
+				}}
+			>
+				<DialogContent className="max-w-5xl">
+					<DialogHeader>
+						<DialogTitle>Document Chunks</DialogTitle>
+						<DialogDescription>
+							{activeChunksTitle}
+							{activeChunksDocument
+								? ` • ${activeChunksDocument.chunks.length} chunks`
+								: ""}
+						</DialogDescription>
+					</DialogHeader>
+					{chunksLoading ? (
+						<div className="py-6 text-sm text-muted-foreground">Loading chunks...</div>
+					) : !activeChunksDocument ? (
+						<div className="py-6 text-sm text-muted-foreground">No chunk data available.</div>
+					) : (
+						<ScrollArea className="h-[70vh] pr-2">
+							<div className="space-y-4">
+								{activeChunksDocument.chunks.map((chunk, idx) => (
+									<div key={chunk.id} className="rounded-md border p-3 overflow-hidden">
+										<div className="mb-2 text-xs text-muted-foreground">
+											Chunk {idx + 1} • #{chunk.id}
+										</div>
+										<MarkdownViewer
+											content={chunk.content}
+											className="max-w-none break-words [&_*]:break-words [&_pre]:overflow-x-auto [&_code]:break-words"
+										/>
+									</div>
+								))}
+							</div>
+						</ScrollArea>
+					)}
+				</DialogContent>
+			</Dialog>
 		</motion.div>
 	);
 }
