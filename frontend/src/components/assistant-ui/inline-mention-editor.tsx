@@ -24,6 +24,7 @@ export interface MentionedDocument {
 export interface InlineMentionEditorRef {
 	focus: () => void;
 	clear: () => void;
+	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
 	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
@@ -292,9 +293,22 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			}
 		}, []);
 
+		const setText = useCallback(
+			(text: string) => {
+				if (!editorRef.current) return;
+				editorRef.current.innerHTML = "";
+				editorRef.current.appendChild(document.createTextNode(text));
+				setIsEmpty(text.trim().length === 0 && mentionedDocs.size === 0);
+				onChange?.(text.trim(), Array.from(mentionedDocs.values()));
+				focusAtEnd();
+			},
+			[focusAtEnd, mentionedDocs, onChange],
+		);
+
 		useImperativeHandle(ref, () => ({
 			focus: () => editorRef.current?.focus(),
 			clear,
+			setText,
 			getText,
 			getMentionedDocuments,
 			insertDocumentChip,

@@ -80,6 +80,7 @@ export const Thread: FC<ThreadProps> = ({
 	);
 	const isEmpty = renderableMessages.length === 0;
 	const [isScrolledUp, setIsScrolledUp] = useState(false);
+	const [prefillText, setPrefillText] = useState("");
 
 	const checkScrollPosition = useCallback(() => {
 		const container = viewportRef.current;
@@ -125,6 +126,14 @@ export const Thread: FC<ThreadProps> = ({
 		}, 100);
 	};
 
+	const handleEditUserMessage = useCallback((message: Message) => {
+		const content =
+			typeof message.content === "string"
+				? message.content
+				: JSON.stringify(message.content);
+		setPrefillText(content);
+	}, []);
+
 	return (
 		<div
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
@@ -147,6 +156,8 @@ export const Thread: FC<ThreadProps> = ({
 						<div className="w-full pb-4 md:pb-6">
 							<ThreadComposer
 								searchSpaceId={searchSpaceId}
+								prefillText={prefillText}
+								onPrefillConsumed={() => setPrefillText("")}
 								onDocumentSelectionChange={onDocumentSelectionChange}
 								selectedDocuments={selectedDocuments}
 								onConnectorSelectionChange={onConnectorSelectionChange}
@@ -165,7 +176,11 @@ export const Thread: FC<ThreadProps> = ({
 							const isLast = index === renderableMessages.length - 1;
 							if (message.type === "human") {
 								return (
-									<UserMessage key={message.id || index} message={message} />
+									<UserMessage
+										key={message.id || index}
+										message={message}
+										onEdit={handleEditUserMessage}
+									/>
 								);
 							}
 							return (
@@ -206,6 +221,8 @@ export const Thread: FC<ThreadProps> = ({
 							<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both border-t pt-4">
 								<ThreadComposer
 									searchSpaceId={searchSpaceId}
+									prefillText={prefillText}
+									onPrefillConsumed={() => setPrefillText("")}
 									onDocumentSelectionChange={onDocumentSelectionChange}
 									selectedDocuments={selectedDocuments}
 									onConnectorSelectionChange={onConnectorSelectionChange}
@@ -227,6 +244,8 @@ export const Thread: FC<ThreadProps> = ({
 
 interface ThreadComposerProps {
 	searchSpaceId: number;
+	prefillText?: string;
+	onPrefillConsumed?: () => void;
 	onSubmit: (message: string) => void;
 	onCancel?: () => void;
 	isRunning: boolean;
@@ -240,6 +259,8 @@ interface ThreadComposerProps {
 
 const ThreadComposer: FC<ThreadComposerProps> = ({
 	searchSpaceId,
+	prefillText,
+	onPrefillConsumed,
 	onSubmit,
 	onCancel,
 	isRunning,
@@ -258,6 +279,14 @@ const ThreadComposer: FC<ThreadComposerProps> = ({
 	const [draftText, setDraftText] = useState("");
 	const [mentionedDocs, setMentionedDocs] = useState<MentionedDocument[]>([]);
 	const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+
+	useEffect(() => {
+		if (!prefillText) return;
+		setDraftText(prefillText);
+		editorRef.current?.setText(prefillText);
+		editorRef.current?.focus();
+		onPrefillConsumed?.();
+	}, [prefillText, onPrefillConsumed]);
 
 	const hasContent = draftText.trim().length > 0 || attachments.length > 0;
 
