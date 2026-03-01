@@ -493,7 +493,6 @@ export class DocumentsService {
 			created_at: document.createdAt,
 			search_space_id: document.searchSpaceId,
 			chunks_count: document?._count?.chunks ?? 0,
-			chunksCount: document?._count?.chunks ?? 0,
 		};
 	}
 

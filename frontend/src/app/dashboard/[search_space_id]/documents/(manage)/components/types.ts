@@ -9,7 +9,6 @@ export type Document = {
 	created_at: string;
 	search_space_id: number;
 	chunks_count?: number;
-	chunksCount?: number;
 };
 
 export type ColumnVisibility = {
