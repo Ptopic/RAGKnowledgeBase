@@ -41,8 +41,8 @@ export default function DocumentsTable() {
 	});
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(50);
-	const [sortKey, setSortKey] = useState<SortKey>("title");
-	const [sortDesc, setSortDesc] = useState(false);
+	const [sortKey, setSortKey] = useState<SortKey>("created_at");
+	const [sortDesc, setSortDesc] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
 
@@ -210,7 +210,7 @@ export default function DocumentsTable() {
 					if (sortKey === key) setSortDesc((v) => !v);
 					else {
 						setSortKey(key);
-						setSortDesc(false);
+						setSortDesc(key === "created_at");
 					}
 				}}
 			/>
