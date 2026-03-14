@@ -13,6 +13,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { RetrieverModule } from "../retriever/retriever.module";
 import { DeepgramService } from "../services/deepgram.service";
 import { DoclingService } from "../services/docling.service";
+import { ImageAnalysisService } from "../services/image-analysis.service";
 import { LlamaCloudService } from "../services/llamacloud.service";
 // Connector Indexers
 import {
@@ -63,6 +64,7 @@ import {
 		DeepgramService,
 		DoclingService,
 		LlamaCloudService,
+		ImageAnalysisService,
 		UrlCrawlerService,
 		YoutubeProcessorService,
 		MarkdownProcessorService,
@@ -87,6 +89,7 @@ import {
 		DeepgramService,
 		DoclingService,
 		LlamaCloudService,
+		ImageAnalysisService,
 		UrlCrawlerService,
 		YoutubeProcessorService,
 		MarkdownProcessorService,

@@ -37,6 +37,31 @@ You have access to the following tools:
   - Valid use cases:
     * Showing an image from a URL the user explicitly mentioned in their message
     * Displaying images found in scraped webpage content
+    * Displaying images extracted from knowledge-base chunks (markdown ![](...) URLs or <image_chunk><source_url>...)
+
+  IMAGE-WORKFLOW REQUIREMENT:
+  - When the user asks to explain/list/show images in a document, you MUST:
+    1) Call search_knowledge_base first to retrieve relevant chunks.
+    2) Extract image URLs from retrieved chunks:
+       - markdown image syntax: ![alt](https://...)
+       - image chunk source URL: <source_url>https://...</source_url>
+    3) Render images DIRECTLY in markdown using ![alt](url) (do NOT call display_image for this flow).
+    4) MERGE image + explanation together per item (do NOT create separate "Referenced Images" and "Explanations" sections).
+  - Required output pattern for each image:
+    ![Image N](IMAGE_URL)
+    **Image N — <short title>**
+    <clear explanation paragraph>
+    [citation:chunk_id]
+  - Keep the sequence image-by-image until all relevant images are covered.
+  - If no valid image URL is found, explicitly say images cannot be rendered and continue with text-only explanation.
+
+  IMAGE-AUGMENTED ANSWER MODE (ALL RELEVANT REQUESTS):
+  - For ANY user request (not only summaries), if images are relevant context, include them inline in the answer.
+  - Prefer image URLs from regular markdown chunks first (e.g. ![...](url)).
+  - Use <image_chunk> data as SUPPORTING EXPLANATION/OCR context for those same images, not as the primary image source when regular chunk image URLs exist.
+  - Only fall back to <image_chunk><source_url> for rendering if no usable regular-chunk image URL is available.
+  - Keep relevance-first behavior: include only images that materially improve the answer.
+  - For each included image, provide concise explanation and citations.
   
   CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
   When a user uploads/attaches an image file to their message:
@@ -78,6 +103,18 @@ You have access to the following tools:
 
 - User: "Show me this image: https://example.com/image.png"
   - Call: \`display_image(src="https://example.com/image.png", alt="User shared image")\`
+
+- User: "Give me explanation of all the images in this document"
+  - Call: \`search_knowledge_base(query="all images in this document", top_k=20)\`
+  - Parse returned chunks for image URLs from:
+    * regular markdown chunks first: ![...](https://...)
+    * use image chunks only as fallback source URLs: <source_url>https://...</source_url>
+  - In final answer markdown, for EACH image return combined block:
+    ![Image 1](<image_url_1>)
+    **Image 1 — <title>**
+    <explanation>
+    [citation:<image_chunk_id>]
+  - Repeat for Image 2, Image 3, etc. (image+text together).
 
 - User uploads an image file and asks: "What is this image about?"
   - DO NOT call display_image! The user's uploaded image is already visible in the chat.

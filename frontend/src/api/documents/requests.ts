@@ -80,6 +80,14 @@ export const getDocumentByChunk =
 			}),
 		);
 
+export const getDocumentWithChunks =
+	(request: ICallableRequestBuilder<DocumentWithChunks>) =>
+	async (documentId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/chunks`, (init) => ({
+			...init,
+			method: "GET",
+		}));
+
 export const getDocuments =
 	(request: ICallableRequestBuilder<unknown>) =>
 	async (params: GetDocumentsParams): Promise<ListResponse<Document>> => {

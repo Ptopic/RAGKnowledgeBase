@@ -4,21 +4,26 @@
 
 import * as crypto from "node:crypto";
 import { ChatOpenAI } from "@langchain/openai";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { DocumentType, Log } from "@prisma/client";
 import axios, { AxiosInstance } from "axios";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
 import { EmbeddingService } from "../../retriever/embedding.service";
+import { ImageAnalysisService } from "../../services/image-analysis.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
 import { optimizeContentForContextWindow } from "../../utils/document-converters";
+import {
+	chunkMarkdownContent,
+	createMarkdownAwareSplitter,
+} from "../../utils/chunking";
+import { extractImageCandidatesFromMarkdown } from "../../utils/image-markdown";
 import { DocumentProcessorBaseService } from "./base.service";
 
 @Injectable()
 export class YoutubeProcessorService {
 	private readonly logger = new Logger(YoutubeProcessorService.name);
-	private textSplitter: RecursiveCharacterTextSplitter;
+	private readonly textSplitter = createMarkdownAwareSplitter();
 	private readonly axiosInstance: AxiosInstance;
 	private readonly brightDataApiKey: string | undefined;
 	private readonly brightDataEnabled: boolean;
@@ -27,13 +32,8 @@ export class YoutubeProcessorService {
 		private prisma: PrismaService,
 		private baseService: DocumentProcessorBaseService,
 		private embeddingService: EmbeddingService,
+		private imageAnalysisService: ImageAnalysisService,
 	) {
-		// Initialize text splitter with reasonable defaults
-		this.textSplitter = new RecursiveCharacterTextSplitter({
-			chunkSize: 1000,
-			chunkOverlap: 200,
-		});
-
 		// Initialize BrightData configuration
 		this.brightDataApiKey = process.env.BRIGHTDATA_API_KEY;
 		this.brightDataEnabled = !!this.brightDataApiKey;
@@ -92,16 +92,25 @@ export class YoutubeProcessorService {
 	private async createDocumentChunks(
 		content: string,
 	): Promise<{ content: string; embedding: number[] }[]> {
-		const chunks = await this.textSplitter.splitText(content);
+		const chunks = await chunkMarkdownContent(
+			content,
+			this.textSplitter,
+			"youtube",
+		);
+		const avgChunkChars =
+			chunks.length > 0
+				? Math.round(chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length)
+				: 0;
+		const tinyChunkCount = chunks.filter((chunk) => chunk.length < 120).length;
+		this.logger.debug(
+			`Chunking stats[youtube]: raw=${content.length} chunks=${chunks.length} avg=${avgChunkChars} tiny=${tinyChunkCount}`,
+		);
 
 		return Promise.all(
-			chunks.map(async (chunkText) => {
-				const embedding = await this.embeddingService.embed(chunkText);
-				return {
-					content: chunkText,
-					embedding,
-				};
-			}),
+			chunks.map(async (chunkText) => ({
+				content: chunkText,
+				embedding: await this.embeddingService.embed(chunkText),
+			})),
 		);
 	}
 
@@ -234,6 +243,27 @@ export class YoutubeProcessorService {
 			vectorString,
 			documentId,
 		);
+	}
+
+	private async enqueueImageAnalysisJob(
+		documentId: number,
+		searchSpaceId: number,
+		markdown: string,
+		sourceType: "file" | "web" | "markdown" | "youtube",
+	): Promise<void> {
+		try {
+			const images = extractImageCandidatesFromMarkdown(markdown);
+			if (images.length === 0) return;
+
+			await this.imageAnalysisService.analyzeDocumentImages({
+				documentId,
+				searchSpaceId,
+				sourceType,
+				images,
+			});
+		} catch (error) {
+			this.logger.warn(`Failed to enqueue image analysis: ${error.message}`);
+		}
 	}
 
 	private generateUniqueIdentifierHash(
@@ -521,6 +551,12 @@ export class YoutubeProcessorService {
 
 				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
+				await this.enqueueImageAnalysisJob(
+					updatedDocument.id,
+					searchSpaceId,
+					combinedDocumentString,
+					"youtube",
+				);
 
 				await taskLogger.logTaskSuccess(
 					logEntry,
@@ -567,6 +603,12 @@ export class YoutubeProcessorService {
 
 			// Insert chunks with embeddings using raw SQL
 			await this.insertChunksWithEmbeddings(document.id, chunks);
+			await this.enqueueImageAnalysisJob(
+				document.id,
+				searchSpaceId,
+				combinedDocumentString,
+				"youtube",
+			);
 
 			await taskLogger.logTaskSuccess(
 				logEntry,

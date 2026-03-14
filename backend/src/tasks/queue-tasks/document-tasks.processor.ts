@@ -10,6 +10,7 @@ import {
 	UrlCrawlerService,
 	YoutubeProcessorService,
 } from "../document-processors";
+import { ImageAnalysisService } from "../../services/image-analysis.service";
 
 interface UrlTaskData {
 	url: string;
@@ -24,6 +25,13 @@ interface FileTaskData {
 	userId: string;
 }
 
+interface AnalyzeDocumentImagesTaskData {
+	documentId: number;
+	searchSpaceId: number;
+	sourceType: "file" | "web" | "markdown" | "youtube";
+	images: Array<{ imageId: string; url: string; altText?: string; sectionHint?: string }>;
+}
+
 @Processor("document-tasks")
 export class DocumentTasksProcessor {
 	private readonly logger = new Logger(DocumentTasksProcessor.name);
@@ -32,6 +40,7 @@ export class DocumentTasksProcessor {
 		private urlCrawler: UrlCrawlerService,
 		private youtubeProcessor: YoutubeProcessorService,
 		private fileProcessors: FileProcessorsService,
+		private imageAnalysisService: ImageAnalysisService,
 	) {}
 
 	/**
@@ -118,6 +127,23 @@ export class DocumentTasksProcessor {
 		} catch (error) {
 			this.logger.error(
 				`Failed to process file upload job ${job.id}: ${error.message}`,
+				error.stack,
+			);
+			throw error;
+		}
+	}
+
+	@Process("analyze_document_images")
+	async analyzeDocumentImages(job: Job<AnalyzeDocumentImagesTaskData>) {
+		this.logger.log(
+			`Processing image analysis job ${job.id} for document ${job.data.documentId}`,
+		);
+
+		try {
+			await this.imageAnalysisService.analyzeDocumentImages(job.data);
+		} catch (error) {
+			this.logger.error(
+				`Failed image analysis job ${job.id}: ${error.message}`,
 				error.stack,
 			);
 			throw error;
