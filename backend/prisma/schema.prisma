@@ -99,6 +99,10 @@ model User {
   fullName       String? @map("full_name")
   picture        String?
 
+  // Password reset
+  resetToken        String?   @unique @map("reset_token")
+  resetTokenExpires DateTime? @map("reset_token_expires")
+
   // Page usage tracking for ETL services
   pagesLimit Int @default(500) @map("pages_limit")
   pagesUsed  Int @default(0) @map("pages_used")

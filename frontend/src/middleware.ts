@@ -3,7 +3,7 @@ import appConfig from "@shared/config";
 import { COOKIE_NAME } from "@shared/constants/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
-const AUTH_ROUTE = "/auth";
+const AUTH_PUBLIC_ROUTES = ["/auth", "/auth/forgot-password", "/auth/reset-password"];
 const HOME_ROUTE = "/dashboard";
 
 export const config = {
@@ -14,8 +14,12 @@ export async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 	const accessToken = request.cookies.get(COOKIE_NAME.ACCESS_TOKEN)?.value;
 
-	if (pathname === AUTH_ROUTE) {
-		if (accessToken) {
+	const isPublicAuthRoute = AUTH_PUBLIC_ROUTES.some((route) =>
+		pathname.startsWith(route),
+	);
+
+	if (isPublicAuthRoute) {
+		if (pathname === AUTH_PUBLIC_ROUTES[0] && accessToken) {
 			const isValid = await verifyToken(accessToken);
 			if (isValid) {
 				return NextResponse.redirect(new URL(HOME_ROUTE, request.url));
@@ -25,12 +29,16 @@ export async function middleware(request: NextRequest) {
 	}
 
 	if (!accessToken) {
-		return NextResponse.redirect(new URL(AUTH_ROUTE, request.url));
+		return NextResponse.redirect(
+			new URL(AUTH_PUBLIC_ROUTES[0], request.url),
+		);
 	}
 
 	const isValid = await verifyToken(accessToken);
 	if (!isValid) {
-		const response = NextResponse.redirect(new URL(AUTH_ROUTE, request.url));
+		const response = NextResponse.redirect(
+			new URL(AUTH_PUBLIC_ROUTES[0], request.url),
+		);
 		response.cookies.delete(COOKIE_NAME.ACCESS_TOKEN);
 		return response;
 	}
