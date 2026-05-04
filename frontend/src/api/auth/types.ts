@@ -15,7 +15,11 @@ export interface IAuthResponse {
 }
 
 export interface IGoogleAuthResponse {
-	token: string;
+	accessToken: string;
+	refreshToken: string;
+	expiresIn: number;
+	isNewUser: boolean;
+	user: IUser;
 }
 
 export interface ILoginData {
@@ -26,8 +30,22 @@ export interface ILoginData {
 export interface ISignUpData {
 	email: string;
 	password: string;
+	fullName?: string;
 }
 
 export interface IGoogleLoginData {
 	token: string;
+}
+
+export interface IForgotPasswordData {
+	email: string;
+}
+
+export interface IResetPasswordData {
+	token: string;
+	newPassword: string;
+}
+
+export interface IMessageResponse {
+	message: string;
 }

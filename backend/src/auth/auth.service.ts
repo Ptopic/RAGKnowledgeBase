@@ -1,6 +1,15 @@
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import {
+	ConflictException,
+	Injectable,
+	Logger,
+	NotFoundException,
+	UnauthorizedException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import axios from "axios";
+import * as bcrypt from "bcrypt";
+import { randomBytes } from "node:crypto";
+import { MailService } from "src/mail/mail.service";
 import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
@@ -10,10 +19,185 @@ export class AuthService {
 	constructor(
 		private prisma: PrismaService,
 		private jwtService: JwtService,
+		private mailService: MailService,
 	) {}
 
 	private async onAfterRegister(userId: string): Promise<void> {
 		this.logger.log(`User ${userId} has registered.`);
+	}
+
+	private generateTokens(userId: string, email: string) {
+		const accessToken = this.jwtService.sign(
+			{ sub: userId, email },
+			{ expiresIn: "1h" },
+		);
+		const refreshToken = this.jwtService.sign(
+			{ sub: userId, email },
+			{ expiresIn: "30d" },
+		);
+		return {
+			accessToken,
+			refreshToken,
+			expiresIn: 3600,
+		};
+	}
+
+	async signup(body: { email: string; password: string; fullName?: string }) {
+		const { email, password, fullName } = body;
+
+		const existingUser = await this.prisma.user.findUnique({
+			where: { email },
+		});
+
+		if (existingUser) {
+			throw new ConflictException("User with this email already exists");
+		}
+
+		const hashedPassword = await bcrypt.hash(password, 10);
+
+		const newUser = await this.prisma.user.create({
+			data: {
+				email,
+				hashedPassword,
+				fullName: fullName || null,
+			},
+		});
+
+		await this.onAfterRegister(newUser.id);
+
+		const tokens = this.generateTokens(newUser.id, newUser.email);
+
+		return {
+			...tokens,
+			user: {
+				id: newUser.id,
+				email: newUser.email,
+				fullName: newUser.fullName,
+				picture: newUser.picture,
+			},
+		};
+	}
+
+	async login(body: { email: string; password: string }) {
+		const { email, password } = body;
+
+		const user = await this.prisma.user.findUnique({
+			where: { email },
+		});
+
+		if (!user) {
+			throw new UnauthorizedException("Invalid credentials");
+		}
+
+		if (user.lockedUntil && user.lockedUntil > new Date()) {
+			const minutesLeft = Math.ceil(
+				(user.lockedUntil.getTime() - Date.now()) / 60000,
+			);
+			throw new UnauthorizedException(
+				`Account locked. Try again in ${minutesLeft} minute(s).`,
+			);
+		}
+
+		if (!user.hashedPassword) {
+			throw new UnauthorizedException(
+				"This account was created via Google. Please use Google sign-in.",
+			);
+		}
+
+		const isPasswordValid = await bcrypt.compare(password, user.hashedPassword);
+
+		if (!isPasswordValid) {
+			const newFailedAttempts = user.failedLoginAttempts + 1;
+			const updateData: any = { failedLoginAttempts: newFailedAttempts };
+
+			if (newFailedAttempts >= 5) {
+				updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+			}
+
+			await this.prisma.user.update({
+				where: { id: user.id },
+				data: updateData,
+			});
+
+			throw new UnauthorizedException("Invalid credentials");
+		}
+
+		if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+			await this.prisma.user.update({
+				where: { id: user.id },
+				data: { failedLoginAttempts: 0, lockedUntil: null },
+			});
+		}
+
+		const tokens = this.generateTokens(user.id, user.email);
+
+		return {
+			...tokens,
+			user: {
+				id: user.id,
+				email: user.email,
+				fullName: user.fullName,
+				picture: user.picture,
+			},
+		};
+	}
+
+	async forgotPassword(email: string) {
+		const user = await this.prisma.user.findUnique({
+			where: { email },
+		});
+
+		if (!user) {
+			return { message: "Password reset email sent" };
+		}
+
+		if (!user.hashedPassword) {
+			throw new UnauthorizedException(
+				"This account was created via Google. Please use Google sign-in.",
+			);
+		}
+
+		const token = randomBytes(32).toString("hex");
+		const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+		await this.prisma.user.update({
+			where: { id: user.id },
+			data: {
+				resetToken: token,
+				resetTokenExpires: expiresAt,
+			},
+		});
+
+		await this.mailService.sendPasswordResetEmail(email, token);
+
+		return { message: "Password reset email sent" };
+	}
+
+	async resetPassword(token: string, newPassword: string) {
+		const user = await this.prisma.user.findUnique({
+			where: { resetToken: token },
+		});
+
+		if (!user) {
+			throw new UnauthorizedException("Invalid or expired reset token");
+		}
+
+		if (!user.resetTokenExpires || user.resetTokenExpires < new Date()) {
+			throw new UnauthorizedException("Reset token has expired");
+		}
+
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+		await this.prisma.user.update({
+			where: { id: user.id },
+			data: {
+				hashedPassword,
+				resetToken: null,
+				resetTokenExpires: null,
+			},
+		});
+
+		return { message: "Password updated successfully" };
 	}
 
 	async verifyGoogleToken(accessToken: string) {
@@ -66,6 +250,19 @@ export class AuthService {
 			} else {
 				userId = existingUser.id;
 
+				if (!existingUser.fullName && name) {
+					await this.prisma.user.update({
+						where: { id: userId },
+						data: { fullName: name },
+					});
+				}
+				if (!existingUser.picture && picture) {
+					await this.prisma.user.update({
+						where: { id: userId },
+						data: { picture },
+					});
+				}
+
 				const existingOAuthAccount = existingUser.oauthAccounts.find(
 					(account) =>
 						account.oauthName === "google" && account.accountId === sub,
@@ -89,14 +286,17 @@ export class AuthService {
 				}
 			}
 
-			const jwtToken = this.jwtService.sign({
-				sub: userId,
-				email,
-			});
+			const tokens = this.generateTokens(userId, email);
 
 			return {
-				token: jwtToken,
+				...tokens,
 				isNewUser,
+				user: {
+					id: userId,
+					email,
+					fullName: name,
+					picture,
+				},
 			};
 		} catch (error) {
 			this.logger.error("Google token verification failed:", error);

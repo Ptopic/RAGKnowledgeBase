@@ -3,7 +3,7 @@ import appConfig from "@shared/config";
 import { COOKIE_NAME } from "@shared/constants/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
-const AUTH_ROUTE = "/auth";
+const AUTH_PUBLIC_ROUTES = ["/auth", "/auth/forgot-password", "/auth/reset-password"];
 const HOME_ROUTE = "/dashboard";
 
 export const config = {
@@ -11,13 +11,29 @@ export const config = {
 };
 
 export async function middleware(request: NextRequest) {
-	const { pathname } = request.nextUrl;
+	const { pathname, search } = request.nextUrl;
 	const accessToken = request.cookies.get(COOKIE_NAME.ACCESS_TOKEN)?.value;
 
-	if (pathname === AUTH_ROUTE) {
-		if (accessToken) {
+	const isPublicAuthRoute = AUTH_PUBLIC_ROUTES.some((route) =>
+		pathname.startsWith(route),
+	);
+
+	const buildLoginRedirectUrl = () => {
+		const loginUrl = new URL(AUTH_PUBLIC_ROUTES[0], request.url);
+		if (pathname !== AUTH_PUBLIC_ROUTES[0]) {
+			loginUrl.searchParams.set("redirect", pathname + search);
+		}
+		return loginUrl;
+	};
+
+	if (isPublicAuthRoute) {
+		if (pathname === AUTH_PUBLIC_ROUTES[0] && accessToken) {
 			const isValid = await verifyToken(accessToken);
 			if (isValid) {
+				const redirectUrl = request.nextUrl.searchParams.get("redirect");
+				if (redirectUrl) {
+					return NextResponse.redirect(new URL(redirectUrl, request.url));
+				}
 				return NextResponse.redirect(new URL(HOME_ROUTE, request.url));
 			}
 		}
@@ -25,12 +41,12 @@ export async function middleware(request: NextRequest) {
 	}
 
 	if (!accessToken) {
-		return NextResponse.redirect(new URL(AUTH_ROUTE, request.url));
+		return NextResponse.redirect(buildLoginRedirectUrl());
 	}
 
 	const isValid = await verifyToken(accessToken);
 	if (!isValid) {
-		const response = NextResponse.redirect(new URL(AUTH_ROUTE, request.url));
+		const response = NextResponse.redirect(buildLoginRedirectUrl());
 		response.cookies.delete(COOKIE_NAME.ACCESS_TOKEN);
 		return response;
 	}
