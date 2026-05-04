@@ -14,6 +14,7 @@ export const setCookie = async (options: ResponseCookie) => {
   cookieStore.set({
     secure: true,
     sameSite: 'lax',
+    httpOnly: true,
     ...options,
   });
 };

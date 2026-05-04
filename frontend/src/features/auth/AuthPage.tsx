@@ -151,11 +151,9 @@ const AuthPage = () => {
 						if (tokenResponse.access_token) {
 							setIsLoading(true);
 							setError(null);
-								try {
-									await googleLoginMutation.mutateAsync({
-										token: tokenResponse.access_token,
-									});
-								} catch {}
+							await googleLoginMutation.mutateAsync({
+								token: tokenResponse.access_token,
+							});
 						} else {
 							setError("Failed to obtain access token from Google");
 							setIsLoading(false);

@@ -11,17 +11,29 @@ export const config = {
 };
 
 export async function middleware(request: NextRequest) {
-	const { pathname } = request.nextUrl;
+	const { pathname, search } = request.nextUrl;
 	const accessToken = request.cookies.get(COOKIE_NAME.ACCESS_TOKEN)?.value;
 
 	const isPublicAuthRoute = AUTH_PUBLIC_ROUTES.some((route) =>
 		pathname.startsWith(route),
 	);
 
+	const buildLoginRedirectUrl = () => {
+		const loginUrl = new URL(AUTH_PUBLIC_ROUTES[0], request.url);
+		if (pathname !== AUTH_PUBLIC_ROUTES[0]) {
+			loginUrl.searchParams.set("redirect", pathname + search);
+		}
+		return loginUrl;
+	};
+
 	if (isPublicAuthRoute) {
 		if (pathname === AUTH_PUBLIC_ROUTES[0] && accessToken) {
 			const isValid = await verifyToken(accessToken);
 			if (isValid) {
+				const redirectUrl = request.nextUrl.searchParams.get("redirect");
+				if (redirectUrl) {
+					return NextResponse.redirect(new URL(redirectUrl, request.url));
+				}
 				return NextResponse.redirect(new URL(HOME_ROUTE, request.url));
 			}
 		}
@@ -29,16 +41,12 @@ export async function middleware(request: NextRequest) {
 	}
 
 	if (!accessToken) {
-		return NextResponse.redirect(
-			new URL(AUTH_PUBLIC_ROUTES[0], request.url),
-		);
+		return NextResponse.redirect(buildLoginRedirectUrl());
 	}
 
 	const isValid = await verifyToken(accessToken);
 	if (!isValid) {
-		const response = NextResponse.redirect(
-			new URL(AUTH_PUBLIC_ROUTES[0], request.url),
-		);
+		const response = NextResponse.redirect(buildLoginRedirectUrl());
 		response.cookies.delete(COOKIE_NAME.ACCESS_TOKEN);
 		return response;
 	}

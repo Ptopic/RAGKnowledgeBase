@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,12 @@ import useForgotPassword from "@api/auth/hooks/useForgotPassword";
 const ForgotPasswordPage = () => {
 	const [email, setEmail] = useState("");
 	const [submitted, setSubmitted] = useState(false);
+	const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
 	const forgotPasswordMutation = useForgotPassword({
 		onSuccess: () => {
 			setSubmitted(true);
+			setCooldownSeconds(60);
 			toast.success(
 				"If an account exists, a reset link has been sent to your email. Check your inbox.",
 			);
@@ -26,6 +28,14 @@ const ForgotPasswordPage = () => {
 			);
 		},
 	});
+
+	useEffect(() => {
+		if (cooldownSeconds <= 0) return;
+		const timer = setInterval(() => {
+			setCooldownSeconds((prev) => prev - 1);
+		}, 1000);
+		return () => clearInterval(timer);
+	}, [cooldownSeconds]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -73,14 +83,17 @@ const ForgotPasswordPage = () => {
 							type="submit"
 							className="w-full"
 							disabled={
-								forgotPasswordMutation.isPending || !email
+								forgotPasswordMutation.isPending ||
+								!email ||
+								cooldownSeconds > 0
 							}
 						>
-							{forgotPasswordMutation.isPending ? (
-								<>
-									<div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-									<span>Sending...</span>
-								</>
+							{forgotPasswordMutation.isPending || cooldownSeconds > 0 ? (
+								<span>
+									{cooldownSeconds > 0
+										? `Wait ${cooldownSeconds}s`
+										: "Sending..."}
+								</span>
 							) : (
 								"Send reset link"
 							)}

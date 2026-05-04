@@ -89,6 +89,15 @@ export class AuthService {
 			throw new UnauthorizedException("Invalid credentials");
 		}
 
+		if (user.lockedUntil && user.lockedUntil > new Date()) {
+			const minutesLeft = Math.ceil(
+				(user.lockedUntil.getTime() - Date.now()) / 60000,
+			);
+			throw new UnauthorizedException(
+				`Account locked. Try again in ${minutesLeft} minute(s).`,
+			);
+		}
+
 		if (!user.hashedPassword) {
 			throw new UnauthorizedException(
 				"This account was created via Google. Please use Google sign-in.",
@@ -98,7 +107,26 @@ export class AuthService {
 		const isPasswordValid = await bcrypt.compare(password, user.hashedPassword);
 
 		if (!isPasswordValid) {
+			const newFailedAttempts = user.failedLoginAttempts + 1;
+			const updateData: any = { failedLoginAttempts: newFailedAttempts };
+
+			if (newFailedAttempts >= 5) {
+				updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+			}
+
+			await this.prisma.user.update({
+				where: { id: user.id },
+				data: updateData,
+			});
+
 			throw new UnauthorizedException("Invalid credentials");
+		}
+
+		if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+			await this.prisma.user.update({
+				where: { id: user.id },
+				data: { failedLoginAttempts: 0, lockedUntil: null },
+			});
 		}
 
 		const tokens = this.generateTokens(user.id, user.email);
@@ -120,7 +148,7 @@ export class AuthService {
 		});
 
 		if (!user) {
-			throw new NotFoundException("User with this email does not exist");
+			return { message: "Password reset email sent" };
 		}
 
 		if (!user.hashedPassword) {

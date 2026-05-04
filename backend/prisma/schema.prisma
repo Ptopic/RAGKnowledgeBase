@@ -99,6 +99,10 @@ model User {
   fullName       String? @map("full_name")
   picture        String?
 
+  // Account lockout
+  failedLoginAttempts Int @default(0) @map("failed_login_attempts")
+  lockedUntil DateTime? @map("locked_until")
+
   // Password reset
   resetToken        String?   @unique @map("reset_token")
   resetTokenExpires DateTime? @map("reset_token_expires")

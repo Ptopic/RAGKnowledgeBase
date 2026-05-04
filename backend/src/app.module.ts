@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { AgentModule } from "./agent/agent.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -23,6 +24,11 @@ import { ServicesModule } from "./services/services.module";
 			isGlobal: true,
 			load: [configuration],
 		}),
+		ThrottlerModule.forRoot([{
+			name: 'default',
+			limit: 10,
+			ttl: 900000,
+		}]),
 		AppConfigModule,
 		ServicesModule,
 		ConnectorsModule,

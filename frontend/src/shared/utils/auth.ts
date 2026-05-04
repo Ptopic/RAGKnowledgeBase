@@ -16,12 +16,19 @@ export const setAuthTokens = async (authResponse: IAuthResponse) => {
   setCookie({
     name: COOKIE_NAME.ACCESS_TOKEN,
     value: authResponse.accessToken,
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
   });
 
   setCookie({
     name: COOKIE_NAME.REFRESH_TOKEN,
     value: authResponse.refreshToken,
+    maxAge: 60 * 60 * 24 * 30,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
   });
 };
 
