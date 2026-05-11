@@ -23,6 +23,9 @@ export function getOrderedMessages(
 			ordered.push({
 				type: "ai",
 				content: contentText,
+				...(aiMsg.additional_kwargs
+					? { metadata: aiMsg.additional_kwargs as Record<string, unknown> }
+					: {}),
 			});
 		} else if (msg.type === "tool") {
 			const toolMsg = msg as ToolMessage;
@@ -35,7 +38,7 @@ export function getOrderedMessages(
 			if (!toolMsg.tool_call_id) continue;
 
 			// Parse tool content (can be string or object)
-			let toolData: any;
+			let toolData: unknown;
 			if (typeof toolMsg.content === "string") {
 				try {
 					toolData = JSON.parse(toolMsg.content);
@@ -46,12 +49,22 @@ export function getOrderedMessages(
 				toolData = toolMsg.content;
 			}
 
+			const toolDataRecord =
+				typeof toolData === "object" && toolData !== null
+					? (toolData as { summary?: unknown; content?: unknown })
+					: undefined;
+
 			ordered.push({
 				type: "tool",
 				toolName: toolMsg.name || "unknown",
 				runId: toolMsg.tool_call_id,
 				data: toolData,
-				content: toolData?.summary || toolData?.content || JSON.stringify(toolData),
+				content:
+					typeof toolDataRecord?.summary === "string"
+						? toolDataRecord.summary
+						: typeof toolDataRecord?.content === "string"
+							? toolDataRecord.content
+							: JSON.stringify(toolData),
 				status: "success",
 			});
 		}
