@@ -33,10 +33,10 @@ import { getOrderedMessages } from "@/components/ui/Chat/utils";
 import { config } from "@/shared/config/config";
 import type { OrderedStreamMessage } from "@/types/chat.types";
 
-const _attachmentAdapter = new CompositeAttachmentAdapter([
-	new SimpleImageAttachmentAdapter(),
-	new SimpleTextAttachmentAdapter(),
-]);
+	const attachmentAdapter = new CompositeAttachmentAdapter([
+		new SimpleImageAttachmentAdapter(),
+		new SimpleTextAttachmentAdapter(),
+	]);
 
 export interface UseAssistantRuntimeOptions {
 	endpoint: string;
@@ -833,6 +833,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 
 	const runtime = useExternalStoreRuntime<ThreadMessageLike>({
 		adapters: {
+			attachments: attachmentAdapter,
 			dictation: WebSpeechDictationAdapter.isSupported()
 				? new WebSpeechDictationAdapter({
 						continuous: true,

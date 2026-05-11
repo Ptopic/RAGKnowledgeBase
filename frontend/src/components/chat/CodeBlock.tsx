@@ -1,14 +1,11 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
 import { useTheme } from "next-themes";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 // Constants for styling and configuration
-const COPY_TIMEOUT = 2000;
-
 const BASE_CUSTOM_STYLE = {
 	margin: 0,
 	borderRadius: "0.375rem",
@@ -58,9 +55,8 @@ const FallbackCodeBlock = memo(({ children }: { children: string }) => (
 
 FallbackCodeBlock.displayName = "FallbackCodeBlock";
 
-// Code block component with syntax highlighting and copy functionality
+// Code block component with syntax highlighting
 export const CodeBlock = memo<CodeBlockProps>(({ children, language }) => {
-	const [copied, setCopied] = useState(false);
 	const { resolvedTheme, theme } = useTheme();
 	const [mounted, setMounted] = useState(false);
 
@@ -107,18 +103,6 @@ export const CodeBlock = memo<CodeBlockProps>(({ children, language }) => {
 		[]
 	);
 
-	// Memoized copy handler
-	const handleCopy = useCallback(async () => {
-		try {
-			await navigator.clipboard.writeText(children);
-			setCopied(true);
-			const timeoutId = setTimeout(() => setCopied(false), COPY_TIMEOUT);
-			return () => clearTimeout(timeoutId);
-		} catch (error) {
-			console.warn("Failed to copy code to clipboard:", error);
-		}
-	}, [children]);
-
 	// Memoized line props with style
 	const lineProps = useMemo(
 		() => ({
@@ -134,20 +118,6 @@ export const CodeBlock = memo<CodeBlockProps>(({ children, language }) => {
 
 	return (
 		<div className="relative my-4 group">
-			<div className="absolute right-2 top-2 z-10">
-				<button
-					onClick={handleCopy}
-					className="p-1.5 rounded-md bg-background/80 hover:bg-background border border-border flex items-center justify-center transition-colors"
-					aria-label="Copy code"
-					type="button"
-				>
-					{copied ? (
-						<Check size={14} className="text-green-500" />
-					) : (
-						<Copy size={14} className="text-muted-foreground" />
-					)}
-				</button>
-			</div>
 			<SyntaxHighlighter
 				language={language || "text"}
 				style={enhancedStyle}
