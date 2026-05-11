@@ -25,10 +25,6 @@ import {
 	toLangGraphMessageContent,
 	toThreadMessages,
 } from "@/components/research-assistant-ui/toThreadMessages";
-import {
-	ALWAYS_HIDDEN_TOOLS,
-	HIDDEN_TOOLS_ON_SUCCESS,
-} from "@/components/ui/Chat/constants";
 import { getOrderedMessages } from "@/components/ui/Chat/utils";
 import { config } from "@/shared/config/config";
 import type { OrderedStreamMessage } from "@/types/chat.types";
@@ -46,7 +42,6 @@ export interface UseAssistantRuntimeOptions {
 	searchSpaceId: string;
 	selectedConnectors?: string[];
 	selectedDocumentIds?: number[];
-	type?: "archive" | "transcript" | "article";
 	chatId?: number;
 	articleId?: number;
 	aiChatMode?: string;
@@ -74,8 +69,6 @@ type PendingQuestionFlow = {
 };
 
 export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
-	const type = options.type ?? "article";
-
 	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
 		options.chatId,
 	);
@@ -495,44 +488,13 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			accumulatedMessages as unknown as readonly BaseMessage[],
 		);
 
-		const alwaysHidden = new Set(ALWAYS_HIDDEN_TOOLS[type] ?? []);
-		const hiddenOnSuccess = new Set(HIDDEN_TOOLS_ON_SUCCESS[type] ?? []);
-
-		const filteredMessages = threadMessages.map((msg) => {
-			if (msg.role !== "assistant" || !Array.isArray(msg.content)) {
-				return msg;
-			}
-
-			if (alwaysHidden.size === 0 && hiddenOnSuccess.size === 0) {
-				return msg;
-			}
-
-			const filtered = msg.content.filter((part) => {
-				if (part.type !== "tool-call") return true;
-				if (alwaysHidden.has(part.toolName)) return false;
-				if (
-					hiddenOnSuccess.has(part.toolName) &&
-					part.result !== undefined &&
-					!part.isError
-				)
-					return false;
-				return true;
-			});
-
-			if (filtered.length === msg.content.length) {
-				return msg;
-			}
-
-			return { ...msg, content: filtered };
-		});
-
-		if (streamError && filteredMessages.length > 0) {
-			const lastIdx = filteredMessages.findLastIndex(
+		if (streamError && threadMessages.length > 0) {
+			const lastIdx = threadMessages.findLastIndex(
 				(msg) => msg.role === "assistant",
 			);
 			if (lastIdx !== -1) {
-				filteredMessages[lastIdx] = {
-					...filteredMessages[lastIdx],
+				threadMessages[lastIdx] = {
+					...threadMessages[lastIdx],
 					status: {
 						type: "incomplete" as const,
 						reason: "error" as const,
@@ -541,8 +503,8 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			}
 		}
 
-		const items = filteredMessages.map((msg, idx) => {
-			const isLast = idx === filteredMessages.length - 1;
+		const items = threadMessages.map((msg, idx) => {
+			const isLast = idx === threadMessages.length - 1;
 			const autoStatus = getAutoStatus(
 				isLast,
 				isRunning,
@@ -557,12 +519,12 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			);
 			return {
 				message: threadMessage,
-				parentId: idx > 0 ? (filteredMessages[idx - 1]?.id ?? null) : null,
+				parentId: idx > 0 ? (threadMessages[idx - 1]?.id ?? null) : null,
 			};
 		});
 
 		return ExportedMessageRepository.fromBranchableArray(items);
-	}, [accumulatedMessages, streamError, type, isRunning]);
+	}, [accumulatedMessages, streamError, isRunning]);
 
 	const prevLoading = useRef(stream.isLoading);
 
@@ -615,14 +577,13 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				typeof turnStartIndex === "number"
 					? filteredMessages.slice(turnStartIndex)
 					: filteredMessages;
-			const orderedMessages = getOrderedMessages(turnMessages as any, type);
+			const orderedMessages = getOrderedMessages(turnMessages as any);
 
 			if (process.env.NODE_ENV === "development") {
-				console.log("[CHAT_PERSIST_DEBUG][useAssistantRuntime] Stream finish", {
-					chatId: currentChatIdRef.current,
-					threadId: options.threadId,
-					type,
-					userMessage,
+			console.log("[CHAT_PERSIST_DEBUG][useAssistantRuntime] Stream finish", {
+				chatId: currentChatIdRef.current,
+				threadId: options.threadId,
+				userMessage,
 					streamMessages: (stream.messages as unknown as BaseMessage[]).map(
 						(msg) => {
 							const streamMessage = msg as BaseMessage & {
@@ -740,45 +701,38 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 					return updated;
 				});
 
-				setPendingQuestion(null);
-				await stream.submit({
-					messages: [{ content: wrappedAnswer, type: "human" }],
-				});
-				return;
-			}
-
-			const content = toLangGraphMessageContent(
-				message.content as readonly {
-					type: string;
-					text?: string;
-					image?: string;
-				}[],
-			);
-			if (!content) return;
-
-			const quote = message.metadata?.custom?.quote as
-				| { text: string; messageId: string }
-				| undefined;
-
-			let messageToSend = content;
-			if (type === "article" && quote?.text) {
-				messageToSend = `Article Content: ${quote.text} User Query: ${content}`;
-			}
-
-			setAccumulatedMessages((prev) => [
-				...prev,
-				new HumanMessage({
-					content: messageToSend,
-					id: `${Date.now()}_user`,
-				}),
-			]);
-
+			setPendingQuestion(null);
 			await stream.submit({
-				messages: [{ content: messageToSend, type: "human" }],
+				messages: [{ content: wrappedAnswer, type: "human" }],
 			});
-		},
-		[stream, type],
-	);
+			return;
+		}
+
+		const content = toLangGraphMessageContent(
+			message.content as readonly {
+				type: string;
+				text?: string;
+				image?: string;
+			}[],
+		);
+		if (!content) return;
+
+		const messageToSend = content;
+
+		setAccumulatedMessages((prev) => [
+			...prev,
+			new HumanMessage({
+				content: messageToSend,
+				id: `${Date.now()}_user`,
+			}),
+		]);
+
+		await stream.submit({
+			messages: [{ content: messageToSend, type: "human" }],
+		});
+	},
+	[stream],
+);
 
 	// Truncate from last user message, replace with edited content, re-submit
 	const onEdit = useCallback(
@@ -789,23 +743,16 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				stream.stop();
 			}
 
-			const content = toLangGraphMessageContent(
-				message.content as readonly {
-					type: string;
-					text?: string;
-					image?: string;
-				}[],
-			);
-			if (!content) return;
+		const content = toLangGraphMessageContent(
+			message.content as readonly {
+				type: string;
+				text?: string;
+				image?: string;
+			}[],
+		);
+		if (!content) return;
 
-			const quote = message.metadata?.custom?.quote as
-				| { text: string; messageId: string }
-				| undefined;
-
-			let messageToSend = content;
-			if (type === "article" && quote?.text) {
-				messageToSend = `Article Content: ${quote.text} User Query: ${content}`;
-			}
+		const messageToSend = content;
 
 			setAccumulatedMessages((prev) => {
 				const lastUserIdx = prev.findLastIndex((m) => m.type === "human");
@@ -828,7 +775,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				messages: [{ content: messageToSend, type: "human" }],
 			});
 		},
-		[stream, type],
+		[stream],
 	);
 
 	const runtime = useExternalStoreRuntime<ThreadMessageLike>({

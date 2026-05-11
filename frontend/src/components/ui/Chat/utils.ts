@@ -1,10 +1,8 @@
 import {
 	AIMessage,
 	type Message,
-	type ToolMessage,
 } from "@langchain/core/messages";
 import type { OrderedStreamMessage } from "@/types/chat.types";
-import { PERSISTED_TOOLS } from "./constants";
 
 function isAIMessage(message: unknown): boolean {
 	if (!message || typeof message !== "object") return false;
@@ -61,7 +59,6 @@ function isJsonControlMessage(content: unknown): boolean {
 
 export function getOrderedMessages(
 	messages: Message[],
-	type: "archive" | "transcript" | "article",
 ): OrderedStreamMessage[] {
 	const orderedMessages: OrderedStreamMessage[] = [];
 	const persistedAskUserRunIds = new Set<string>();
@@ -107,52 +104,50 @@ export function getOrderedMessages(
 			const questionFlow = aiMsg.additional_kwargs?.questionFlow;
 			const questionData = aiMsg.additional_kwargs?.question;
 
-			if (type === "article") {
-				const hasQuestionFlow =
-					questionFlow &&
-					typeof questionFlow === "object" &&
-					Array.isArray((questionFlow as { questions?: unknown }).questions);
-				const hasLegacyQuestion =
-					questionData &&
-					typeof questionData === "object" &&
-					"text" in questionData;
+			const hasQuestionFlow =
+				questionFlow &&
+				typeof questionFlow === "object" &&
+				Array.isArray((questionFlow as { questions?: unknown }).questions);
+			const hasLegacyQuestion =
+				questionData &&
+				typeof questionData === "object" &&
+				"text" in questionData;
 
-				if (hasQuestionFlow || hasLegacyQuestion) {
-					const runId =
-						typeof aiMsg.id === "string" && aiMsg.id.length > 0
-							? `ask-user-${aiMsg.id}`
-							: `ask-user-${orderedMessages.length}`;
+			if (hasQuestionFlow || hasLegacyQuestion) {
+				const runId =
+					typeof aiMsg.id === "string" && aiMsg.id.length > 0
+						? `ask-user-${aiMsg.id}`
+						: `ask-user-${orderedMessages.length}`;
 
-					if (!persistedAskUserRunIds.has(runId)) {
-						persistedAskUserRunIds.add(runId);
+				if (!persistedAskUserRunIds.has(runId)) {
+					persistedAskUserRunIds.add(runId);
 
-						const normalizedData = hasQuestionFlow
-							? questionFlow
-							: {
-									questions: [
-										{
-											multiple: false,
-											options: Array.isArray(
-												(questionData as { options?: unknown }).options,
-											)
-												? (questionData as { options: string[] }).options
-												: [],
-											text: String(
-												(questionData as { text?: unknown }).text ?? "",
-											),
-										},
-									],
+					const normalizedData = hasQuestionFlow
+						? questionFlow
+						: {
+								questions: [
+									{
+										multiple: false,
+										options: Array.isArray(
+											(questionData as { options?: unknown }).options,
+										)
+											? (questionData as { options: string[] }).options
+											: [],
+										text: String(
+											(questionData as { text?: unknown }).text ?? "",
+										),
+									},
+								],
 							};
 
-						orderedMessages.push({
-							content: "Requesting approval to ask_user.",
-							data: normalizedData,
-							runId,
-							status: "success",
-							toolName: "ask_user",
-							type: "tool",
-						});
-					}
+					orderedMessages.push({
+						content: "Requesting approval to ask_user.",
+						data: normalizedData,
+						runId,
+						status: "success",
+						toolName: "ask_user",
+						type: "tool",
+					});
 				}
 			}
 
@@ -161,73 +156,6 @@ export function getOrderedMessages(
 					type: "ai",
 					content: textContent,
 				});
-			}
-		} else if (msg.type === "tool") {
-			const toolMsg = msg as ToolMessage;
-			const toolName =
-				toolMsg.name || toolCallIdToName.get(toolMsg.tool_call_id) || "";
-
-			if (type === "article" && PERSISTED_TOOLS.article.includes(toolName)) {
-				try {
-					if (!toolMsg.tool_call_id) {
-						continue;
-					}
-
-					let actualContent: unknown;
-					if (typeof toolMsg.content === "string") {
-						try {
-							actualContent = JSON.parse(toolMsg.content);
-						} catch {
-							actualContent = toolMsg.content;
-						}
-					} else if (
-						typeof toolMsg.content === "object" &&
-						toolMsg.content !== null
-					) {
-						const contentObj = toolMsg.content as { content?: unknown };
-						actualContent = contentObj.content || toolMsg.content;
-					} else {
-						actualContent = toolMsg.content;
-					}
-
-					let parsed: unknown = actualContent;
-					if (typeof actualContent === "string") {
-						try {
-							parsed = JSON.parse(actualContent);
-						} catch {
-							parsed = actualContent;
-						}
-					}
-
-					const parsedObj =
-						typeof parsed === "object" && parsed !== null
-							? (parsed as { data?: unknown })
-							: undefined;
-					const data = parsedObj?.data ?? parsed;
-					const summary =
-						typeof parsedObj?.data === "object" &&
-						parsedObj.data !== null &&
-						"summary" in (parsedObj.data as Record<string, unknown>)
-							? (parsedObj.data as { summary?: unknown }).summary
-							: undefined;
-					const content =
-						typeof summary === "string"
-							? summary
-							: typeof actualContent === "string"
-								? actualContent
-								: JSON.stringify(actualContent);
-
-					orderedMessages.push({
-						type: "tool",
-						toolName,
-						runId: toolMsg.tool_call_id,
-						data,
-						content,
-						status: toolMsg.status,
-					});
-				} catch (_error) {
-					// swallow malformed tool payloads for persistence ordering
-				}
 			}
 		}
 	}

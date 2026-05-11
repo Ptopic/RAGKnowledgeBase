@@ -30,7 +30,6 @@ import {
 import "@assistant-ui/react-markdown/styles/dot.css";
 import { createContext, useContext } from "react";
 
-import { ArticleUpdateToolCall } from "@/components/research-assistant-ui/article-update-tool-call";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -45,11 +44,12 @@ import {
 import { Sources } from "@/components/research-assistant-ui/sources";
 import { ToolFallback } from "@/components/research-assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/research-assistant-ui/tooltip-icon-button";
+import { CustomChatInputOptions } from "@/components/chat/ChatInputGroup";
 import { Button } from "@/components/ui/button";
+import type { Document } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
 
 type UndoActionContextValue = {
-	type?: "archive" | "transcript" | "article";
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
 };
 
@@ -57,15 +57,25 @@ const UndoActionContext = createContext<UndoActionContextValue>({});
 
 export function Thread({
 	emptyMessagesPlaceholder,
-	type,
 	onDiscardUserMessage,
+	onDocumentSelectionChange,
+	selectedDocuments,
+	onConnectorSelectionChange,
+	selectedConnectors,
+	searchMode,
+	onSearchModeChange,
 }: {
 	emptyMessagesPlaceholder?: React.ReactNode;
-	type?: "archive" | "transcript" | "article";
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
+	onDocumentSelectionChange?: (documents: Document[]) => void;
+	selectedDocuments?: Document[];
+	onConnectorSelectionChange?: (connectorTypes: string[]) => void;
+	selectedConnectors?: string[];
+	searchMode?: "DOCUMENTS" | "CHUNKS";
+	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 }) {
 	return (
-		<UndoActionContext.Provider value={{ type, onDiscardUserMessage }}>
+		<UndoActionContext.Provider value={{ onDiscardUserMessage }}>
 			<ThreadPrimitive.Root
 				className="flex h-full flex-col bg-background text-sm"
 				style={
@@ -98,10 +108,18 @@ export function Thread({
 						}}
 					/>
 
-					<ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
-						<ThreadScrollToBottom />
-						<Composer />
-					</ThreadPrimitive.ViewportFooter>
+				<ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
+					<ThreadScrollToBottom />
+					<Composer />
+					<CustomChatInputOptions
+						onDocumentSelectionChange={onDocumentSelectionChange}
+						selectedDocuments={selectedDocuments}
+						onConnectorSelectionChange={onConnectorSelectionChange}
+						selectedConnectors={selectedConnectors}
+						searchMode={searchMode}
+						onSearchModeChange={onSearchModeChange}
+					/>
+				</ThreadPrimitive.ViewportFooter>
 				</ThreadPrimitive.Viewport>
 			</ThreadPrimitive.Root>
 		</UndoActionContext.Provider>
@@ -266,7 +284,7 @@ function ThreadScrollToBottom() {
 }
 
 function UserMessage() {
-	const { type, onDiscardUserMessage } = useContext(UndoActionContext);
+	const { onDiscardUserMessage } = useContext(UndoActionContext);
 	const messageIndex = useAuiState((s) => s.message.index);
 	const userMessageIndex = useAuiState((s) => {
 		return (
@@ -289,12 +307,11 @@ function UserMessage() {
 					<MessagePrimitive.Parts />
 				</div>
 				<div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
-					<UserActionBar
-						type={type}
-						onDiscardUserMessage={onDiscardUserMessage}
-						messageIndex={messageIndex}
-						userMessageIndex={userMessageIndex}
-					/>
+				<UserActionBar
+					onDiscardUserMessage={onDiscardUserMessage}
+					messageIndex={messageIndex}
+					userMessageIndex={userMessageIndex}
+				/>
 				</div>
 			</div>
 		</MessagePrimitive.Root>
@@ -302,12 +319,10 @@ function UserMessage() {
 }
 
 function UserActionBar({
-	type,
 	onDiscardUserMessage,
 	messageIndex,
 	userMessageIndex,
 }: {
-	type?: "archive" | "transcript" | "article";
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
 	messageIndex: number;
 	userMessageIndex: number;
@@ -322,8 +337,7 @@ function UserActionBar({
 	});
 	const isThreadRunning = useAuiState((s) => s.thread.isRunning);
 	const canEdit = isLastUserMessage && !isThreadRunning;
-	const isArticleUndoVisible =
-		type === "article" &&
+	const isUndoVisible =
 		isUserMessage &&
 		typeof onDiscardUserMessage === "function" &&
 		Number.isInteger(messageIndex) &&
@@ -336,7 +350,7 @@ function UserActionBar({
 			autohide="not-last"
 			className="flex flex-row items-center"
 		>
-			{isArticleUndoVisible ? (
+			{isUndoVisible ? (
 				<TooltipIconButton
 					tooltip="Reset chat to this point"
 					className="p-4"
@@ -389,14 +403,9 @@ function AssistantMessage() {
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
-						tools: {
-							Fallback: ToolFallback,
-							by_name: {
-								update_article_title: ArticleUpdateToolCall,
-								update_article_ingress: ArticleUpdateToolCall,
-								update_article_content: ArticleUpdateToolCall,
-							},
-						},
+					tools: {
+						Fallback: ToolFallback,
+					},
 						Reasoning,
 						ReasoningGroup,
 						Source: Sources,

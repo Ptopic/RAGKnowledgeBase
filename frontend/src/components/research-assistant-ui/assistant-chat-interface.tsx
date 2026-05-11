@@ -6,6 +6,7 @@ import "@/components/research-assistant-ui/assistant-ui.css";
 import { useEffect, useRef } from "react";
 import { Thread } from "@/components/research-assistant-ui/thread";
 import { useAssistantRuntime } from "@/components/research-assistant-ui/useAssistantRuntime";
+import type { Document } from "@/hooks/use-documents";
 import type { OrderedStreamMessage } from "@/types/chat.types";
 
 export interface AssistantChatInterfaceProps {
@@ -16,7 +17,11 @@ export interface AssistantChatInterfaceProps {
 	searchSpaceId: string;
 	selectedConnectors?: string[];
 	selectedDocumentIds?: number[];
-	type?: "archive" | "transcript" | "article";
+	onDocumentSelectionChange?: (documents: Document[]) => void;
+	selectedDocuments?: Document[];
+	onConnectorSelectionChange?: (connectorTypes: string[]) => void;
+	searchMode?: "DOCUMENTS" | "CHUNKS";
+	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	chatId?: number;
 	articleId?: number;
 	aiChatMode?: string;
@@ -45,7 +50,6 @@ export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
 		searchSpaceId: props.searchSpaceId,
 		selectedConnectors: props.selectedConnectors,
 		selectedDocumentIds: props.selectedDocumentIds,
-		type: props.type,
 		chatId: props.chatId,
 		articleId: props.articleId,
 		aiChatMode: props.aiChatMode,
@@ -67,8 +71,13 @@ export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
 				/>
 				<Thread
 					emptyMessagesPlaceholder={props.emptyMessagesPlaceholder}
-					type={props.type}
 					onDiscardUserMessage={props.onDiscardUserMessage}
+					onDocumentSelectionChange={props.onDocumentSelectionChange}
+					selectedDocuments={props.selectedDocuments}
+					onConnectorSelectionChange={props.onConnectorSelectionChange}
+					selectedConnectors={props.selectedConnectors}
+					searchMode={props.searchMode}
+					onSearchModeChange={props.onSearchModeChange}
 				/>
 			</AssistantRuntimeProvider>
 		</div>

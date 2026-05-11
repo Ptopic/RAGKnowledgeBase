@@ -25,8 +25,12 @@ interface ChatInterfaceProps {
 }
 
 export default function TestChatInterface({
+	onDocumentSelectionChange,
 	selectedDocuments = [],
+	onConnectorSelectionChange,
 	selectedConnectors = [],
+	searchMode,
+	onSearchModeChange,
 	messages,
 	threadId,
 	chatId,
@@ -52,10 +56,14 @@ export default function TestChatInterface({
 					searchSpaceId={searchSpaceId}
 					selectedConnectors={selectedConnectors}
 					selectedDocumentIds={selectedDocumentIds}
-					type="article"
 					chatId={chatId}
 					initialMessages={messages}
 					onChatCreated={onChatCreated}
+					onDocumentSelectionChange={onDocumentSelectionChange}
+					selectedDocuments={selectedDocuments}
+					onConnectorSelectionChange={onConnectorSelectionChange}
+					searchMode={searchMode}
+					onSearchModeChange={onSearchModeChange}
 					onStreamFinish={(_orderedMessages, _userMessage) => {
 						queryClient.invalidateQueries({ queryKey: ["chats"] });
 						if (chatId) {
