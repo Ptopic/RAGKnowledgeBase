@@ -32,12 +32,80 @@ You have access to the following tools:
   - Returns: A rich preview card with title, description, thumbnail, and domain
 
 3. display_image: Display an image in the chat with metadata.
-  - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
-  - This displays the image with an optional title, description, and source attribution.
-  - Valid use cases:
-    * Showing an image from a URL the user explicitly mentioned in their message
-    * Displaying images found in scraped webpage content
-    * Displaying images extracted from knowledge-base chunks (markdown ![](...) URLs or <image_chunk><source_url>...)
+   - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
+   - This displays the image with an optional title, description, and source attribution.
+   - Valid use cases:
+     * Showing an image from a URL the user explicitly mentioned in their message
+     * Displaying images found in scraped webpage content
+     * Displaying images extracted from knowledge-base chunks (markdown ![](...) URLs or <image_chunk><source_url>...)
+
+4. generate_followup_questions: Generate follow-up prompts based on the conversation.
+   - Call this tool ONCE at the very end of EVERY response, after all other tools and before finalizing.
+   - Generate 3-5 concise follow-up prompts that the user can click to send back to you.
+   
+   CRITICAL: Phrase these as direct user commands/requests, NOT as questions asking what the user wants.
+   
+   WRONG (do not use):
+   - "Do you want me to summarize any document?"
+   - "Would you like me to search for more details?"
+   - "Can I help you with anything else?"
+   - "How do you handle imbalanced datasets?"
+   - "What are the key differences between...?"
+   
+   CORRECT (use):
+   - "Summarize the quarterly report for me"
+   - "Search for more details about deployment best practices"
+   - "Find related tasks I mentioned in my notes"
+   - "Show me images from the project documentation"
+   - "Compare this approach with the alternative we discussed"
+   - "List the pros and cons of using asyncio"
+   - "Find meeting notes about the API migration"
+   
+    QUALITY PROCESS:
+    1. Analyze the conversation flow to understand:
+       - The main topics and themes discussed
+       - The user's interests and areas of focus
+       - Questions that have been asked and answered
+       - Any gaps or areas that could be explored further
+       - The depth level of the current discussion
+    2. Evaluate available information to identify:
+       - Additional information that hasn't been explored yet
+       - Related topics that could be of interest
+       - Specific details or data points that could warrant deeper investigation
+       - Cross-references or connections between different topics
+    3. Generate 3-5 follow-up prompts that:
+       - Are directly related to the ongoing conversation but explore new angles
+       - Progress the conversation forward rather than repeating previous topics
+       - Match the user's apparent level of interest and expertise
+       - Are specific and actionable rather than overly broad
+       - Consider practical applications, comparisons, deeper analysis, or related concepts
+    4. Ensure each prompt:
+       - Be clear and well-formulated
+       - Provide genuine value to the user
+       - Be distinct from other suggested prompts
+       - Encourage meaningful exploration of the topic
+    5. Prioritize and order by relevance and natural progression:
+       - Most directly related to the current discussion first
+       - Prompts that build upon previous answers
+       - Prompts that explore practical applications or implications
+       - Prompts that introduce related but new concepts
+
+    LOW-CONTEXT FALLBACK:
+    When there is insufficient conversation context to generate meaningful topic-specific follow-ups (e.g., the user only said "Hello", "Hi", "Hey", "Help", or the conversation has no substantive topic yet), use the following fallback prompts translated into the configured response language:
+    1. "Search for all documents in my knowledge base"
+    2. "Search for all webpages in my knowledge base"
+    3. "Show me my recent notes and files"
+    4. "Find my recent tasks and meetings"
+   
+   FORMAT REQUIREMENTS:
+   - Each prompt must be phrased as a direct user request (not a question)
+   - 3-8 words, concise and actionable
+   - Must NOT start with "Do you want", "Would you like", "Can I", "Are you", "How do", "What are", etc.
+   - Must NOT end with a question mark
+   
+   - Args:
+     - questions: Array of 3-5 strings, each a concise follow-up prompt.
+
 
   IMAGE-WORKFLOW REQUIREMENT:
   - When the user asks to explain/list/show images in a document, you MUST:
@@ -125,6 +193,10 @@ You have access to the following tools:
 - User uploads a screenshot and asks: "Can you explain what's in this image?"
   - DO NOT call display_image! Just analyze and respond directly.
   - The user can already see their screenshot - they don't need you to display it again.
+
+- After answering any user question, ALWAYS end with:
+  - Call: \`generate_followup_questions(questions=["Summarize the quarterly report", "Find related meeting notes", "Show me project timeline"])\`
+  - These should be relevant command-style follow-ups based on the topic just discussed.
 </tool_call_examples>
 `;
 

@@ -45,7 +45,7 @@ export type ConversationHistory = MessageExchange[];
 
 // Ordered stream message (for saving after stream finishes)
 export type OrderedStreamMessage =
-	| { type: "ai"; content: string }
+	| { type: "ai"; content: string; metadata?: Record<string, unknown> }
 	| {
 			type: "tool";
 			toolName: string;

@@ -1,14 +1,11 @@
 "use client";
 
-import type { Message } from "@langchain/core/messages";
+import type { BaseMessage } from "@langchain/core/messages";
 import config from "@shared/config";
 import { useQueryClient } from "@tanstack/react-query";
-import { type Dispatch, type SetStateAction, useRef, useState } from "react";
-import { Thread } from "@/components/assistant-ui";
-import { ChatHeader } from "@/components/new-chat/chat-header";
-import { useChatStream } from "@/hooks/use-chat-stream";
+import { type Dispatch, type SetStateAction, useMemo } from "react";
+import { AssistantChatInterface } from "@/components/research-assistant-ui/assistant-chat-interface";
 import type { Document } from "@/hooks/use-documents";
-import { messageContentToText } from "@/lib/chat/message-adapter";
 
 interface ChatInterfaceProps {
 	onDocumentSelectionChange?: (documents: Document[]) => void;
@@ -17,14 +14,13 @@ interface ChatInterfaceProps {
 	selectedConnectors?: string[];
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-	messages: Message[];
-	setMessages: Dispatch<SetStateAction<Message[]>>;
+	messages: BaseMessage[];
+	setMessages: Dispatch<SetStateAction<BaseMessage[]>>;
 	threadId: string;
 	chatId?: number;
 	userId?: number;
 	token?: string | null;
 	searchSpaceId: string;
-	onStreamStart?: () => void;
 	onChatCreated?: (chatId: number) => void;
 }
 
@@ -36,75 +32,46 @@ export default function TestChatInterface({
 	searchMode,
 	onSearchModeChange,
 	messages,
-	setMessages,
+	threadId,
 	chatId,
 	token,
 	searchSpaceId,
-	onStreamStart,
 	onChatCreated,
 }: ChatInterfaceProps) {
-	const [inputText, setInputText] = useState("");
-	const scrollContainerRef = useRef<HTMLDivElement>(null);
-
 	const queryClient = useQueryClient();
 	const endpoint = `${config.apiUrl}/agent/chatWithDeepAgent`;
-
-	const { isStreaming, sendMessage, stopStreaming, toolCallsByMessage, thinkingSteps, scrollToBottom } = useChatStream({
-		messages,
-		setMessages,
-		inputText,
-		setInputText,
-		chatId,
-		endpoint,
-		token: token || undefined,
-		searchSpaceId,
-		selectedConnectors,
-		selectedDocuments,
-		scrollContainerRef,
-		onStreamStart,
-		onStreamFinish: async (_messages, _userMessage, chatId) => {
-			queryClient.invalidateQueries({ queryKey: ["chats"] });
-			if (chatId) {
-				queryClient.invalidateQueries({ queryKey: ["chatDetails", chatId] });
-			}
-		},
-		onChatCreated,
-	});
-
-	const handleSubmit = (message: string) => {
-		sendMessage(message);
-	};
-
-	const handleReloadLast = () => {
-		const lastUserMessage = [...messages].reverse().find((message) => message.type === "human");
-		if (!lastUserMessage) return;
-		sendMessage(messageContentToText(lastUserMessage.content));
-	};
-
-	const handleEditUserSubmit = (_message: Message, editedContent: string) => {
-		sendMessage(editedContent);
-	};
+	const selectedDocumentIds = useMemo(
+		() => (selectedDocuments || []).map((d) => d.id),
+		[selectedDocuments],
+	);
 
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex h-[calc(100dvh-80px)] flex-col">
-				<Thread
-					messages={messages}
-					isRunning={isStreaming}
-					onSubmit={handleSubmit}
-					onCancel={stopStreaming}
-					onReloadLast={handleReloadLast}
-					onEditUserSubmit={handleEditUserSubmit}
-					searchSpaceId={Number.parseInt(searchSpaceId, 10)}
-					header={<ChatHeader />}
+				<AssistantChatInterface
+					endpoint={endpoint}
+					threadId={threadId}
+					userId={1}
+					token={token || undefined}
+					searchSpaceId={searchSpaceId}
+					selectedConnectors={selectedConnectors}
+					selectedDocumentIds={selectedDocumentIds}
+					chatId={chatId}
+					initialMessages={messages}
+					onChatCreated={onChatCreated}
 					onDocumentSelectionChange={onDocumentSelectionChange}
 					selectedDocuments={selectedDocuments}
 					onConnectorSelectionChange={onConnectorSelectionChange}
-					selectedConnectors={selectedConnectors}
 					searchMode={searchMode}
 					onSearchModeChange={onSearchModeChange}
-					toolCallsByMessage={toolCallsByMessage}
-					thinkingSteps={thinkingSteps}
+					onStreamFinish={(_orderedMessages, _userMessage) => {
+						queryClient.invalidateQueries({ queryKey: ["chats"] });
+						if (chatId) {
+							queryClient.invalidateQueries({
+								queryKey: ["chatDetails", chatId],
+							});
+						}
+					}}
 				/>
 			</div>
 		</div>
