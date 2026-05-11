@@ -3,6 +3,7 @@ import type { ToolDefinition, ToolDependencies } from "../types/agent-types";
 import { createDisplayImageTool } from "./display-image.tool";
 import { createSearchKnowledgeBaseTool } from "./knowledge-base.tool";
 import { createLinkPreviewTool } from "./link-preview.tool";
+import { createGenerateFollowupQuestionsTool } from "./generate-followup-questions.tool";
 
 const BUILTIN_TOOLS: ToolDefinition[] = [
 	{
@@ -24,6 +25,14 @@ const BUILTIN_TOOLS: ToolDefinition[] = [
 		name: "display_image",
 		description: "Display an image in the chat with metadata",
 		factory: () => createDisplayImageTool(),
+		requires: [],
+		enabledByDefault: true,
+	},
+	{
+		name: "generate_followup_questions",
+		description:
+			"Call at the end of the response to emit follow-up suggestions to the user.",
+		factory: () => createGenerateFollowupQuestionsTool(),
 		requires: [],
 		enabledByDefault: true,
 	},

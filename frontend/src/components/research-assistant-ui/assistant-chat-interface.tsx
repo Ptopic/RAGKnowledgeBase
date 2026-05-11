@@ -42,7 +42,7 @@ export interface AssistantChatInterfaceProps {
 }
 
 export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
-	const runtime = useAssistantRuntime({
+	const { followUpQuestions, ...runtime } = useAssistantRuntime({
 		endpoint: props.endpoint,
 		threadId: props.threadId,
 		userId: props.userId,
@@ -78,6 +78,7 @@ export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
 					selectedConnectors={props.selectedConnectors}
 					searchMode={props.searchMode}
 					onSearchModeChange={props.onSearchModeChange}
+					followUpQuestions={followUpQuestions}
 				/>
 			</AssistantRuntimeProvider>
 		</div>

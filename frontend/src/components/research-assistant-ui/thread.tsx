@@ -8,6 +8,7 @@ import {
 	ErrorPrimitive,
 	MessagePrimitive,
 	ThreadPrimitive,
+	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
 import {
@@ -49,8 +50,38 @@ import { Button } from "@/components/ui/button";
 import type { Document } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
 
+function SuggestionButton({
+	prompt,
+	className,
+	children,
+}: {
+	prompt: string;
+	className?: string;
+	children: React.ReactNode;
+}) {
+	const aui = useAui();
+	const handleClick = () => {
+		aui.thread().append({
+			content: [{ type: "text", text: prompt }],
+		});
+	};
+	return (
+		<button
+			type="button"
+			onClick={handleClick}
+			className={cn(
+				"cursor-pointer rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted",
+				className,
+			)}
+		>
+			{children}
+		</button>
+	);
+}
+
 type UndoActionContextValue = {
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
+	followUpQuestions?: string[];
 };
 
 const UndoActionContext = createContext<UndoActionContextValue>({});
@@ -64,6 +95,7 @@ export function Thread({
 	selectedConnectors,
 	searchMode,
 	onSearchModeChange,
+	followUpQuestions = [],
 }: {
 	emptyMessagesPlaceholder?: React.ReactNode;
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
@@ -73,9 +105,10 @@ export function Thread({
 	selectedConnectors?: string[];
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+	followUpQuestions?: string[];
 }) {
 	return (
-		<UndoActionContext.Provider value={{ onDiscardUserMessage }}>
+		<UndoActionContext.Provider value={{ onDiscardUserMessage, followUpQuestions }}>
 			<ThreadPrimitive.Root
 				className="flex h-full flex-col bg-background text-sm"
 				style={
@@ -140,30 +173,20 @@ function ThreadWelcome({ placeholder }: { placeholder?: React.ReactNode }) {
 			</div>
 			<div className="grid w-full gap-2 pb-4 md:grid-cols-2">
 				{/* Add your suggestions here */}
-				<ThreadPrimitive.Suggestion
-					prompt="What's the weather in San Francisco?"
-					asChild
-				>
-					<Button
-						variant="ghost"
-						className="h-auto w-full flex-col items-start justify-start gap-1 border rounded-2xl px-5 py-4 text-left text-sm"
-					>
-						<span className="font-medium">What's the weather</span>
-						<span className="text-muted-foreground">in San Francisco?</span>
-					</Button>
-				</ThreadPrimitive.Suggestion>
-				<ThreadPrimitive.Suggestion
-					prompt="Explain React hooks like useState"
-					asChild
-				>
-					<Button
-						variant="ghost"
-						className="h-auto w-full flex-col items-start justify-start gap-1 border rounded-2xl px-5 py-4 text-left text-sm"
-					>
-						<span className="font-medium">Explain React hooks</span>
-						<span className="text-muted-foreground">like useState</span>
-					</Button>
-				</ThreadPrimitive.Suggestion>
+						<SuggestionButton
+							prompt="What's the weather in San Francisco?"
+							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+						>
+							<span className="font-medium">What's the weather</span>
+							<span className="text-muted-foreground">in San Francisco?</span>
+						</SuggestionButton>
+						<SuggestionButton
+							prompt="What are the top news headlines today?"
+							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+						>
+							<span className="font-medium">What are the top news</span>
+							<span className="text-muted-foreground">headlines today?</span>
+						</SuggestionButton>
 			</div>
 		</div>
 	);
@@ -394,6 +417,7 @@ function EditComposer() {
 }
 
 function AssistantMessage() {
+	const { followUpQuestions } = useContext(UndoActionContext);
 	return (
 		<MessagePrimitive.Root
 			className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-3 fade-in slide-in-from-bottom-1 animate-in duration-150"
@@ -403,9 +427,9 @@ function AssistantMessage() {
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
-					tools: {
-						Fallback: ToolFallback,
-					},
+						tools: {
+							Fallback: ToolFallback,
+						},
 						Reasoning,
 						ReasoningGroup,
 						Source: Sources,
@@ -480,18 +504,22 @@ function AssistantMessage() {
 				}
 			>
 				<div className="mt-4 flex flex-wrap gap-2">
-					<ThreadPrimitive.Suggestion
-						prompt="Tell me more"
-						className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
-					>
-						Tell me more
-					</ThreadPrimitive.Suggestion>
-					<ThreadPrimitive.Suggestion
-						prompt="Can you explain differently?"
-						className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
-					>
-						Explain differently
-					</ThreadPrimitive.Suggestion>
+					{followUpQuestions && followUpQuestions.length > 0 ? (
+						followUpQuestions.map((q) => (
+							<SuggestionButton key={q} prompt={q}>
+								{q}
+							</SuggestionButton>
+						))
+					) : (
+						<>
+							<SuggestionButton prompt="Tell me more">
+								Tell me more
+							</SuggestionButton>
+							<SuggestionButton prompt="Can you explain differently?">
+								Explain differently
+							</SuggestionButton>
+						</>
+					)}
 				</div>
 			</AuiIf>
 		</MessagePrimitive.Root>

@@ -74,6 +74,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	);
 	const currentChatIdRef = useRef<number | undefined>(options.chatId);
 	const lastUserMessageRef = useRef<string>("");
+	const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only re-sync when chatId prop changes
 	useEffect(() => {
@@ -123,6 +124,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		completedToolCallIdsRef.current.clear();
 		setPendingQuestion(null);
 		setStreamError(null);
+		setFollowUpQuestions([]);
 		turnStartIndexRef.current = null;
 	}, [options.resetVersion, options.initialMessages]);
 
@@ -300,8 +302,19 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 						},
 					};
 
-					return updated;
-				});
+				return updated;
+			});
+			}
+
+			if (
+				data?.type === "follow_up_questions" &&
+				Array.isArray(data?.questions)
+			) {
+				const questions = (data.questions as string[]).filter(
+					(q: unknown): q is string =>
+						typeof q === "string" && q.trim().length > 0,
+				);
+				setFollowUpQuestions(questions);
 			}
 		},
 	});
@@ -481,6 +494,38 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		}
 	}, [accumulatedMessages, options.onToolComplete]);
 
+	useEffect(() => {
+		for (const msg of accumulatedMessages) {
+			if (msg.type !== "tool") continue;
+
+			const toolMessage = msg as BaseMessage & {
+				tool_call_id?: string;
+				name?: string;
+				content?: unknown;
+			};
+
+			if (toolMessage.name !== "generate_followup_questions") continue;
+
+			const content = getTextFromContent(toolMessage.content);
+			if (!content) continue;
+
+			try {
+				const parsed = JSON.parse(content);
+				if (
+					Array.isArray(parsed) &&
+					parsed.every((q: unknown) => typeof q === "string")
+				) {
+					const questions = parsed.filter(
+						(q: string) => q.trim().length > 0,
+					);
+					if (questions.length > 0) {
+						setFollowUpQuestions(questions);
+					}
+				}
+			} catch {}
+		}
+	}, [accumulatedMessages]);
+
 	const isRunning = stream.isLoading;
 
 	const messageRepository = useMemo(() => {
@@ -531,6 +576,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	useEffect(() => {
 		if (stream.isLoading) {
 			setStreamError(null);
+			setFollowUpQuestions([]);
 		}
 	}, [stream.isLoading]);
 
@@ -798,7 +844,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		onNew,
 	});
 
-	return runtime;
+	return { ...runtime, followUpQuestions };
 }
 
 async function saveMessagesToBackend(
@@ -851,4 +897,21 @@ async function saveMessagesToBackend(
 		const error = await response.json();
 		throw new Error(error.message || "Failed to save messages");
 	}
+}
+
+function getTextFromContent(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.filter(
+			(part): part is { type: string; text: string } =>
+				typeof part === "object" &&
+				part !== null &&
+				"type" in part &&
+				"text" in part &&
+				part.type === "text" &&
+				typeof part.text === "string",
+		)
+		.map((part) => part.text)
+		.join("");
 }

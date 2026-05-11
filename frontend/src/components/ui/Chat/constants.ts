@@ -11,6 +11,7 @@ export const TOOL_MESSAGES = {
 	search_knowledge_base: "Searching knowledge base",
 	link_preview: "Generating link preview",
 	display_image: "Rendering image",
+	generate_followup_questions: "Generating follow-up questions",
 } as const;
 
 /**
@@ -21,4 +22,5 @@ export const TOOL_ERROR_MESSAGES = {
 	search_knowledge_base: "Failed to search knowledge base.",
 	link_preview: "Failed to load link preview.",
 	display_image: "Failed to render image.",
+	generate_followup_questions: "Failed to generate follow-up questions.",
 } as const;
