@@ -157,6 +157,63 @@ export function getOrderedMessages(
 					content: textContent,
 				});
 			}
+		} else if (msg.type === "tool") {
+			const toolMsg = msg as any;
+			const toolName =
+				toolMsg.name || toolCallIdToName.get(toolMsg.tool_call_id) || "";
+
+			let actualContent: unknown;
+			if (typeof toolMsg.content === "string") {
+				try {
+					actualContent = JSON.parse(toolMsg.content);
+				} catch {
+					actualContent = toolMsg.content;
+				}
+			} else if (
+				typeof toolMsg.content === "object" &&
+				toolMsg.content !== null
+			) {
+				const contentObj = toolMsg.content as { content?: unknown };
+				actualContent = contentObj.content || toolMsg.content;
+			} else {
+				actualContent = toolMsg.content;
+			}
+
+			let parsed: unknown = actualContent;
+			if (typeof actualContent === "string") {
+				try {
+					parsed = JSON.parse(actualContent);
+				} catch {
+					parsed = actualContent;
+				}
+			}
+
+			const parsedObj =
+				typeof parsed === "object" && parsed !== null
+					? (parsed as { data?: unknown })
+					: undefined;
+			const data = parsedObj?.data ?? parsed;
+			const summary =
+				typeof parsedObj?.data === "object" &&
+				parsedObj.data !== null &&
+				"summary" in (parsedObj.data as Record<string, unknown>)
+					? (parsedObj.data as { summary?: unknown }).summary
+					: undefined;
+			const content =
+				typeof summary === "string"
+					? summary
+					: typeof actualContent === "string"
+						? actualContent
+						: JSON.stringify(actualContent);
+
+			orderedMessages.push({
+				type: "tool",
+				toolName,
+				runId: toolMsg.tool_call_id || "",
+				data,
+				content,
+				status: toolMsg.status || "success",
+			});
 		}
 	}
 
