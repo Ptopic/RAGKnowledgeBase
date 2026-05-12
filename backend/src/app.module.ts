@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { AgentModule } from "./agent/agent.module";
+import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
@@ -35,6 +36,7 @@ import { ServicesModule } from "./services/services.module";
 		QueueModule,
 		AuthModule,
 		AgentModule,
+		ApiKeysModule,
 		SearchSpacesModule,
 		DocumentsModule,
 		ChatsModule,

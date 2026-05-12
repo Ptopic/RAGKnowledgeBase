@@ -10,6 +10,7 @@ export interface LLMConfig {
 	litellm_params?: Record<string, any>;
 	created_at: string;
 	search_space_id: number;
+	user_provider_key_id?: string;
 }
 
 export interface LLMPreferences {
@@ -26,11 +27,12 @@ export interface CreateLLMConfig {
 	provider: string;
 	custom_provider?: string;
 	model_name: string;
-	api_key: string;
+	api_key?: string;
 	api_base?: string;
 	language?: string;
 	litellm_params?: Record<string, any>;
 	search_space_id: number;
+	user_provider_key_id?: string;
 }
 
 export interface UpdateLLMConfig {
@@ -41,6 +43,7 @@ export interface UpdateLLMConfig {
 	api_key?: string;
 	api_base?: string;
 	litellm_params?: Record<string, any>;
+	user_provider_key_id?: string;
 }
 
 export interface GetLLMConfigsParams {

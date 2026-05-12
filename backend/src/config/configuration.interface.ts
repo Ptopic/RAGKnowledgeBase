@@ -163,30 +163,35 @@ export interface CohereConfig {
 }
 
 export interface LLMConfig {
-	openai: OpenAIConfig;
-	anthropic: AnthropicConfig;
-	groq: GroqConfig;
-	cohere: CohereConfig;
+  openai: OpenAIConfig;
+  anthropic: AnthropicConfig;
+  groq: GroqConfig;
+  cohere: CohereConfig;
+}
+
+export interface EncryptionConfig {
+  apiKey?: string;
 }
 
 /**
  * Main configuration interface
  */
 export interface AppConfig {
-	port: number;
-	host: string;
-	database: DatabaseConfig;
-	frontend: FrontendConfig;
-	backend: BackendConfig;
-	auth: AuthConfig;
-	google: GoogleConfig;
-	embedding: EmbeddingConfig;
-	reranker: RerankerConfig;
-	etl: ETLConfig;
-	tts: TTSConfig;
-	stt: STTConfig;
-	queue: QueueConfig;
-	langsmith: LangsmithConfig;
-	connectors: ConnectorsConfig;
-	llm: LLMConfig;
+  port: number;
+  host: string;
+  database: DatabaseConfig;
+  frontend: FrontendConfig;
+  backend: BackendConfig;
+  auth: AuthConfig;
+  google: GoogleConfig;
+  embedding: EmbeddingConfig;
+  reranker: RerankerConfig;
+  etl: ETLConfig;
+  tts: TTSConfig;
+  stt: STTConfig;
+  queue: QueueConfig;
+  langsmith: LangsmithConfig;
+  connectors: ConnectorsConfig;
+  llm: LLMConfig;
+  encryption: EncryptionConfig;
 }

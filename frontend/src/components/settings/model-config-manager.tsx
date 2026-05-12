@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useGetApiKeys } from "@/api/api-keys/hooks/useGetApiKeys";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
@@ -69,8 +71,11 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		language: "English",
 		litellm_params: {},
 		search_space_id: searchSpaceId,
+		user_provider_key_id: "",
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [useSavedKey, setUseSavedKey] = useState(false);
+	const { data: savedApiKeys = [] } = useGetApiKeys();
 
 	// Populate form when editing
 	useEffect(() => {
@@ -85,7 +90,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				language: editingConfig.language || "English",
 				litellm_params: editingConfig.litellm_params || {},
 				search_space_id: searchSpaceId,
+				user_provider_key_id: (editingConfig as Record<string, unknown>).user_provider_key_id as string || "",
 			});
+			setUseSavedKey(!!(editingConfig as Record<string, unknown>).user_provider_key_id);
 		}
 	}, [editingConfig, searchSpaceId]);
 
@@ -106,7 +113,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!formData.name || !formData.provider || !formData.model_name || !formData.api_key) {
+		if (!formData.name || !formData.provider || !formData.model_name || (!formData.api_key && !formData.user_provider_key_id)) {
 			toast.error("Please fill in all required fields");
 			return;
 		}
@@ -135,7 +142,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				language: "English",
 				litellm_params: {},
 				search_space_id: searchSpaceId,
+				user_provider_key_id: "",
 			});
+			setUseSavedKey(false);
 			setIsAddingNew(false);
 			setEditingConfig(null);
 		}
@@ -447,6 +456,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					if (!open) {
 						setIsAddingNew(false);
 						setEditingConfig(null);
+						setUseSavedKey(false);
 						setFormData({
 							name: "",
 							provider: "",
@@ -457,6 +467,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							language: "",
 							litellm_params: {},
 							search_space_id: searchSpaceId,
+							user_provider_key_id: "",
 						});
 					}
 				}}
@@ -563,17 +574,66 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							</Select>
 						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="api_key">API Key *</Label>
-							<Input
-								id="api_key"
-								type="password"
-								placeholder="Your API key"
-								value={formData.api_key}
-								onChange={(e) => handleInputChange("api_key", e.target.value)}
-								required
+						<div className="flex items-center justify-between rounded-lg border p-3">
+							<div className="space-y-0.5">
+								<Label className="text-sm font-medium">Use Saved Key</Label>
+								<p className="text-xs text-muted-foreground">
+									{useSavedKey
+										? "Select a previously saved provider key"
+										: "Enter an API key directly"}
+								</p>
+							</div>
+							<Switch
+								checked={useSavedKey}
+								onCheckedChange={setUseSavedKey}
 							/>
 						</div>
+
+						{useSavedKey ? (
+							<div className="space-y-2">
+								<Label htmlFor="saved_key">Saved API Key *</Label>
+								<Select
+									value={formData.user_provider_key_id || ""}
+									onValueChange={(value) => {
+										setFormData((prev) => ({
+											...prev,
+											user_provider_key_id: value,
+											api_key: "",
+										}));
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Select a saved key" />
+									</SelectTrigger>
+									<SelectContent>
+										{savedApiKeys.map((key) => (
+											<SelectItem key={key.id} value={key.id}>
+												<div className="flex items-center gap-2">
+													<Badge variant="secondary" className="text-xs">{key.provider}</Badge>
+													<span>{key.name}</span>
+												</div>
+											</SelectItem>
+										))}
+										{savedApiKeys.length === 0 && (
+											<div className="p-2 text-sm text-muted-foreground text-center">
+												No saved keys. Add one in Settings &rarr; API Keys.
+											</div>
+										)}
+									</SelectContent>
+								</Select>
+							</div>
+						) : (
+							<div className="space-y-2">
+								<Label htmlFor="api_key">API Key *</Label>
+								<Input
+									id="api_key"
+									type="password"
+									placeholder="Your API key"
+									value={formData.api_key}
+									onChange={(e) => handleInputChange("api_key", e.target.value)}
+								/>
+							</div>
+						)}
 
 						<div className="space-y-2">
 							<Label htmlFor="api_base">
@@ -637,6 +697,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 								onClick={() => {
 									setIsAddingNew(false);
 									setEditingConfig(null);
+									setUseSavedKey(false);
 									setFormData({
 										name: "",
 										provider: "",
@@ -647,6 +708,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 										language: "",
 										litellm_params: {},
 										search_space_id: searchSpaceId,
+										user_provider_key_id: "",
 									});
 								}}
 								disabled={isSubmitting}

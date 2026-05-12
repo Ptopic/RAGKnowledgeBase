@@ -116,6 +116,7 @@ model User {
   searchSpaces           SearchSpace[]
   searchSourceConnectors SearchSourceConnector[]
   searchSpacePreferences UserSearchSpacePreference[]
+  providerApiKeys        UserProviderApiKey[]
 
   @@map("user")
 }
@@ -276,8 +277,12 @@ model LLMConfig {
 
   searchSpaceId Int @map("search_space_id")
 
+  // FK to user provider API key (optional - if using stored key)
+  userProviderKeyId String? @map("user_provider_key_id")
+
   // Relationships
-  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  searchSpace    SearchSpace         @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  userProviderKey UserProviderApiKey? @relation(fields: [userProviderKeyId], references: [id], onDelete: SetNull)
 
   // Reverse relationships for user preferences
   userPreferencesLongContext UserSearchSpacePreference[] @relation("LongContextLLM")
@@ -286,7 +291,27 @@ model LLMConfig {
 
   @@index([name])
   @@index([searchSpaceId])
+  @@index([userProviderKeyId])
   @@map("llm_configs")
+}
+
+// User Provider API Key Model
+model UserProviderApiKey {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId   String          @map("user_id")
+  provider LiteLLMProvider @map("provider")
+  name     String          @db.VarChar(100)
+  apiKey   String          @map("api_key") @db.Text // AES-256 encrypted
+
+  // Relations
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  llmConfigs   LLMConfig[]
+
+  @@unique([userId, provider], name: "uq_user_provider")
+  @@index([userId])
+  @@map("user_provider_api_keys")
 }
 
 // User Search Space Preference Model

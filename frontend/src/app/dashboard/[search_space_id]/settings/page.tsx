@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowLeft, Bot, Brain, Settings } from "lucide-react";
+import { ArrowLeft, Bot, Brain, Key, Settings } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { ApiKeysManager } from "@/components/settings/api-keys-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { Separator } from "@/components/ui/separator";
@@ -44,7 +45,7 @@ export default function SettingsPage() {
 					{/* Settings Content */}
 					<Tabs defaultValue="models" className="space-y-8">
 						<div className="overflow-x-auto">
-							<TabsList className="grid w-full min-w-fit grid-cols-2 lg:w-auto lg:inline-grid">
+							<TabsList className="grid w-full min-w-fit grid-cols-3 lg:w-auto lg:inline-grid">
 								<TabsTrigger value="models" className="flex items-center gap-2 text-sm">
 									<Bot className="h-4 w-4" />
 									<span className="hidden sm:inline">Model Configs</span>
@@ -55,6 +56,11 @@ export default function SettingsPage() {
 									<span className="hidden sm:inline">LLM Roles</span>
 									<span className="sm:hidden">Roles</span>
 								</TabsTrigger>
+								<TabsTrigger value="api-keys" className="flex items-center gap-2 text-sm">
+									<Key className="h-4 w-4" />
+									<span className="hidden sm:inline">API Keys</span>
+									<span className="sm:hidden">Keys</span>
+								</TabsTrigger>
 							</TabsList>
 						</div>
 
@@ -64,6 +70,10 @@ export default function SettingsPage() {
 
 						<TabsContent value="roles" className="space-y-6">
 							<LLMRoleManager searchSpaceId={searchSpaceId} />
+						</TabsContent>
+
+						<TabsContent value="api-keys" className="space-y-6">
+							<ApiKeysManager />
 						</TabsContent>
 					</Tabs>
 				</div>

@@ -12,10 +12,14 @@ import {
 	UpdateLLMConfigDto,
 } from "./dtos/llm-config.dto";
 import { PrismaService } from "../prisma/prisma.service";
+import { ApiKeysService } from "../api-keys/api-keys.service";
 
 @Injectable()
 export class LLMConfigsService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private apiKeysService: ApiKeysService,
+	) {}
 
 	async checkSearchSpaceAccess(
 		searchSpaceId: number,
@@ -39,23 +43,41 @@ export class LLMConfigsService {
 		try {
 			await this.checkSearchSpaceAccess(createDto.search_space_id, userId);
 
+			if (!createDto.api_key && !createDto.user_provider_key_id) {
+				throw new BadRequestException(
+					'Either api_key or user_provider_key_id must be provided',
+				);
+			}
+
+			let apiKeyToStore: string;
+
+			if (createDto.user_provider_key_id) {
+				apiKeyToStore = await this.apiKeysService.getDecryptedKey(
+					createDto.user_provider_key_id,
+					userId,
+				);
+			} else {
+				apiKeyToStore = createDto.api_key!;
+			}
+
 			const llmConfig = await this.prisma.lLMConfig.create({
 				data: {
 					name: createDto.name,
 					provider: createDto.provider,
 					customProvider: createDto.custom_provider,
 					modelName: createDto.model_name,
-					apiKey: createDto.api_key,
+					apiKey: apiKeyToStore,
 					apiBase: createDto.api_base,
 					language: createDto.language || "English",
 					litellmParams: createDto.litellm_params || {},
 					searchSpaceId: createDto.search_space_id,
+					userProviderKeyId: createDto.user_provider_key_id || null,
 				},
 			});
 
 			return this.toDto(llmConfig);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof BadRequestException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -129,6 +151,16 @@ export class LLMConfigsService {
 
 			await this.checkSearchSpaceAccess(llmConfig.searchSpaceId, userId);
 
+			let apiKeyToStore: string | undefined;
+			if (updateDto.user_provider_key_id) {
+				apiKeyToStore = await this.apiKeysService.getDecryptedKey(
+					updateDto.user_provider_key_id,
+					userId,
+				);
+			} else if (updateDto.api_key) {
+				apiKeyToStore = updateDto.api_key;
+			}
+
 			const updated = await this.prisma.lLMConfig.update({
 				where: { id },
 				data: {
@@ -136,10 +168,13 @@ export class LLMConfigsService {
 					provider: updateDto.provider,
 					customProvider: updateDto.custom_provider,
 					modelName: updateDto.model_name,
-					apiKey: updateDto.api_key,
+					apiKey: apiKeyToStore,
 					apiBase: updateDto.api_base,
 					language: updateDto.language,
 					litellmParams: updateDto.litellm_params,
+					userProviderKeyId: updateDto.user_provider_key_id !== undefined
+						? updateDto.user_provider_key_id
+						: undefined,
 				},
 			});
 
@@ -327,6 +362,7 @@ export class LLMConfigsService {
 			language: llmConfig.language,
 			litellm_params: llmConfig.litellmParams,
 			search_space_id: llmConfig.searchSpaceId,
+			user_provider_key_id: llmConfig.userProviderKeyId,
 			created_at: llmConfig.createdAt,
 		};
 	}

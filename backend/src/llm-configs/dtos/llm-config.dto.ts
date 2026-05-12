@@ -27,7 +27,12 @@ export class LLMConfigBaseDto {
 	model_name: string;
 
 	@IsString()
-	api_key: string;
+	@IsOptional()
+	api_key?: string;
+
+	@IsString()
+	@IsOptional()
+	user_provider_key_id?: string;
 
 	@IsString()
 	@IsOptional()
@@ -75,6 +80,10 @@ export class UpdateLLMConfigDto {
 
 	@IsString()
 	@IsOptional()
+	user_provider_key_id?: string;
+
+	@IsString()
+	@IsOptional()
 	@MaxLength(500)
 	api_base?: string;
 
@@ -94,6 +103,10 @@ export class LLMConfigDto extends LLMConfigBaseDto {
 
 	@IsInt()
 	search_space_id: number;
+
+	@IsString()
+	@IsOptional()
+	user_provider_key_id?: string;
 
 	@Type(() => Date)
 	created_at: Date;
