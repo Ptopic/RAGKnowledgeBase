@@ -15,3 +15,5 @@ export const LOGS_SUMMARY = "logsSummary";
 export const SEARCH_SPACE_CONNECTORS = "searchSpaceConnectors";
 export const SEARCH_SPACES = "searchSpaces";
 export const SEARCH_SPACE = "searchSpace";
+export const SHARE_LINKS = "shareLinks";
+export const SHARED_CHAT = "sharedChat";

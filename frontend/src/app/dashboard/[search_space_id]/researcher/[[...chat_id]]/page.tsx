@@ -1,7 +1,9 @@
 "use client";
 import { AIMessage, type Message, ToolMessage } from "@langchain/core/messages";
+import { Share2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import ShareChatModal from "@/components/chat/ShareChatModal";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
@@ -134,6 +136,7 @@ export default function ResearcherPage() {
 	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
 		chatIdParam ? Number.parseInt(chatIdParam, 10) : undefined,
 	);
+	const [shareModalOpen, setShareModalOpen] = useState(false);
 
 	// Refs to track current state for useEffect access without dependency issues
 	const chatIdRef = useRef(currentChatId);
@@ -254,21 +257,40 @@ export default function ResearcherPage() {
 	}
 
 	return (
-		<TestChatInterface
-			onDocumentSelectionChange={setSelectedDocuments}
-			selectedDocuments={selectedDocuments}
-			onConnectorSelectionChange={setSelectedConnectors}
-			selectedConnectors={selectedConnectors}
-			searchMode={searchMode}
-			onSearchModeChange={setSearchMode}
-			messages={messages}
-			setMessages={setMessages}
-			threadId={chatIdParam || "new_chat"}
-			chatId={currentChatId}
-			userId={1}
-			token={token}
-			searchSpaceId={search_space_id as string}
-			onChatCreated={handleChatCreated}
-		/>
+		<div className="relative h-full">
+			<TestChatInterface
+				onDocumentSelectionChange={setSelectedDocuments}
+				selectedDocuments={selectedDocuments}
+				onConnectorSelectionChange={setSelectedConnectors}
+				selectedConnectors={selectedConnectors}
+				searchMode={searchMode}
+				onSearchModeChange={setSearchMode}
+				messages={messages}
+				setMessages={setMessages}
+				threadId={chatIdParam || "new_chat"}
+				chatId={currentChatId}
+				userId={1}
+				token={token}
+				searchSpaceId={search_space_id as string}
+				onChatCreated={handleChatCreated}
+			/>
+			{currentChatId && token && (
+				<>
+					<button
+						type="button"
+						onClick={() => setShareModalOpen(true)}
+						className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+					>
+						<Share2 className="h-4 w-4" />
+						Share
+					</button>
+					<ShareChatModal
+						chatId={currentChatId}
+						open={shareModalOpen}
+						onOpenChange={setShareModalOpen}
+					/>
+				</>
+			)}
+		</div>
 	);
 }

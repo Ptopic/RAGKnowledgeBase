@@ -5,6 +5,7 @@ import { AgentModule } from "./agent/agent.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
+import { ChatShareModule } from "./chat-share/chat-share.module";
 import { ChatsModule } from "./chats/chats.module";
 import { AppConfigModule } from "./config/config.module";
 import configuration from "./config/configuration";
@@ -38,6 +39,7 @@ import { ServicesModule } from "./services/services.module";
 		SearchSpacesModule,
 		DocumentsModule,
 		ChatsModule,
+		ChatShareModule,
 		SearchSourceConnectorsModule,
 		LLMConfigsModule,
 		LogsModule,
