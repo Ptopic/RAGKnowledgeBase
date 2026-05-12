@@ -57,6 +57,9 @@ export class ChatDto extends ChatBaseDto {
 	@IsInt()
 	id: number;
 
+	@IsOptional()
+	is_favorite?: boolean;
+
 	@Type(() => Date)
 	created_at: Date;
 }
@@ -77,6 +80,9 @@ export class ChatWithoutMessagesDto {
 
 	@IsInt()
 	search_space_id: number;
+
+	@IsOptional()
+	is_favorite?: boolean;
 
 	@Type(() => Date)
 	created_at: Date;
@@ -105,4 +111,11 @@ export class SaveMessagesDto {
 		content: string | Record<string, unknown>;
 		metadata?: Record<string, unknown>;
 	}>;
+}
+
+export class ToggleFavoriteDto {}
+
+export class FavoriteChatResponseDto {
+	@IsString()
+	message: string;
 }

@@ -1,9 +1,12 @@
 import { withAuthenticatedClientRequest } from "@api/requestBuilder/client/withClientRequest";
 import {
+	addFavoriteChat,
 	createChat,
 	deleteChat,
 	getChatDetails,
 	getChats,
+	getFavoriteChats,
+	removeFavoriteChat,
 	updateChat,
 } from "./requests";
 
@@ -13,6 +16,9 @@ const chatsClientRequests = {
 	createChat: withAuthenticatedClientRequest(createChat),
 	updateChat: withAuthenticatedClientRequest(updateChat),
 	deleteChat: withAuthenticatedClientRequest(deleteChat),
+	addFavoriteChat: withAuthenticatedClientRequest(addFavoriteChat),
+	removeFavoriteChat: withAuthenticatedClientRequest(removeFavoriteChat),
+	getFavoriteChats: withAuthenticatedClientRequest(getFavoriteChats),
 };
 
 export default chatsClientRequests;

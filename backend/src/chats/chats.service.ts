@@ -1,5 +1,6 @@
 import {
 	BadRequestException,
+	ConflictException,
 	Injectable,
 	InternalServerErrorException,
 	NotFoundException,
@@ -88,13 +89,12 @@ export class ChatsService {
 				skip,
 				take: limit,
 				orderBy: { createdAt: "desc" },
-				select: {
-					id: true,
-					type: true,
-					title: true,
-					initialConnectors: true,
-					searchSpaceId: true,
-					createdAt: true,
+				include: {
+					favorites: {
+						where: { userId },
+						select: { id: true },
+						take: 1,
+					},
 				},
 			});
 
@@ -205,6 +205,128 @@ export class ChatsService {
 		}
 	}
 
+	async addFavorite(chatId: number, userId: string): Promise<ChatDto> {
+		try {
+			const chat = await this.prisma.chat.findFirst({
+				where: {
+					id: chatId,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!chat) {
+				throw new NotFoundException(
+					"Chat not found or you do not have permission to access it",
+				);
+			}
+
+			await this.prisma.userChatFavorite.create({
+				data: {
+					userId,
+					chatId,
+				},
+			});
+
+			return this.toDto(chat);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			if (error.code === "P2002") {
+				throw new ConflictException("Chat is already favorited");
+			}
+			throw new InternalServerErrorException(
+				`Failed to add favorite: ${error.message}`,
+			);
+		}
+	}
+
+	async removeFavorite(
+		chatId: number,
+		userId: string,
+	): Promise<{ message: string }> {
+		try {
+			const chat = await this.prisma.chat.findFirst({
+				where: {
+					id: chatId,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!chat) {
+				throw new NotFoundException(
+					"Chat not found or you do not have permission to access it",
+				);
+			}
+
+			await this.prisma.userChatFavorite.deleteMany({
+				where: {
+					userId,
+					chatId,
+				},
+			});
+
+			return { message: "Favorite removed successfully" };
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to remove favorite: ${error.message}`,
+			);
+		}
+	}
+
+	async findFavorites(
+		userId: string,
+		skip: number = 0,
+		limit: number = 100,
+		searchSpaceId?: number,
+	): Promise<ChatDto[]> {
+		try {
+			if (skip < 0) {
+				throw new BadRequestException("skip must be a non-negative integer");
+			}
+			if (limit <= 0 || limit > 1000) {
+				throw new BadRequestException("limit must be between 1 and 1000");
+			}
+			if (searchSpaceId !== undefined && searchSpaceId <= 0) {
+				throw new BadRequestException(
+					"search_space_id must be a positive integer",
+				);
+			}
+
+			const where: any = {
+				userId,
+			};
+
+			if (searchSpaceId !== undefined) {
+				where.chat = {
+					searchSpaceId,
+				};
+			}
+
+			const favorites = await this.prisma.userChatFavorite.findMany({
+				where,
+				skip,
+				take: limit,
+				orderBy: { createdAt: "desc" },
+				include: {
+					chat: true,
+				},
+			});
+
+			return favorites.map((fav) => ({ ...this.toDto(fav.chat), is_favorite: true }));
+		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to fetch favorites: ${error.message}`,
+			);
+		}
+	}
+
 	private toDto(chat: any): ChatDto {
 		return {
 			id: chat.id,
@@ -213,6 +335,9 @@ export class ChatsService {
 			initial_connectors: chat.initialConnectors || [],
 			messages: chat.messages,
 			search_space_id: chat.searchSpaceId,
+			is_favorite: Array.isArray(chat.favorites)
+				? chat.favorites.length > 0
+				: undefined,
 			created_at: chat.createdAt,
 		};
 	}
@@ -224,6 +349,9 @@ export class ChatsService {
 			title: chat.title,
 			initial_connectors: chat.initialConnectors || [],
 			search_space_id: chat.searchSpaceId,
+			is_favorite: Array.isArray(chat.favorites)
+				? chat.favorites.length > 0
+				: undefined,
 			created_at: chat.createdAt,
 		};
 	}
