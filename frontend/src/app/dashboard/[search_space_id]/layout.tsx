@@ -79,6 +79,21 @@ export default function DashboardLayout({
 			],
 		},
 		{
+			title: "Blogs",
+			url: "#",
+			icon: "BookOpen",
+			items: [
+				{
+					title: "Create Blog",
+					url: `/dashboard/${search_space_id}/blogs/create`,
+				},
+				{
+					title: "Manage Blogs",
+					url: `/dashboard/${search_space_id}/blogs`,
+				},
+			],
+		},
+		{
 			title: "Logs",
 			url: `/dashboard/${search_space_id}/logs`,
 			icon: "FileText",

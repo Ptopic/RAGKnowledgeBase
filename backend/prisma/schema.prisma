@@ -23,6 +23,7 @@ enum DocumentType {
   GITHUB_CONNECTOR
   GOOGLE_CALENDAR_CONNECTOR
   GOOGLE_GMAIL_CONNECTOR
+  BLOG
 }
 
 enum SearchSourceConnectorType {
@@ -116,6 +117,7 @@ model User {
   searchSpaces           SearchSpace[]
   searchSourceConnectors SearchSourceConnector[]
   searchSpacePreferences UserSearchSpacePreference[]
+  blogs                  Blog[]
 
   @@map("user")
 }
@@ -154,6 +156,7 @@ model SearchSpace {
   user                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents              Document[]
   chats                  Chat[]
+  blogs                  Blog[]
   logs                   Log[]
   searchSourceConnectors SearchSourceConnector[]
   llmConfigs             LLMConfig[]
@@ -314,6 +317,31 @@ model UserSearchSpacePreference {
   @@index([userId])
   @@index([searchSpaceId])
   @@map("user_search_space_preferences")
+}
+
+// Blog Model
+model Blog {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  title       String @db.VarChar(255)
+  slug        String @unique @db.VarChar(300)
+  content     String @db.Text
+  contentType String @default("html") @map("content_type") @db.VarChar(20)
+  excerpt     String? @db.VarChar(500)
+
+  searchSpaceId Int    @map("search_space_id")
+  authorId      String @map("author_id")
+
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([searchSpaceId])
+  @@index([slug])
+  @@index([authorId])
+  @@map("blogs")
 }
 
 // Log Model
