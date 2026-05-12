@@ -116,6 +116,7 @@ model User {
   searchSpaces           SearchSpace[]
   searchSourceConnectors SearchSourceConnector[]
   searchSpacePreferences UserSearchSpacePreference[]
+  queryTemplates         QueryTemplate[]
 
   @@map("user")
 }
@@ -158,6 +159,7 @@ model SearchSpace {
   searchSourceConnectors SearchSourceConnector[]
   llmConfigs             LLMConfig[]
   userPreferences        UserSearchSpacePreference[]
+  queryTemplates         QueryTemplate[]
 
   @@index([name])
   @@index([userId])
@@ -337,4 +339,29 @@ model Log {
   @@index([source])
   @@index([searchSpaceId])
   @@map("logs")
+}
+
+// Query Template Model
+model QueryTemplate {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  title       String  @db.VarChar(200)
+  description String? @db.VarChar(500)
+  content     String  @db.Text
+  icon        String? @db.VarChar(100)
+  isGlobal    Boolean @default(false) @map("is_global")
+
+  searchSpaceId Int?    @map("search_space_id")
+  createdById   String  @map("created_by_id")
+
+  // Relationships
+  searchSpace SearchSpace? @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([searchSpaceId])
+  @@index([isGlobal])
+  @@index([createdById])
+  @@map("query_templates")
 }
