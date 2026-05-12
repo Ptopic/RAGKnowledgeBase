@@ -1,6 +1,7 @@
 // export const KEY = 'key';
 export const CURRENT_USER = "currentUser";
 export const CHATS = "chats";
+export const FAVORITE_CHATS = "favoriteChats";
 export const CHAT_DETAILS = "chatDetails";
 export const CONNECTORS = "connectors";
 export const CONNECTOR = "connector";

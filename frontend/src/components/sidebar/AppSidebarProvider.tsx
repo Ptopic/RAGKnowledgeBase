@@ -1,5 +1,7 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
 import useGetChats from "@/api/chats/hooks/useGetChats";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
@@ -13,8 +15,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface AppSidebarProviderProps {
 	searchSpaceId: string;
@@ -41,7 +41,10 @@ export function AppSidebarProvider({
 	navMain,
 }: AppSidebarProviderProps) {
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
+	const [chatToDelete, setChatToDelete] = useState<{
+		id: number;
+		name: string;
+	} | null>(null);
 	const [isClient, setIsClient] = useState(false);
 
 	// Set isClient to true when component mounts on the client
@@ -61,7 +64,7 @@ export function AppSidebarProvider({
 		},
 		{
 			refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
-		}
+		},
 	);
 
 	// Fetch search space details using React Query
@@ -82,10 +85,13 @@ export function AppSidebarProvider({
 
 	// Transform chats to the format expected by AppSidebar
 	const recentChats = useMemo(() => {
-		// Sort chats by created_at in descending order (newest first)
-		const sortedChats = [...chats].sort(
-			(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-		);
+		const sortedChats = [...chats].sort((a, b) => {
+			if (a.is_favorite && !b.is_favorite) return -1;
+			if (!a.is_favorite && b.is_favorite) return 1;
+			return (
+				new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+			);
+		});
 
 		return sortedChats.map((chat) => ({
 			name: chat.title || `Chat ${chat.id}`,
@@ -93,12 +99,16 @@ export function AppSidebarProvider({
 			icon: "MessageCircleMore",
 			id: chat.id,
 			search_space_id: chat.search_space_id,
+			is_favorite: chat.is_favorite ?? false,
 			actions: [
 				{
 					name: "Delete",
 					icon: "Trash2",
 					onClick: () => {
-						setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
+						setChatToDelete({
+							id: chat.id,
+							name: chat.title || `Chat ${chat.id}`,
+						});
 						setShowDeleteDialog(true);
 					},
 				},
@@ -153,7 +163,13 @@ export function AppSidebarProvider({
 		}
 
 		return [];
-	}, [chatError, isLoadingChats, recentChats.length, searchSpaceId, retryFetch]);
+	}, [
+		chatError,
+		isLoadingChats,
+		recentChats.length,
+		searchSpaceId,
+		retryFetch,
+	]);
 
 	// Use fallback chats if there's an error or no chats
 	const displayChats = recentChats.length > 0 ? recentChats : fallbackChats;
@@ -184,12 +200,22 @@ export function AppSidebarProvider({
 
 	// Show loading state if not client-side
 	if (!isClient) {
-		return <AppSidebar navSecondary={navSecondary} navMain={navMain} RecentChats={[]} />;
+		return (
+			<AppSidebar
+				navSecondary={navSecondary}
+				navMain={navMain}
+				RecentChats={[]}
+			/>
+		);
 	}
 
 	return (
 		<>
-			<AppSidebar navSecondary={updatedNavSecondary} navMain={navMain} RecentChats={displayChats} />
+			<AppSidebar
+				navSecondary={updatedNavSecondary}
+				navMain={navMain}
+				RecentChats={displayChats}
+			/>
 
 			{/* Delete Confirmation Dialog */}
 			<Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -200,7 +226,9 @@ export function AppSidebarProvider({
 							<span>Delete Chat</span>
 						</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to delete <span className="font-medium">{chatToDelete?.name}</span>? This action cannot be undone.
+							Are you sure you want to delete{" "}
+							<span className="font-medium">{chatToDelete?.name}</span>? This
+							action cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="flex gap-2 sm:justify-end">
