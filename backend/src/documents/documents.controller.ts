@@ -24,6 +24,7 @@ import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
+	FavoriteDocumentsResponseDto,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
 } from "./dtos/document.dto";
@@ -182,5 +183,46 @@ export class DocumentsController {
 		@Req() req: any,
 	): Promise<{ message: string }> {
 		return this.documentsService.remove(id, req.user.id);
+	}
+
+	@Post(":id/favorite")
+	async addFavorite(
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<{ message: string }> {
+		return this.documentsService.addFavorite(id, req.user.id);
+	}
+
+	@Delete(":id/favorite")
+	async removeFavorite(
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<{ message: string }> {
+		return this.documentsService.removeFavorite(id, req.user.id);
+	}
+
+	@Get("favorites")
+	async getFavorites(
+		@Req() req: any,
+		@Query("search_space_id") searchSpaceId?: string,
+		@Query("document_types") documentTypes?: string,
+		@Query("skip") skip?: string,
+		@Query("page") page?: string,
+		@Query("page_size") pageSize?: string,
+	): Promise<FavoriteDocumentsResponseDto> {
+		const searchSpaceIdNum =
+			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
+		const skipNum = skip !== undefined ? parseInt(skip, 10) : undefined;
+		const pageNum = page !== undefined ? parseInt(page, 10) : undefined;
+		const pageSizeNum = pageSize !== undefined ? parseInt(pageSize, 10) : 50;
+
+		return this.documentsService.findFavorites(
+			req.user.id,
+			searchSpaceIdNum,
+			skipNum,
+			pageNum,
+			pageSizeNum,
+			documentTypes,
+		);
 	}
 }

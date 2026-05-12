@@ -17,4 +17,5 @@ export type ColumnVisibility = {
 	content: boolean;
 	chunks: boolean;
 	created_at: boolean;
+	favorite: boolean;
 };

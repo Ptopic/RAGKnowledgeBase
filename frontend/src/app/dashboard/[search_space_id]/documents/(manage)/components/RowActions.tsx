@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Star } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
@@ -27,14 +27,19 @@ import type { Document } from "./types";
 export function RowActions({
 	document,
 	deleteDocument,
+	favoriteIds,
+	onToggleFavorite,
 	refreshDocuments,
 }: {
 	document: Document;
 	deleteDocument: (id: number) => Promise<boolean>;
+	favoriteIds: Set<number>;
+	onToggleFavorite: (id: number, isFavorite: boolean) => void;
 	refreshDocuments: () => Promise<void>;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const isFav = favoriteIds.has(document.id);
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -53,7 +58,23 @@ export function RowActions({
 	};
 
 	return (
-		<div className="flex justify-end">
+		<div className="flex justify-end gap-1">
+			<Button
+				variant="ghost"
+				size="sm"
+				className="h-8 w-8 p-0"
+				onClick={() => onToggleFavorite(document.id, isFav)}
+				aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+			>
+				<Star
+					size={16}
+					className={
+						isFav
+							? "fill-amber-400 text-amber-400"
+							: "text-muted-foreground"
+					}
+				/>
+			</Button>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" className="h-8 w-8 p-0">

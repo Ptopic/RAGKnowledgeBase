@@ -230,15 +230,16 @@ export function DocumentsFilters({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
 						<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-						{(
-							[
-								["title", "Title"],
-								["document_type", "Type"],
-								["content", "Content"],
-								["chunks", "Chunks"],
-								["created_at", "Created At"],
-							] as Array<[keyof ColumnVisibility, string]>
-						).map(([key, label]) => (
+					{(
+						[
+							["title", "Title"],
+							["document_type", "Type"],
+							["content", "Content"],
+							["chunks", "Chunks"],
+							["created_at", "Created At"],
+							["favorite", "Favorite"],
+						] as Array<[keyof ColumnVisibility, string]>
+					).map(([key, label]) => (
 							<DropdownMenuCheckboxItem
 								key={key}
 								className="capitalize"

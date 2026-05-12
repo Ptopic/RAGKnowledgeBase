@@ -12,6 +12,7 @@ import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
+	FavoriteDocumentsResponseDto,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
 } from "./dtos/document.dto";
@@ -512,5 +513,148 @@ export class DocumentsService {
 				documentId: chunk.documentId,
 			})),
 		};
+	}
+
+	async addFavorite(
+		id: number,
+		userId: string,
+	): Promise<{ message: string }> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!document) {
+				throw new NotFoundException(`Document with id ${id} not found`);
+			}
+
+			await this.prisma.userDocumentFavorite.upsert({
+				where: {
+					userId_documentId: {
+						userId,
+						documentId: id,
+					},
+				},
+				create: {
+					userId,
+					documentId: id,
+				},
+				update: {},
+			});
+
+			return { message: "Document added to favorites" };
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to add favorite: ${error.message}`,
+			);
+		}
+	}
+
+	async removeFavorite(
+		id: number,
+		userId: string,
+	): Promise<{ message: string }> {
+		try {
+			await this.prisma.userDocumentFavorite.delete({
+				where: {
+					userId_documentId: {
+						userId,
+						documentId: id,
+					},
+				},
+			});
+
+			return { message: "Document removed from favorites" };
+		} catch (error) {
+			if (error.code === "P2025") {
+				throw new NotFoundException(
+					`Document is not in your favorites`,
+				);
+			}
+			throw new InternalServerErrorException(
+				`Failed to remove favorite: ${error.message}`,
+			);
+		}
+	}
+
+	async findFavorites(
+		userId: string,
+		searchSpaceId?: number,
+		skip?: number,
+		page?: number,
+		pageSize: number = 50,
+		documentTypes?: string,
+	): Promise<FavoriteDocumentsResponseDto> {
+		try {
+			let offset = 0;
+			if (skip !== undefined && skip !== null) {
+				offset = skip;
+			} else if (page !== undefined && page !== null) {
+				offset = page * pageSize;
+			}
+
+			const where: any = {
+				userId,
+			};
+
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				where.document = {
+					searchSpaceId,
+				};
+			}
+
+			if (documentTypes) {
+				const types = documentTypes.split(",").map((t) => t.trim());
+				where.document = {
+					...where.document,
+					documentType: { in: types },
+				};
+			}
+
+			const total = await this.prisma.userDocumentFavorite.count({ where });
+
+			const favorites = await this.prisma.userDocumentFavorite.findMany({
+				where,
+				skip: offset,
+				take: pageSize === -1 ? undefined : pageSize,
+				orderBy: { createdAt: "desc" },
+				include: {
+					document: {
+						include: {
+							_count: { select: { chunks: true } },
+						},
+					},
+				},
+			});
+
+			const allFavoritesWhere: any = { userId };
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				allFavoritesWhere.document = { searchSpaceId };
+			}
+
+			const allFavoriteIds = await this.prisma.userDocumentFavorite.findMany({
+				where: allFavoritesWhere,
+				select: { documentId: true },
+			});
+
+			return {
+				items: favorites.map((fav) => this.toDto(fav.document)),
+				total,
+				favorite_ids: allFavoriteIds.map((f) => f.documentId),
+			};
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to fetch favorite documents: ${error.message}`,
+			);
+		}
 	}
 }

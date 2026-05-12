@@ -6,6 +6,7 @@ export const CONNECTORS = "connectors";
 export const CONNECTOR = "connector";
 export const DOCUMENTS = "documents";
 export const SEARCH_DOCUMENTS = "searchDocuments";
+export const FAVORITE_DOCUMENTS = "favoriteDocuments";
 export const DOCUMENT_BY_CHUNK = "documentByChunk";
 export const DOCUMENT_TYPE_COUNTS = "documentTypeCounts";
 export const LLM_CONFIGS = "llmConfigs";

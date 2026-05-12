@@ -8,6 +8,7 @@ import type {
 	CrawlWebpagesResponse,
 	Document,
 	DocumentWithChunks,
+	FavoriteDocumentsResponse,
 	GetDocumentsParams,
 	GetDocumentTypeCountsParams,
 	ListResponse,
@@ -164,4 +165,47 @@ export const getDocumentTypeCounts =
 			...init,
 			method: "GET",
 		}));
+	};
+
+export const addFavorite =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (documentId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/favorite`, (init) => ({
+			...init,
+			method: "POST",
+		}));
+
+export const removeFavorite =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (documentId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/favorite`, (init) => ({
+			...init,
+			method: "DELETE",
+		}));
+
+export const getFavoriteDocuments =
+	(request: ICallableRequestBuilder<unknown>) =>
+	async (params: GetDocumentsParams): Promise<FavoriteDocumentsResponse> => {
+		const url = new URL(`${config.apiUrl}/documents/favorites`);
+		url.searchParams.append(
+			"search_space_id",
+			params.search_space_id.toString(),
+		);
+		if (params.page !== undefined) {
+			url.searchParams.append("page", params.page.toString());
+		}
+		if (params.page_size !== undefined) {
+			url.searchParams.append("page_size", params.page_size.toString());
+		}
+		if (params.document_types && params.document_types.length > 0) {
+			url.searchParams.append(
+				"document_types",
+				params.document_types.join(","),
+			);
+		}
+		const data = await request.call(url.toString(), (init) => ({
+			...init,
+			method: "GET",
+		}));
+		return data as FavoriteDocumentsResponse;
 	};

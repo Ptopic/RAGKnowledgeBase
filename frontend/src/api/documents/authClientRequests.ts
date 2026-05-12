@@ -1,12 +1,15 @@
 import { withAuthenticatedClientRequest } from "@api/requestBuilder/client/withClientRequest";
 import {
+	addFavorite,
 	addYouTubeVideos,
 	crawlWebpages,
 	deleteDocument,
 	getDocumentByChunk,
+	getDocumentTypeCounts,
 	getDocumentWithChunks,
 	getDocuments,
-	getDocumentTypeCounts,
+	getFavoriteDocuments,
+	removeFavorite,
 	searchDocuments,
 	uploadDocuments,
 } from "./requests";
@@ -36,6 +39,9 @@ const documentsClientRequests = {
 	getDocuments: withAuthenticatedClientRequest(getDocuments),
 	searchDocuments: withAuthenticatedClientRequest(searchDocuments),
 	deleteDocument: withAuthenticatedClientRequest(deleteDocument),
+	addFavorite: withAuthenticatedClientRequest(addFavorite),
+	removeFavorite: withAuthenticatedClientRequest(removeFavorite),
+	getFavoriteDocuments: withAuthenticatedClientRequest(getFavoriteDocuments),
 };
 
 export default documentsClientRequests;

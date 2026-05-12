@@ -38,6 +38,7 @@ export default function DocumentsTable() {
 		content: true,
 		chunks: true,
 		created_at: true,
+		favorite: true,
 	});
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(50);
@@ -52,10 +53,13 @@ export default function DocumentsTable() {
 		total,
 		loading,
 		error,
+		favoriteIds,
 		fetchDocuments,
 		searchDocuments,
 		deleteDocument,
 		getDocumentTypeCounts,
+		toggleFavorite,
+		fetchFavorites,
 	} = useDocuments(searchSpaceId, {
 		page: pageIndex,
 		pageSize: pageSize,
@@ -65,8 +69,9 @@ export default function DocumentsTable() {
 	useEffect(() => {
 		if (searchSpaceId && getDocumentTypeCounts) {
 			getDocumentTypeCounts().then(setTypeCounts);
+			fetchFavorites(0, pageSize);
 		}
-	}, [searchSpaceId, getDocumentTypeCounts]);
+	}, [searchSpaceId, getDocumentTypeCounts, fetchFavorites, pageSize]);
 
 	// Refetch when pagination changes or when search/filters change
 	useEffect(() => {
@@ -168,6 +173,7 @@ export default function DocumentsTable() {
 				...prev,
 				content: !isSmall,
 				created_at: !isSmall,
+				favorite: !isSmall,
 			}));
 		};
 		apply(mq.matches);
@@ -213,6 +219,8 @@ export default function DocumentsTable() {
 						setSortDesc(key === "created_at");
 					}
 				}}
+				favoriteIds={favoriteIds}
+				onToggleFavorite={toggleFavorite}
 			/>
 
 			<PaginationControls

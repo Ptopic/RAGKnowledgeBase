@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import documentsClientRequests from "@/api/documents/authClientRequests";
 import useDeleteDocument from "@/api/documents/hooks/useDeleteDocument";
+import useToggleFavorite from "@/api/documents/hooks/useToggleFavorite";
 import type {
 	Document,
 	DocumentType,
@@ -35,13 +36,20 @@ export function useDocuments(
 	const [loading, setLoading] = useState(!lazy);
 	const [error, setError] = useState<string | null>(null);
 	const [isLoaded, setIsLoaded] = useState(false);
+	const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
 	const { mutate: deleteDocumentMutation } = useDeleteDocument({
 		onSuccess: (_, documentId) => {
-			// Update local state after successful deletion
 			setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+			setFavoriteIds((prev) => {
+				const next = new Set(prev);
+				next.delete(documentId);
+				return next;
+			});
 		},
 	});
+
+	const { mutate: toggleFavoriteMutation } = useToggleFavorite();
 
 	const fetchDocuments = useCallback(
 		async (
@@ -186,7 +194,6 @@ export function useDocuments(
 						search_space_id: searchSpaceId,
 					}),
 			});
-			// Convert array to Record<string, number>
 			return result.reduce(
 				(acc, item) => {
 					acc[item.type] = item.count;
@@ -200,16 +207,77 @@ export function useDocuments(
 		}
 	}, [searchSpaceId, queryClient]);
 
+	const fetchFavorites = useCallback(
+		async (
+			fetchPage?: number,
+			fetchPageSize?: number,
+			fetchDocumentTypes?: string[],
+		) => {
+			try {
+				const params: GetDocumentsParams = {
+					search_space_id: searchSpaceId,
+					page: fetchPage !== undefined ? fetchPage : page,
+					page_size: fetchPageSize !== undefined ? fetchPageSize : pageSize,
+					document_types:
+						fetchDocumentTypes !== undefined
+							? fetchDocumentTypes
+							: documentTypes,
+				};
+
+				const result = await queryClient.fetchQuery({
+					queryKey: [
+						"favoriteDocuments",
+						params.search_space_id,
+						params.page,
+						params.page_size,
+						params.document_types,
+					],
+					queryFn: () => documentsClientRequests.getFavoriteDocuments(params),
+				});
+
+				setFavoriteIds(new Set(result.favorite_ids));
+			} catch (err) {
+				console.error("Error fetching favorites:", err);
+			}
+		},
+		[searchSpaceId, page, pageSize, documentTypes, queryClient],
+	);
+
+	const toggleFavorite = useCallback(
+		async (documentId: number, currentIsFavorite: boolean) => {
+			toggleFavoriteMutation(
+				{ documentId, isFavorite: currentIsFavorite },
+				{
+					onSuccess: () => {
+						setFavoriteIds((prev) => {
+							const next = new Set(prev);
+							if (currentIsFavorite) {
+								next.delete(documentId);
+							} else {
+								next.add(documentId);
+							}
+							return next;
+						});
+					},
+				},
+			);
+		},
+		[toggleFavoriteMutation],
+	);
+
 	return {
 		documents,
 		total,
 		loading,
 		error,
 		isLoaded,
-		fetchDocuments, // Manual fetch function for lazy mode
-		searchDocuments, // Search function
+		favoriteIds,
+		fetchDocuments,
+		searchDocuments,
 		refreshDocuments,
 		deleteDocument,
-		getDocumentTypeCounts, // Get type counts function
+		toggleFavorite,
+		fetchFavorites,
+		getDocumentTypeCounts,
 	};
 }

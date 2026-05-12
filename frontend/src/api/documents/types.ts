@@ -94,3 +94,9 @@ export interface ListResponse<T> {
 	items: T[];
 	total: number;
 }
+
+export interface FavoriteDocumentsResponse {
+	items: Document[];
+	total: number;
+	favorite_ids: number[];
+}
