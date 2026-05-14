@@ -421,17 +421,15 @@ export function DocumentsTableShell({
 												</motion.div>
 											</TableCell>
 										)}
-										<TableCell className="px-4 py-3">
-											<RowActions
-												document={doc}
-												deleteDocument={deleteDocument}
-												favoriteIds={favoriteIds}
-												onToggleFavorite={onToggleFavorite}
-												refreshDocuments={async () => {
-													await onRefresh();
-												}}
-											/>
-										</TableCell>
+									<TableCell className="px-4 py-3">
+										<RowActions
+											document={doc}
+											deleteDocument={deleteDocument}
+											refreshDocuments={async () => {
+												await onRefresh();
+											}}
+										/>
+									</TableCell>
 										</motion.tr>
 									);
 								})}
@@ -462,8 +460,6 @@ export function DocumentsTableShell({
 										<RowActions
 											document={doc}
 											deleteDocument={deleteDocument}
-											favoriteIds={favoriteIds}
-											onToggleFavorite={onToggleFavorite}
 											refreshDocuments={async () => {
 												await onRefresh();
 											}}

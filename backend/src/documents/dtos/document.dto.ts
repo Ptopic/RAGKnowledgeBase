@@ -104,3 +104,35 @@ export class FavoriteDocumentsResponseDto {
 	total: number;
 	favorite_ids: number[];
 }
+
+export enum FavoriteStatus {
+	ALL = "all",
+	FAVORITED = "favorited",
+	NON_FAVORITED = "non_favorited",
+}
+
+export class GetDocumentsQueryDto {
+	@IsOptional()
+	@IsString()
+	skip?: string;
+
+	@IsOptional()
+	@IsString()
+	page?: string;
+
+	@IsOptional()
+	@IsString()
+	page_size?: string;
+
+	@IsOptional()
+	@IsString()
+	search_space_id?: string;
+
+	@IsOptional()
+	@IsString()
+	document_types?: string;
+
+	@IsOptional()
+	@IsEnum(FavoriteStatus)
+	favorite_status?: FavoriteStatus;
+}

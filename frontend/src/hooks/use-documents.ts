@@ -56,6 +56,7 @@ export function useDocuments(
 			fetchPage?: number,
 			fetchPageSize?: number,
 			fetchDocumentTypes?: string[],
+			fetchFavoriteStatus?: "all" | "favorited" | "non_favorited",
 		) => {
 			if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
 
@@ -71,6 +72,7 @@ export function useDocuments(
 						fetchDocumentTypes !== undefined
 							? fetchDocumentTypes
 							: documentTypes,
+					favorite_status: fetchFavoriteStatus || "all",
 				};
 
 				const result = await queryClient.fetchQuery({
@@ -80,12 +82,16 @@ export function useDocuments(
 						params.page,
 						params.page_size,
 						params.document_types,
+						params.favorite_status,
 					],
 					queryFn: () => documentsClientRequests.getDocuments(params),
 				});
 
 				setDocuments(result.items);
 				setTotal(result.total);
+				if (result.favorite_ids) {
+					setFavoriteIds(new Set(result.favorite_ids));
+				}
 				setIsLoaded(true);
 			} catch (err) {
 				const errorMessage =
@@ -122,10 +128,11 @@ export function useDocuments(
 			fetchPage?: number,
 			fetchPageSize?: number,
 			fetchDocumentTypes?: string[],
+			fetchFavoriteStatus?: "all" | "favorited" | "non_favorited",
 		) => {
 			if (!searchQuery.trim()) {
 				// If search is empty, fetch all documents
-				return fetchDocuments(fetchPage, fetchPageSize, fetchDocumentTypes);
+				return fetchDocuments(fetchPage, fetchPageSize, fetchDocumentTypes, fetchFavoriteStatus);
 			}
 
 			try {
@@ -141,6 +148,7 @@ export function useDocuments(
 						fetchDocumentTypes !== undefined
 							? fetchDocumentTypes
 							: documentTypes,
+					favorite_status: fetchFavoriteStatus || "all",
 				};
 
 				const result = await queryClient.fetchQuery({
@@ -151,12 +159,16 @@ export function useDocuments(
 						params.page,
 						params.page_size,
 						params.document_types,
+						params.favorite_status,
 					],
 					queryFn: () => documentsClientRequests.searchDocuments(params),
 				});
 
 				setDocuments(result.items);
 				setTotal(result.total);
+				if (result.favorite_ids) {
+					setFavoriteIds(new Set(result.favorite_ids));
+				}
 			} catch (err) {
 				const errorMessage =
 					err instanceof Error ? err.message : "Failed to search documents";
@@ -208,16 +220,10 @@ export function useDocuments(
 	}, [searchSpaceId, queryClient]);
 
 	const fetchFavorites = useCallback(
-		async (
-			fetchPage?: number,
-			fetchPageSize?: number,
-			fetchDocumentTypes?: string[],
-		) => {
+		async (fetchDocumentTypes?: string[]) => {
 			try {
 				const params: GetDocumentsParams = {
 					search_space_id: searchSpaceId,
-					page: fetchPage !== undefined ? fetchPage : page,
-					page_size: fetchPageSize !== undefined ? fetchPageSize : pageSize,
 					document_types:
 						fetchDocumentTypes !== undefined
 							? fetchDocumentTypes
@@ -228,8 +234,6 @@ export function useDocuments(
 					queryKey: [
 						"favoriteDocuments",
 						params.search_space_id,
-						params.page,
-						params.page_size,
 						params.document_types,
 					],
 					queryFn: () => documentsClientRequests.getFavoriteDocuments(params),
@@ -240,7 +244,7 @@ export function useDocuments(
 				console.error("Error fetching favorites:", err);
 			}
 		},
-		[searchSpaceId, page, pageSize, documentTypes, queryClient],
+		[searchSpaceId, documentTypes, queryClient],
 	);
 
 	const toggleFavorite = useCallback(

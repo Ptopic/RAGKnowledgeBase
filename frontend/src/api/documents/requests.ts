@@ -109,6 +109,9 @@ export const getDocuments =
 				params.document_types.join(","),
 			);
 		}
+		if (params.favorite_status && params.favorite_status !== "all") {
+			url.searchParams.append("favorite_status", params.favorite_status);
+		}
 		const data = await request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",
@@ -136,6 +139,9 @@ export const searchDocuments =
 				"document_types",
 				params.document_types.join(","),
 			);
+		}
+		if (params.favorite_status && params.favorite_status !== "all") {
+			url.searchParams.append("favorite_status", params.favorite_status);
 		}
 		const data = await request.call(url.toString(), (init) => ({
 			...init,

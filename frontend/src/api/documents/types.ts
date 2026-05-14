@@ -80,6 +80,7 @@ export interface GetDocumentsParams {
 	page?: number;
 	page_size?: number;
 	document_types?: string[];
+	favorite_status?: "all" | "favorited" | "non_favorited";
 }
 
 export interface SearchDocumentsParams {
@@ -88,11 +89,13 @@ export interface SearchDocumentsParams {
 	page?: number;
 	page_size?: number;
 	document_types?: string[];
+	favorite_status?: "all" | "favorited" | "non_favorited";
 }
 
 export interface ListResponse<T> {
 	items: T[];
 	total: number;
+	favorite_ids?: number[];
 }
 
 export interface FavoriteDocumentsResponse {

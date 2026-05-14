@@ -13,6 +13,7 @@ import {
 	DocumentDto,
 	DocumentWithChunksDto,
 	FavoriteDocumentsResponseDto,
+	FavoriteStatus,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
 } from "./dtos/document.dto";
@@ -172,7 +173,8 @@ export class DocumentsService {
 		pageSize: number = 50,
 		searchSpaceId?: number,
 		documentTypes?: string,
-	): Promise<PaginatedResponseDto<DocumentDto>> {
+		favoriteStatus?: FavoriteStatus,
+	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
 		try {
 			let offset = 0;
 			if (skip !== undefined && skip !== null) {
@@ -192,6 +194,16 @@ export class DocumentsService {
 			if (documentTypes) {
 				const types = documentTypes.split(",").map((t) => t.trim());
 				where.documentType = { in: types };
+			}
+
+			if (favoriteStatus === FavoriteStatus.FAVORITED) {
+				where.favoritedBy = {
+					some: { userId },
+				};
+			} else if (favoriteStatus === FavoriteStatus.NON_FAVORITED) {
+				where.favoritedBy = {
+					none: { userId },
+				};
 			}
 
 			const total = await this.prisma.document.count({ where });
@@ -214,9 +226,19 @@ export class DocumentsService {
 				});
 			}
 
+			const favoriteWhere: any = { userId };
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				favoriteWhere.document = { searchSpaceId };
+			}
+			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
+				where: favoriteWhere,
+				select: { documentId: true },
+			});
+
 			return {
 				items: documents.map((doc) => this.toDto(doc)),
 				total,
+				favorite_ids: favoriteRecords.map((f) => f.documentId),
 			};
 		} catch (error) {
 			throw new InternalServerErrorException(
@@ -233,7 +255,8 @@ export class DocumentsService {
 		pageSize: number = 50,
 		searchSpaceId?: number,
 		documentTypes?: string,
-	): Promise<PaginatedResponseDto<DocumentDto>> {
+		favoriteStatus?: FavoriteStatus,
+	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
 		try {
 			let offset = 0;
 			if (skip !== undefined && skip !== null) {
@@ -256,6 +279,16 @@ export class DocumentsService {
 				where.documentType = { in: types };
 			}
 
+			if (favoriteStatus === FavoriteStatus.FAVORITED) {
+				where.favoritedBy = {
+					some: { userId },
+				};
+			} else if (favoriteStatus === FavoriteStatus.NON_FAVORITED) {
+				where.favoritedBy = {
+					none: { userId },
+				};
+			}
+
 			const total = await this.prisma.document.count({ where });
 
 			let documents: any;
@@ -276,9 +309,19 @@ export class DocumentsService {
 				});
 			}
 
+			const favoriteWhere: any = { userId };
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				favoriteWhere.document = { searchSpaceId };
+			}
+			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
+				where: favoriteWhere,
+				select: { documentId: true },
+			});
+
 			return {
 				items: documents.map((doc) => this.toDto(doc)),
 				total,
+				favorite_ids: favoriteRecords.map((f) => f.documentId),
 			};
 		} catch (error) {
 			throw new InternalServerErrorException(
@@ -588,15 +631,19 @@ export class DocumentsService {
 		searchSpaceId?: number,
 		skip?: number,
 		page?: number,
-		pageSize: number = 50,
+		pageSize?: number,
 		documentTypes?: string,
 	): Promise<FavoriteDocumentsResponseDto> {
 		try {
+			const shouldPaginate = pageSize !== undefined && pageSize !== null && pageSize > 0;
+
 			let offset = 0;
-			if (skip !== undefined && skip !== null) {
-				offset = skip;
-			} else if (page !== undefined && page !== null) {
-				offset = page * pageSize;
+			if (shouldPaginate) {
+				if (skip !== undefined && skip !== null) {
+					offset = skip;
+				} else if (page !== undefined && page !== null) {
+					offset = page * pageSize;
+				}
 			}
 
 			const where: any = {
@@ -621,8 +668,8 @@ export class DocumentsService {
 
 			const favorites = await this.prisma.userDocumentFavorite.findMany({
 				where,
-				skip: offset,
-				take: pageSize === -1 ? undefined : pageSize,
+				skip: shouldPaginate ? offset : undefined,
+				take: shouldPaginate ? pageSize : undefined,
 				orderBy: { createdAt: "desc" },
 				include: {
 					document: {
