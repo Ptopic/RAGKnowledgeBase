@@ -139,7 +139,7 @@ export class SearchSpacesService {
 
 	private toDto(searchSpace: any): SearchSpaceDto {
 		const pinnedIds = (searchSpace.pinnedQueryTemplates ?? []).map(
-			(p: any) => p.queryTemplateId,
+			(p) => p.queryTemplateId,
 		);
 		return {
 			id: searchSpace.id,

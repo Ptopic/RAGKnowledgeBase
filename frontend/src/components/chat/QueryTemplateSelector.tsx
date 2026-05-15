@@ -87,7 +87,7 @@ export const QueryTemplateSelector = React.memo(
 					</Button>
 				</DialogTrigger>
 
-				<DialogContent className="sm:max-w-2xl">
+				<DialogContent className="sm:max-w-3xl">
 					<div className="space-y-4">
 						<div>
 							<DialogTitle className="text-xl">Query Templates</DialogTitle>
@@ -129,43 +129,45 @@ export const QueryTemplateSelector = React.memo(
 							</div>
 						) : (
 							<div className="space-y-3 max-h-[60vh] overflow-y-auto">
+								<div className="grid grid-cols-2 gap-3">
 								{templates.map((template) => (
 									<button
 										key={template.id}
 										onClick={() => handleSelect(template)}
 										type="button"
-										className="group relative flex items-start gap-3 p-3 rounded-lg border-2 transition-all text-left hover:border-primary/50 hover:bg-accent/50"
+										className="group relative flex flex-col items-start gap-2 p-3 rounded-lg border-2 transition-all text-left hover:border-primary/50 hover:bg-accent/50"
 									>
-										<div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
-											{template.icon ? (
-												<span className="text-lg">{template.icon}</span>
-											) : (
-												<FileText className="h-5 w-5 text-primary" />
-											)}
-										</div>
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2 mb-1">
-												<p className="text-sm font-medium truncate">
-													{template.title}
-												</p>
-												{template.is_global && (
-													<Badge variant="outline" className="text-xs px-1.5 py-0.5 flex-shrink-0">
-														<Globe className="h-3 w-3 mr-1" />
-														Global
-													</Badge>
+										<div className="flex items-center gap-2">
+											<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
+												{template.icon ? (
+													<span className="text-base">{template.icon}</span>
+												) : (
+													<FileText className="h-4 w-4 text-primary" />
 												)}
 											</div>
-											{template.description && (
-												<p className="text-xs text-muted-foreground mb-1 line-clamp-1">
-													{template.description}
-												</p>
-											)}
-											<p className="text-xs text-muted-foreground font-mono line-clamp-2">
-												{template.content}
+											<p className="text-sm font-medium truncate">
+												{template.title}
 											</p>
 										</div>
+										<div className="flex items-center gap-1.5 flex-wrap">
+											{template.is_global && (
+												<Badge variant="outline" className="text-xs px-1.5 py-0.5 flex-shrink-0">
+													<Globe className="h-3 w-3 mr-1" />
+													Global
+												</Badge>
+											)}
+										</div>
+										{template.description && (
+											<p className="text-xs text-muted-foreground line-clamp-1">
+												{template.description}
+											</p>
+										)}
+										<p className="text-xs text-muted-foreground font-mono line-clamp-2">
+											{template.content}
+										</p>
 									</button>
 								))}
+								</div>
 
 								{hasMore && (
 									<div className="flex justify-center py-2">

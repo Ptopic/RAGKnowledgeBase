@@ -4,6 +4,7 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { QueryTemplate as PrismaQueryTemplate, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import {
 	CreateQueryTemplateDto,
@@ -81,7 +82,7 @@ export class QueryTemplatesService {
 		limit: number = 100,
 	): Promise<PaginatedQueryTemplatesResponseDto> {
 		try {
-			const where: any = { isGlobal: true };
+			const where: Prisma.QueryTemplateWhereInput = { isGlobal: true };
 
 			if (search) {
 				where.OR = [
@@ -120,17 +121,22 @@ export class QueryTemplatesService {
 		limit: number = 100,
 	): Promise<PaginatedQueryTemplatesResponseDto> {
 		try {
-			await this.checkSearchSpaceAccess(searchSpaceId, userId);
-
 			const searchSpace = await this.prisma.searchSpace.findFirst({
 				where: { id: searchSpaceId, userId },
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});
-			const pinnedIds = (searchSpace?.pinnedQueryTemplates ?? []).map(
-				(p: any) => p.queryTemplateId,
+
+			if (!searchSpace) {
+				throw new NotFoundException(
+					"Search space not found or you do not have permission to access it",
+				);
+			}
+
+			const pinnedIds = searchSpace.pinnedQueryTemplates.map(
+				(p) => p.queryTemplateId,
 			);
 
-			const where: any = {
+			const where: Prisma.QueryTemplateWhereInput = {
 				OR: [{ isGlobal: true }, { searchSpaceId }],
 			};
 
@@ -226,7 +232,7 @@ export class QueryTemplatesService {
 				);
 			}
 
-			const updateData: any = {
+			const updateData: Prisma.QueryTemplateUpdateInput = {
 				...(updateDto.title !== undefined && { title: updateDto.title }),
 				...(updateDto.description !== undefined && {
 					description: updateDto.description,
@@ -285,7 +291,7 @@ export class QueryTemplatesService {
 				);
 			}
 
-			const updateData: any = {
+			const updateData: Prisma.QueryTemplateUpdateInput = {
 				...(updateDto.title !== undefined && { title: updateDto.title }),
 				...(updateDto.description !== undefined && {
 					description: updateDto.description,
@@ -401,57 +407,59 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<{ pinned_query_template_ids: number[] }> {
 		try {
-			const searchSpace = await this.prisma.searchSpace.findFirst({
-				where: { id: searchSpaceId, userId },
-				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
-			});
+			return await this.prisma.$transaction(async (tx) => {
+				const searchSpace = await tx.searchSpace.findFirst({
+					where: { id: searchSpaceId, userId },
+					include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
+				});
 
-			if (!searchSpace) {
-				throw new NotFoundException(
-					"Search space not found or you do not have permission to access it",
+				if (!searchSpace) {
+					throw new NotFoundException(
+						"Search space not found or you do not have permission to access it",
+					);
+				}
+
+				const template = await tx.queryTemplate.findUnique({
+					where: { id: templateId },
+				});
+
+				if (!template) {
+					throw new NotFoundException("Query template not found");
+				}
+
+				if (
+					!template.isGlobal &&
+					template.searchSpaceId !== searchSpaceId
+				) {
+					throw new NotFoundException(
+						"Query template not found in this search space",
+					);
+				}
+
+				const currentPinned = searchSpace.pinnedQueryTemplates.map(
+					(p) => p.queryTemplateId,
 				);
-			}
 
-			const template = await this.prisma.queryTemplate.findUnique({
-				where: { id: templateId },
+				if (currentPinned.includes(templateId)) {
+					return { pinned_query_template_ids: currentPinned };
+				}
+
+				if (currentPinned.length >= 2) {
+					throw new ForbiddenException(
+						"You can only pin up to 2 query templates.",
+					);
+				}
+
+				await tx.searchSpacePinnedQueryTemplate.create({
+					data: {
+						searchSpaceId,
+						queryTemplateId: templateId,
+					},
+				});
+
+				const updatedPinned = [...currentPinned, templateId];
+				return { pinned_query_template_ids: updatedPinned };
 			});
-
-			if (!template) {
-				throw new NotFoundException("Query template not found");
-			}
-
-			if (
-				!template.isGlobal &&
-				template.searchSpaceId !== searchSpaceId
-			) {
-				throw new NotFoundException(
-					"Query template not found in this search space",
-				);
-			}
-
-			const currentPinned = searchSpace.pinnedQueryTemplates.map(
-				(p: any) => p.queryTemplateId,
-			);
-
-			if (currentPinned.includes(templateId)) {
-				return { pinned_query_template_ids: currentPinned };
-			}
-
-			if (currentPinned.length >= 2) {
-				throw new ForbiddenException(
-					"You can only pin up to 2 query templates.",
-				);
-			}
-
-			await this.prisma.searchSpacePinnedQueryTemplate.create({
-				data: {
-					searchSpaceId,
-					queryTemplateId: templateId,
-				},
-			});
-
-			const updatedPinned = [...currentPinned, templateId];
-			return { pinned_query_template_ids: updatedPinned };
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
@@ -471,26 +479,32 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<{ pinned_query_template_ids: number[] }> {
 		try {
-			const searchSpace = await this.prisma.searchSpace.findFirst({
-				where: { id: searchSpaceId, userId },
-				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
-			});
+			return await this.prisma.$transaction(async (tx) => {
+				const searchSpace = await tx.searchSpace.findFirst({
+					where: { id: searchSpaceId, userId },
+				});
 
-			if (!searchSpace) {
-				throw new NotFoundException(
-					"Search space not found or you do not have permission to access it",
+				if (!searchSpace) {
+					throw new NotFoundException(
+						"Search space not found or you do not have permission to access it",
+					);
+				}
+
+				await tx.searchSpacePinnedQueryTemplate.deleteMany({
+					where: { searchSpaceId, queryTemplateId: templateId },
+				});
+
+				const updated = await tx.searchSpace.findFirst({
+					where: { id: searchSpaceId, userId },
+					include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
+				});
+
+				const updatedPinned = (updated?.pinnedQueryTemplates ?? []).map(
+					(p) => p.queryTemplateId,
 				);
-			}
 
-			await this.prisma.searchSpacePinnedQueryTemplate.deleteMany({
-				where: { searchSpaceId, queryTemplateId: templateId },
+				return { pinned_query_template_ids: updatedPinned };
 			});
-
-			const updatedPinned = searchSpace.pinnedQueryTemplates
-				.map((p: any) => p.queryTemplateId)
-				.filter((id: number) => id !== templateId);
-
-			return { pinned_query_template_ids: updatedPinned };
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
@@ -519,7 +533,7 @@ export class QueryTemplatesService {
 		}
 	}
 
-	private toDto(template: any, pinnedIds: number[] = []): QueryTemplateDto {
+	private toDto(template: PrismaQueryTemplate, pinnedIds: number[] = []): QueryTemplateDto {
 		return {
 			id: template.id,
 			title: template.title,

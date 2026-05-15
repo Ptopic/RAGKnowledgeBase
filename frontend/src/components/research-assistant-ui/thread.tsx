@@ -203,18 +203,18 @@ function ThreadWelcome({ placeholder, searchSpaceId }: { placeholder?: React.Rea
 						))
 					: <>
 							<SuggestionButton
-								prompt="What's the weather in San Francisco?"
+								prompt="Summarize the key findings from my documents"
 								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
 							>
-								<span className="font-medium">What's the weather</span>
-								<span className="text-muted-foreground">in San Francisco?</span>
+								<span className="font-medium">Summarize key findings</span>
+								<span className="text-muted-foreground">from my documents</span>
 							</SuggestionButton>
 							<SuggestionButton
-								prompt="What are the top news headlines today?"
+								prompt="What are the main topics covered in my data?"
 								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
 							>
-								<span className="font-medium">What are the top news</span>
-								<span className="text-muted-foreground">headlines today?</span>
+								<span className="font-medium">What are the main topics</span>
+								<span className="text-muted-foreground">covered in my data?</span>
 							</SuggestionButton>
 						</>
 				}
