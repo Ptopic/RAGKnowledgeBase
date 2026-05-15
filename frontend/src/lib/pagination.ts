@@ -3,6 +3,7 @@
 export type ListResponse<T> = {
 	items: T[];
 	total: number;
+	favorite_ids?: number[];
 };
 
 export function normalizeListResponse<T>(payload: any): ListResponse<T> {
@@ -10,7 +11,11 @@ export function normalizeListResponse<T>(payload: any): ListResponse<T> {
 		// Case 1: already in desired shape
 		if (payload && Array.isArray(payload.items)) {
 			const total = typeof payload.total === "number" ? payload.total : payload.items.length;
-			return { items: payload.items as T[], total };
+			const result: ListResponse<T> = { items: payload.items as T[], total };
+			if (Array.isArray(payload.favorite_ids)) {
+				result.favorite_ids = payload.favorite_ids;
+			}
+			return result;
 		}
 
 		// Case 2: tuple [items, total]

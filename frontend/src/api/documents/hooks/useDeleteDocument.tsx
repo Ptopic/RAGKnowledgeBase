@@ -14,9 +14,6 @@ const useDeleteDocument = (
 
 	return useMutation({
 		mutationFn: (id: number) => documentsClientRequests.deleteDocument(id),
-		onSuccess: () => {
-			toast.success("Document deleted successfully");
-		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: [DOCUMENTS] });
 			queryClient.invalidateQueries({ queryKey: [SEARCH_DOCUMENTS] });

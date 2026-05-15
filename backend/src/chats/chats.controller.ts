@@ -17,6 +17,8 @@ import {
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
+	FavoriteChatResponseDto,
+	ToggleFavoriteDto,
 	UpdateChatDto,
 } from "./dtos/chat.dto";
 
@@ -75,5 +77,41 @@ export class ChatsController {
 		@Req() req: any,
 	): Promise<{ message: string }> {
 		return this.chatsService.remove(id, req.user.id);
+	}
+
+	@Post("chats/:id/favorite")
+	async addFavorite(
+		@Param("id", ParseIntPipe) id: number,
+		@Body() _toggleDto: ToggleFavoriteDto,
+		@Req() req: any,
+	): Promise<ChatDto> {
+		return this.chatsService.addFavorite(id, req.user.id);
+	}
+
+	@Delete("chats/:id/favorite")
+	async removeFavorite(
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<FavoriteChatResponseDto> {
+		return this.chatsService.removeFavorite(id, req.user.id);
+	}
+
+	@Get("chats/favorites")
+	async findFavorites(
+		@Req() req: any,
+		@Query("skip") skip?: string,
+		@Query("limit") limit?: string,
+		@Query("search_space_id") searchSpaceId?: string,
+	): Promise<ChatDto[]> {
+		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
+		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
+		const searchSpaceIdNum =
+			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
+		return this.chatsService.findFavorites(
+			req.user.id,
+			skipNum,
+			limitNum,
+			searchSpaceIdNum,
+		);
 	}
 }

@@ -12,6 +12,7 @@ import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
+	FavoriteStatus,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
 } from "./dtos/document.dto";
@@ -171,7 +172,8 @@ export class DocumentsService {
 		pageSize: number = 50,
 		searchSpaceId?: number,
 		documentTypes?: string,
-	): Promise<PaginatedResponseDto<DocumentDto>> {
+		favoriteStatus?: FavoriteStatus,
+	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
 		try {
 			let offset = 0;
 			if (skip !== undefined && skip !== null) {
@@ -191,6 +193,16 @@ export class DocumentsService {
 			if (documentTypes) {
 				const types = documentTypes.split(",").map((t) => t.trim());
 				where.documentType = { in: types };
+			}
+
+			if (favoriteStatus === FavoriteStatus.FAVORITED) {
+				where.favoritedBy = {
+					some: { userId },
+				};
+			} else if (favoriteStatus === FavoriteStatus.NON_FAVORITED) {
+				where.favoritedBy = {
+					none: { userId },
+				};
 			}
 
 			const total = await this.prisma.document.count({ where });
@@ -213,9 +225,19 @@ export class DocumentsService {
 				});
 			}
 
+			const favoriteWhere: any = { userId };
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				favoriteWhere.document = { searchSpaceId };
+			}
+			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
+				where: favoriteWhere,
+				select: { documentId: true },
+			});
+
 			return {
 				items: documents.map((doc) => this.toDto(doc)),
 				total,
+				favorite_ids: favoriteRecords.map((f) => f.documentId),
 			};
 		} catch (error) {
 			throw new InternalServerErrorException(
@@ -232,7 +254,8 @@ export class DocumentsService {
 		pageSize: number = 50,
 		searchSpaceId?: number,
 		documentTypes?: string,
-	): Promise<PaginatedResponseDto<DocumentDto>> {
+		favoriteStatus?: FavoriteStatus,
+	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
 		try {
 			let offset = 0;
 			if (skip !== undefined && skip !== null) {
@@ -255,6 +278,16 @@ export class DocumentsService {
 				where.documentType = { in: types };
 			}
 
+			if (favoriteStatus === FavoriteStatus.FAVORITED) {
+				where.favoritedBy = {
+					some: { userId },
+				};
+			} else if (favoriteStatus === FavoriteStatus.NON_FAVORITED) {
+				where.favoritedBy = {
+					none: { userId },
+				};
+			}
+
 			const total = await this.prisma.document.count({ where });
 
 			let documents: any;
@@ -275,9 +308,19 @@ export class DocumentsService {
 				});
 			}
 
+			const favoriteWhere: any = { userId };
+			if (searchSpaceId !== undefined && searchSpaceId !== null) {
+				favoriteWhere.document = { searchSpaceId };
+			}
+			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
+				where: favoriteWhere,
+				select: { documentId: true },
+			});
+
 			return {
 				items: documents.map((doc) => this.toDto(doc)),
 				total,
+				favorite_ids: favoriteRecords.map((f) => f.documentId),
 			};
 		} catch (error) {
 			throw new InternalServerErrorException(
@@ -512,5 +555,89 @@ export class DocumentsService {
 				documentId: chunk.documentId,
 			})),
 		};
+	}
+
+	async addFavorite(
+		id: number,
+		userId: string,
+	): Promise<{ message: string }> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!document) {
+				throw new NotFoundException(`Document with id ${id} not found`);
+			}
+
+			await this.prisma.userDocumentFavorite.upsert({
+				where: {
+					userId_documentId: {
+						userId,
+						documentId: id,
+					},
+				},
+				create: {
+					userId,
+					documentId: id,
+				},
+				update: {},
+			});
+
+			return { message: "Document added to favorites" };
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to add favorite: ${error.message}`,
+			);
+		}
+	}
+
+	async removeFavorite(
+		id: number,
+		userId: string,
+	): Promise<{ message: string }> {
+		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!document) {
+				throw new NotFoundException(
+					`Document with id ${id} not found or you do not have access to it`,
+				);
+			}
+
+			await this.prisma.userDocumentFavorite.delete({
+				where: {
+					userId_documentId: {
+						userId,
+						documentId: id,
+					},
+				},
+			});
+
+			return { message: "Document removed from favorites" };
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			if (error.code === "P2025") {
+				throw new NotFoundException(
+					`Document is not in your favorites`,
+				);
+			}
+			throw new InternalServerErrorException(
+				`Failed to remove favorite: ${error.message}`,
+			);
+		}
 	}
 }
