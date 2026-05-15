@@ -11,6 +11,7 @@ import {
 	Req,
 	UseGuards,
 } from "@nestjs/common";
+import { Request } from "express";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import {
 	CreateQueryTemplateDto,
@@ -20,6 +21,10 @@ import {
 } from "./dtos/query-template.dto";
 import { QueryTemplatesService } from "./query-templates.service";
 
+interface AuthenticatedRequest extends Request {
+	user: { id: string };
+}
+
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class QueryTemplatesController {
@@ -28,7 +33,7 @@ export class QueryTemplatesController {
 	@Post("admin/query-templates")
 	async createGlobal(
 		@Body() createDto: CreateQueryTemplateDto,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<QueryTemplateDto> {
 		return this.queryTemplatesService.createGlobal(createDto, req.user.id);
 	}
@@ -48,7 +53,7 @@ export class QueryTemplatesController {
 	async updateGlobal(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateQueryTemplateDto,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<QueryTemplateDto> {
 		return this.queryTemplatesService.updateGlobal(id, updateDto, req.user.id);
 	}
@@ -56,7 +61,7 @@ export class QueryTemplatesController {
 	@Delete("admin/query-templates/:id")
 	async removeGlobal(
 		@Param("id", ParseIntPipe) id: number,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<{ message: string }> {
 		return this.queryTemplatesService.removeGlobal(id, req.user.id);
 	}
@@ -65,7 +70,7 @@ export class QueryTemplatesController {
 	async createForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Body() createDto: CreateQueryTemplateDto,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<QueryTemplateDto> {
 		return this.queryTemplatesService.createForSearchSpace(
 			searchSpaceId,
@@ -77,7 +82,7 @@ export class QueryTemplatesController {
 	@Get("searchspaces/:searchSpaceId/query-templates")
 	async findAllForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 		@Query("search") search?: string,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
@@ -97,7 +102,7 @@ export class QueryTemplatesController {
 	async removeForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<{ message: string }> {
 		return this.queryTemplatesService.removeForSearchSpace(
 			id,
@@ -111,7 +116,7 @@ export class QueryTemplatesController {
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateQueryTemplateDto,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<QueryTemplateDto> {
 		return this.queryTemplatesService.updateForSearchSpace(
 			id,
@@ -125,7 +130,7 @@ export class QueryTemplatesController {
 	async pinQueryTemplate(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<{ pinned_query_template_ids: number[] }> {
 		return this.queryTemplatesService.pinQueryTemplate(
 			id,
@@ -138,7 +143,7 @@ export class QueryTemplatesController {
 	async unpinQueryTemplate(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,
-		@Req() req: any,
+		@Req() req: AuthenticatedRequest,
 	): Promise<{ pinned_query_template_ids: number[] }> {
 		return this.queryTemplatesService.unpinQueryTemplate(
 			id,

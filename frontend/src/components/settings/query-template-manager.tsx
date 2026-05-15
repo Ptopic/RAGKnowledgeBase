@@ -113,47 +113,56 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 
 		setIsSubmitting(true);
 
-		if (editingTemplate) {
-			const updateData: UpdateQueryTemplateRequest = {
-				title: formData.title,
-				description: formData.description || undefined,
-				content: formData.content,
-				icon: formData.icon || undefined,
-				is_global: formData.is_global,
-			};
-			await updateMutation.mutateAsync({
-				searchSpaceId,
-				id: editingTemplate.id,
-				data: updateData,
-			});
-		} else if (formData.is_global) {
-			await createGlobalMutation.mutateAsync({
-				title: formData.title,
-				description: formData.description || undefined,
-				content: formData.content,
-				icon: formData.icon || undefined,
-				is_global: true,
-			});
-		} else {
-			await createMutation.mutateAsync({
-				searchSpaceId,
-				data: {
-					...formData,
-					is_global: false,
-					search_space_id: searchSpaceId,
-				},
-			});
-		}
+		try {
+			if (editingTemplate) {
+				const updateData: UpdateQueryTemplateRequest = {
+					title: formData.title,
+					description: formData.description || undefined,
+					content: formData.content,
+					icon: formData.icon || undefined,
+					is_global: formData.is_global,
+				};
+				await updateMutation.mutateAsync({
+					searchSpaceId,
+					id: editingTemplate.id,
+					data: updateData,
+				});
+			} else if (formData.is_global) {
+				await createGlobalMutation.mutateAsync({
+					title: formData.title,
+					description: formData.description || undefined,
+					content: formData.content,
+					icon: formData.icon || undefined,
+					is_global: true,
+				});
+			} else {
+				await createMutation.mutateAsync({
+					searchSpaceId,
+					data: {
+						...formData,
+						is_global: false,
+						search_space_id: searchSpaceId,
+					},
+				});
+			}
 
-		setIsSubmitting(false);
-		setFormData({ title: "", description: "", content: "", icon: "", is_global: false });
-		setIsAddingNew(false);
-		setEditingTemplate(null);
+			setFormData({ title: "", description: "", content: "", icon: "", is_global: false });
+			setIsAddingNew(false);
+			setEditingTemplate(null);
+		} catch {
+			// error toast is handled by mutation's onError
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleDelete = async (id: number) => {
 		if (confirm("Are you sure you want to delete this template?")) {
-			await deleteMutation.mutateAsync({ searchSpaceId, id });
+			try {
+				await deleteMutation.mutateAsync({ searchSpaceId, id });
+			} catch {
+				// error toast is handled by mutation's onError
+			}
 		}
 	};
 

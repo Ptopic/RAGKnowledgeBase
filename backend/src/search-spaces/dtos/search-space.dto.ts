@@ -1,5 +1,6 @@
 import { Type } from "class-transformer";
 import {
+	IsArray,
 	IsInt,
 	IsOptional,
 	IsString,
@@ -45,6 +46,8 @@ export class SearchSpaceDto {
 	@MaxLength(500)
 	description?: string;
 
+	@IsArray()
+	@IsInt({ each: true })
 	pinned_query_template_ids: number[];
 
 	@Type(() => Date)
