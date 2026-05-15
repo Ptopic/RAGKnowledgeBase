@@ -8,7 +8,6 @@ import {
 	getDocumentTypeCounts,
 	getDocumentWithChunks,
 	getDocuments,
-	getFavoriteDocuments,
 	removeFavorite,
 	searchDocuments,
 	uploadDocuments,
@@ -41,7 +40,6 @@ const documentsClientRequests = {
 	deleteDocument: withAuthenticatedClientRequest(deleteDocument),
 	addFavorite: withAuthenticatedClientRequest(addFavorite),
 	removeFavorite: withAuthenticatedClientRequest(removeFavorite),
-	getFavoriteDocuments: withAuthenticatedClientRequest(getFavoriteDocuments),
 };
 
 export default documentsClientRequests;

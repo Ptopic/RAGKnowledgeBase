@@ -28,7 +28,7 @@ export function useDocuments(
 ) {
 	// Support both old boolean API and new options API for backward compatibility
 	const opts = typeof options === "boolean" ? { lazy: options } : options || {};
-	const { page, pageSize = 300, lazy = false, documentTypes } = opts;
+	const { page, pageSize = 50, lazy = false, documentTypes } = opts;
 
 	const queryClient = useQueryClient();
 	const [documents, setDocuments] = useState<Document[]>([]);
@@ -64,6 +64,11 @@ export function useDocuments(
 				setLoading(true);
 				setError(null);
 
+				const favoriteStatusParam =
+					fetchFavoriteStatus && fetchFavoriteStatus !== "all"
+						? fetchFavoriteStatus
+						: undefined;
+
 				const params: GetDocumentsParams = {
 					search_space_id: searchSpaceId,
 					page: fetchPage !== undefined ? fetchPage : page,
@@ -72,7 +77,7 @@ export function useDocuments(
 						fetchDocumentTypes !== undefined
 							? fetchDocumentTypes
 							: documentTypes,
-					favorite_status: fetchFavoriteStatus || "all",
+					favorite_status: favoriteStatusParam,
 				};
 
 				const result = await queryClient.fetchQuery({
@@ -139,6 +144,11 @@ export function useDocuments(
 				setLoading(true);
 				setError(null);
 
+				const favoriteStatusParam =
+					fetchFavoriteStatus && fetchFavoriteStatus !== "all"
+						? fetchFavoriteStatus
+						: undefined;
+
 				const params: SearchDocumentsParams = {
 					search_space_id: searchSpaceId,
 					title: searchQuery,
@@ -148,7 +158,7 @@ export function useDocuments(
 						fetchDocumentTypes !== undefined
 							? fetchDocumentTypes
 							: documentTypes,
-					favorite_status: fetchFavoriteStatus || "all",
+					favorite_status: favoriteStatusParam,
 				};
 
 				const result = await queryClient.fetchQuery({
@@ -185,13 +195,7 @@ export function useDocuments(
 	// Function to delete a document
 	const deleteDocument = useCallback(
 		async (documentId: number) => {
-			try {
-				deleteDocumentMutation(documentId);
-				return true;
-			} catch (err) {
-				console.error("Error deleting document:", err);
-				return false;
-			}
+			await deleteDocumentMutation(documentId);
 		},
 		[deleteDocumentMutation],
 	);
@@ -219,36 +223,9 @@ export function useDocuments(
 		}
 	}, [searchSpaceId, queryClient]);
 
-	const fetchFavorites = useCallback(
-		async (fetchDocumentTypes?: string[]) => {
-			try {
-				const params: GetDocumentsParams = {
-					search_space_id: searchSpaceId,
-					document_types:
-						fetchDocumentTypes !== undefined
-							? fetchDocumentTypes
-							: documentTypes,
-				};
-
-				const result = await queryClient.fetchQuery({
-					queryKey: [
-						"favoriteDocuments",
-						params.search_space_id,
-						params.document_types,
-					],
-					queryFn: () => documentsClientRequests.getFavoriteDocuments(params),
-				});
-
-				setFavoriteIds(new Set(result.favorite_ids));
-			} catch (err) {
-				console.error("Error fetching favorites:", err);
-			}
-		},
-		[searchSpaceId, documentTypes, queryClient],
-	);
-
 	const toggleFavorite = useCallback(
 		async (documentId: number, currentIsFavorite: boolean) => {
+			const prevFavoriteIds = new Set(favoriteIds);
 			toggleFavoriteMutation(
 				{ documentId, isFavorite: currentIsFavorite },
 				{
@@ -263,10 +240,18 @@ export function useDocuments(
 							return next;
 						});
 					},
+					onError: () => {
+						setFavoriteIds(prevFavoriteIds);
+						toast.error(
+							currentIsFavorite
+								? "Failed to remove from favorites"
+								: "Failed to add to favorites",
+						);
+					},
 				},
 			);
 		},
-		[toggleFavoriteMutation],
+		[toggleFavoriteMutation, favoriteIds],
 	);
 
 	return {
@@ -281,7 +266,6 @@ export function useDocuments(
 		refreshDocuments,
 		deleteDocument,
 		toggleFavorite,
-		fetchFavorites,
 		getDocumentTypeCounts,
 	};
 }

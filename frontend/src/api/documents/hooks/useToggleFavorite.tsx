@@ -3,7 +3,7 @@ import {
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { DOCUMENTS, FAVORITE_DOCUMENTS, SEARCH_DOCUMENTS } from "@/shared/queryKeys";
+import { DOCUMENTS, SEARCH_DOCUMENTS } from "@/shared/queryKeys";
 import documentsClientRequests from "../authClientRequests";
 
 interface ToggleFavoriteData {
@@ -27,7 +27,6 @@ const useToggleFavorite = (
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: [DOCUMENTS] });
 			queryClient.invalidateQueries({ queryKey: [SEARCH_DOCUMENTS] });
-			queryClient.invalidateQueries({ queryKey: [FAVORITE_DOCUMENTS] });
 		},
 		...options,
 	});

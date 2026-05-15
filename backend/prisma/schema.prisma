@@ -111,12 +111,12 @@ model User {
   pagesLimit Int @default(500) @map("pages_limit")
   pagesUsed  Int @default(0) @map("pages_used")
 
-	// Relationships
-	oauthAccounts          OAuthAccount[]
-	searchSpaces           SearchSpace[]
-	searchSourceConnectors SearchSourceConnector[]
-	searchSpacePreferences UserSearchSpacePreference[]
-	favoriteDocuments      UserDocumentFavorite[]
+  // Relationships
+  oauthAccounts          OAuthAccount[]
+  searchSpaces           SearchSpace[]
+  searchSourceConnectors SearchSourceConnector[]
+  searchSpacePreferences UserSearchSpacePreference[]
+  favoriteDocuments      UserDocumentFavorite[]
 
   @@map("user")
 }
@@ -184,10 +184,10 @@ model Document {
 
   searchSpaceId Int @map("search_space_id")
 
-	// Relationships
-	searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
-	chunks      Chunk[]
-	favoritedBy UserDocumentFavorite[]
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  chunks      Chunk[]
+  favoritedBy UserDocumentFavorite[]
 
   @@index([title])
   @@index([contentHash])

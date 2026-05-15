@@ -30,7 +30,7 @@ export function RowActions({
 	refreshDocuments,
 }: {
 	document: Document;
-	deleteDocument: (id: number) => Promise<boolean>;
+	deleteDocument: (id: number) => Promise<void>;
 	refreshDocuments: () => Promise<void>;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
@@ -39,9 +39,8 @@ export function RowActions({
 	const handleDelete = async () => {
 		setIsDeleting(true);
 		try {
-			const ok = await deleteDocument(document.id);
-			if (ok) toast.success("Document deleted successfully");
-			else toast.error("Failed to delete document");
+			await deleteDocument(document.id);
+			toast.success("Document deleted successfully");
 			await refreshDocuments();
 		} catch (error) {
 			console.error("Error deleting document:", error);

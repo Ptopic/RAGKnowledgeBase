@@ -24,7 +24,6 @@ import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
-	FavoriteDocumentsResponseDto,
 	GetDocumentsQueryDto,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
@@ -145,31 +144,6 @@ export class DocumentsController {
 		@Req() req: any,
 	): Promise<DocumentWithChunksDto> {
 		return this.documentsService.getDocumentByChunkId(chunkId, req.user.id);
-	}
-
-	@Get("favorites")
-	async getFavorites(
-		@Req() req: any,
-		@Query("search_space_id") searchSpaceId?: string,
-		@Query("document_types") documentTypes?: string,
-		@Query("skip") skip?: string,
-		@Query("page") page?: string,
-		@Query("page_size") pageSize?: string,
-	): Promise<FavoriteDocumentsResponseDto> {
-		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
-		const skipNum = skip !== undefined ? parseInt(skip, 10) : undefined;
-		const pageNum = page !== undefined ? parseInt(page, 10) : undefined;
-		const pageSizeNum = pageSize !== undefined ? parseInt(pageSize, 10) : undefined;
-
-		return this.documentsService.findFavorites(
-			req.user.id,
-			searchSpaceIdNum,
-			skipNum,
-			pageNum,
-			pageSizeNum,
-			documentTypes,
-		);
 	}
 
 	@Get(":id/chunks")

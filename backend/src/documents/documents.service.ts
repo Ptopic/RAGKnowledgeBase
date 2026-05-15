@@ -12,7 +12,6 @@ import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
-	FavoriteDocumentsResponseDto,
 	FavoriteStatus,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
@@ -604,6 +603,19 @@ export class DocumentsService {
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
+			const document = await this.prisma.document.findFirst({
+				where: {
+					id,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!document) {
+				throw new NotFoundException(
+					`Document with id ${id} not found or you do not have access to it`,
+				);
+			}
+
 			await this.prisma.userDocumentFavorite.delete({
 				where: {
 					userId_documentId: {
@@ -615,6 +627,9 @@ export class DocumentsService {
 
 			return { message: "Document removed from favorites" };
 		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
 			if (error.code === "P2025") {
 				throw new NotFoundException(
 					`Document is not in your favorites`,
@@ -622,85 +637,6 @@ export class DocumentsService {
 			}
 			throw new InternalServerErrorException(
 				`Failed to remove favorite: ${error.message}`,
-			);
-		}
-	}
-
-	async findFavorites(
-		userId: string,
-		searchSpaceId?: number,
-		skip?: number,
-		page?: number,
-		pageSize?: number,
-		documentTypes?: string,
-	): Promise<FavoriteDocumentsResponseDto> {
-		try {
-			const shouldPaginate = pageSize !== undefined && pageSize !== null && pageSize > 0;
-
-			let offset = 0;
-			if (shouldPaginate) {
-				if (skip !== undefined && skip !== null) {
-					offset = skip;
-				} else if (page !== undefined && page !== null) {
-					offset = page * pageSize;
-				}
-			}
-
-			const where: any = {
-				userId,
-			};
-
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				where.document = {
-					searchSpaceId,
-				};
-			}
-
-			if (documentTypes) {
-				const types = documentTypes.split(",").map((t) => t.trim());
-				where.document = {
-					...where.document,
-					documentType: { in: types },
-				};
-			}
-
-			const total = await this.prisma.userDocumentFavorite.count({ where });
-
-			const favorites = await this.prisma.userDocumentFavorite.findMany({
-				where,
-				skip: shouldPaginate ? offset : undefined,
-				take: shouldPaginate ? pageSize : undefined,
-				orderBy: { createdAt: "desc" },
-				include: {
-					document: {
-						include: {
-							_count: { select: { chunks: true } },
-						},
-					},
-				},
-			});
-
-			const allFavoritesWhere: any = { userId };
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				allFavoritesWhere.document = { searchSpaceId };
-			}
-
-			const allFavoriteIds = await this.prisma.userDocumentFavorite.findMany({
-				where: allFavoritesWhere,
-				select: { documentId: true },
-			});
-
-			return {
-				items: favorites.map((fav) => this.toDto(fav.document)),
-				total,
-				favorite_ids: allFavoriteIds.map((f) => f.documentId),
-			};
-		} catch (error) {
-			if (error instanceof NotFoundException) {
-				throw error;
-			}
-			throw new InternalServerErrorException(
-				`Failed to fetch favorite documents: ${error.message}`,
 			);
 		}
 	}

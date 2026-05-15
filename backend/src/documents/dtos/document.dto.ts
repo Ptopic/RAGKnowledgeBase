@@ -88,25 +88,7 @@ export class PaginatedResponseDto<T> {
 	total: number;
 }
 
-export class FavoriteDocumentDto {
-	id: number;
-	title: string;
-	document_type: DocumentType;
-	document_metadata: any;
-	content: string;
-	created_at: Date;
-	search_space_id: number;
-	chunks_count?: number;
-}
-
-export class FavoriteDocumentsResponseDto {
-	items: FavoriteDocumentDto[];
-	total: number;
-	favorite_ids: number[];
-}
-
 export enum FavoriteStatus {
-	ALL = "all",
 	FAVORITED = "favorited",
 	NON_FAVORITED = "non_favorited",
 }

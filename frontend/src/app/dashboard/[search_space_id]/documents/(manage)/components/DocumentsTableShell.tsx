@@ -87,7 +87,7 @@ export function DocumentsTableShell({
 	selectedIds: Set<number>;
 	setSelectedIds: (update: Set<number>) => void;
 	columnVisibility: ColumnVisibility;
-	deleteDocument: (id: number) => Promise<boolean>;
+	deleteDocument: (id: number) => Promise<void>;
 	sortKey: SortKey;
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
@@ -479,6 +479,11 @@ export function DocumentsTableShell({
 															doc.id,
 															favoriteIds.has(doc.id),
 														)
+													}
+													aria-label={
+														favoriteIds.has(doc.id)
+															? "Remove from favorites"
+															: "Add to favorites"
 													}
 												>
 													<Star

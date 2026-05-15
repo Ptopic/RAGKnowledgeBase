@@ -155,14 +155,13 @@ export default function DocumentsTable() {
 			return;
 		}
 		try {
-			const results = await Promise.all(
+			const results = await Promise.allSettled(
 				Array.from(selectedIds).map((id) => deleteDocument?.(id)),
 			);
-			const okCount = results.filter((r) => r === true).length;
+			const okCount = results.filter((r) => r.status === "fulfilled").length;
 			if (okCount === selectedIds.size)
 				toast.success(`Successfully deleted ${okCount} document(s)`);
 			else toast.error("Some documents could not be deleted");
-			// Refetch the current page with appropriate method
 			await refreshCurrentView();
 			setSelectedIds(new Set());
 		} catch (e) {
@@ -178,7 +177,6 @@ export default function DocumentsTable() {
 				...prev,
 				content: !isSmall,
 				created_at: !isSmall,
-				favorite: !isSmall,
 			}));
 		};
 		apply(mq.matches);
@@ -230,7 +228,7 @@ export default function DocumentsTable() {
 				selectedIds={selectedIds}
 				setSelectedIds={setSelectedIds}
 				columnVisibility={columnVisibility}
-				deleteDocument={(id) => deleteDocument?.(id) ?? Promise.resolve(false)}
+				deleteDocument={(id) => deleteDocument?.(id) ?? Promise.resolve()}
 				sortKey={sortKey}
 				sortDesc={sortDesc}
 				onSortChange={(key) => {
