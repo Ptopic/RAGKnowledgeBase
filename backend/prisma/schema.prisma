@@ -116,6 +116,7 @@ model User {
   searchSpaces           SearchSpace[]
   searchSourceConnectors SearchSourceConnector[]
   searchSpacePreferences UserSearchSpacePreference[]
+  favoriteDocuments      UserDocumentFavorite[]
   favorites              UserChatFavorite[]
 
   @@map("user")
@@ -187,6 +188,7 @@ model Document {
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
   chunks      Chunk[]
+  favoritedBy UserDocumentFavorite[]
 
   @@index([title])
   @@index([contentHash])
@@ -209,6 +211,23 @@ model Chunk {
 
   @@index([documentId])
   @@map("chunks")
+}
+
+// User Document Favorite Model
+model UserDocumentFavorite {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId     String @map("user_id")
+  documentId Int    @map("document_id")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([userId])
+  @@index([documentId])
+  @@map("user_document_favorites")
 }
 
 // Chat Model
