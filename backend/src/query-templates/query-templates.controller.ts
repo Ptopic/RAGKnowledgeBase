@@ -7,12 +7,14 @@ import {
 	ParseIntPipe,
 	Post,
 	Put,
+	Query,
 	Req,
 	UseGuards,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import {
 	CreateQueryTemplateDto,
+	PaginatedQueryTemplatesResponseDto,
 	QueryTemplateDto,
 	UpdateQueryTemplateDto,
 } from "./dtos/query-template.dto";
@@ -32,8 +34,14 @@ export class QueryTemplatesController {
 	}
 
 	@Get("admin/query-templates")
-	async findAllGlobal(): Promise<QueryTemplateDto[]> {
-		return this.queryTemplatesService.findAllGlobal();
+	async findAllGlobal(
+		@Query("search") search?: string,
+		@Query("skip") skip?: string,
+		@Query("limit") limit?: string,
+	): Promise<PaginatedQueryTemplatesResponseDto> {
+		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
+		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
+		return this.queryTemplatesService.findAllGlobal(search, skipNum, limitNum);
 	}
 
 	@Put("admin/query-templates/:id")
@@ -70,10 +78,18 @@ export class QueryTemplatesController {
 	async findAllForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Req() req: any,
-	): Promise<QueryTemplateDto[]> {
+		@Query("search") search?: string,
+		@Query("skip") skip?: string,
+		@Query("limit") limit?: string,
+	): Promise<PaginatedQueryTemplatesResponseDto> {
+		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
+		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
 		return this.queryTemplatesService.findAllForSearchSpace(
 			searchSpaceId,
 			req.user.id,
+			search,
+			skipNum,
+			limitNum,
 		);
 	}
 
@@ -84,6 +100,47 @@ export class QueryTemplatesController {
 		@Req() req: any,
 	): Promise<{ message: string }> {
 		return this.queryTemplatesService.removeForSearchSpace(
+			id,
+			searchSpaceId,
+			req.user.id,
+		);
+	}
+
+	@Put("searchspaces/:searchSpaceId/query-templates/:id")
+	async updateForSearchSpace(
+		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
+		@Param("id", ParseIntPipe) id: number,
+		@Body() updateDto: UpdateQueryTemplateDto,
+		@Req() req: any,
+	): Promise<QueryTemplateDto> {
+		return this.queryTemplatesService.updateForSearchSpace(
+			id,
+			searchSpaceId,
+			updateDto,
+			req.user.id,
+		);
+	}
+
+	@Post("searchspaces/:searchSpaceId/query-templates/:id/pin")
+	async pinQueryTemplate(
+		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<{ pinned_query_template_ids: number[] }> {
+		return this.queryTemplatesService.pinQueryTemplate(
+			id,
+			searchSpaceId,
+			req.user.id,
+		);
+	}
+
+	@Post("searchspaces/:searchSpaceId/query-templates/:id/unpin")
+	async unpinQueryTemplate(
+		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<{ pinned_query_template_ids: number[] }> {
+		return this.queryTemplatesService.unpinQueryTemplate(
 			id,
 			searchSpaceId,
 			req.user.id,

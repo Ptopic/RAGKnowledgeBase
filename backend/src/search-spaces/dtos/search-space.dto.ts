@@ -45,6 +45,8 @@ export class SearchSpaceDto {
 	@MaxLength(500)
 	description?: string;
 
+	pinned_query_template_ids: number[];
+
 	@Type(() => Date)
 	created_at: Date;
 }

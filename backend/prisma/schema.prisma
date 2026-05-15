@@ -160,6 +160,7 @@ model SearchSpace {
   llmConfigs             LLMConfig[]
   userPreferences        UserSearchSpacePreference[]
   queryTemplates         QueryTemplate[]
+  pinnedQueryTemplates   SearchSpacePinnedQueryTemplate[]
 
   @@index([name])
   @@index([userId])
@@ -357,11 +358,30 @@ model QueryTemplate {
   createdById   String  @map("created_by_id")
 
   // Relationships
-  searchSpace SearchSpace? @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
-  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  searchSpace        SearchSpace?                   @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  createdBy          User                           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  pinnedBySearchSpaces SearchSpacePinnedQueryTemplate[]
 
   @@index([searchSpaceId])
   @@index([isGlobal])
   @@index([createdById])
   @@map("query_templates")
+}
+
+// Search Space Pinned Query Template Join Table
+model SearchSpacePinnedQueryTemplate {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  searchSpaceId  Int @map("search_space_id")
+  queryTemplateId Int @map("query_template_id")
+
+  // Relationships
+  searchSpace  SearchSpace  @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  queryTemplate QueryTemplate @relation(fields: [queryTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([searchSpaceId, queryTemplateId], name: "uq_searchspace_pinned_template")
+  @@index([searchSpaceId])
+  @@index([queryTemplateId])
+  @@map("search_space_pinned_query_templates")
 }

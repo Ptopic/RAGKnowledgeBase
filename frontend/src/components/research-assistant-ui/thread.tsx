@@ -22,6 +22,7 @@ import {
 	LoaderIcon,
 	MicIcon,
 	PencilIcon,
+	Pin,
 	SquareIcon,
 	ThumbsDownIcon,
 	ThumbsUpIcon,
@@ -45,8 +46,11 @@ import {
 import { Sources } from "@/components/research-assistant-ui/sources";
 import { ToolFallback } from "@/components/research-assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/research-assistant-ui/tooltip-icon-button";
+import { ComposerQueryTemplateSelector } from "@/components/research-assistant-ui/composer-query-template-selector";
 import { CustomChatInputOptions } from "@/components/chat/ChatInputGroup";
 import { Button } from "@/components/ui/button";
+import useGetSearchSpaceQueryTemplates from "@/api/query-templates/hooks/useGetSearchSpaceQueryTemplates";
+import type { QueryTemplate } from "@/api/query-templates/types";
 import type { Document } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +100,7 @@ export function Thread({
 	searchMode,
 	onSearchModeChange,
 	followUpQuestions = [],
+	searchSpaceId,
 }: {
 	emptyMessagesPlaceholder?: React.ReactNode;
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
@@ -106,6 +111,7 @@ export function Thread({
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	followUpQuestions?: string[];
+	searchSpaceId?: number;
 }) {
 	return (
 		<UndoActionContext.Provider value={{ onDiscardUserMessage, followUpQuestions }}>
@@ -129,7 +135,7 @@ export function Thread({
 					style={{ scrollbarGutter: "stable" }}
 				>
 					<AuiIf condition={(s) => s.thread.isEmpty}>
-						<ThreadWelcome placeholder={emptyMessagesPlaceholder} />
+						<ThreadWelcome placeholder={emptyMessagesPlaceholder} searchSpaceId={searchSpaceId} />
 					</AuiIf>
 
 					<ThreadPrimitive.Messages
@@ -159,34 +165,59 @@ export function Thread({
 	);
 }
 
-function ThreadWelcome({ placeholder }: { placeholder?: React.ReactNode }) {
+function ThreadWelcome({ placeholder, searchSpaceId }: { placeholder?: React.ReactNode; searchSpaceId?: number }) {
+	const { data } = useGetSearchSpaceQueryTemplates(
+		searchSpaceId ? { search_space_id: searchSpaceId, limit: 100 } : null,
+		{ enabled: !!searchSpaceId },
+	);
+
+	const pinnedTemplates = (data?.items ?? []).filter((t: QueryTemplate) => t.is_pinned);
+
 	if (placeholder) return <>{placeholder}</>;
+
 	return (
 		<div className="mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
-			<div className="flex w-full flex-grow flex-col items-center justify-center">
-				<div className="flex size-full flex-col justify-center px-8">
-					<div className="text-2xl font-semibold">Hello there!</div>
-					<div className="text-2xl text-muted-foreground/65">
-						How can I help you today?
-					</div>
+			<div className="flex size-full flex-col justify-center px-8">
+				<div className="text-2xl font-semibold">Hello there!</div>
+				<div className="text-2xl text-muted-foreground/65">
+					How can I help you today?
 				</div>
 			</div>
 			<div className="grid w-full gap-2 pb-4 md:grid-cols-2">
-				{/* Add your suggestions here */}
-						<SuggestionButton
-							prompt="What's the weather in San Francisco?"
-							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
-						>
-							<span className="font-medium">What's the weather</span>
-							<span className="text-muted-foreground">in San Francisco?</span>
-						</SuggestionButton>
-						<SuggestionButton
-							prompt="What are the top news headlines today?"
-							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
-						>
-							<span className="font-medium">What are the top news</span>
-							<span className="text-muted-foreground">headlines today?</span>
-						</SuggestionButton>
+				{pinnedTemplates.length > 0
+					? pinnedTemplates.map((template: QueryTemplate) => (
+							<SuggestionButton
+								key={template.id}
+								prompt={template.content}
+								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+							>
+								<span className="font-medium flex items-center gap-1.5">
+									<Pin className="h-3.5 w-3.5 text-amber-500" />
+									{template.icon && <span className="mr-1">{template.icon}</span>}
+									{template.title}
+								</span>
+								{template.description && (
+									<span className="text-muted-foreground">{template.description}</span>
+								)}
+							</SuggestionButton>
+						))
+					: <>
+							<SuggestionButton
+								prompt="What's the weather in San Francisco?"
+								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+							>
+								<span className="font-medium">What's the weather</span>
+								<span className="text-muted-foreground">in San Francisco?</span>
+							</SuggestionButton>
+							<SuggestionButton
+								prompt="What are the top news headlines today?"
+								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+							>
+								<span className="font-medium">What are the top news</span>
+								<span className="text-muted-foreground">headlines today?</span>
+							</SuggestionButton>
+						</>
+				}
 			</div>
 		</div>
 	);
@@ -221,6 +252,7 @@ function ComposerAction() {
 		<div className="relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<ComposerAddAttachment />
+				<ComposerQueryTemplateSelector />
 				<AuiIf condition={(s) => s.composer.dictation == null}>
 					<ComposerPrimitive.Dictate asChild>
 						<TooltipIconButton

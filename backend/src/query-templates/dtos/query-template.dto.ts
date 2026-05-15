@@ -84,6 +84,9 @@ export class QueryTemplateDto {
 	@IsBoolean()
 	is_global: boolean;
 
+	@IsBoolean()
+	is_pinned: boolean;
+
 	@IsInt()
 	@IsOptional()
 	search_space_id?: number;
@@ -96,4 +99,9 @@ export class QueryTemplateDto {
 
 	@Type(() => Date)
 	updated_at: Date;
+}
+
+export class PaginatedQueryTemplatesResponseDto {
+	items: QueryTemplateDto[];
+	total: number;
 }

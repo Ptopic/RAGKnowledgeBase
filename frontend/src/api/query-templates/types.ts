@@ -5,6 +5,7 @@ export interface QueryTemplate {
 	content: string;
 	icon?: string;
 	is_global: boolean;
+	is_pinned: boolean;
 	search_space_id?: number;
 	created_by_id: string;
 	created_at: string;
@@ -32,4 +33,18 @@ export interface CreateQueryTemplateResponse extends QueryTemplate {}
 
 export interface GetQueryTemplatesParams {
 	search_space_id: number;
+	search?: string;
+	skip?: number;
+	limit?: number;
+}
+
+export interface GetGlobalQueryTemplatesParams {
+	search?: string;
+	skip?: number;
+	limit?: number;
+}
+
+export interface ListResponse<T> {
+	items: T[];
+	total: number;
 }

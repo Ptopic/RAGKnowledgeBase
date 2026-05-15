@@ -60,6 +60,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+
+const DEBOUNCE_MS = 400;
 
 interface ChatsPageClientProps {
 	searchSpaceId: string;
@@ -84,6 +87,7 @@ export default function ChatsPageClient({
 }: ChatsPageClientProps) {
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearchQuery = useDebounce(searchQuery, DEBOUNCE_MS);
 	const [currentPage, setCurrentPage] = useState(1);
 	const [selectedType, setSelectedType] = useState<string>("all");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
@@ -129,8 +133,8 @@ export default function ChatsPageClient({
 		let result = [...chats];
 
 		// Filter by search term
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
+		if (debouncedSearchQuery) {
+			const query = debouncedSearchQuery.toLowerCase();
 			result = result.filter((chat) =>
 				chat.title.toLowerCase().includes(query),
 			);
@@ -150,7 +154,7 @@ export default function ChatsPageClient({
 		});
 
 		return result;
-	}, [chats, searchQuery, selectedType, sortOrder]);
+	}, [chats, debouncedSearchQuery, selectedType, sortOrder]);
 
 	// Calculate pagination based on filtered chats
 	const totalPages = Math.max(

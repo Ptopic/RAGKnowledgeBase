@@ -28,6 +28,9 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { useDebounce } from "@/hooks/use-debounce";
+
+const DEBOUNCE_MS = 400;
 
 // Map of icon names to their components
 const actionIconMap: Record<string, LucideIcon> = {
@@ -59,16 +62,17 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 	const { isMobile } = useSidebar();
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearchQuery = useDebounce(searchQuery, DEBOUNCE_MS);
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 
 	const searchSpaceId = chats[0]?.search_space_id || "";
 
 	// Memoized filtered chats
 	const filteredChats = useMemo(() => {
-		if (!searchQuery.trim()) return chats;
+		if (!debouncedSearchQuery.trim()) return chats;
 
-		return chats.filter((chat) => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
-	}, [chats, searchQuery]);
+		return chats.filter((chat) => chat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+	}, [chats, debouncedSearchQuery]);
 
 	// Handle chat deletion with loading state
 	const handleDeleteChat = useCallback(async (chatId: number, deleteAction: () => void) => {

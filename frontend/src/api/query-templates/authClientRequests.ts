@@ -6,7 +6,10 @@ import {
 	deleteSearchSpaceQueryTemplate,
 	getGlobalQueryTemplates,
 	getSearchSpaceQueryTemplates,
+	pinQueryTemplate,
+	unpinQueryTemplate,
 	updateGlobalQueryTemplate,
+	updateSearchSpaceQueryTemplate,
 } from "./requests";
 
 const queryTemplatesClientRequests = {
@@ -16,7 +19,10 @@ const queryTemplatesClientRequests = {
 	deleteGlobalQueryTemplate: withAuthenticatedClientRequest(deleteGlobalQueryTemplate),
 	getSearchSpaceQueryTemplates: withAuthenticatedClientRequest(getSearchSpaceQueryTemplates),
 	createSearchSpaceQueryTemplate: withAuthenticatedClientRequest(createSearchSpaceQueryTemplate),
+	updateSearchSpaceQueryTemplate: withAuthenticatedClientRequest(updateSearchSpaceQueryTemplate),
 	deleteSearchSpaceQueryTemplate: withAuthenticatedClientRequest(deleteSearchSpaceQueryTemplate),
+	pinQueryTemplate: withAuthenticatedClientRequest(pinQueryTemplate),
+	unpinQueryTemplate: withAuthenticatedClientRequest(unpinQueryTemplate),
 };
 
 export default queryTemplatesClientRequests;
