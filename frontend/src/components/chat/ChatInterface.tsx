@@ -16,6 +16,7 @@ interface ChatInterfaceProps {
 	selectedConnectors?: string[];
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+	onSelectTemplate?: (content: string) => void;
 }
 
 export default function ChatInterface({
@@ -26,6 +27,7 @@ export default function ChatInterface({
 	selectedConnectors = [],
 	searchMode,
 	onSearchModeChange,
+	onSelectTemplate,
 }: ChatInterfaceProps) {
 	const handleSubmit = (message: string) => {
 		handler.append({
@@ -48,6 +50,7 @@ export default function ChatInterface({
 						onSearchModeChange={onSearchModeChange}
 						onSubmit={handleSubmit}
 						isLoading={handler.isLoading}
+						onSelectTemplate={onSelectTemplate}
 					/>
 				</div>
 			</div>

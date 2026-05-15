@@ -79,6 +79,7 @@ export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
 					searchMode={props.searchMode}
 					onSearchModeChange={props.onSearchModeChange}
 					followUpQuestions={followUpQuestions}
+					searchSpaceId={Number(props.searchSpaceId) || undefined}
 				/>
 			</AssistantRuntimeProvider>
 		</div>

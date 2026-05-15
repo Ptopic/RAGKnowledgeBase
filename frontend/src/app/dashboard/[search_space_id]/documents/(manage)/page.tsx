@@ -6,6 +6,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocuments } from "@/hooks/use-documents";
+import { useDebounce } from "@/hooks/use-debounce";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import {
@@ -15,14 +16,7 @@ import {
 import { PaginationControls } from "./components/PaginationControls";
 import type { ColumnVisibility } from "./components/types";
 
-function useDebounced<T>(value: T, delay = 250) {
-	const [debounced, setDebounced] = useState(value);
-	useEffect(() => {
-		const t = setTimeout(() => setDebounced(value), delay);
-		return () => clearTimeout(t);
-	}, [value, delay]);
-	return debounced;
-}
+const DEBOUNCE_MS = 400;
 
 export default function DocumentsTable() {
 	const id = useId();
@@ -32,7 +26,7 @@ export default function DocumentsTable() {
 	const searchSpaceId = Number(params.search_space_id);
 
 	const [search, setSearch] = useState("");
-	const debouncedSearch = useDebounced(search, 250);
+	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
 	const [activeTypes, setActiveTypes] = useState<string[]>([]);
 	const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
 		title: true,

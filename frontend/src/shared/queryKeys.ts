@@ -14,5 +14,6 @@ export const LLM_PREFERENCES = "llmPreferences";
 export const LOGS = "logs";
 export const LOGS_SUMMARY = "logsSummary";
 export const SEARCH_SPACE_CONNECTORS = "searchSpaceConnectors";
+export const QUERY_TEMPLATES = "queryTemplates";
 export const SEARCH_SPACES = "searchSpaces";
 export const SEARCH_SPACE = "searchSpace";

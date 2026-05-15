@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { type Document, type DocumentType, useDocuments } from "@/hooks/use-documents";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface DocumentsDataTableProps {
 	searchSpaceId: number;
@@ -39,14 +40,7 @@ interface DocumentsDataTableProps {
 	initialSelectedDocuments?: Document[];
 }
 
-function useDebounced<T>(value: T, delay = 300) {
-	const [debounced, setDebounced] = useState(value);
-	useEffect(() => {
-		const t = setTimeout(() => setDebounced(value), delay);
-		return () => clearTimeout(t);
-	}, [value, delay]);
-	return debounced;
-}
+const DEBOUNCE_MS = 400;
 
 const columns: ColumnDef<Document>[] = [
 	{
@@ -179,7 +173,7 @@ export function DocumentsDataTable({
 }: DocumentsDataTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [search, setSearch] = useState("");
-	const debouncedSearch = useDebounced(search, 300);
+	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
 	const [documentTypeFilter, setDocumentTypeFilter] = useState<string[]>([]);
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(10);

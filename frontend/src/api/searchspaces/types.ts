@@ -4,6 +4,7 @@ export interface SearchSpace {
 	description: string;
 	created_at: string;
 	user_id: string;
+	pinned_query_template_ids: number[];
 }
 
 export interface CreateSearchSpaceRequest {

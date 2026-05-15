@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, Bot, Brain, Settings } from "lucide-react";
+import { ArrowLeft, Bot, Brain, Edit3, Settings } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
+import { QueryTemplateManager } from "@/components/settings/query-template-manager";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -34,7 +35,7 @@ export default function SettingsPage() {
 							<div className="space-y-1">
 								<h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 								<p className="text-lg text-muted-foreground">
-									Manage your LLM configurations and role assignments for this search space.
+									Manage your LLM configurations, role assignments, and query templates for this search space.
 								</p>
 							</div>
 						</div>
@@ -44,7 +45,7 @@ export default function SettingsPage() {
 					{/* Settings Content */}
 					<Tabs defaultValue="models" className="space-y-8">
 						<div className="overflow-x-auto">
-							<TabsList className="grid w-full min-w-fit grid-cols-2 lg:w-auto lg:inline-grid">
+							<TabsList className="grid w-full min-w-fit grid-cols-3 lg:w-auto lg:inline-grid">
 								<TabsTrigger value="models" className="flex items-center gap-2 text-sm">
 									<Bot className="h-4 w-4" />
 									<span className="hidden sm:inline">Model Configs</span>
@@ -55,6 +56,11 @@ export default function SettingsPage() {
 									<span className="hidden sm:inline">LLM Roles</span>
 									<span className="sm:hidden">Roles</span>
 								</TabsTrigger>
+								<TabsTrigger value="templates" className="flex items-center gap-2 text-sm">
+									<Edit3 className="h-4 w-4" />
+									<span className="hidden sm:inline">Query Templates</span>
+									<span className="sm:hidden">Templates</span>
+								</TabsTrigger>
 							</TabsList>
 						</div>
 
@@ -64,6 +70,10 @@ export default function SettingsPage() {
 
 						<TabsContent value="roles" className="space-y-6">
 							<LLMRoleManager searchSpaceId={searchSpaceId} />
+						</TabsContent>
+
+						<TabsContent value="templates" className="space-y-6">
+							<QueryTemplateManager searchSpaceId={searchSpaceId} />
 						</TabsContent>
 					</Tabs>
 				</div>

@@ -32,6 +32,9 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { useDebounce } from "@/hooks/use-debounce";
+
+const DEBOUNCE_MS = 400;
 import { cn } from "@/lib/utils";
 
 // Map of icon names to their components
@@ -66,6 +69,7 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearchQuery = useDebounce(searchQuery, DEBOUNCE_MS);
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const { mutate: addFavoriteChat } = useAddFavoriteChat();
 	const { mutate: removeFavoriteChat } = useRemoveFavoriteChat();
@@ -74,10 +78,10 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 
 	// Memoized filtered chats
 	const filteredChats = useMemo(() => {
-		if (!searchQuery.trim()) return chats;
+		if (!debouncedSearchQuery.trim()) return chats;
 
-		return chats.filter((chat) => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
-	}, [chats, searchQuery]);
+		return chats.filter((chat) => chat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+	}, [chats, debouncedSearchQuery]);
 
 	// Handle chat deletion with loading state
 	const handleDeleteChat = useCallback(async (chatId: number, deleteAction: () => void) => {
