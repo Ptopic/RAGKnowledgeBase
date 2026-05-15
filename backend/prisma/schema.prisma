@@ -117,6 +117,7 @@ model User {
   searchSourceConnectors SearchSourceConnector[]
   searchSpacePreferences UserSearchSpacePreference[]
   favoriteDocuments      UserDocumentFavorite[]
+  favorites              UserChatFavorite[]
 
   @@map("user")
 }
@@ -243,10 +244,29 @@ model Chat {
 
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  favorites   UserChatFavorite[]
 
   @@index([title])
   @@index([searchSpaceId])
   @@map("chats")
+}
+
+// User Chat Favorite Model
+model UserChatFavorite {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  chatId Int    @map("chat_id")
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatId], name: "uq_user_chat_favorite")
+  @@index([userId])
+  @@index([chatId])
+  @@map("user_chat_favorite")
 }
 
 // Search Source Connector Model

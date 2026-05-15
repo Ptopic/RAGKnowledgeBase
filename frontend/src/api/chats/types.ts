@@ -7,10 +7,20 @@ export interface Chat {
 	type: string;
 	title: string;
 	search_space_id: number;
+	is_favorite?: boolean;
 }
 
 export interface GetChatsParams {
 	search_space_id: string;
+}
+
+export interface GetFavoriteChatsParams {
+	search_space_id: string;
+}
+
+export interface ToggleFavoriteResponse {
+	id: number;
+	is_favorite: boolean;
 }
 
 export interface ChatDetails extends Chat {
