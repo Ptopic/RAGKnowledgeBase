@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocuments } from "@/hooks/use-documents";
+import { useDebounce } from "@/hooks/use-debounce";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import {
@@ -15,22 +16,17 @@ import {
 import { PaginationControls } from "./components/PaginationControls";
 import type { ColumnVisibility } from "./components/types";
 
-function useDebounced<T>(value: T, delay = 250) {
-	const [debounced, setDebounced] = useState(value);
-	useEffect(() => {
-		const t = setTimeout(() => setDebounced(value), delay);
-		return () => clearTimeout(t);
-	}, [value, delay]);
-	return debounced;
-}
+const DEBOUNCE_MS = 400;
 
 export default function DocumentsTable() {
 	const id = useId();
 	const params = useParams();
+	const searchParams = useSearchParams();
+	const router = useRouter();
 	const searchSpaceId = Number(params.search_space_id);
 
 	const [search, setSearch] = useState("");
-	const debouncedSearch = useDebounced(search, 250);
+	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
 	const [activeTypes, setActiveTypes] = useState<string[]>([]);
 	const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
 		title: true,
@@ -38,6 +34,7 @@ export default function DocumentsTable() {
 		content: true,
 		chunks: true,
 		created_at: true,
+		favorite: true,
 	});
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(50);
@@ -45,6 +42,9 @@ export default function DocumentsTable() {
 	const [sortDesc, setSortDesc] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
+	const [favoriteStatus, setFavoriteStatus] = useState<"all" | "favorited" | "non_favorited">(
+		(searchParams.get("favorite_status") as "all" | "favorited" | "non_favorited") || "all",
+	);
 
 	// Use server-side pagination, search, and filtering
 	const {
@@ -52,39 +52,39 @@ export default function DocumentsTable() {
 		total,
 		loading,
 		error,
+		favoriteIds,
 		fetchDocuments,
 		searchDocuments,
 		deleteDocument,
 		getDocumentTypeCounts,
+		toggleFavorite,
 	} = useDocuments(searchSpaceId, {
 		page: pageIndex,
 		pageSize: pageSize,
 	});
 
-	// Fetch document type counts on mount and when search space changes
 	useEffect(() => {
 		if (searchSpaceId && getDocumentTypeCounts) {
 			getDocumentTypeCounts().then(setTypeCounts);
 		}
 	}, [searchSpaceId, getDocumentTypeCounts]);
 
-	// Refetch when pagination changes or when search/filters change
 	useEffect(() => {
 		if (searchSpaceId) {
 			if (debouncedSearch.trim()) {
-				// Use search endpoint if there's a search query
 				searchDocuments?.(
 					debouncedSearch,
 					pageIndex,
 					pageSize,
 					activeTypes.length > 0 ? activeTypes : undefined,
+					favoriteStatus,
 				);
 			} else {
-				// Use regular fetch if no search
 				fetchDocuments?.(
 					pageIndex,
 					pageSize,
 					activeTypes.length > 0 ? activeTypes : undefined,
+					favoriteStatus,
 				);
 			}
 		}
@@ -93,6 +93,7 @@ export default function DocumentsTable() {
 		pageSize,
 		debouncedSearch,
 		activeTypes,
+		favoriteStatus,
 		searchSpaceId,
 		fetchDocuments,
 		searchDocuments,
@@ -122,12 +123,14 @@ export default function DocumentsTable() {
 				pageIndex,
 				pageSize,
 				activeTypes.length > 0 ? activeTypes : undefined,
+				favoriteStatus,
 			);
 		} else {
 			await fetchDocuments?.(
 				pageIndex,
 				pageSize,
 				activeTypes.length > 0 ? activeTypes : undefined,
+				favoriteStatus,
 			);
 		}
 	}, [
@@ -135,6 +138,7 @@ export default function DocumentsTable() {
 		pageIndex,
 		pageSize,
 		activeTypes,
+		favoriteStatus,
 		searchDocuments,
 		fetchDocuments,
 	]);
@@ -145,14 +149,13 @@ export default function DocumentsTable() {
 			return;
 		}
 		try {
-			const results = await Promise.all(
+			const results = await Promise.allSettled(
 				Array.from(selectedIds).map((id) => deleteDocument?.(id)),
 			);
-			const okCount = results.filter((r) => r === true).length;
+			const okCount = results.filter((r) => r.status === "fulfilled").length;
 			if (okCount === selectedIds.size)
 				toast.success(`Successfully deleted ${okCount} document(s)`);
 			else toast.error("Some documents could not be deleted");
-			// Refetch the current page with appropriate method
 			await refreshCurrentView();
 			setSelectedIds(new Set());
 		} catch (e) {
@@ -176,6 +179,17 @@ export default function DocumentsTable() {
 		return () => mq.removeEventListener("change", onChange);
 	}, []);
 
+	useEffect(() => {
+		const current = new URLSearchParams(searchParams.toString());
+		if (favoriteStatus === "all") {
+			current.delete("favorite_status");
+		} else {
+			current.set("favorite_status", favoriteStatus);
+		}
+		const newUrl = `${window.location.pathname}?${current.toString()}`;
+		router.replace(newUrl, { scroll: false });
+	}, [favoriteStatus, router, searchParams]);
+
 	return (
 		<motion.div
 			initial={{ opacity: 0, y: 20 }}
@@ -193,6 +207,11 @@ export default function DocumentsTable() {
 				activeTypes={activeTypes}
 				columnVisibility={columnVisibility}
 				onToggleColumn={onToggleColumn}
+				favoriteStatus={favoriteStatus}
+				onFavoriteStatusChange={(status) => {
+					setFavoriteStatus(status);
+					setPageIndex(0);
+				}}
 			/>
 
 			<DocumentsTableShell
@@ -203,7 +222,7 @@ export default function DocumentsTable() {
 				selectedIds={selectedIds}
 				setSelectedIds={setSelectedIds}
 				columnVisibility={columnVisibility}
-				deleteDocument={(id) => deleteDocument?.(id) ?? Promise.resolve(false)}
+				deleteDocument={(id) => deleteDocument?.(id) ?? Promise.resolve()}
 				sortKey={sortKey}
 				sortDesc={sortDesc}
 				onSortChange={(key) => {
@@ -213,6 +232,8 @@ export default function DocumentsTable() {
 						setSortDesc(key === "created_at");
 					}
 				}}
+				favoriteIds={favoriteIds}
+				onToggleFavorite={toggleFavorite}
 			/>
 
 			<PaginationControls

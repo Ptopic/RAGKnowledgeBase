@@ -3,6 +3,7 @@ import { ChatsModule } from "src/chats/chats.module";
 import { PrismaModule } from "src/prisma/prisma.module";
 import { RetrieverModule } from "src/retriever/retriever.module";
 import { TasksModule } from "src/tasks/tasks.module";
+import { ApiKeysModule } from "src/api-keys/api-keys.module";
 import { AgentController } from "./agent.controller";
 import { AgentService } from "./agent.service";
 import { ResearcherService } from "./researcher.service";
@@ -19,6 +20,7 @@ import { CheckpointerModule } from "./checkpointer/checkpointer.module";
 	imports: [
 		PrismaModule,
 		RetrieverModule,
+		ApiKeysModule,
 		forwardRef(() => TasksModule),
 		forwardRef(() => ChatsModule),
 		CheckpointerModule,

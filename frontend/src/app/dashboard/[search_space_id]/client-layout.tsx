@@ -48,8 +48,11 @@ export function DashboardClientLayout({
 		useLLMPreferences(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
-	// Skip onboarding check if we're already on the onboarding page
-	const isOnboardingPage = pathname?.includes("/onboard");
+	const settingsPath = `/dashboard/${searchSpaceId}/settings`;
+	const onboardingPath = `/dashboard/${searchSpaceId}/onboard`;
+
+	const isOnboardingPage = pathname === onboardingPath || pathname?.startsWith(`${onboardingPath}/`);
+	const isSettingsPage = pathname === settingsPath || pathname?.startsWith(`${settingsPath}/`);
 
 	const translatedNavMain = useMemo(() => {
 		return navMain;
@@ -70,8 +73,7 @@ export function DashboardClientLayout({
 	});
 
 	useEffect(() => {
-		// Skip check if already on onboarding page
-		if (isOnboardingPage) {
+		if (isOnboardingPage || isSettingsPage) {
 			setHasCheckedOnboarding(true);
 			return;
 		}
@@ -90,13 +92,14 @@ export function DashboardClientLayout({
 		loading,
 		isOnboardingComplete,
 		isOnboardingPage,
+		isSettingsPage,
 		router,
 		searchSpaceId,
 		hasCheckedOnboarding,
 	]);
 
 	// Show loading screen while checking onboarding status (only on first load)
-	if (!hasCheckedOnboarding && loading && !isOnboardingPage) {
+	if (!hasCheckedOnboarding && loading && !isOnboardingPage && !isSettingsPage) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
@@ -115,7 +118,7 @@ export function DashboardClientLayout({
 	}
 
 	// Show error screen if there's an error loading preferences (but not on onboarding page)
-	if (error && !hasCheckedOnboarding && !isOnboardingPage) {
+	if (error && !hasCheckedOnboarding && !isOnboardingPage && !isSettingsPage) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">

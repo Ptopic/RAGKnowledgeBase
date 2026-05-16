@@ -18,7 +18,7 @@ const MarkdownWithCode = memo(
 		isUser = false,
 	}: MarkdownWithCodeProps) => {
 		const processedMarkdown = useMemo(() => {
-			if (!markdown.trim()) return null;
+			if (!markdown?.trim()) return null;
 
 			return (
 				<ReactMarkdown

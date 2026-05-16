@@ -1,10 +1,13 @@
 "use client";
-import { AIMessage, type Message, ToolMessage } from "@langchain/core/messages";
+import type { Message } from "@langchain/core/messages";
+import { Share2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import ShareChatModal from "@/components/chat/ShareChatModal";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
+import { convertToLangChainMessages } from "@/lib/chat/message-adapter";
 
 interface ChatState {
 	selectedDocuments: Document[];
@@ -42,74 +45,6 @@ const restoreChatState = (
 	return null;
 };
 
-/**
- * Convert backend message format to LangChain Message format
- * Backend stores messages as nested exchanges: [[userMsg, assistantMsg, toolMsg], ...]
- * This function flattens structure for frontend and reconstructs tool calls from metadata
- */
-const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
-	const convertSingleMessage = (msg: any, index: number): Message => {
-		const id = msg.id || `msg_${index}`;
-		if (msg.role === "user") {
-			return { type: "human", content: msg.content, id };
-		}
-		if (msg.role === "assistant") {
-			return { type: "ai", content: msg.content, id };
-		}
-		return { type: "system", content: msg.content, id };
-	};
-
-	// Handle nested exchange format with tool reconstruction
-	if (apiMessages.length > 0 && Array.isArray(apiMessages[0])) {
-		const flatMessages = (apiMessages as any[]).flat();
-		const reconstructed: Message[] = [];
-
-		for (let i = 0; i < flatMessages.length; i++) {
-			const msg = flatMessages[i];
-
-			// Check if this has tool metadata
-			if (msg.metadata?.kind?.startsWith("tool_")) {
-				const metadata = msg.metadata;
-				const runId = metadata.runId || `${msg.timestamp}`;
-				const toolName = metadata.toolName || "unknown";
-
-				// Create AIMessage with tool_calls
-				reconstructed.push(
-					new AIMessage({
-						id: `${msg.timestamp}_tool_call_${i}`,
-						content: "",
-						tool_calls: [
-							{
-								id: runId,
-								name: toolName,
-								args: {},
-							},
-						],
-					}),
-				);
-
-				// Create ToolMessage with result
-				reconstructed.push(
-					new ToolMessage({
-						tool_call_id: runId,
-						content: JSON.stringify({ data: metadata.data }),
-						status: metadata.status,
-					}),
-				);
-
-				continue;
-			}
-
-			// Regular message
-			reconstructed.push(convertSingleMessage(msg, reconstructed.length));
-		}
-
-		return reconstructed as Message[];
-	}
-
-	return apiMessages.map(convertSingleMessage) as Message[];
-};
-
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
 
@@ -134,6 +69,7 @@ export default function ResearcherPage() {
 	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
 		chatIdParam ? Number.parseInt(chatIdParam, 10) : undefined,
 	);
+	const [shareModalOpen, setShareModalOpen] = useState(false);
 
 	// Refs to track current state for useEffect access without dependency issues
 	const chatIdRef = useRef(currentChatId);
@@ -254,21 +190,40 @@ export default function ResearcherPage() {
 	}
 
 	return (
-		<TestChatInterface
-			onDocumentSelectionChange={setSelectedDocuments}
-			selectedDocuments={selectedDocuments}
-			onConnectorSelectionChange={setSelectedConnectors}
-			selectedConnectors={selectedConnectors}
-			searchMode={searchMode}
-			onSearchModeChange={setSearchMode}
-			messages={messages}
-			setMessages={setMessages}
-			threadId={chatIdParam || "new_chat"}
-			chatId={currentChatId}
-			userId={1}
-			token={token}
-			searchSpaceId={search_space_id as string}
-			onChatCreated={handleChatCreated}
-		/>
+		<div className="relative h-full">
+			<TestChatInterface
+				onDocumentSelectionChange={setSelectedDocuments}
+				selectedDocuments={selectedDocuments}
+				onConnectorSelectionChange={setSelectedConnectors}
+				selectedConnectors={selectedConnectors}
+				searchMode={searchMode}
+				onSearchModeChange={setSearchMode}
+				messages={messages}
+				setMessages={setMessages}
+				threadId={chatIdParam || "new_chat"}
+				chatId={currentChatId}
+				userId={1}
+				token={token}
+				searchSpaceId={search_space_id as string}
+				onChatCreated={handleChatCreated}
+			/>
+			{currentChatId && token && (
+				<>
+					<button
+						type="button"
+						onClick={() => setShareModalOpen(true)}
+						className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+					>
+						<Share2 className="h-4 w-4" />
+						Share
+					</button>
+					<ShareChatModal
+						chatId={currentChatId}
+						open={shareModalOpen}
+						onOpenChange={setShareModalOpen}
+					/>
+				</>
+			)}
+		</div>
 	);
 }

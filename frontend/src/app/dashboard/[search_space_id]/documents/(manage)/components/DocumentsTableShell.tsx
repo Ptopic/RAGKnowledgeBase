@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, FileX } from "lucide-react";
+import { ChevronDown, ChevronUp, FileX, Star } from "lucide-react";
 import { motion } from "motion/react";
 import React from "react";
 import documentsClientRequests from "@/api/documents/authClientRequests";
@@ -77,6 +77,8 @@ export function DocumentsTableShell({
 	sortKey,
 	sortDesc,
 	onSortChange,
+	favoriteIds,
+	onToggleFavorite,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -85,10 +87,12 @@ export function DocumentsTableShell({
 	selectedIds: Set<number>;
 	setSelectedIds: (update: Set<number>) => void;
 	columnVisibility: ColumnVisibility;
-	deleteDocument: (id: number) => Promise<boolean>;
+	deleteDocument: (id: number) => Promise<void>;
 	sortKey: SortKey;
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
+	favoriteIds: Set<number>;
+	onToggleFavorite: (id: number, isFavorite: boolean) => void;
 }) {
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
@@ -243,28 +247,33 @@ export function DocumentsTableShell({
 									{columnVisibility.chunks && (
 										<TableHead style={{ width: 140 }}>Chunks</TableHead>
 									)}
-									{columnVisibility.created_at && (
-										<TableHead style={{ width: 120 }}>
-											<Button
-												variant="ghost"
-												className="flex h-full w-full cursor-pointer select-none items-center justify-between gap-2"
-												onClick={() => onSortHeader("created_at")}
-											>
-												Created At
-												{sortKey === "created_at" ? (
-													sortDesc ? (
-														<ChevronDown
-															className="shrink-0 opacity-60"
-															size={16}
-														/>
-													) : (
-														<ChevronUp
-															className="shrink-0 opacity-60"
-															size={16}
-														/>
-													)
-												) : null}
-											</Button>
+								{columnVisibility.created_at && (
+									<TableHead style={{ width: 120 }}>
+										<Button
+											variant="ghost"
+											className="flex h-full w-full cursor-pointer select-none items-center justify-between gap-2"
+											onClick={() => onSortHeader("created_at")}
+										>
+											Created At
+											{sortKey === "created_at" ? (
+												sortDesc ? (
+													<ChevronDown
+														className="shrink-0 opacity-60"
+														size={16}
+													/>
+												) : (
+													<ChevronUp
+														className="shrink-0 opacity-60"
+														size={16}
+													/>
+												)
+											) : null}
+										</Button>
+									</TableHead>
+								)}
+									{columnVisibility.favorite && (
+										<TableHead style={{ width: 60 }}>
+											<span className="sr-only">Favorite</span>
 										</TableHead>
 									)}
 									<TableHead style={{ width: 60 }}>
@@ -372,20 +381,55 @@ export function DocumentsTableShell({
 													</div>
 												</TableCell>
 											)}
-											{columnVisibility.created_at && (
-												<TableCell className="px-4 py-3">
-													{new Date(doc.created_at).toLocaleDateString()}
-												</TableCell>
-											)}
+										{columnVisibility.created_at && (
 											<TableCell className="px-4 py-3">
-												<RowActions
-													document={doc}
-													deleteDocument={deleteDocument}
-													refreshDocuments={async () => {
-														await onRefresh();
-													}}
-												/>
+												{new Date(doc.created_at).toLocaleDateString()}
 											</TableCell>
+										)}
+										{columnVisibility.favorite && (
+											<TableCell className="px-4 py-3">
+												<motion.div
+													whileHover={{ scale: 1.15 }}
+													whileTap={{ scale: 0.9 }}
+													className="flex justify-center"
+												>
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-8 w-8 p-0"
+														onClick={() =>
+															onToggleFavorite(
+																doc.id,
+																favoriteIds.has(doc.id),
+															)
+														}
+															aria-label={
+																favoriteIds.has(doc.id)
+																	? "Remove from favorites"
+																	: "Add to favorites"
+															}
+														>
+															<Star
+																size={18}
+																className={
+																	favoriteIds.has(doc.id)
+																		? "fill-amber-400 text-amber-400"
+																		: "text-muted-foreground"
+																}
+															/>
+													</Button>
+												</motion.div>
+											</TableCell>
+										)}
+									<TableCell className="px-4 py-3">
+										<RowActions
+											document={doc}
+											deleteDocument={deleteDocument}
+											refreshDocuments={async () => {
+												await onRefresh();
+											}}
+										/>
+									</TableCell>
 										</motion.tr>
 									);
 								})}
@@ -413,19 +457,44 @@ export function DocumentsTableShell({
 														{doc.title}
 													</div>
 												</div>
-												<RowActions
-													document={doc}
-													deleteDocument={deleteDocument}
-													refreshDocuments={async () => {
-														await onRefresh();
-													}}
-												/>
+										<RowActions
+											document={doc}
+											deleteDocument={deleteDocument}
+											refreshDocuments={async () => {
+												await onRefresh();
+											}}
+										/>
 											</div>
 											<div className="mt-1 flex flex-wrap items-center gap-2">
 												<DocumentTypeChip type={doc.document_type} />
 												<span className="text-xs text-muted-foreground">
 													{new Date(doc.created_at).toLocaleDateString()}
 												</span>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-5 w-5 p-0 ml-auto"
+													onClick={() =>
+														onToggleFavorite(
+															doc.id,
+															favoriteIds.has(doc.id),
+														)
+													}
+													aria-label={
+														favoriteIds.has(doc.id)
+															? "Remove from favorites"
+															: "Add to favorites"
+													}
+												>
+													<Star
+														size={14}
+														className={
+															favoriteIds.has(doc.id)
+																? "fill-amber-400 text-amber-400"
+																: "text-muted-foreground"
+														}
+													/>
+												</Button>
 											</div>
 											{columnVisibility.content && (
 												<div className="mt-2 text-sm text-muted-foreground">

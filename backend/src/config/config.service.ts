@@ -7,6 +7,7 @@ import type {
 	ConnectorsConfig,
 	DatabaseConfig,
 	EmbeddingConfig,
+	EncryptionConfig,
 	ETLConfig,
 	FrontendConfig,
 	GoogleConfig,
@@ -104,6 +105,10 @@ export class ConfigService {
 		return this.nestConfigService.get<LLMConfig>("llm", { infer: true })!;
 	}
 
+	get encryption(): EncryptionConfig {
+		return this.nestConfigService.get<EncryptionConfig>("encryption", { infer: true })!;
+	}
+
 	/**
 	 * Get all settings as a plain object
 	 */
@@ -125,6 +130,7 @@ export class ConfigService {
 			langsmith: this.langsmith,
 			connectors: this.connectors,
 			llm: this.llm,
+			encryption: this.encryption,
 		};
 	}
 

@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { LLMConfigsController } from './llm-configs.controller';
 import { LLMConfigsService } from './llm-configs.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ApiKeysModule } from '../api-keys/api-keys.module';
 
 @Module({
+  imports: [ApiKeysModule],
   controllers: [LLMConfigsController],
   providers: [LLMConfigsService, PrismaService],
   exports: [LLMConfigsService],

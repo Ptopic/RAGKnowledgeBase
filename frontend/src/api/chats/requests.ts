@@ -7,6 +7,8 @@ import type {
 	CreateChatRequest,
 	CreateChatResponse,
 	GetChatsParams,
+	GetFavoriteChatsParams,
+	ToggleFavoriteResponse,
 	UpdateChatRequest,
 } from "./types";
 
@@ -60,3 +62,30 @@ export const deleteChat =
 			...init,
 			method: "DELETE",
 		}));
+
+export const addFavoriteChat =
+	(request: ICallableRequestBuilder<ToggleFavoriteResponse>) =>
+	async (id: number) =>
+		request.call(`${config.apiUrl}/chats/${id}/favorite`, (init) => ({
+			...init,
+			method: "POST",
+		}));
+
+export const removeFavoriteChat =
+	(request: ICallableRequestBuilder<ToggleFavoriteResponse>) =>
+	async (id: number) =>
+		request.call(`${config.apiUrl}/chats/${id}/favorite`, (init) => ({
+			...init,
+			method: "DELETE",
+		}));
+
+export const getFavoriteChats =
+	(request: ICallableRequestBuilder<Chat[]>) =>
+	async (params: GetFavoriteChatsParams) =>
+		request.call(
+			`${config.apiUrl}/chats/favorites?search_space_id=${params.search_space_id}`,
+			(init) => ({
+				...init,
+				method: "GET",
+			}),
+		);

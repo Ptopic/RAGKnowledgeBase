@@ -160,4 +160,9 @@ export default () => ({
       apiKey: process.env.COHERE_API_KEY,
     },
   },
+
+  // API Key Encryption
+  encryption: {
+    apiKey: process.env.API_ENCRYPTION_KEY,
+  },
 });

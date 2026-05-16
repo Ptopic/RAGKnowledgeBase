@@ -24,6 +24,7 @@ import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
+	GetDocumentsQueryDto,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
 } from "./dtos/document.dto";
@@ -80,17 +81,13 @@ export class DocumentsController {
 	@Get()
 	async findAll(
 		@Req() req: any,
-		@Query("skip") skip?: string,
-		@Query("page") page?: string,
-		@Query("page_size") pageSize?: string,
-		@Query("search_space_id") searchSpaceId?: string,
-		@Query("document_types") documentTypes?: string,
-	): Promise<PaginatedResponseDto<DocumentDto>> {
-		const skipNum = skip !== undefined ? parseInt(skip, 10) : undefined;
-		const pageNum = page !== undefined ? parseInt(page, 10) : undefined;
-		const pageSizeNum = pageSize !== undefined ? parseInt(pageSize, 10) : 50;
+		@Query() query: GetDocumentsQueryDto,
+	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
+		const skipNum = query.skip !== undefined ? parseInt(query.skip, 10) : undefined;
+		const pageNum = query.page !== undefined ? parseInt(query.page, 10) : undefined;
+		const pageSizeNum = query.page_size !== undefined ? parseInt(query.page_size, 10) : 50;
 		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
+			query.search_space_id !== undefined ? parseInt(query.search_space_id, 10) : undefined;
 
 		return this.documentsService.findAll(
 			req.user.id,
@@ -98,7 +95,8 @@ export class DocumentsController {
 			pageNum,
 			pageSizeNum,
 			searchSpaceIdNum,
-			documentTypes,
+			query.document_types,
+			query.favorite_status,
 		);
 	}
 
@@ -106,21 +104,17 @@ export class DocumentsController {
 	async search(
 		@Req() req: any,
 		@Query("title") title: string,
-		@Query("skip") skip?: string,
-		@Query("page") page?: string,
-		@Query("page_size") pageSize?: string,
-		@Query("search_space_id") searchSpaceId?: string,
-		@Query("document_types") documentTypes?: string,
-	): Promise<PaginatedResponseDto<DocumentDto>> {
+		@Query() query: GetDocumentsQueryDto,
+	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
 		if (!title) {
 			throw new BadRequestException("title query parameter is required");
 		}
 
-		const skipNum = skip !== undefined ? parseInt(skip, 10) : undefined;
-		const pageNum = page !== undefined ? parseInt(page, 10) : undefined;
-		const pageSizeNum = pageSize !== undefined ? parseInt(pageSize, 10) : 50;
+		const skipNum = query.skip !== undefined ? parseInt(query.skip, 10) : undefined;
+		const pageNum = query.page !== undefined ? parseInt(query.page, 10) : undefined;
+		const pageSizeNum = query.page_size !== undefined ? parseInt(query.page_size, 10) : 50;
 		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
+			query.search_space_id !== undefined ? parseInt(query.search_space_id, 10) : undefined;
 
 		return this.documentsService.search(
 			req.user.id,
@@ -129,7 +123,8 @@ export class DocumentsController {
 			pageNum,
 			pageSizeNum,
 			searchSpaceIdNum,
-			documentTypes,
+			query.document_types,
+			query.favorite_status,
 		);
 	}
 
@@ -182,5 +177,21 @@ export class DocumentsController {
 		@Req() req: any,
 	): Promise<{ message: string }> {
 		return this.documentsService.remove(id, req.user.id);
+	}
+
+	@Post(":id/favorite")
+	async addFavorite(
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<{ message: string }> {
+		return this.documentsService.addFavorite(id, req.user.id);
+	}
+
+	@Delete(":id/favorite")
+	async removeFavorite(
+		@Param("id", ParseIntPipe) id: number,
+		@Req() req: any,
+	): Promise<{ message: string }> {
+		return this.documentsService.removeFavorite(id, req.user.id);
 	}
 }
