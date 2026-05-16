@@ -2,7 +2,9 @@ import { ChatAnthropic } from "@langchain/anthropic";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
+import { LLMConfig } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
+import { ApiKeysService } from "src/api-keys/api-keys.service";
 
 /**
  * LLM Roles for different use cases
@@ -20,7 +22,10 @@ export enum LLMRole {
 export class LLMService {
 	private readonly logger = new Logger(LLMService.name);
 
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private apiKeysService: ApiKeysService,
+	) {}
 
 	/**
 	 * Get a LLM instance for a specific user, search space, and role
@@ -56,7 +61,7 @@ export class LLMService {
 			}
 
 			// Get the appropriate LLM config based on role
-			let llmConfig: any = null;
+			let llmConfig: LLMConfig | null = null;
 			if (role === LLMRole.LONG_CONTEXT) {
 				llmConfig = preference.longContextLlm;
 			} else if (role === LLMRole.FAST) {
@@ -73,7 +78,7 @@ export class LLMService {
 			}
 
 			// Create and return the appropriate LLM instance
-			return this.createLLMInstance(llmConfig);
+			return await this.createLLMInstance(llmConfig, userId);
 		} catch (error) {
 			this.logger.error(
 				`Error getting LLM instance for user ${userId}, role ${role}: ${error.message}`,
@@ -86,11 +91,11 @@ export class LLMService {
 	/**
 	 * Create an LLM instance from configuration
 	 */
-	private createLLMInstance(llmConfig: any): BaseChatModel | null {
+	private async createLLMInstance(llmConfig: LLMConfig, userId: string): Promise<BaseChatModel | null> {
 		try {
 			const provider = llmConfig.provider;
 			const modelName = llmConfig.modelName;
-			const apiKey = llmConfig.apiKey;
+			const apiKey = await this.apiKeysService.resolveApiKey(llmConfig, userId);
 			const apiBase = llmConfig.apiBase;
 			const litellmParams = llmConfig.litellmParams || {};
 
@@ -212,7 +217,7 @@ export class LLMService {
 	 */
 	getModelName(llm: BaseChatModel): string {
 		if (llm instanceof ChatOpenAI) {
-			return (llm as any).modelName || "gpt-3.5-turbo";
+			return (llm as ChatOpenAI).modelName || "gpt-3.5-turbo";
 		}
 		// else if (llm instanceof ChatAnthropic) {
 		// 	return llm.model || "claude-3-sonnet-20240229";
@@ -251,7 +256,7 @@ export class LLMService {
 			}
 
 			// Get the appropriate LLM config based on role
-			let llmConfig: any = null;
+			let llmConfig: LLMConfig | null = null;
 			if (role === LLMRole.LONG_CONTEXT) {
 				llmConfig = preference.longContextLlm;
 			} else if (role === LLMRole.FAST) {

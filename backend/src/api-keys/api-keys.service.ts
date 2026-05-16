@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -7,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { encrypt, decrypt } from '../utils/encryption';
 import { CreateApiKeyDto, UpdateApiKeyDto, ApiKeyDto } from './dtos/api-key.dto';
+import { apiKeyCache } from './api-key-cache';
 
 @Injectable()
 export class ApiKeysService {
@@ -37,11 +37,6 @@ export class ApiKeysService {
 
       return this.toDto(result);
     } catch (error) {
-      if (error.code === 'P2002') {
-        throw new ConflictException(
-          'API key for this provider already exists for this user',
-        );
-      }
       throw new InternalServerErrorException(
         `Failed to save API key: ${error.message}`,
       );
@@ -110,6 +105,40 @@ export class ApiKeysService {
     return decrypt(key.apiKey);
   }
 
+  async resolveApiKey(llmConfig: { id: number; apiKey: string; userProviderKeyId: string | null }, userId?: string): Promise<string> {
+    if (llmConfig.userProviderKeyId) {
+      const cached = apiKeyCache.get(llmConfig.userProviderKeyId);
+      if (cached) return cached;
+
+      const where: { id: string; userId?: string } = { id: llmConfig.userProviderKeyId };
+      if (userId) where.userId = userId;
+
+      const key = await this.prisma.userProviderApiKey.findFirst({
+        where,
+      });
+
+      if (!key) {
+        throw new NotFoundException('API key not found');
+      }
+
+      const decrypted = decrypt(key.apiKey);
+      apiKeyCache.set(llmConfig.userProviderKeyId, decrypted);
+      return decrypted;
+    }
+
+    const cacheKey = `config:${llmConfig.id}`;
+    const cached = apiKeyCache.get(cacheKey);
+    if (cached) return cached;
+
+    const decrypted = decrypt(llmConfig.apiKey);
+    apiKeyCache.set(cacheKey, decrypted);
+    return decrypted;
+  }
+
+  invalidateConfigCache(configId: number): void {
+    apiKeyCache.delete(`config:${configId}`);
+  }
+
   async update(
     id: string,
     userId: string,
@@ -125,13 +154,15 @@ export class ApiKeysService {
       }
 
       const data: { name?: string; apiKey?: string } = {};
-      if (updateDto.name) data.name = updateDto.name;
-      if (updateDto.api_key) data.apiKey = encrypt(updateDto.api_key);
+      if (updateDto.name !== undefined) data.name = updateDto.name;
+      if (updateDto.api_key !== undefined) data.apiKey = encrypt(updateDto.api_key);
 
       const updated = await this.prisma.userProviderApiKey.update({
         where: { id },
         data,
       });
+
+      apiKeyCache.delete(id);
 
       return this.toDto(updated);
     } catch (error) {
@@ -155,6 +186,8 @@ export class ApiKeysService {
       await this.prisma.userProviderApiKey.delete({
         where: { id },
       });
+
+      apiKeyCache.delete(id);
 
       return { message: 'API key deleted successfully' };
     } catch (error) {

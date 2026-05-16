@@ -330,7 +330,8 @@ model LLMConfig {
   provider       LiteLLMProvider @map("provider")
   customProvider String?         @map("custom_provider") @db.VarChar(100)
   modelName      String          @map("model_name") @db.VarChar(100)
-  apiKey         String          @map("api_key") // Should be encrypted
+  apiKey         String          @map("api_key") // AES-256-GCM encrypted
+  apiKeyPreview  String?         @map("api_key_preview") @db.VarChar(50)
   apiBase        String?         @map("api_base") @db.VarChar(500)
   language       String?         @default("English") @db.VarChar(50)
   litellmParams  Json?           @default("{}") @map("litellm_params")

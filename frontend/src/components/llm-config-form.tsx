@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, CheckCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useGetApiKeys from "@/api/api-keys/hooks/useGetApiKeys";
 import type { CreateLLMConfig, LLMConfig } from "@/api/llm-configs/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -56,25 +56,52 @@ export function LLMConfigForm({
 				provider: editingConfig.provider,
 				custom_provider: editingConfig.custom_provider || "",
 				model_name: editingConfig.model_name,
-				api_key: editingConfig.api_key,
+				api_key: "",
 				api_base: editingConfig.api_base || "",
 				language: editingConfig.language || "English",
 				litellm_params: editingConfig.litellm_params || {},
 				search_space_id: searchSpaceId,
-				user_provider_key_id:
-					(editingConfig as Record<string, unknown>).user_provider_key_id as string || "",
+				user_provider_key_id: editingConfig.user_provider_key_id || "",
 			};
 		}
 		return { ...DEFAULT_FORM_DATA, search_space_id: searchSpaceId };
 	});
 
 	const [useSavedKey, setUseSavedKey] = useState(
-		!!editingConfig && !!(editingConfig as Record<string, unknown>).user_provider_key_id,
+		!!editingConfig?.user_provider_key_id,
 	);
+	const [draftApiKey, setDraftApiKey] = useState(
+		"",
+	);
+
+	useEffect(() => {
+		if (editingConfig) {
+			setFormData({
+				name: editingConfig.name,
+				provider: editingConfig.provider,
+				custom_provider: editingConfig.custom_provider || "",
+				model_name: editingConfig.model_name,
+				api_key: "",
+				api_base: editingConfig.api_base || "",
+				language: editingConfig.language || "English",
+				litellm_params: editingConfig.litellm_params || {},
+				search_space_id: searchSpaceId,
+				user_provider_key_id: editingConfig.user_provider_key_id || "",
+			});
+			setUseSavedKey(!!editingConfig.user_provider_key_id);
+			setDraftApiKey("");
+		} else {
+			setFormData({ ...DEFAULT_FORM_DATA, search_space_id: searchSpaceId });
+			setUseSavedKey(false);
+			setDraftApiKey("");
+		}
+	}, [editingConfig, searchSpaceId]);
 
 	const { data: savedApiKeys = [] } = useGetApiKeys();
 
-	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
+type StringFormField = Exclude<keyof CreateLLMConfig, 'litellm_params' | 'search_space_id'>;
+
+	const handleInputChange = (field: StringFormField, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
@@ -104,7 +131,6 @@ export function LLMConfigForm({
 						placeholder="e.g., My OpenAI GPT-4"
 						value={formData.name}
 						onChange={(e) => handleInputChange("name", e.target.value)}
-						required
 					/>
 				</div>
 
@@ -144,7 +170,6 @@ export function LLMConfigForm({
 						placeholder="e.g., my-custom-provider"
 						value={formData.custom_provider}
 						onChange={(e) => handleInputChange("custom_provider", e.target.value)}
-						required
 					/>
 				</div>
 			)}
@@ -156,7 +181,6 @@ export function LLMConfigForm({
 					placeholder={selectedProvider?.example || "e.g., gpt-4"}
 					value={formData.model_name}
 					onChange={(e) => handleInputChange("model_name", e.target.value)}
-					required
 				/>
 				{selectedProvider && (
 					<p className="text-xs text-muted-foreground">
@@ -193,7 +217,21 @@ export function LLMConfigForm({
 							: "Enter an API key directly"}
 					</p>
 				</div>
-				<Switch checked={useSavedKey} onCheckedChange={setUseSavedKey} />
+				<Switch
+					checked={useSavedKey}
+					onCheckedChange={(checked) => {
+						if (checked) {
+							setDraftApiKey(formData.api_key || "");
+						} else {
+							setFormData((prev) => ({
+								...prev,
+								api_key: draftApiKey,
+								user_provider_key_id: "",
+							}));
+						}
+						setUseSavedKey(checked);
+					}}
+				/>
 			</div>
 
 			{useSavedKey ? (
@@ -235,10 +273,16 @@ export function LLMConfigForm({
 					<Input
 						id="api_key"
 						type="password"
-						placeholder="Your API key"
+						placeholder={editingConfig ? "Leave blank to keep current key" : "Your API key"}
 						value={formData.api_key}
 						onChange={(e) => handleInputChange("api_key", e.target.value)}
+						required={!editingConfig}
 					/>
+					{editingConfig && editingConfig.api_key_preview && (
+						<p className="text-xs text-muted-foreground">
+							Current: {editingConfig.api_key_preview}
+						</p>
+					)}
 				</div>
 			)}
 

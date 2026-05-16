@@ -97,9 +97,42 @@ export class UpdateLLMConfigDto {
 	litellm_params?: Record<string, any>;
 }
 
-export class LLMConfigDto extends LLMConfigBaseDto {
+export class LLMConfigDto {
 	@IsInt()
 	id: number;
+
+	@IsString()
+	@MaxLength(100)
+	name: string;
+
+	@IsEnum(LiteLLMProvider)
+	provider: LiteLLMProvider;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(100)
+	custom_provider?: string;
+
+	@IsString()
+	@MaxLength(100)
+	model_name: string;
+
+	@IsString()
+	api_key_preview: string;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	api_base?: string;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(50)
+	language?: string;
+
+	@IsObject()
+	@IsOptional()
+	litellm_params?: Record<string, any>;
 
 	@IsInt()
 	search_space_id: number;

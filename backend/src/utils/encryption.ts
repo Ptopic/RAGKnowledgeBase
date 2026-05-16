@@ -1,14 +1,29 @@
-import * as crypto from 'crypto';
+import * as crypto from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
+const SALT = 'rag-kb-salt';
+
+// Lazy singleton — scryptSync is ~100ms; derive once, cache forever
+let _derivedKey: Buffer | null = null;
 
 function getEncryptionKey(): Buffer {
+  if (_derivedKey) return _derivedKey;
+
   const key = process.env.API_ENCRYPTION_KEY;
   if (!key) {
     throw new Error('API_ENCRYPTION_KEY environment variable is not set');
   }
-  return crypto.scryptSync(key, 'rag-kb-salt', 32);
+  _derivedKey = crypto.scryptSync(key, SALT, 32);
+  return _derivedKey;
+}
+
+/**
+ * Invalidate the cached derived key (e.g. after API_ENCRYPTION_KEY rotation).
+ * Next encrypt/decrypt call will re-derive from the current env var.
+ */
+export function invalidateEncryptionKeyCache(): void {
+  _derivedKey = null;
 }
 
 export function encrypt(plaintext: string): string {

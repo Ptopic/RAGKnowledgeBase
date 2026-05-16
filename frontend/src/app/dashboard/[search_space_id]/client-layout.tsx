@@ -48,8 +48,11 @@ export function DashboardClientLayout({
 		useLLMPreferences(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
-	const isOnboardingPage = pathname?.includes("/onboard");
-	const isSettingsPage = pathname?.includes("/settings");
+	const settingsPath = `/dashboard/${searchSpaceId}/settings`;
+	const onboardingPath = `/dashboard/${searchSpaceId}/onboard`;
+
+	const isOnboardingPage = pathname === onboardingPath || pathname?.startsWith(`${onboardingPath}/`);
+	const isSettingsPage = pathname === settingsPath || pathname?.startsWith(`${settingsPath}/`);
 
 	const translatedNavMain = useMemo(() => {
 		return navMain;

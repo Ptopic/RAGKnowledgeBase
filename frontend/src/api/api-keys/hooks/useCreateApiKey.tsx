@@ -19,10 +19,8 @@ const useCreateApiKey = (
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [USER_API_KEYS] });
 			queryClient.invalidateQueries({ queryKey: [LLM_CONFIGS] });
-			toast.success("API key saved successfully");
 		},
 		onError: (error) => {
-			console.error("Error saving API key:", error);
 			toast.error(error.message || "Failed to save API key");
 		},
 		...options,

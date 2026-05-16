@@ -14,15 +14,11 @@ const useDeleteApiKey = (
 
 	return useMutation({
 		mutationFn: (id: string) => apiKeysClientRequests.deleteApiKey(id),
-		onSuccess: () => {
-			toast.success("API key deleted successfully");
-		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: [USER_API_KEYS] });
 			queryClient.invalidateQueries({ queryKey: [LLM_CONFIGS] });
 		},
 		onError: (error) => {
-			console.error("Error deleting API key:", error);
 			toast.error(error.message || "Failed to delete API key");
 		},
 		...options,

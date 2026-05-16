@@ -13,8 +13,15 @@ import {
 	Trash2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import useCreateApiKey from "@/api/api-keys/hooks/useCreateApiKey";
+import useDeleteApiKey from "@/api/api-keys/hooks/useDeleteApiKey";
+import useGetApiKeys from "@/api/api-keys/hooks/useGetApiKeys";
+import useUpdateApiKey from "@/api/api-keys/hooks/useUpdateApiKey";
+import type { CreateApiKey, UpdateApiKey, UserProviderApiKey } from "@/api/api-keys/types";
+import { ApiKeyForm } from "@/components/api-key-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -25,7 +32,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,21 +42,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
-import useCreateApiKey from "@/api/api-keys/hooks/useCreateApiKey";
-import useDeleteApiKey from "@/api/api-keys/hooks/useDeleteApiKey";
-import useGetApiKeys from "@/api/api-keys/hooks/useGetApiKeys";
-import useUpdateApiKey from "@/api/api-keys/hooks/useUpdateApiKey";
-import type { CreateApiKey, UpdateApiKey, UserProviderApiKey } from "@/api/api-keys/types";
 
 export function ApiKeysManager() {
 	const { data: apiKeys = [], isLoading: loading, error, refetch } = useGetApiKeys();
@@ -61,70 +53,59 @@ export function ApiKeysManager() {
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingKey, setEditingKey] = useState<UserProviderApiKey | null>(null);
 	const [deletingKey, setDeletingKey] = useState<UserProviderApiKey | null>(null);
-
-	const [formData, setFormData] = useState<CreateApiKey>({
-		provider: "",
-		api_key: "",
-		name: "",
-	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	// Reset form when dialogs open/close
-	useEffect(() => {
-		if (isAddingNew) {
-			setFormData({ provider: "", api_key: "", name: "" });
-		}
-	}, [isAddingNew]);
-
-	useEffect(() => {
-		if (editingKey) {
-			setFormData({
-				provider: editingKey.provider,
-				api_key: "",
-				name: editingKey.name,
-			});
-		}
-	}, [editingKey]);
-
-	const handleInputChange = (field: keyof CreateApiKey, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }));
+	const openAddDialog = () => {
+		setIsAddingNew(true);
 	};
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const openEditDialog = (key: UserProviderApiKey) => {
+		setEditingKey(key);
+	};
 
-		if (!formData.provider || !formData.name) {
+	const closeDialogs = () => {
+		setIsAddingNew(false);
+		setEditingKey(null);
+	};
+
+	const handleAddSubmit = async (data: CreateApiKey) => {
+		if (!data.provider || !data.name || !data.api_key) {
 			toast.error("Please fill in all required fields");
 			return;
 		}
 
-		// For new keys, api_key is required; for edits, it's optional
-		if (!editingKey && !formData.api_key) {
-			toast.error("Please enter an API key");
+		setIsSubmitting(true);
+		try {
+			await createMutation.mutateAsync(data);
+			toast.success("API key saved successfully");
+			closeDialogs();
+			refetch();
+		} catch {
+			toast.error("Failed to save API key");
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleEditSubmit = async (data: CreateApiKey) => {
+		if (!data.name) {
+			toast.error("Please fill in all required fields");
 			return;
 		}
 
 		setIsSubmitting(true);
-
 		try {
-			if (editingKey) {
-				const updateData: UpdateApiKey = { name: formData.name };
-				if (formData.api_key) {
-					updateData.api_key = formData.api_key;
-				}
-				await updateMutation.mutateAsync({ id: editingKey.id, data: updateData });
-				toast.success("API key updated successfully");
-			} else {
-				await createMutation.mutateAsync(formData);
-				toast.success("API key saved successfully");
+			const updateData: UpdateApiKey = { name: data.name };
+			if (data.api_key) {
+				updateData.api_key = data.api_key;
 			}
-
-			setFormData({ provider: "", api_key: "", name: "" });
-			setIsAddingNew(false);
-			setEditingKey(null);
+			if (!editingKey) return;
+			await updateMutation.mutateAsync({ id: editingKey.id, data: updateData });
+			toast.success("API key updated successfully");
+			closeDialogs();
 			refetch();
 		} catch {
-			toast.error(editingKey ? "Failed to update API key" : "Failed to save API key");
+			toast.error("Failed to update API key");
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -243,7 +224,7 @@ export function ApiKeysManager() {
 								Manage your saved provider API keys
 							</p>
 						</div>
-						<Button onClick={() => setIsAddingNew(true)} className="flex items-center gap-2">
+						<Button onClick={openAddDialog} className="flex items-center gap-2">
 							<Plus className="h-4 w-4" />
 							Add API Key
 						</Button>
@@ -262,7 +243,7 @@ export function ApiKeysManager() {
 										configurations.
 									</p>
 								</div>
-								<Button onClick={() => setIsAddingNew(true)} size="lg">
+								<Button onClick={openAddDialog} size="lg">
 									<Plus className="h-4 w-4 mr-2" />
 									Add First API Key
 								</Button>
@@ -329,7 +310,7 @@ export function ApiKeysManager() {
 															<Button
 																variant="outline"
 																size="sm"
-																onClick={() => setEditingKey(apiKey)}
+																onClick={() => openEditDialog(apiKey)}
 																className="h-8 w-8 p-0"
 															>
 																<Edit3 className="h-4 w-4" />
@@ -359,10 +340,7 @@ export function ApiKeysManager() {
 			<Dialog
 				open={isAddingNew}
 				onOpenChange={(open) => {
-					if (!open) {
-						setIsAddingNew(false);
-						setFormData({ provider: "", api_key: "", name: "" });
-					}
+					if (!open) closeDialogs();
 				}}
 			>
 				<DialogContent className="max-w-lg">
@@ -376,74 +354,11 @@ export function ApiKeysManager() {
 						</DialogDescription>
 					</DialogHeader>
 
-					<form onSubmit={handleSubmit} className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="provider">Provider *</Label>
-							<Select value={formData.provider} onValueChange={(value) => handleInputChange("provider", value)}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select a provider">
-										{formData.provider && (
-											<span className="font-medium">
-												{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.label}
-											</span>
-										)}
-									</SelectValue>
-								</SelectTrigger>
-								<SelectContent>
-									{LLM_PROVIDERS.map((provider) => (
-										<SelectItem key={provider.value} value={provider.value}>
-											<div className="space-y-1 py-1">
-												<div className="font-medium">{provider.label}</div>
-												<div className="text-xs text-muted-foreground">
-													{provider.description}
-												</div>
-											</div>
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="name">Key Name *</Label>
-							<Input
-								id="name"
-								placeholder="e.g., My OpenAI Key"
-								value={formData.name}
-								onChange={(e) => handleInputChange("name", e.target.value)}
-								required
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="api_key">API Key *</Label>
-							<Input
-								id="api_key"
-								type="password"
-								placeholder="Your API key"
-								value={formData.api_key}
-								onChange={(e) => handleInputChange("api_key", e.target.value)}
-								required
-							/>
-						</div>
-
-						<div className="flex gap-2 pt-4">
-							<Button type="submit" disabled={isSubmitting}>
-								{isSubmitting ? "Saving..." : "Save API Key"}
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setIsAddingNew(false);
-									setFormData({ provider: "", api_key: "", name: "" });
-								}}
-								disabled={isSubmitting}
-							>
-								Cancel
-							</Button>
-						</div>
-					</form>
+					<ApiKeyForm
+						onSubmit={handleAddSubmit}
+						onCancel={closeDialogs}
+						isSubmitting={isSubmitting}
+					/>
 				</DialogContent>
 			</Dialog>
 
@@ -451,10 +366,7 @@ export function ApiKeysManager() {
 			<Dialog
 				open={!!editingKey}
 				onOpenChange={(open) => {
-					if (!open) {
-						setEditingKey(null);
-						setFormData({ provider: "", api_key: "", name: "" });
-					}
+					if (!open) closeDialogs();
 				}}
 			>
 				<DialogContent className="max-w-lg">
@@ -468,62 +380,13 @@ export function ApiKeysManager() {
 						</DialogDescription>
 					</DialogHeader>
 
-					<form onSubmit={handleSubmit} className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="edit-provider">Provider</Label>
-							<Input
-								id="edit-provider"
-								value={LLM_PROVIDERS.find((p) => p.value === formData.provider)?.label || formData.provider}
-								disabled
-								className="bg-muted"
-							/>
-							<p className="text-xs text-muted-foreground">
-								Provider cannot be changed after creation
-							</p>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="edit-name">Key Name *</Label>
-							<Input
-								id="edit-name"
-								placeholder="e.g., My OpenAI Key"
-								value={formData.name}
-								onChange={(e) => handleInputChange("name", e.target.value)}
-								required
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="edit-api_key">API Key</Label>
-							<Input
-								id="edit-api_key"
-								type="password"
-								placeholder="Leave blank to keep current key"
-								value={formData.api_key}
-								onChange={(e) => handleInputChange("api_key", e.target.value)}
-							/>
-							<p className="text-xs text-muted-foreground">
-								Leave blank to keep the existing key unchanged
-							</p>
-						</div>
-
-						<div className="flex gap-2 pt-4">
-							<Button type="submit" disabled={isSubmitting}>
-								{isSubmitting ? "Updating..." : "Update API Key"}
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setEditingKey(null);
-									setFormData({ provider: "", api_key: "", name: "" });
-								}}
-								disabled={isSubmitting}
-							>
-								Cancel
-							</Button>
-						</div>
-					</form>
+					<ApiKeyForm
+						key={editingKey?.id ?? "new"}
+						editingKey={editingKey}
+						onSubmit={handleEditSubmit}
+						onCancel={closeDialogs}
+						isSubmitting={isSubmitting}
+					/>
 				</DialogContent>
 			</Dialog>
 

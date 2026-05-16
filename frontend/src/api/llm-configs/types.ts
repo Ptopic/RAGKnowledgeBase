@@ -4,7 +4,7 @@ export interface LLMConfig {
 	provider: string;
 	custom_provider?: string;
 	model_name: string;
-	api_key: string;
+	api_key_preview: string;
 	api_base?: string;
 	language?: string;
 	litellm_params?: Record<string, any>;

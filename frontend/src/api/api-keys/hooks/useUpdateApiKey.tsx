@@ -18,10 +18,8 @@ const useUpdateApiKey = (
 			apiKeysClientRequests.updateApiKey(id, data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [USER_API_KEYS] });
-			toast.success("API key updated successfully");
 		},
 		onError: (error) => {
-			console.error("Error updating API key:", error);
 			toast.error(error.message || "Failed to update API key");
 		},
 		...options,

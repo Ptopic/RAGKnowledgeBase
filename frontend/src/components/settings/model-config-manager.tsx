@@ -57,27 +57,31 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const handleSubmit = async (formData: CreateLLMConfig) => {
-		if (
-			!formData.name ||
-			!formData.provider ||
-			!formData.model_name ||
-			(!formData.api_key && !formData.user_provider_key_id)
-		) {
+		if (!formData.name || !formData.provider || !formData.model_name) {
 			toast.error("Please fill in all required fields");
+			return;
+		}
+
+		if (!editingConfig && !formData.api_key && !formData.user_provider_key_id) {
+			toast.error("Please provide an API key or select a saved key");
 			return;
 		}
 
 		setIsSubmitting(true);
 
+		let result: LLMConfig | null = null;
 		if (editingConfig) {
-			await updateLLMConfig(editingConfig.id, formData);
+			result = await updateLLMConfig(editingConfig.id, formData);
 		} else {
-			await createLLMConfig(formData);
+			result = await createLLMConfig(formData);
 		}
 
 		setIsSubmitting(false);
-		setIsAddingNew(false);
-		setEditingConfig(null);
+
+		if (result) {
+			setIsAddingNew(false);
+			setEditingConfig(null);
+		}
 	};
 
 	const handleDelete = async (id: number) => {
@@ -102,12 +106,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	};
 
 	const maskApiKey = (apiKey: string) => {
-		if (apiKey.length <= 8) return "*".repeat(apiKey.length);
-		return (
-			apiKey.substring(0, 4) +
-			"*".repeat(apiKey.length - 8) +
-			apiKey.substring(apiKey.length - 4)
-		);
+		if (!apiKey) return "••••••••";
+		return apiKey;
 	};
 
 	const handleCancel = () => {
@@ -335,8 +335,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																	<div className="flex items-center space-x-2">
 																		<code className="flex-1 rounded-md bg-muted px-3 py-2 text-xs font-mono">
 																			{showApiKey[config.id]
-																				? config.api_key
-																				: maskApiKey(config.api_key)}
+																				? maskApiKey(config.api_key_preview)
+																				: "••••••••••••"}
 																		</code>
 																		<Button
 																			variant="ghost"
@@ -446,6 +446,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					</DialogHeader>
 
 					<LLMConfigForm
+						key={editingConfig?.id ?? "new"}
 						searchSpaceId={searchSpaceId}
 						editingConfig={editingConfig}
 						onSubmit={handleSubmit}

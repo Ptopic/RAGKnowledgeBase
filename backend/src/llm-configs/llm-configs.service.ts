@@ -4,6 +4,7 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { LiteLLMProvider } from "@prisma/client";
 import {
 	CreateLLMConfigDto,
 	LLMConfigDto,
@@ -13,6 +14,12 @@ import {
 } from "./dtos/llm-config.dto";
 import { PrismaService } from "../prisma/prisma.service";
 import { ApiKeysService } from "../api-keys/api-keys.service";
+import { encrypt } from "../utils/encryption";
+
+function maskApiKey(key: string): string {
+	if (key.length <= 8) return `${key.slice(0, 2)}********${key.slice(-2)}`;
+	return `${key.slice(0, 4)}********${key.slice(-4)}`;
+}
 
 @Injectable()
 export class LLMConfigsService {
@@ -50,24 +57,29 @@ export class LLMConfigsService {
 			}
 
 			let apiKeyToStore: string;
+			let apiKeyPreview: string;
 
 			if (createDto.user_provider_key_id) {
-				apiKeyToStore = await this.apiKeysService.getDecryptedKey(
+				const decrypted = await this.apiKeysService.getDecryptedKey(
 					createDto.user_provider_key_id,
 					userId,
 				);
+				apiKeyToStore = encrypt(decrypted);
+				apiKeyPreview = maskApiKey(decrypted);
 			} else {
-				apiKeyToStore = createDto.api_key!;
+				apiKeyToStore = encrypt(createDto.api_key!);
+				apiKeyPreview = maskApiKey(createDto.api_key!);
 			}
 
 			const llmConfig = await this.prisma.lLMConfig.create({
 				data: {
 					name: createDto.name,
 					provider: createDto.provider,
-					customProvider: createDto.custom_provider,
+					customProvider: createDto.custom_provider || null,
 					modelName: createDto.model_name,
 					apiKey: apiKeyToStore,
-					apiBase: createDto.api_base,
+					apiKeyPreview,
+					apiBase: createDto.api_base || null,
 					language: createDto.language || "English",
 					litellmParams: createDto.litellm_params || {},
 					searchSpaceId: createDto.search_space_id,
@@ -151,31 +163,46 @@ export class LLMConfigsService {
 
 			await this.checkSearchSpaceAccess(llmConfig.searchSpaceId, userId);
 
-			let apiKeyToStore: string | undefined;
+			const selectiveData: {
+				name?: string;
+				provider?: LiteLLMProvider;
+				customProvider?: string | null;
+				modelName?: string;
+				apiKey?: string;
+				apiKeyPreview?: string;
+				apiBase?: string | null;
+				language?: string;
+				litellmParams?: Record<string, unknown> | null;
+				userProviderKeyId?: string | null;
+			} = {};
+
+			if (updateDto.name !== undefined) selectiveData.name = updateDto.name;
+			if (updateDto.provider !== undefined) selectiveData.provider = updateDto.provider;
+			if (updateDto.custom_provider !== undefined) selectiveData.customProvider = updateDto.custom_provider || null;
+			if (updateDto.model_name !== undefined) selectiveData.modelName = updateDto.model_name;
+			if (updateDto.api_base !== undefined) selectiveData.apiBase = updateDto.api_base || null;
+			if (updateDto.language !== undefined) selectiveData.language = updateDto.language;
+			if (updateDto.litellm_params !== undefined) selectiveData.litellmParams = updateDto.litellm_params;
+
 			if (updateDto.user_provider_key_id) {
-				apiKeyToStore = await this.apiKeysService.getDecryptedKey(
+				const decrypted = await this.apiKeysService.getDecryptedKey(
 					updateDto.user_provider_key_id,
 					userId,
 				);
+				selectiveData.apiKey = encrypt(decrypted);
+				selectiveData.apiKeyPreview = maskApiKey(decrypted);
+				selectiveData.userProviderKeyId = updateDto.user_provider_key_id;
 			} else if (updateDto.api_key) {
-				apiKeyToStore = updateDto.api_key;
+				selectiveData.apiKey = encrypt(updateDto.api_key);
+				selectiveData.apiKeyPreview = maskApiKey(updateDto.api_key);
+				selectiveData.userProviderKeyId = null;
 			}
+
+			this.apiKeysService.invalidateConfigCache(id);
 
 			const updated = await this.prisma.lLMConfig.update({
 				where: { id },
-				data: {
-					name: updateDto.name,
-					provider: updateDto.provider,
-					customProvider: updateDto.custom_provider,
-					modelName: updateDto.model_name,
-					apiKey: apiKeyToStore,
-					apiBase: updateDto.api_base,
-					language: updateDto.language,
-					litellmParams: updateDto.litellm_params,
-					userProviderKeyId: updateDto.user_provider_key_id !== undefined
-						? updateDto.user_provider_key_id
-						: undefined,
-				},
+				data: selectiveData,
 			});
 
 			return this.toDto(updated);
@@ -200,6 +227,8 @@ export class LLMConfigsService {
 			}
 
 			await this.checkSearchSpaceAccess(llmConfig.searchSpaceId, userId);
+
+			this.apiKeysService.invalidateConfigCache(id);
 
 			await this.prisma.lLMConfig.delete({
 				where: { id },
@@ -350,14 +379,28 @@ export class LLMConfigsService {
 		}
 	}
 
-	private toDto(llmConfig: any): LLMConfigDto {
+	private toDto(llmConfig: {
+		id: number;
+		name: string;
+		provider: LiteLLMProvider;
+		customProvider: string | null;
+		modelName: string;
+		apiKey: string;
+		apiKeyPreview: string | null;
+		apiBase: string | null;
+		language: string | null;
+		litellmParams: Record<string, unknown> | null;
+		searchSpaceId: number;
+		userProviderKeyId: string | null;
+		createdAt: Date;
+	}): LLMConfigDto {
 		return {
 			id: llmConfig.id,
 			name: llmConfig.name,
 			provider: llmConfig.provider,
 			custom_provider: llmConfig.customProvider,
 			model_name: llmConfig.modelName,
-			api_key: llmConfig.apiKey,
+			api_key_preview: llmConfig.apiKeyPreview || '********',
 			api_base: llmConfig.apiBase,
 			language: llmConfig.language,
 			litellm_params: llmConfig.litellmParams,
