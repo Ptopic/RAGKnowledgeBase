@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import "@blocknote/shadcn/style.css";
+
 import { useCreateBlockNote, useEditorChange } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import "@blocknote/shadcn/style.css";
-import "@blocknote/core/fonts/inter.css";
+import { useTheme } from "next-themes";
+import { useEffect, useRef } from "react";
 
 interface NotebookEditorProps {
 	initialContent?: string;
@@ -13,6 +14,7 @@ interface NotebookEditorProps {
 
 export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps) {
 	const initialized = useRef(false);
+	const { resolvedTheme } = useTheme();
 
 	const editor = useCreateBlockNote({});
 
@@ -24,17 +26,21 @@ export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps
 	useEffect(() => {
 		if (initialContent && editor && !initialized.current) {
 			initialized.current = true;
-			async function loadMarkdown() {
-				const blocks = await editor.tryParseMarkdownToBlocks(initialContent);
+			const content = initialContent;
+			const loadMarkdown = async () => {
+				const blocks = await editor.tryParseMarkdownToBlocks(content);
 				editor.replaceBlocks(editor.document, blocks);
-			}
+			};
 			loadMarkdown();
 		}
 	}, [initialContent, editor]);
 
 	return (
-		<div className="min-h-[300px] rounded-md border bg-background">
-			<BlockNoteView editor={editor} />
+		<div className="min-h-[300px] rounded-md border bg-background text-foreground">
+			<BlockNoteView
+				editor={editor}
+				theme={resolvedTheme === "dark" ? "dark" : "light"}
+			/>
 		</div>
 	);
 }

@@ -161,3 +161,220 @@ button {
 
 @source '../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}';
 @source '../node_modules/@blocknote/shadcn';
+
+/* BlockNote theme overrides — map shadcn/ui CSS variables to BlockNote's --bn-colors-*
+   BlockNote shadcn uses .bn-root[data-color-scheme=dark] for dark mode (higher specificity
+   than .dark .bn-root), so we must match that selector exactly to override the hardcoded
+   #1f1f1f background and other dark defaults. */
+.bn-root {
+	--bn-colors-editor-text: var(--foreground);
+	--bn-colors-editor-background: var(--background);
+	--bn-colors-menu-text: var(--foreground);
+	--bn-colors-menu-background: var(--popover);
+	--bn-colors-tooltip-text: var(--foreground);
+	--bn-colors-tooltip-background: var(--muted);
+	--bn-colors-hovered-text: var(--foreground);
+	--bn-colors-hovered-background: var(--accent);
+	--bn-colors-selected-text: var(--primary-foreground);
+	--bn-colors-selected-background: var(--primary);
+	--bn-colors-disabled-text: var(--muted-foreground);
+	--bn-colors-disabled-background: var(--muted);
+	--bn-colors-shadow: var(--border);
+	--bn-colors-border: var(--border);
+	--bn-colors-side-menu: var(--muted-foreground);
+	--bn-colors-highlights-gray-text: var(--muted-foreground);
+	--bn-colors-highlights-gray-background: var(--muted);
+	--bn-colors-highlights-red-text: var(--destructive);
+	--bn-colors-highlights-red-background: var(--destructive);
+	--bn-font-family: var(--font-sans);
+	--bn-border-radius: var(--radius);
+}
+
+/* Dark mode: use [data-color-scheme=dark] to match BlockNote's own selector specificity.
+   The .dark prefix ensures this only applies when the app is in dark mode. */
+.dark .bn-root,
+.bn-root[data-color-scheme=dark] {
+	--bn-colors-editor-text: var(--foreground);
+	--bn-colors-editor-background: var(--background);
+	--bn-colors-menu-text: var(--foreground);
+	--bn-colors-menu-background: var(--popover);
+	--bn-colors-tooltip-text: var(--foreground);
+	--bn-colors-tooltip-background: var(--muted);
+	--bn-colors-hovered-text: var(--foreground);
+	--bn-colors-hovered-background: var(--accent);
+	--bn-colors-selected-text: var(--primary-foreground);
+	--bn-colors-selected-background: var(--primary);
+	--bn-colors-disabled-text: var(--muted-foreground);
+	--bn-colors-disabled-background: var(--muted);
+	--bn-colors-shadow: var(--border);
+	--bn-colors-border: var(--border);
+	--bn-colors-side-menu: var(--muted-foreground);
+	--bn-colors-highlights-gray-text: var(--muted-foreground);
+	--bn-colors-highlights-gray-background: var(--muted);
+	--bn-colors-highlights-red-text: var(--destructive);
+	--bn-colors-highlights-red-background: var(--destructive);
+}
+
+/* BlockNote font styles — match the app's assistant markdown renderer */
+.bn-editor {
+	font-size: 16px;
+	line-height: 1.75;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+[data-content-type=heading][data-level="1"] {
+	font-size: 2.25rem;
+	font-weight: 800;
+	letter-spacing: -0.025em;
+	line-height: 1.1;
+}
+
+[data-content-type=heading][data-level="2"] {
+	font-size: 1.875rem;
+	font-weight: 600;
+	letter-spacing: -0.025em;
+	line-height: 1.25;
+}
+
+[data-content-type=heading][data-level="3"] {
+	font-size: 1.3rem;
+	font-weight: 600;
+	letter-spacing: -0.025em;
+}
+
+[data-content-type=heading][data-level="4"] {
+	font-size: 1.125rem;
+	font-weight: 600;
+}
+
+[data-content-type=heading][data-level="5"] {
+	font-size: 0.9rem;
+	font-weight: 600;
+}
+
+[data-content-type=heading][data-level="6"] {
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+
+[data-content-type=paragraph] {
+	margin-top: 1.25rem;
+	margin-bottom: 1.25rem;
+}
+
+[data-content-type=paragraph]:first-child {
+	margin-top: 0;
+}
+
+[data-content-type=paragraph]:last-child {
+	margin-bottom: 0;
+}
+
+[data-content-type=quote] blockquote {
+	color: var(--muted-foreground);
+	border-left: 2px solid var(--muted-foreground);
+	margin: 0;
+	padding-left: 1em;
+}
+
+[data-content-type=divider] hr {
+	border: none;
+	border-top: 1px solid var(--border);
+	flex: 1;
+	margin: 0.5em 0;
+}
+
+[data-content-type=bulletListItem],
+[data-content-type=numberedListItem] {
+	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
+	margin-left: 1.5rem;
+}
+
+.bn-block-content[data-content-type=codeBlock] {
+	background-color: var(--syntax-bg);
+	color: var(--foreground);
+	border-radius: 0.5rem;
+	position: relative;
+}
+
+.bn-block-content[data-content-type=codeBlock] > pre {
+	font-family: var(--font-mono);
+	tab-size: 2;
+}
+
+.bn-inline-content code {
+	font-family: var(--font-mono);
+	background-color: var(--muted);
+	border: 1px solid var(--border);
+	border-radius: 0.25rem;
+	padding: 0.125rem 0.25rem;
+	font-size: 0.875em;
+	font-weight: 600;
+}
+
+.bn-editor a {
+	color: var(--primary);
+	text-decoration: underline;
+	text-underline-offset: 4px;
+	font-weight: 500;
+}
+
+.ProseMirror-selectednode > .bn-block-content > *,
+.ProseMirror-selectednode > * {
+	outline-color: var(--ring);
+}
+
+.bn-editor [data-content-type=table] th,
+.bn-editor [data-content-type=table] td {
+	border-color: var(--border);
+}
+
+[data-file-block] .bn-add-file-button {
+	color: var(--muted-foreground);
+	background-color: var(--muted);
+}
+
+[data-file-block] .bn-file-name-with-icon:hover,
+.ProseMirror-selectednode .bn-file-name-with-icon {
+	background-color: var(--accent);
+}
+
+/* Dark mode overrides for BlockNote hardcoded values that bypass --bn-colors-* variables.
+   BlockNote's shadcn CSS hardcodes colors on code blocks, file blocks, quotes, dividers,
+   selection outlines, and table borders — these must be overridden per-element. */
+.dark .bn-block-content[data-content-type=codeBlock] {
+	background-color: var(--syntax-bg);
+	color: var(--foreground);
+}
+
+.dark [data-content-type=quote] blockquote {
+	color: var(--muted-foreground);
+	border-left-color: var(--muted-foreground);
+}
+
+.dark [data-content-type=divider] hr {
+	border-top-color: var(--border);
+}
+
+.dark [data-file-block] .bn-add-file-button {
+	color: var(--muted-foreground);
+	background-color: var(--muted);
+}
+
+.dark [data-file-block] .bn-file-name-with-icon:hover,
+.dark .ProseMirror-selectednode .bn-file-name-with-icon {
+	background-color: var(--accent);
+}
+
+.dark .bn-block-content.ProseMirror-selectednode > *,
+.dark .ProseMirror-selectednode > .bn-block-content > *,
+.dark .ProseMirror-selectednode > * {
+	outline-color: var(--ring);
+}
+
+.dark .bn-editor [data-content-type=table] th,
+.dark .bn-editor [data-content-type=table] td {
+	border-color: var(--border);
+}
