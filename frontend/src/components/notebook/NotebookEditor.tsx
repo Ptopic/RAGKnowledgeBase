@@ -14,7 +14,9 @@ interface NotebookEditorProps {
 
 export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps) {
 	const initialized = useRef(false);
+	const containerRef = useRef<HTMLDivElement>(null);
 	const { resolvedTheme } = useTheme();
+	const isDark = resolvedTheme === "dark";
 
 	const editor = useCreateBlockNote({});
 
@@ -35,11 +37,20 @@ export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps
 		}
 	}, [initialContent, editor]);
 
+	useEffect(() => {
+		const root = containerRef.current?.querySelector(".bn-root");
+		if (root instanceof HTMLElement) {
+			root.style.setProperty("--bn-colors-editor-background", "var(--background)", "important");
+			root.style.setProperty("--bn-colors-editor-text", "var(--foreground)", "important");
+		}
+		void isDark;
+	}, [isDark]);
+
 	return (
-		<div className="min-h-[300px] rounded-md border bg-background text-foreground">
+		<div ref={containerRef} className="min-h-[300px] rounded-md border bg-background text-foreground">
 			<BlockNoteView
 				editor={editor}
-				theme={resolvedTheme === "dark" ? "dark" : "light"}
+				theme={isDark ? "dark" : "light"}
 			/>
 		</div>
 	);
