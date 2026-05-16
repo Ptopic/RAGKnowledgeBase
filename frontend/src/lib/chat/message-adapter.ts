@@ -1,4 +1,4 @@
-import type { Message } from "@langchain/core/messages";
+import { AIMessage, type Message, ToolMessage } from "@langchain/core/messages";
 
 export function messageContentToText(content: unknown): string {
 	if (typeof content === "string") return content;
@@ -75,4 +75,62 @@ export interface ThinkingStep {
 export function extractThinkingStepsFromMessage(message: Message): ThinkingStep[] {
 	void message;
 	return [];
+}
+
+export function convertToLangChainMessages(apiMessages: unknown[]): Message[] {
+	const convertSingleMessage = (msg: any, index: number): Message => {
+		const id = msg.id || `msg_${index}`;
+		if (msg.role === "user") {
+			return { type: "human", content: msg.content, id };
+		}
+		if (msg.role === "assistant") {
+			return { type: "ai", content: msg.content, id };
+		}
+		return { type: "system", content: msg.content, id };
+	};
+
+	if (apiMessages.length > 0 && Array.isArray(apiMessages[0])) {
+		const flatMessages = (apiMessages as any[]).flat();
+		const reconstructed: Message[] = [];
+
+		for (let i = 0; i < flatMessages.length; i++) {
+			const msg = flatMessages[i];
+
+			if (msg.metadata?.kind?.startsWith("tool_")) {
+				const metadata = msg.metadata;
+				const runId = metadata.runId || `${msg.timestamp}`;
+				const toolName = metadata.toolName || "unknown";
+
+				reconstructed.push(
+					new AIMessage({
+						id: `${msg.timestamp}_tool_call_${i}`,
+						content: "",
+						tool_calls: [
+							{
+								id: runId,
+								name: toolName,
+								args: {},
+							},
+						],
+					}),
+				);
+
+				reconstructed.push(
+					new ToolMessage({
+						tool_call_id: runId,
+						content: JSON.stringify({ data: metadata.data }),
+						status: metadata.status,
+					}),
+				);
+
+				continue;
+			}
+
+			reconstructed.push(convertSingleMessage(msg, reconstructed.length));
+		}
+
+		return reconstructed as Message[];
+	}
+
+	return apiMessages.map(convertSingleMessage) as Message[];
 }

@@ -22,6 +22,7 @@ import {
 	LoaderIcon,
 	MicIcon,
 	PencilIcon,
+	Pin,
 	SquareIcon,
 	ThumbsDownIcon,
 	ThumbsUpIcon,
@@ -45,8 +46,11 @@ import {
 import { Sources } from "@/components/research-assistant-ui/sources";
 import { ToolFallback } from "@/components/research-assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/research-assistant-ui/tooltip-icon-button";
+import { ComposerQueryTemplateSelector } from "@/components/research-assistant-ui/composer-query-template-selector";
 import { CustomChatInputOptions } from "@/components/chat/ChatInputGroup";
 import { Button } from "@/components/ui/button";
+import useGetSearchSpaceQueryTemplates from "@/api/query-templates/hooks/useGetSearchSpaceQueryTemplates";
+import type { QueryTemplate } from "@/api/query-templates/types";
 import type { Document } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +90,8 @@ type UndoActionContextValue = {
 
 const UndoActionContext = createContext<UndoActionContextValue>({});
 
+const ShareViewContext = createContext<boolean>(false);
+
 export function Thread({
 	emptyMessagesPlaceholder,
 	onDiscardUserMessage,
@@ -96,6 +102,8 @@ export function Thread({
 	searchMode,
 	onSearchModeChange,
 	followUpQuestions = [],
+	shareView,
+	searchSpaceId,
 }: {
 	emptyMessagesPlaceholder?: React.ReactNode;
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
@@ -106,9 +114,12 @@ export function Thread({
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	followUpQuestions?: string[];
+	shareView?: boolean;
+	searchSpaceId?: number;
 }) {
 	return (
 		<UndoActionContext.Provider value={{ onDiscardUserMessage, followUpQuestions }}>
+			<ShareViewContext.Provider value={shareView ?? false}>
 			<ThreadPrimitive.Root
 				className="flex h-full flex-col bg-background text-sm"
 				style={
@@ -129,7 +140,7 @@ export function Thread({
 					style={{ scrollbarGutter: "stable" }}
 				>
 					<AuiIf condition={(s) => s.thread.isEmpty}>
-						<ThreadWelcome placeholder={emptyMessagesPlaceholder} />
+						<ThreadWelcome placeholder={emptyMessagesPlaceholder} searchSpaceId={searchSpaceId} />
 					</AuiIf>
 
 					<ThreadPrimitive.Messages
@@ -143,8 +154,8 @@ export function Thread({
 
 				<ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
 					<ThreadScrollToBottom />
-					<Composer />
-					<CustomChatInputOptions
+					{!shareView && <Composer />}
+					{!shareView && <CustomChatInputOptions
 						onDocumentSelectionChange={onDocumentSelectionChange}
 						selectedDocuments={selectedDocuments}
 						onConnectorSelectionChange={onConnectorSelectionChange}
@@ -152,41 +163,68 @@ export function Thread({
 						searchMode={searchMode}
 						onSearchModeChange={onSearchModeChange}
 					/>
+					}
 				</ThreadPrimitive.ViewportFooter>
 				</ThreadPrimitive.Viewport>
-			</ThreadPrimitive.Root>
+				</ThreadPrimitive.Root>
+			</ShareViewContext.Provider>
 		</UndoActionContext.Provider>
 	);
 }
 
-function ThreadWelcome({ placeholder }: { placeholder?: React.ReactNode }) {
+function ThreadWelcome({ placeholder, searchSpaceId }: { placeholder?: React.ReactNode; searchSpaceId?: number }) {
+	const { data } = useGetSearchSpaceQueryTemplates(
+		searchSpaceId ? { search_space_id: searchSpaceId, limit: 100 } : null,
+		{ enabled: !!searchSpaceId },
+	);
+
+	const pinnedTemplates = (data?.items ?? []).filter((t: QueryTemplate) => t.is_pinned);
+
 	if (placeholder) return <>{placeholder}</>;
+
 	return (
 		<div className="mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
-			<div className="flex w-full flex-grow flex-col items-center justify-center">
-				<div className="flex size-full flex-col justify-center px-8">
-					<div className="text-2xl font-semibold">Hello there!</div>
-					<div className="text-2xl text-muted-foreground/65">
-						How can I help you today?
-					</div>
+			<div className="flex size-full flex-col justify-center px-8">
+				<div className="text-2xl font-semibold">Hello there!</div>
+				<div className="text-2xl text-muted-foreground/65">
+					How can I help you today?
 				</div>
 			</div>
 			<div className="grid w-full gap-2 pb-4 md:grid-cols-2">
-				{/* Add your suggestions here */}
-						<SuggestionButton
-							prompt="What's the weather in San Francisco?"
-							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
-						>
-							<span className="font-medium">What's the weather</span>
-							<span className="text-muted-foreground">in San Francisco?</span>
-						</SuggestionButton>
-						<SuggestionButton
-							prompt="What are the top news headlines today?"
-							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
-						>
-							<span className="font-medium">What are the top news</span>
-							<span className="text-muted-foreground">headlines today?</span>
-						</SuggestionButton>
+				{pinnedTemplates.length > 0
+					? pinnedTemplates.map((template: QueryTemplate) => (
+							<SuggestionButton
+								key={template.id}
+								prompt={template.content}
+								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+							>
+								<span className="font-medium flex items-center gap-1.5">
+									<Pin className="h-3.5 w-3.5 text-amber-500" />
+									{template.icon && <span className="mr-1">{template.icon}</span>}
+									{template.title}
+								</span>
+								{template.description && (
+									<span className="text-muted-foreground">{template.description}</span>
+								)}
+							</SuggestionButton>
+						))
+					: <>
+							<SuggestionButton
+								prompt="Summarize the key findings from my documents"
+								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+							>
+								<span className="font-medium">Summarize key findings</span>
+								<span className="text-muted-foreground">from my documents</span>
+							</SuggestionButton>
+							<SuggestionButton
+								prompt="What are the main topics covered in my data?"
+								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+							>
+								<span className="font-medium">What are the main topics</span>
+								<span className="text-muted-foreground">covered in my data?</span>
+							</SuggestionButton>
+						</>
+				}
 			</div>
 		</div>
 	);
@@ -221,6 +259,7 @@ function ComposerAction() {
 		<div className="relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<ComposerAddAttachment />
+				<ComposerQueryTemplateSelector />
 				<AuiIf condition={(s) => s.composer.dictation == null}>
 					<ComposerPrimitive.Dictate asChild>
 						<TooltipIconButton
@@ -308,6 +347,7 @@ function ThreadScrollToBottom() {
 
 function UserMessage() {
 	const { onDiscardUserMessage } = useContext(UndoActionContext);
+	const shareView = useContext(ShareViewContext);
 	const messageIndex = useAuiState((s) => s.message.index);
 	const userMessageIndex = useAuiState((s) => {
 		return (
@@ -329,13 +369,13 @@ function UserMessage() {
 				<div className="rounded-2xl bg-muted px-4 py-2.5 break-words text-foreground">
 					<MessagePrimitive.Parts />
 				</div>
-				<div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+				{!shareView && <div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
 				<UserActionBar
 					onDiscardUserMessage={onDiscardUserMessage}
 					messageIndex={messageIndex}
 					userMessageIndex={userMessageIndex}
 				/>
-				</div>
+				</div>}
 			</div>
 		</MessagePrimitive.Root>
 	);
@@ -350,6 +390,7 @@ function UserActionBar({
 	messageIndex: number;
 	userMessageIndex: number;
 }) {
+	const shareView = useContext(ShareViewContext);
 	const isUserMessage = useAuiState((s) => s.message.role === "user");
 	const isLastUserMessage = useAuiState((s) => {
 		const msgs = s.thread.messages;
@@ -359,6 +400,7 @@ function UserActionBar({
 		return false;
 	});
 	const isThreadRunning = useAuiState((s) => s.thread.isRunning);
+	if (shareView) return null;
 	const canEdit = isLastUserMessage && !isThreadRunning;
 	const isUndoVisible =
 		isUserMessage &&
@@ -418,6 +460,7 @@ function EditComposer() {
 
 function AssistantMessage() {
 	const { followUpQuestions } = useContext(UndoActionContext);
+	const shareView = useContext(ShareViewContext);
 	return (
 		<MessagePrimitive.Root
 			className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-3 fade-in slide-in-from-bottom-1 animate-in duration-150"
@@ -487,15 +530,15 @@ function AssistantMessage() {
 				}
 			>
 				<div className="mt-1 ml-2 flex min-h-6 items-center">
-					<AuiIf condition={(s) => s.message.isLast}>
+					{!shareView && <AuiIf condition={(s) => s.message.isLast}>
 						<BranchPicker />
-					</AuiIf>
+					</AuiIf>}
 
 					<AssistantActionBar />
 				</div>
 			</AuiIf>
 
-			<AuiIf
+			{!shareView && <AuiIf
 				condition={(s) =>
 					s.message.isLast &&
 					!s.thread.isRunning &&
@@ -521,7 +564,7 @@ function AssistantMessage() {
 						</>
 					)}
 				</div>
-			</AuiIf>
+			</AuiIf>}
 		</MessagePrimitive.Root>
 	);
 }
@@ -538,6 +581,7 @@ function MessageError() {
 
 function AssistantActionBar() {
 	const _isLast = useAuiState((s) => s.message.isLast);
+	const shareView = useContext(ShareViewContext);
 
 	return (
 		<ActionBarPrimitive.Root className="-ml-1 flex gap-1 text-muted-foreground">
@@ -565,16 +609,16 @@ function AssistantActionBar() {
 				</ActionBarPrimitive.Reload>
 			)} */}
 
-			<ActionBarPrimitive.FeedbackPositive asChild>
+			{!shareView && <ActionBarPrimitive.FeedbackPositive asChild>
 				<TooltipIconButton tooltip="Good response">
 					<ThumbsUpIcon />
 				</TooltipIconButton>
-			</ActionBarPrimitive.FeedbackPositive>
-			<ActionBarPrimitive.FeedbackNegative asChild>
+			</ActionBarPrimitive.FeedbackPositive>}
+			{!shareView && <ActionBarPrimitive.FeedbackNegative asChild>
 				<TooltipIconButton tooltip="Bad response">
 					<ThumbsDownIcon />
 				</TooltipIconButton>
-			</ActionBarPrimitive.FeedbackNegative>
+			</ActionBarPrimitive.FeedbackNegative>}
 		</ActionBarPrimitive.Root>
 	);
 }

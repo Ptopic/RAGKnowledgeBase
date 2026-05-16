@@ -6,6 +6,7 @@ import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
+import { ChatShareModule } from "./chat-share/chat-share.module";
 import { ChatsModule } from "./chats/chats.module";
 import { AppConfigModule } from "./config/config.module";
 import configuration from "./config/configuration";
@@ -17,6 +18,7 @@ import { LogsModule } from "./logs/logs.module";
 import { QueueModule } from "./queue/queue.module";
 import { SearchSourceConnectorsModule } from "./search-source-connectors/search-source-connectors.module";
 import { SearchSpacesModule } from "./search-spaces/search-spaces.module";
+import { QueryTemplatesModule } from "./query-templates/query-templates.module";
 import { ServicesModule } from "./services/services.module";
 
 @Module({
@@ -40,8 +42,10 @@ import { ServicesModule } from "./services/services.module";
 		SearchSpacesModule,
 		DocumentsModule,
 		ChatsModule,
+		ChatShareModule,
 		SearchSourceConnectorsModule,
 		LLMConfigsModule,
+		QueryTemplatesModule,
 		LogsModule,
 		GoogleAuthModule,
 	],

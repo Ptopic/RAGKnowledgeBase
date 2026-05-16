@@ -117,6 +117,9 @@ model User {
   searchSourceConnectors SearchSourceConnector[]
   searchSpacePreferences UserSearchSpacePreference[]
   providerApiKeys        UserProviderApiKey[]
+  queryTemplates         QueryTemplate[]
+  favoriteDocuments      UserDocumentFavorite[]
+  favorites              UserChatFavorite[]
 
   @@map("user")
 }
@@ -159,6 +162,8 @@ model SearchSpace {
   searchSourceConnectors SearchSourceConnector[]
   llmConfigs             LLMConfig[]
   userPreferences        UserSearchSpacePreference[]
+  queryTemplates         QueryTemplate[]
+  pinnedQueryTemplates   SearchSpacePinnedQueryTemplate[]
 
   @@index([name])
   @@index([userId])
@@ -187,6 +192,7 @@ model Document {
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
   chunks      Chunk[]
+  favoritedBy UserDocumentFavorite[]
 
   @@index([title])
   @@index([contentHash])
@@ -211,6 +217,23 @@ model Chunk {
   @@map("chunks")
 }
 
+// User Document Favorite Model
+model UserDocumentFavorite {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId     String @map("user_id")
+  documentId Int    @map("document_id")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([userId])
+  @@index([documentId])
+  @@map("user_document_favorites")
+}
+
 // Chat Model
 model Chat {
   id        Int      @id @default(autoincrement())
@@ -225,10 +248,45 @@ model Chat {
 
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  shareLinks   ChatShareLink[]
+  favorites   UserChatFavorite[]
 
   @@index([title])
   @@index([searchSpaceId])
   @@map("chats")
+}
+
+// Chat Share Link Model
+model ChatShareLink {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  chatId    Int      @map("chat_id")
+  slug      String   @unique @db.VarChar(50)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz
+  isActive  Boolean  @default(true) @map("is_active")
+
+  // Relationships
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([slug])
+  @@map("chat_share_links")
+// User Chat Favorite Model
+model UserChatFavorite {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  chatId Int    @map("chat_id")
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatId], name: "uq_user_chat_favorite")
+  @@index([userId])
+  @@index([chatId])
+  @@map("user_chat_favorite")
 }
 
 // Search Source Connector Model
@@ -362,4 +420,48 @@ model Log {
   @@index([source])
   @@index([searchSpaceId])
   @@map("logs")
+}
+
+// Query Template Model
+model QueryTemplate {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  title       String  @db.VarChar(200)
+  description String? @db.VarChar(500)
+  content     String  @db.Text
+  icon        String? @db.VarChar(100)
+  isGlobal    Boolean @default(false) @map("is_global")
+
+  searchSpaceId Int?    @map("search_space_id")
+  createdById   String  @map("created_by_id")
+
+  // Relationships
+  searchSpace        SearchSpace?                   @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  createdBy          User                           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  pinnedBySearchSpaces SearchSpacePinnedQueryTemplate[]
+
+  @@index([searchSpaceId])
+  @@index([isGlobal])
+  @@index([createdById])
+  @@map("query_templates")
+}
+
+// Search Space Pinned Query Template Join Table
+model SearchSpacePinnedQueryTemplate {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  searchSpaceId  Int @map("search_space_id")
+  queryTemplateId Int @map("query_template_id")
+
+  // Relationships
+  searchSpace  SearchSpace  @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  queryTemplate QueryTemplate @relation(fields: [queryTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([searchSpaceId, queryTemplateId], name: "uq_searchspace_pinned_template")
+  @@index([searchSpaceId])
+  @@index([queryTemplateId])
+  @@map("search_space_pinned_query_templates")
 }

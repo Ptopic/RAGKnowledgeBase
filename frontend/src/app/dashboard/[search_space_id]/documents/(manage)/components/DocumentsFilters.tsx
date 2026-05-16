@@ -6,6 +6,7 @@ import {
 	Columns3,
 	Filter,
 	ListFilter,
+	Star,
 	Trash,
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
@@ -59,6 +60,8 @@ export function DocumentsFilters({
 	activeTypes,
 	columnVisibility,
 	onToggleColumn,
+	favoriteStatus,
+	onFavoriteStatusChange,
 }: {
 	typeCounts: Record<string, number>;
 	selectedIds: Set<number>;
@@ -69,6 +72,8 @@ export function DocumentsFilters({
 	activeTypes: string[];
 	columnVisibility: ColumnVisibility;
 	onToggleColumn: (id: keyof ColumnVisibility, checked: boolean) => void;
+	favoriteStatus: "all" | "favorited" | "non_favorited";
+	onFavoriteStatusChange: (status: "all" | "favorited" | "non_favorited") => void;
 }) {
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -218,6 +223,49 @@ export function DocumentsFilters({
 							transition={{ type: "spring", stiffness: 400, damping: 17 }}
 						>
 							<Button variant="outline">
+								<Star
+									className="-ms-1 me-2 opacity-60"
+									size={16}
+									strokeWidth={2}
+									aria-hidden="true"
+								/>
+								{favoriteStatus === "all"
+									? "All documents"
+									: favoriteStatus === "favorited"
+										? "Favorited documents"
+										: "Non-favorited documents"}
+							</Button>
+						</motion.div>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start">
+						<DropdownMenuLabel>Filter by favorite</DropdownMenuLabel>
+						{(
+							[
+								["all", "All documents"],
+								["favorited", "Favorited documents"],
+								["non_favorited", "Non-favorited documents"],
+							] as Array<["all" | "favorited" | "non_favorited", string]>
+						).map(([status, label]) => (
+							<DropdownMenuCheckboxItem
+								key={status}
+								checked={favoriteStatus === status}
+								onCheckedChange={() => onFavoriteStatusChange(status)}
+								onSelect={(e) => e.preventDefault()}
+							>
+								{label}
+							</DropdownMenuCheckboxItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
+
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<motion.div
+							whileHover={{ scale: 1.05 }}
+							whileTap={{ scale: 0.95 }}
+							transition={{ type: "spring", stiffness: 400, damping: 17 }}
+						>
+							<Button variant="outline">
 								<Columns3
 									className="-ms-1 me-2 opacity-60"
 									size={16}
@@ -230,15 +278,16 @@ export function DocumentsFilters({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
 						<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-						{(
-							[
-								["title", "Title"],
-								["document_type", "Type"],
-								["content", "Content"],
-								["chunks", "Chunks"],
-								["created_at", "Created At"],
-							] as Array<[keyof ColumnVisibility, string]>
-						).map(([key, label]) => (
+					{(
+						[
+							["title", "Title"],
+							["document_type", "Type"],
+							["content", "Content"],
+							["chunks", "Chunks"],
+							["created_at", "Created At"],
+							["favorite", "Favorite"],
+						] as Array<[keyof ColumnVisibility, string]>
+					).map(([key, label]) => (
 							<DropdownMenuCheckboxItem
 								key={key}
 								className="capitalize"

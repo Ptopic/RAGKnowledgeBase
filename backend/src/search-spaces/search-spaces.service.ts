@@ -45,6 +45,7 @@ export class SearchSpacesService {
 				where: { userId },
 				skip,
 				take: limit,
+				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});
 
 			return searchSpaces.map((ss) => this.toDto(ss));
@@ -59,6 +60,7 @@ export class SearchSpacesService {
 		try {
 			const searchSpace = await this.prisma.searchSpace.findFirst({
 				where: { id, userId },
+				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});
 
 			if (!searchSpace) {
@@ -96,6 +98,7 @@ export class SearchSpacesService {
 					name: updateDto.name,
 					description: updateDto.description,
 				},
+				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});
 
 			return this.toDto(updated);
@@ -135,11 +138,15 @@ export class SearchSpacesService {
 	}
 
 	private toDto(searchSpace: any): SearchSpaceDto {
+		const pinnedIds = (searchSpace.pinnedQueryTemplates ?? []).map(
+			(p) => p.queryTemplateId,
+		);
 		return {
 			id: searchSpace.id,
 			name: searchSpace.name,
 			description: searchSpace.description,
 			userId: searchSpace.userId,
+			pinned_query_template_ids: pinnedIds,
 			created_at: searchSpace.createdAt,
 		};
 	}

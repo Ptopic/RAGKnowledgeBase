@@ -108,6 +108,9 @@ export const getDocuments =
 				params.document_types.join(","),
 			);
 		}
+		if (params.favorite_status) {
+			url.searchParams.append("favorite_status", params.favorite_status);
+		}
 		const data = await request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",
@@ -135,6 +138,9 @@ export const searchDocuments =
 				"document_types",
 				params.document_types.join(","),
 			);
+		}
+		if (params.favorite_status) {
+			url.searchParams.append("favorite_status", params.favorite_status);
 		}
 		const data = await request.call(url.toString(), (init) => ({
 			...init,
@@ -165,3 +171,19 @@ export const getDocumentTypeCounts =
 			method: "GET",
 		}));
 	};
+
+export const addFavorite =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (documentId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/favorite`, (init) => ({
+			...init,
+			method: "POST",
+		}));
+
+export const removeFavorite =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (documentId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/favorite`, (init) => ({
+			...init,
+			method: "DELETE",
+		}));

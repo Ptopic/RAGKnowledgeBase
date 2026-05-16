@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, Bot, Brain, Key, Settings } from "lucide-react";
+import { ArrowLeft, Bot, Brain, Edit3, Key, Settings } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiKeysManager } from "@/components/settings/api-keys-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
+import { QueryTemplateManager } from "@/components/settings/query-template-manager";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -35,7 +36,7 @@ export default function SettingsPage() {
 							<div className="space-y-1">
 								<h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 								<p className="text-lg text-muted-foreground">
-									Manage your LLM configurations and role assignments for this search space.
+									Manage your LLM configurations, role assignments, and query templates for this search space.
 								</p>
 							</div>
 						</div>
@@ -61,6 +62,11 @@ export default function SettingsPage() {
 									<span className="hidden sm:inline">API Keys</span>
 									<span className="sm:hidden">Keys</span>
 								</TabsTrigger>
+								<TabsTrigger value="templates" className="flex items-center gap-2 text-sm">
+									<Edit3 className="h-4 w-4" />
+									<span className="hidden sm:inline">Query Templates</span>
+									<span className="sm:hidden">Templates</span>
+								</TabsTrigger>
 							</TabsList>
 						</div>
 
@@ -74,6 +80,10 @@ export default function SettingsPage() {
 
 						<TabsContent value="api-keys" className="space-y-6">
 							<ApiKeysManager />
+						</TabsContent>
+
+						<TabsContent value="templates" className="space-y-6">
+							<QueryTemplateManager searchSpaceId={searchSpaceId} />
 						</TabsContent>
 					</Tabs>
 				</div>

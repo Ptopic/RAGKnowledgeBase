@@ -55,6 +55,7 @@ export interface UseAssistantRuntimeOptions {
 	onStreamError?: (error: Error | string) => void;
 	onToolComplete?: (toolName: string) => void;
 	resetVersion?: number;
+	shareView?: boolean;
 }
 
 type PendingQuestionItem = {
@@ -69,6 +70,8 @@ type PendingQuestionFlow = {
 };
 
 export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
+	const effectiveEndpoint = options.shareView ? "about:blank" : options.endpoint;
+
 	const [currentChatId, setCurrentChatId] = useState<number | undefined>(
 		options.chatId,
 	);
@@ -131,7 +134,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	const transport = useMemo(
 		() =>
 			new FetchStreamTransport({
-				apiUrl: options.endpoint,
+				apiUrl: effectiveEndpoint,
 				fetch: async (url: string, init?: RequestInit) => {
 					const headers = new Headers(init?.headers);
 					if (options.token) {
@@ -178,7 +181,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				},
 			}),
 		[
-			options.endpoint,
+			effectiveEndpoint,
 			options.token,
 			options.searchSpaceId,
 			options.selectedConnectors,
@@ -582,6 +585,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only trigger on loading transition, use refs for current values
 	useEffect(() => {
+		if (options.shareView) return;
 		if (prevLoading.current && !stream.isLoading) {
 			const userMessage = lastUserMessageRef.current;
 
@@ -694,6 +698,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 
 	const onNew = useCallback(
 		async (message: AppendMessage) => {
+			if (options.shareView) return;
 			setStreamError(null);
 			turnStartIndexRef.current = accumulatedMessagesRef.current.length;
 
@@ -777,12 +782,11 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			messages: [{ content: messageToSend, type: "human" }],
 		});
 	},
-	[stream],
+	[stream, options.shareView],
 );
-
-	// Truncate from last user message, replace with edited content, re-submit
 	const onEdit = useCallback(
 		async (message: AppendMessage) => {
+			if (options.shareView) return;
 			setStreamError(null);
 
 			if (stream.isLoading) {
@@ -821,7 +825,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				messages: [{ content: messageToSend, type: "human" }],
 			});
 		},
-		[stream],
+		[stream, options.shareView],
 	);
 
 	const runtime = useExternalStoreRuntime<ThreadMessageLike>({

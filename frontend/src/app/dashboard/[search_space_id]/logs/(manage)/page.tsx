@@ -42,9 +42,10 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useParams } from "next/navigation";
-import React, { useContext, useId, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -394,6 +395,8 @@ export default function LogsManagePage() {
 	]);
 
 	const inputRef = useRef<HTMLInputElement>(null);
+	const [messageFilter, setMessageFilter] = useState("");
+	const debouncedMessageFilter = useDebounce(messageFilter, 400);
 
 	// Create columns
 	const tableColumns = useMemo(() => createColumns(), []);
@@ -418,6 +421,10 @@ export default function LogsManagePage() {
 			columnVisibility,
 		},
 	});
+
+	useEffect(() => {
+		table.getColumn("message")?.setFilterValue(debouncedMessageFilter);
+	}, [debouncedMessageFilter, table]);
 
 	// Get unique values for filters
 	const uniqueLevels = useMemo(() => {
@@ -740,27 +747,23 @@ function LogsFilters({
 						ref={inputRef}
 						className={cn(
 							"peer min-w-60 ps-9",
-							Boolean(table.getColumn("message")?.getFilterValue()) && "pe-9",
+							Boolean(messageFilter) && "pe-9",
 						)}
-						value={
-							(table.getColumn("message")?.getFilterValue() ?? "") as string
-						}
-						onChange={(e) =>
-							table.getColumn("message")?.setFilterValue(e.target.value)
-						}
+						value={messageFilter}
+						onChange={(e) => setMessageFilter(e.target.value)}
 						placeholder="Filter by message..."
 						type="text"
 					/>
 					<div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80">
 						<ListFilter size={16} strokeWidth={2} />
 					</div>
-					{Boolean(table.getColumn("message")?.getFilterValue()) && (
+					{Boolean(messageFilter) && (
 						<Button
 							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 hover:text-foreground"
 							variant="ghost"
 							size="icon"
 							onClick={() => {
-								table.getColumn("message")?.setFilterValue("");
+								setMessageFilter("");
 								inputRef.current?.focus();
 							}}
 						>
