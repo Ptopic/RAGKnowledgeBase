@@ -247,6 +247,7 @@ model Chat {
 
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  shareLinks   ChatShareLink[]
   favorites   UserChatFavorite[]
 
   @@index([title])
@@ -254,6 +255,21 @@ model Chat {
   @@map("chats")
 }
 
+// Chat Share Link Model
+model ChatShareLink {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  chatId    Int      @map("chat_id")
+  slug      String   @unique @db.VarChar(50)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz
+  isActive  Boolean  @default(true) @map("is_active")
+
+  // Relationships
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([slug])
+  @@map("chat_share_links")
 // User Chat Favorite Model
 model UserChatFavorite {
   id        Int      @id @default(autoincrement())

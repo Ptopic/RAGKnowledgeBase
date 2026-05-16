@@ -39,6 +39,7 @@ export interface AssistantChatInterfaceProps {
 	emptyMessagesPlaceholder?: React.ReactNode;
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
 	resetVersion?: number;
+	shareView?: boolean;
 }
 
 export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
@@ -60,6 +61,7 @@ export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
 		onStreamError: props.onStreamError,
 		onToolComplete: props.onToolComplete,
 		resetVersion: props.resetVersion,
+		shareView: props.shareView,
 	});
 
 	return (
@@ -79,6 +81,7 @@ export function AssistantChatInterface(props: AssistantChatInterfaceProps) {
 					searchMode={props.searchMode}
 					onSearchModeChange={props.onSearchModeChange}
 					followUpQuestions={followUpQuestions}
+					shareView={props.shareView}
 					searchSpaceId={Number(props.searchSpaceId) || undefined}
 				/>
 			</AssistantRuntimeProvider>
