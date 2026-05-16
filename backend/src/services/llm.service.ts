@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 // import { ChatLiteLLM } from '@langchain/community/chat_models/litellm';
 import { PrismaService } from '../prisma/prisma.service';
 import { LiteLLMProvider } from '@prisma/client';
+import { ApiKeysService } from '../api-keys/api-keys.service';
 
 // Temporary type until ChatLiteLLM is available
 type ChatLiteLLM = any;
@@ -16,7 +17,10 @@ export enum LLMRole {
 export class LLMService {
 	private readonly logger = new Logger(LLMService.name);
 
-	constructor(private readonly prisma: PrismaService) {
+	constructor(
+		private readonly prisma: PrismaService,
+		private readonly apiKeysService: ApiKeysService,
+	) {
 		// Configure litellm to automatically drop unsupported parameters
 		// Note: This would be set in a global litellm config if available in Node.js
 	}
@@ -109,9 +113,11 @@ export class LLMService {
 			}
 
 			// Create ChatLiteLLM instance - commented out as package doesn't exist
+			const resolvedApiKey = await this.apiKeysService.resolveApiKey(llmConfig, userId);
+
 			const litellmConfig: Record<string, any> = {
 				model: modelString,
-				apiKey: llmConfig.apiKey,
+				apiKey: resolvedApiKey,
 			};
 
 			// Add optional parameters

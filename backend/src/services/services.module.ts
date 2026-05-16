@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RetrieverModule } from '../retriever/retriever.module';
+import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { LLMService } from './llm.service';
 import { StreamingService } from './streaming.service';
 import { QueryService } from './query.service';
@@ -19,7 +20,7 @@ import { CrawleeImpitFallbackService } from './crawlee-impit-fallback.service';
  */
 @Global()
 @Module({
-	imports: [PrismaModule, RetrieverModule],
+	imports: [PrismaModule, RetrieverModule, ApiKeysModule],
 	providers: [
 		LLMService,
 		StreamingService,
