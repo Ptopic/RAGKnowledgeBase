@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import useUpdateNotebook from "@/api/notebooks/hooks/useUpdateNotebook";
-import { NotebookBlockEditor } from "@/components/ui/notebook-editor";
+import { NotebookEditor } from "@/components/notebook/NotebookEditor";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -170,13 +170,10 @@ export default function EditNotebookPage({
 
 							<div className="space-y-2">
 								<Label>Content</Label>
-								<div className="min-h-[300px] rounded-md border bg-background p-4">
-									<NotebookBlockEditor
-										value={content}
-										onChange={setContent}
-										placeholder='Type "/" for commands...'
-									/>
-								</div>
+								<NotebookEditor
+									initialContent={content}
+									onChange={setContent}
+								/>
 							</div>
 
 							<div className="flex justify-end gap-3 pt-4">
