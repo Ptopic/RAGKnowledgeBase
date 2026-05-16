@@ -2,7 +2,7 @@
 
 import { Brain, Check, FolderOpen, Send, Zap } from "lucide-react";
 import { useParams } from "next/navigation";
-import React, { Suspense, useCallback, useState } from "react";
+import React, { Suspense, useCallback, useRef, useState } from "react";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { QueryTemplateSelector } from "@/components/chat/QueryTemplateSelector";
 
 const DocumentSelector = React.memo(
 	({
@@ -478,6 +479,7 @@ export const CustomChatInputOptions = React.memo(
 		selectedConnectors,
 		searchMode,
 		onSearchModeChange,
+		onSelectTemplate,
 	}: {
 		onDocumentSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
@@ -485,8 +487,8 @@ export const CustomChatInputOptions = React.memo(
 		selectedConnectors?: string[];
 		searchMode?: "DOCUMENTS" | "CHUNKS";
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+		onSelectTemplate?: (content: string) => void;
 	}) => {
-		// Memoize the loading fallback to prevent recreation
 		const loadingFallback = React.useMemo(
 			() => <div className="h-9 w-24 animate-pulse bg-muted/50 rounded-md" />,
 			[],
@@ -507,6 +509,11 @@ export const CustomChatInputOptions = React.memo(
 							selectedConnectors={selectedConnectors}
 						/>
 					</Suspense>
+					{onSelectTemplate && (
+						<Suspense fallback={loadingFallback}>
+							<QueryTemplateSelector onSelectTemplate={onSelectTemplate} />
+						</Suspense>
+					)}
 				</div>
 			</div>
 		);
@@ -527,6 +534,7 @@ export const ChatInputUI = React.memo(
 		isLoading,
 		value,
 		onInputChange,
+		onSelectTemplate,
 	}: {
 		onDocumentSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
@@ -538,8 +546,10 @@ export const ChatInputUI = React.memo(
 		isLoading?: boolean;
 		value?: string;
 		onInputChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+		onSelectTemplate?: (content: string) => void;
 	}) => {
 		const [internalInput, setInternalInput] = useState("");
+		const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 		const isControlled = value !== undefined;
 		const inputValue = isControlled ? value : internalInput;
@@ -554,6 +564,32 @@ export const ChatInputUI = React.memo(
 				}
 			},
 			[isControlled, onInputChange],
+		);
+
+		const handleTemplateSelect = useCallback(
+			(content: string) => {
+				if (isControlled) {
+					const nativeEvent = new Event("input", { bubbles: true });
+					const textarea = textareaRef.current;
+					if (textarea) {
+						const setter = Object.getOwnPropertyDescriptor(
+							window.HTMLTextAreaElement.prototype,
+							"value",
+						)?.set;
+						setter?.call(textarea, content);
+						textarea.dispatchEvent(nativeEvent);
+					}
+					if (onInputChange) {
+						onInputChange({
+							target: { value: content },
+						} as React.ChangeEvent<HTMLTextAreaElement>);
+					}
+				} else {
+					setInternalInput(content);
+				}
+				onSelectTemplate?.(content);
+			},
+			[isControlled, onInputChange, onSelectTemplate],
 		);
 
 		const handleSubmit = useCallback(
@@ -588,6 +624,7 @@ export const ChatInputUI = React.memo(
 			<div className="flex flex-col gap-3">
 				<form onSubmit={handleSubmit} className="flex gap-2">
 					<textarea
+						ref={textareaRef}
 						value={inputValue}
 						onChange={handleInputChange}
 						onKeyDown={handleKeyDown}
@@ -616,6 +653,7 @@ export const ChatInputUI = React.memo(
 					selectedConnectors={selectedConnectors}
 					searchMode={searchMode}
 					onSearchModeChange={onSearchModeChange}
+					onSelectTemplate={handleTemplateSelect}
 				/>
 			</div>
 		);

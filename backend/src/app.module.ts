@@ -17,6 +17,7 @@ import { LogsModule } from "./logs/logs.module";
 import { QueueModule } from "./queue/queue.module";
 import { SearchSourceConnectorsModule } from "./search-source-connectors/search-source-connectors.module";
 import { SearchSpacesModule } from "./search-spaces/search-spaces.module";
+import { QueryTemplatesModule } from "./query-templates/query-templates.module";
 import { ServicesModule } from "./services/services.module";
 
 @Module({
@@ -42,6 +43,7 @@ import { ServicesModule } from "./services/services.module";
 		ChatShareModule,
 		SearchSourceConnectorsModule,
 		LLMConfigsModule,
+		QueryTemplatesModule,
 		LogsModule,
 		GoogleAuthModule,
 	],

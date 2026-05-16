@@ -13,6 +13,7 @@ import {
 	Settings2,
 	SquareLibrary,
 	SquareTerminal,
+	Star,
 	Trash2,
 	Undo2,
 } from "lucide-react";
@@ -47,6 +48,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	ExternalLink,
 	Trash2,
 	FileText,
+	Star,
 };
 
 const defaultData = {
@@ -156,6 +158,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 		icon: string;
 		id?: number;
 		search_space_id?: number;
+		is_favorite?: boolean;
 		actions?: {
 			name: string;
 			icon: string;

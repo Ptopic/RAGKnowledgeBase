@@ -1,6 +1,7 @@
 // export const KEY = 'key';
 export const CURRENT_USER = "currentUser";
 export const CHATS = "chats";
+export const FAVORITE_CHATS = "favoriteChats";
 export const CHAT_DETAILS = "chatDetails";
 export const CONNECTORS = "connectors";
 export const CONNECTOR = "connector";
@@ -13,6 +14,7 @@ export const LLM_PREFERENCES = "llmPreferences";
 export const LOGS = "logs";
 export const LOGS_SUMMARY = "logsSummary";
 export const SEARCH_SPACE_CONNECTORS = "searchSpaceConnectors";
+export const QUERY_TEMPLATES = "queryTemplates";
 export const SEARCH_SPACES = "searchSpaces";
 export const SEARCH_SPACE = "searchSpace";
 export const SHARE_LINKS = "shareLinks";

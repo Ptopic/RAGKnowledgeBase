@@ -9,6 +9,7 @@ import {
 	MessageCircleMore,
 	MoreHorizontal,
 	Search,
+	Star,
 	Tag,
 	Trash2,
 } from "lucide-react";
@@ -17,6 +18,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
 import useGetChats from "@/api/chats/hooks/useGetChats";
+import useAddFavoriteChat from "@/api/chats/hooks/useAddFavoriteChat";
+import useRemoveFavoriteChat from "@/api/chats/hooks/useRemoveFavoriteChat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +63,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
+
+const DEBOUNCE_MS = 400;
 
 interface ChatsPageClientProps {
 	searchSpaceId: string;
@@ -84,6 +90,7 @@ export default function ChatsPageClient({
 }: ChatsPageClientProps) {
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearchQuery = useDebounce(searchQuery, DEBOUNCE_MS);
 	const [currentPage, setCurrentPage] = useState(1);
 	const [selectedType, setSelectedType] = useState<string>("all");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
@@ -105,6 +112,8 @@ export default function ChatsPageClient({
 			setChatToDelete(null);
 		},
 	});
+	const { mutate: addFavoriteChat } = useAddFavoriteChat();
+	const { mutate: removeFavoriteChat } = useRemoveFavoriteChat();
 
 	const [selectedChats, setSelectedChats] = useState<number[]>([]);
 	const [selectionMode, setSelectionMode] = useState(false);
@@ -129,8 +138,8 @@ export default function ChatsPageClient({
 		let result = [...chats];
 
 		// Filter by search term
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
+		if (debouncedSearchQuery) {
+			const query = debouncedSearchQuery.toLowerCase();
 			result = result.filter((chat) =>
 				chat.title.toLowerCase().includes(query),
 			);
@@ -138,7 +147,11 @@ export default function ChatsPageClient({
 
 		// Filter by type
 		if (selectedType !== "all") {
-			result = result.filter((chat) => chat.type === selectedType);
+			if (selectedType === "favorites") {
+				result = result.filter((chat) => chat.is_favorite === true);
+			} else {
+				result = result.filter((chat) => chat.type === selectedType);
+			}
 		}
 
 		// Sort chats
@@ -150,7 +163,7 @@ export default function ChatsPageClient({
 		});
 
 		return result;
-	}, [chats, searchQuery, selectedType, sortOrder]);
+	}, [chats, debouncedSearchQuery, selectedType, sortOrder]);
 
 	// Calculate pagination based on filtered chats
 	const totalPages = Math.max(
@@ -178,7 +191,7 @@ export default function ChatsPageClient({
 
 	// Get unique chat types for filter dropdown (memoized to prevent infinite re-renders)
 	const chatTypes = useMemo(
-		() => ["all", ...Array.from(new Set(chats.map((chat) => chat.type)))],
+		() => ["all", "favorites", ...Array.from(new Set(chats.map((chat) => chat.type)))],
 		[chats],
 	);
 
@@ -248,7 +261,9 @@ export default function ChatsPageClient({
 										<SelectItem key={type} value={type}>
 											{type === "all"
 												? "All Types"
-												: type.charAt(0).toUpperCase() + type.slice(1)}
+												: type === "favorites"
+													? "Favorites"
+													: type.charAt(0).toUpperCase() + type.slice(1)}
 										</SelectItem>
 									))}
 								</SelectGroup>
@@ -382,46 +397,74 @@ export default function ChatsPageClient({
 												</div>
 											</div>
 											{!selectionMode && (
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8"
-															data-stop-selection
-														>
-															<MoreHorizontal className="h-4 w-4" />
-															<span className="sr-only">Open menu</span>
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end">
-														<DropdownMenuItem
-															onClick={() =>
-																router.push(
-																	`/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
-																)
-															}
-														>
-															<ExternalLink className="mr-2 h-4 w-4" />
-															<span>View Chat</span>
-														</DropdownMenuItem>
-														<DropdownMenuSeparator />
-														<DropdownMenuItem
-															className="text-destructive focus:text-destructive"
-															onClick={(e) => {
-																e.stopPropagation();
-																setChatToDelete({
-																	id: chat.id,
-																	title: chat.title || `Chat ${chat.id}`,
-																});
-																setDeleteDialogOpen(true);
-															}}
-														>
-															<Trash2 className="mr-2 h-4 w-4" />
-															<span>Delete Chat</span>
-														</DropdownMenuItem>
-													</DropdownMenuContent>
-												</DropdownMenu>
+												<div className="flex items-center gap-1">
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8"
+													data-stop-selection
+													onClick={(e) => {
+														e.stopPropagation();
+														if (chat.is_favorite) {
+															removeFavoriteChat(chat.id);
+														} else {
+															addFavoriteChat(chat.id);
+														}
+													}}
+												>
+														<Star
+															className={cn(
+																"h-4 w-4",
+																chat.is_favorite
+																	? "text-yellow-500 fill-yellow-500"
+																	: "text-muted-foreground",
+															)}
+														/>
+														<span className="sr-only">
+															{chat.is_favorite ? "Remove from favorites" : "Add to favorites"}
+														</span>
+													</Button>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8"
+																data-stop-selection
+															>
+																<MoreHorizontal className="h-4 w-4" />
+																<span className="sr-only">Open menu</span>
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end">
+															<DropdownMenuItem
+																onClick={() =>
+																	router.push(
+																		`/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
+																	)
+																}
+															>
+																<ExternalLink className="mr-2 h-4 w-4" />
+																<span>View Chat</span>
+															</DropdownMenuItem>
+															<DropdownMenuSeparator />
+															<DropdownMenuItem
+																className="text-destructive focus:text-destructive"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setChatToDelete({
+																		id: chat.id,
+																		title: chat.title || `Chat ${chat.id}`,
+																	});
+																	setDeleteDialogOpen(true);
+																}}
+															>
+																<Trash2 className="mr-2 h-4 w-4" />
+																<span>Delete Chat</span>
+															</DropdownMenuItem>
+														</DropdownMenuContent>
+													</DropdownMenu>
+												</div>
 											)}
 										</div>
 									</CardHeader>
