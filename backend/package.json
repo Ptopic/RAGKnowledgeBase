@@ -27,7 +27,8 @@
 		"prisma:format": "prisma format",
 		"prisma:create-local": "npx prisma migrate dev --create-only",
 		"prisma:create": "npx prisma migrate dev --name",
-		"prisma:reset": "prisma migrate reset"
+		"prisma:reset": "prisma migrate reset",
+		"prisma:studio": "prisma studio"
 	},
 	"dependencies": {
 		"@crawlee/impit-client": "^3.16.0",

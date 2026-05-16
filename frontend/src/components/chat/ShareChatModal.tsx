@@ -35,26 +35,26 @@ export default function ShareChatModal({
 	onOpenChange,
 }: ShareChatModalProps) {
 	const [expirationDays, setExpirationDays] = useState<string>("never");
-	const [copied, setCopied] = useState(false);
-	const [createdLink, setCreatedLink] = useState<string | null>(null);
+	const [copied, setCopied] = useState<string | null>(null);
+	const [showCreateForm, setShowCreateForm] = useState(false);
 
 	const { data: shareLinks = [] } =
 		useGetChatShareLinks(open ? chatId : undefined);
 	const { mutateAsync: createShareLink, isPending: isCreating } =
 		useCreateShareLink({
-			onSuccess: (data) => {
-				const fullUrl = `${window.location.origin}${data.url}`;
-				setCreatedLink(fullUrl);
+			onSuccess: () => {
+				setShowCreateForm(false);
 			},
 		});
 	const { mutate: deactivateLink } = useDeactivateShareLink();
 
-	// Reset state when modal opens
+	const activeLinks = shareLinks.filter((link) => link.isActive);
+
 	useEffect(() => {
 		if (open) {
-			setCreatedLink(null);
+			setShowCreateForm(false);
 			setExpirationDays("never");
-			setCopied(false);
+			setCopied(null);
 		}
 	}, [open]);
 
@@ -66,8 +66,8 @@ export default function ShareChatModal({
 
 	const handleCopy = async (text: string) => {
 		await navigator.clipboard.writeText(text);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
+		setCopied(text);
+		setTimeout(() => setCopied(null), 2000);
 	};
 
 	const handleRevoke = (linkId: string) => {
@@ -87,7 +87,7 @@ export default function ShareChatModal({
 					</DialogDescription>
 				</DialogHeader>
 
-				{!createdLink ? (
+				{showCreateForm ? (
 					<div className="space-y-4">
 						<div className="space-y-2">
 							<span className="text-sm font-medium">Link Expiration</span>
@@ -108,87 +108,84 @@ export default function ShareChatModal({
 								</SelectContent>
 							</Select>
 						</div>
-						<Button
-							onClick={handleCreateLink}
-							disabled={isCreating}
-							className="w-full"
-						>
-							{isCreating ? "Creating..." : "Create Share Link"}
-						</Button>
+						<div className="flex gap-2">
+							<Button
+								variant="outline"
+								onClick={() => setShowCreateForm(false)}
+								className="flex-1"
+							>
+								Back
+							</Button>
+							<Button
+								onClick={handleCreateLink}
+								disabled={isCreating}
+								className="flex-1"
+							>
+								{isCreating ? "Creating..." : "Create Share Link"}
+							</Button>
+						</div>
 					</div>
 				) : (
 					<div className="space-y-4">
-						<div className="flex items-center gap-2">
-							<code className="flex-1 rounded bg-muted px-3 py-2 text-sm break-all">
-								{createdLink}
-							</code>
-							<Button
-								variant="outline"
-								size="icon"
-								onClick={() => handleCopy(createdLink)}
-							>
-								{copied ? (
-									<Check className="h-4 w-4" />
-								) : (
-									<Copy className="h-4 w-4" />
-								)}
-							</Button>
-						</div>
-
-						{shareLinks.length > 0 && (
+						{activeLinks.length > 0 ? (
 							<div className="space-y-2">
 								<h4 className="text-sm font-medium">Active Share Links</h4>
-								{shareLinks
-									.filter((link) => link.isActive)
-									.map((link) => {
-										const linkUrl = `${window.location.origin}${link.url}`;
-										return (
-											<div
-												key={link.id}
-												className="flex items-center justify-between gap-2 rounded border p-2"
-											>
-												<div className="flex-1 min-w-0">
-													<code className="text-xs break-all">
-														{linkUrl}
-													</code>
-													{link.expiresAt && (
-														<p className="text-xs text-muted-foreground mt-1">
-															Expires:{" "}
-															{format(
-																new Date(link.expiresAt),
-																"MMM d, yyyy",
-															)}
-														</p>
-													)}
-												</div>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="shrink-0"
-													onClick={() => handleCopy(linkUrl)}
-												>
-													<Copy className="h-3.5 w-3.5" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="shrink-0 text-destructive"
-													onClick={() => handleRevoke(link.id)}
-												>
-													<Trash2 className="h-3.5 w-3.5" />
-												</Button>
+								{activeLinks.map((link) => {
+									const linkUrl = `${window.location.origin}${link.url}`;
+									return (
+										<div
+											key={link.id}
+											className="flex items-center justify-between gap-2 rounded border p-2"
+										>
+											<div className="flex-1 min-w-0">
+												<code className="text-xs break-all">
+													{linkUrl}
+												</code>
+												{link.expiresAt && (
+													<p className="text-xs text-muted-foreground mt-1">
+														Expires:{" "}
+														{format(
+															new Date(link.expiresAt),
+															"MMM d, yyyy",
+														)}
+													</p>
+												)}
 											</div>
-										);
-									})}
+											<Button
+												variant="ghost"
+												size="icon"
+												className="shrink-0"
+												onClick={() => handleCopy(linkUrl)}
+											>
+												{copied === linkUrl ? (
+													<Check className="h-3.5 w-3.5" />
+												) : (
+													<Copy className="h-3.5 w-3.5" />
+												)}
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="shrink-0 text-destructive"
+												onClick={() => handleRevoke(link.id)}
+											>
+												<Trash2 className="h-3.5 w-3.5" />
+											</Button>
+										</div>
+									);
+								})}
 							</div>
+						) : (
+							<p className="text-sm text-muted-foreground">
+								No active share links for this chat.
+							</p>
 						)}
 
 						<Button
-							variant="outline"
-							onClick={() => setCreatedLink(null)}
+							onClick={() => setShowCreateForm(true)}
 							className="w-full"
 						>
-							Create Another Link
+							Create New Link
 						</Button>
 					</div>
 				)}
