@@ -1,5 +1,5 @@
 "use client";
-import { AIMessage, type Message, ToolMessage } from "@langchain/core/messages";
+import type { Message } from "@langchain/core/messages";
 import { Share2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -7,6 +7,7 @@ import ShareChatModal from "@/components/chat/ShareChatModal";
 import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
+import { convertToLangChainMessages } from "@/lib/chat/message-adapter";
 
 interface ChatState {
 	selectedDocuments: Document[];
@@ -42,74 +43,6 @@ const restoreChatState = (
 		}
 	}
 	return null;
-};
-
-/**
- * Convert backend message format to LangChain Message format
- * Backend stores messages as nested exchanges: [[userMsg, assistantMsg, toolMsg], ...]
- * This function flattens structure for frontend and reconstructs tool calls from metadata
- */
-const convertToLangChainMessages = (apiMessages: unknown[]): Message[] => {
-	const convertSingleMessage = (msg: any, index: number): Message => {
-		const id = msg.id || `msg_${index}`;
-		if (msg.role === "user") {
-			return { type: "human", content: msg.content, id };
-		}
-		if (msg.role === "assistant") {
-			return { type: "ai", content: msg.content, id };
-		}
-		return { type: "system", content: msg.content, id };
-	};
-
-	// Handle nested exchange format with tool reconstruction
-	if (apiMessages.length > 0 && Array.isArray(apiMessages[0])) {
-		const flatMessages = (apiMessages as any[]).flat();
-		const reconstructed: Message[] = [];
-
-		for (let i = 0; i < flatMessages.length; i++) {
-			const msg = flatMessages[i];
-
-			// Check if this has tool metadata
-			if (msg.metadata?.kind?.startsWith("tool_")) {
-				const metadata = msg.metadata;
-				const runId = metadata.runId || `${msg.timestamp}`;
-				const toolName = metadata.toolName || "unknown";
-
-				// Create AIMessage with tool_calls
-				reconstructed.push(
-					new AIMessage({
-						id: `${msg.timestamp}_tool_call_${i}`,
-						content: "",
-						tool_calls: [
-							{
-								id: runId,
-								name: toolName,
-								args: {},
-							},
-						],
-					}),
-				);
-
-				// Create ToolMessage with result
-				reconstructed.push(
-					new ToolMessage({
-						tool_call_id: runId,
-						content: JSON.stringify({ data: metadata.data }),
-						status: metadata.status,
-					}),
-				);
-
-				continue;
-			}
-
-			// Regular message
-			reconstructed.push(convertSingleMessage(msg, reconstructed.length));
-		}
-
-		return reconstructed as Message[];
-	}
-
-	return apiMessages.map(convertSingleMessage) as Message[];
 };
 
 export default function ResearcherPage() {

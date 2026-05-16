@@ -1,9 +1,10 @@
 "use client";
 
 import { AlertCircle, Clock, LinkIcon, Share2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import useGetSharedChat from "@/api/chats/share/hooks/useGetSharedChat";
-import MarkdownWithCode from "@/components/markdownWithCode/MarkdownWithCode";
+import { AssistantChatInterface } from "@/components/research-assistant-ui/assistant-chat-interface";
+import { convertToLangChainMessages } from "@/lib/chat/message-adapter";
 
 interface SharedChatClientProps {
 	slug: string;
@@ -24,6 +25,11 @@ export default function SharedChatClient({ slug }: SharedChatClientProps) {
 			}
 		}
 	}, [error]);
+
+	const baseMessages = useMemo(
+		() => convertToLangChainMessages(chat?.messages ?? []),
+		[chat?.messages],
+	);
 
 	if (isLoading) {
 		return (
@@ -79,54 +85,15 @@ export default function SharedChatClient({ slug }: SharedChatClientProps) {
 				</div>
 			</div>
 
-			<div className="container mx-auto max-w-3xl px-4 py-8">
-				<div className="space-y-6">
-					{chat.messages.map((msg: any, index: number) => {
-						const isUser = msg.role === "user";
-						const content =
-							typeof msg.content === "string"
-								? msg.content
-								: JSON.stringify(msg.content);
-						const msgKey = msg.id ? `shared-msg-${msg.id}` : `shared-msg-${chat.id}-${index}`;
-
-						return (
-							<div
-								key={msgKey}
-								className={`flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}
-							>
-								<div
-									className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-										isUser ? "bg-muted" : "bg-primary"
-									}`}
-								>
-									<span className={`text-xs font-medium ${isUser ? "text-muted-foreground" : "text-primary-foreground"}`}>
-										{isUser ? "U" : "AI"}
-									</span>
-								</div>
-								<div
-									className={`flex-1 space-y-2 ${isUser ? "flex flex-col items-end" : ""}`}
-								>
-									<div
-										className={`rounded-lg px-4 py-3 ${
-											isUser
-												? "bg-primary text-primary-foreground max-w-[80%]"
-												: "bg-muted/50"
-										}`}
-									>
-										<MarkdownWithCode
-											markdown={content}
-											isUser={isUser}
-										/>
-									</div>
-								</div>
-							</div>
-						);
-					})}
-				</div>
-
-				<div className="mt-12 border-t pt-6 text-center text-sm text-muted-foreground">
-					<p>This is a read-only shared conversation.</p>
-				</div>
+			<div className="flex h-[calc(100vh-56px)] flex-col">
+				<AssistantChatInterface
+					endpoint="about:blank"
+					threadId={`shared-${slug}`}
+					userId={0}
+					searchSpaceId="0"
+					initialMessages={baseMessages}
+					shareView
+				/>
 			</div>
 		</div>
 	);

@@ -86,6 +86,8 @@ type UndoActionContextValue = {
 
 const UndoActionContext = createContext<UndoActionContextValue>({});
 
+const ShareViewContext = createContext<boolean>(false);
+
 export function Thread({
 	emptyMessagesPlaceholder,
 	onDiscardUserMessage,
@@ -96,6 +98,7 @@ export function Thread({
 	searchMode,
 	onSearchModeChange,
 	followUpQuestions = [],
+	shareView,
 }: {
 	emptyMessagesPlaceholder?: React.ReactNode;
 	onDiscardUserMessage?: (userMessageIndex: number) => void;
@@ -106,9 +109,11 @@ export function Thread({
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	followUpQuestions?: string[];
+	shareView?: boolean;
 }) {
 	return (
 		<UndoActionContext.Provider value={{ onDiscardUserMessage, followUpQuestions }}>
+			<ShareViewContext.Provider value={shareView ?? false}>
 			<ThreadPrimitive.Root
 				className="flex h-full flex-col bg-background text-sm"
 				style={
@@ -143,8 +148,8 @@ export function Thread({
 
 				<ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
 					<ThreadScrollToBottom />
-					<Composer />
-					<CustomChatInputOptions
+					{!shareView && <Composer />}
+					{!shareView && <CustomChatInputOptions
 						onDocumentSelectionChange={onDocumentSelectionChange}
 						selectedDocuments={selectedDocuments}
 						onConnectorSelectionChange={onConnectorSelectionChange}
@@ -152,9 +157,11 @@ export function Thread({
 						searchMode={searchMode}
 						onSearchModeChange={onSearchModeChange}
 					/>
+					}
 				</ThreadPrimitive.ViewportFooter>
 				</ThreadPrimitive.Viewport>
-			</ThreadPrimitive.Root>
+				</ThreadPrimitive.Root>
+			</ShareViewContext.Provider>
 		</UndoActionContext.Provider>
 	);
 }
@@ -308,6 +315,7 @@ function ThreadScrollToBottom() {
 
 function UserMessage() {
 	const { onDiscardUserMessage } = useContext(UndoActionContext);
+	const shareView = useContext(ShareViewContext);
 	const messageIndex = useAuiState((s) => s.message.index);
 	const userMessageIndex = useAuiState((s) => {
 		return (
@@ -329,13 +337,13 @@ function UserMessage() {
 				<div className="rounded-2xl bg-muted px-4 py-2.5 break-words text-foreground">
 					<MessagePrimitive.Parts />
 				</div>
-				<div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+				{!shareView && <div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
 				<UserActionBar
 					onDiscardUserMessage={onDiscardUserMessage}
 					messageIndex={messageIndex}
 					userMessageIndex={userMessageIndex}
 				/>
-				</div>
+				</div>}
 			</div>
 		</MessagePrimitive.Root>
 	);
@@ -350,6 +358,7 @@ function UserActionBar({
 	messageIndex: number;
 	userMessageIndex: number;
 }) {
+	const shareView = useContext(ShareViewContext);
 	const isUserMessage = useAuiState((s) => s.message.role === "user");
 	const isLastUserMessage = useAuiState((s) => {
 		const msgs = s.thread.messages;
@@ -359,6 +368,7 @@ function UserActionBar({
 		return false;
 	});
 	const isThreadRunning = useAuiState((s) => s.thread.isRunning);
+	if (shareView) return null;
 	const canEdit = isLastUserMessage && !isThreadRunning;
 	const isUndoVisible =
 		isUserMessage &&
@@ -418,6 +428,7 @@ function EditComposer() {
 
 function AssistantMessage() {
 	const { followUpQuestions } = useContext(UndoActionContext);
+	const shareView = useContext(ShareViewContext);
 	return (
 		<MessagePrimitive.Root
 			className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-3 fade-in slide-in-from-bottom-1 animate-in duration-150"
@@ -487,15 +498,15 @@ function AssistantMessage() {
 				}
 			>
 				<div className="mt-1 ml-2 flex min-h-6 items-center">
-					<AuiIf condition={(s) => s.message.isLast}>
+					{!shareView && <AuiIf condition={(s) => s.message.isLast}>
 						<BranchPicker />
-					</AuiIf>
+					</AuiIf>}
 
 					<AssistantActionBar />
 				</div>
 			</AuiIf>
 
-			<AuiIf
+			{!shareView && <AuiIf
 				condition={(s) =>
 					s.message.isLast &&
 					!s.thread.isRunning &&
@@ -521,7 +532,7 @@ function AssistantMessage() {
 						</>
 					)}
 				</div>
-			</AuiIf>
+			</AuiIf>}
 		</MessagePrimitive.Root>
 	);
 }
@@ -538,6 +549,7 @@ function MessageError() {
 
 function AssistantActionBar() {
 	const _isLast = useAuiState((s) => s.message.isLast);
+	const shareView = useContext(ShareViewContext);
 
 	return (
 		<ActionBarPrimitive.Root className="-ml-1 flex gap-1 text-muted-foreground">
@@ -565,16 +577,16 @@ function AssistantActionBar() {
 				</ActionBarPrimitive.Reload>
 			)} */}
 
-			<ActionBarPrimitive.FeedbackPositive asChild>
+			{!shareView && <ActionBarPrimitive.FeedbackPositive asChild>
 				<TooltipIconButton tooltip="Good response">
 					<ThumbsUpIcon />
 				</TooltipIconButton>
-			</ActionBarPrimitive.FeedbackPositive>
-			<ActionBarPrimitive.FeedbackNegative asChild>
+			</ActionBarPrimitive.FeedbackPositive>}
+			{!shareView && <ActionBarPrimitive.FeedbackNegative asChild>
 				<TooltipIconButton tooltip="Bad response">
 					<ThumbsDownIcon />
 				</TooltipIconButton>
-			</ActionBarPrimitive.FeedbackNegative>
+			</ActionBarPrimitive.FeedbackNegative>}
 		</ActionBarPrimitive.Root>
 	);
 }
