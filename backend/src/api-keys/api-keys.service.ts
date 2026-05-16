@@ -14,11 +14,11 @@ export class ApiKeysService {
 
   async upsert(userId: string, createDto: CreateApiKeyDto): Promise<ApiKeyDto> {
     try {
-      const encryptedKey = encrypt(createDto.apiKey);
+      const encryptedKey = encrypt(createDto.api_key);
 
       const result = await this.prisma.userProviderApiKey.upsert({
         where: {
-          userId_provider: {
+          uq_user_provider: {
             userId,
             provider: createDto.provider,
           },
@@ -126,7 +126,7 @@ export class ApiKeysService {
 
       const data: { name?: string; apiKey?: string } = {};
       if (updateDto.name) data.name = updateDto.name;
-      if (updateDto.apiKey) data.apiKey = encrypt(updateDto.apiKey);
+      if (updateDto.api_key) data.apiKey = encrypt(updateDto.api_key);
 
       const updated = await this.prisma.userProviderApiKey.update({
         where: { id },

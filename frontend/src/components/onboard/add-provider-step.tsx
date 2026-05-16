@@ -4,24 +4,12 @@ import { AlertCircle, Bot, Plus, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { LLMConfigForm } from "@/components/llm-config-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { LANGUAGES } from "@/contracts/enums/languages";
-import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
-
-import InferenceParamsEditor from "../inference-params-editor";
 
 interface AddProviderStepProps {
 	searchSpaceId: number;
@@ -36,26 +24,10 @@ export function AddProviderStep({
 }: AddProviderStepProps) {
 	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
 	const [isAddingNew, setIsAddingNew] = useState(false);
-	const [formData, setFormData] = useState<CreateLLMConfig>({
-		name: "",
-		provider: "",
-		custom_provider: "",
-		model_name: "",
-		api_key: "",
-		api_base: "",
-		language: "English",
-		litellm_params: {},
-		search_space_id: searchSpaceId,
-	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }));
-	};
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!formData.name || !formData.provider || !formData.model_name || !formData.api_key) {
+	const handleSubmit = async (formData: CreateLLMConfig) => {
+		if (!formData.name || !formData.provider || !formData.model_name || (!formData.api_key && !formData.user_provider_key_id)) {
 			toast.error("Please fill in all required fields");
 			return;
 		}
@@ -65,38 +37,18 @@ export function AddProviderStep({
 		setIsSubmitting(false);
 
 		if (result) {
-			setFormData({
-				name: "",
-				provider: "",
-				custom_provider: "",
-				model_name: "",
-				api_key: "",
-				api_base: "",
-				language: "English",
-				litellm_params: {},
-				search_space_id: searchSpaceId,
-			});
 			setIsAddingNew(false);
-			// Notify parent component that a config was created
 			onConfigCreated?.();
 		}
 	};
 
-	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === formData.provider);
-
-	const handleParamsChange = (newParams: Record<string, number | string>) => {
-		setFormData((prev) => ({ ...prev, litellm_params: newParams }));
-	};
-
 	return (
 		<div className="space-y-6">
-			{/* Info Alert */}
 			<Alert>
 				<AlertCircle className="h-4 w-4" />
 				<AlertDescription>Add your first LLM provider to get started. You can add multiple providers and assign them different roles.</AlertDescription>
 			</Alert>
 
-			{/* Existing Configurations */}
 			{llmConfigs.length > 0 && (
 				<div className="space-y-4">
 					<h3 className="text-lg font-semibold">Your LLM Configurations</h3>
@@ -145,7 +97,6 @@ export function AddProviderStep({
 				</div>
 			)}
 
-			{/* Add New Provider */}
 			{!isAddingNew ? (
 				<Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
 					<CardContent className="flex flex-col items-center justify-center py-12">
@@ -165,132 +116,12 @@ export function AddProviderStep({
 						<CardDescription>Configure a new LLM provider</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<form onSubmit={handleSubmit} className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="name">Config Name (Required)</Label>
-									<Input
-										id="name"
-										placeholder="My LLM Config"
-										value={formData.name}
-										onChange={(e) => handleInputChange("name", e.target.value)}
-										required
-									/>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="provider">Provider (Required)</Label>
-									<Select
-										value={formData.provider}
-										onValueChange={(value) => handleInputChange("provider", value)}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select provider" />
-										</SelectTrigger>
-										<SelectContent>
-											{LLM_PROVIDERS.map((provider) => (
-												<SelectItem key={provider.value} value={provider.value}>
-													{provider.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-
-								{/* language */}
-								<div className="space-y-2">
-									<Label htmlFor="language">Language (Optional)</Label>
-									<Select
-										value={formData.language || "English"}
-										onValueChange={(value) => handleInputChange("language", value)}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select language" />
-										</SelectTrigger>
-										<SelectContent>
-											{LANGUAGES.map((language) => (
-												<SelectItem key={language.value} value={language.value}>
-													{language.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							</div>
-
-							{formData.provider === "CUSTOM" && (
-								<div className="space-y-2">
-									<Label htmlFor="custom_provider">Custom Provider Name</Label>
-									<Input
-										id="custom_provider"
-										placeholder="Enter custom provider name"
-										value={formData.custom_provider}
-										onChange={(e) => handleInputChange("custom_provider", e.target.value)}
-										required
-									/>
-								</div>
-							)}
-
-							<div className="space-y-2">
-								<Label htmlFor="model_name">Model Name (Required)</Label>
-								<Input
-									id="model_name"
-									placeholder={selectedProvider?.example || "Enter model name"}
-									value={formData.model_name}
-									onChange={(e) => handleInputChange("model_name", e.target.value)}
-									required
-								/>
-								{selectedProvider && (
-									<p className="text-xs text-muted-foreground">
-										Examples: {selectedProvider.example}
-									</p>
-								)}
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="api_key">API Key (Required)</Label>
-								<Input
-									id="api_key"
-									type="password"
-									placeholder="Enter API key"
-									value={formData.api_key}
-									onChange={(e) => handleInputChange("api_key", e.target.value)}
-									required
-								/>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="api_base">API Base (Optional)</Label>
-								<Input
-									id="api_base"
-									placeholder="Enter API base URL"
-									value={formData.api_base}
-									onChange={(e) => handleInputChange("api_base", e.target.value)}
-								/>
-							</div>
-
-							{/* Optional Inference Parameters */}
-							<div className="pt-4">
-								<InferenceParamsEditor
-									params={formData.litellm_params || {}}
-									setParams={handleParamsChange}
-								/>
-							</div>
-
-							<div className="flex gap-2 pt-4">
-								<Button type="submit" disabled={isSubmitting}>
-									{isSubmitting ? "Adding..." : "Add Provider"}
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => setIsAddingNew(false)}
-									disabled={isSubmitting}
-								>
-									Cancel
-								</Button>
-							</div>
-						</form>
+						<LLMConfigForm
+							searchSpaceId={searchSpaceId}
+							onSubmit={handleSubmit}
+							onCancel={() => setIsAddingNew(false)}
+							isSubmitting={isSubmitting}
+						/>
 					</CardContent>
 				</Card>
 			)}

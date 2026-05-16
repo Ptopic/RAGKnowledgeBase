@@ -271,6 +271,8 @@ model ChatShareLink {
   @@index([chatId])
   @@index([slug])
   @@map("chat_share_links")
+}
+
 // User Chat Favorite Model
 model UserChatFavorite {
   id        Int      @id @default(autoincrement())

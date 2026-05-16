@@ -7,7 +7,7 @@ export class CreateApiKeyDto {
 
   @IsString()
   @MaxLength(5000)
-  apiKey: string;
+  api_key: string;
 
   @IsString()
   @MaxLength(100)
@@ -18,7 +18,7 @@ export class UpdateApiKeyDto {
   @IsString()
   @IsOptional()
   @MaxLength(5000)
-  apiKey?: string;
+  api_key?: string;
 
   @IsString()
   @IsOptional()
