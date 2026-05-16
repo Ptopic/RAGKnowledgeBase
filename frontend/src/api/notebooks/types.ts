@@ -1,11 +1,8 @@
-export type ContentType = "html" | "json";
-
 export interface Notebook {
 	id: number;
 	title: string;
 	slug: string;
 	content: string;
-	content_type: ContentType;
 	excerpt: string | null;
 	search_space_id: number;
 	author_id: string;
@@ -17,7 +14,6 @@ export interface NotebookListItem {
 	id: number;
 	title: string;
 	slug: string;
-	content_type: ContentType;
 	excerpt: string | null;
 	search_space_id: number;
 	author_id: string;
@@ -34,7 +30,6 @@ export interface GetNotebooksParams {
 export interface CreateNotebookRequest {
 	title: string;
 	content: string;
-	content_type?: ContentType;
 	excerpt?: string;
 	search_space_id: number;
 }
@@ -42,6 +37,5 @@ export interface CreateNotebookRequest {
 export interface UpdateNotebookRequest {
 	title?: string;
 	content?: string;
-	content_type?: ContentType;
 	excerpt?: string;
 }

@@ -19,7 +19,6 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -122,7 +121,6 @@ export default function NotebookDetailPage({
 							{notebook.title}
 						</h1>
 						<div className="flex items-center gap-3 text-sm text-muted-foreground">
-							<Badge variant="secondary">{notebook.content_type}</Badge>
 							<span>{notebook.slug}</span>
 						</div>
 					</div>
@@ -175,7 +173,7 @@ export default function NotebookDetailPage({
 				{notebook.excerpt && (
 					<Card className="mb-6">
 						<CardHeader className="pb-2">
-							<CardTitle className="text-sm">Excerpt</CardTitle>
+							<CardTitle className="text-sm">Summary</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<p className="text-muted-foreground text-sm">{notebook.excerpt}</p>
@@ -193,16 +191,9 @@ export default function NotebookDetailPage({
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{notebook.content_type === "html" ? (
-							<div
-								className="prose prose-sm dark:prose-invert max-w-none"
-								dangerouslySetInnerHTML={{ __html: notebook.content }}
-							/>
-						) : (
-							<pre className="bg-muted rounded-md p-4 overflow-x-auto text-sm">
-								<code>{notebook.content}</code>
-							</pre>
-						)}
+						<div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+							{notebook.content}
+						</div>
 					</CardContent>
 				</Card>
 			</motion.div>

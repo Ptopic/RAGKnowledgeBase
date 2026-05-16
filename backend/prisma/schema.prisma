@@ -23,7 +23,6 @@ enum DocumentType {
   GITHUB_CONNECTOR
   GOOGLE_CALENDAR_CONNECTOR
   GOOGLE_GMAIL_CONNECTOR
-  NOTEBOOK
 }
 
 enum SearchSourceConnectorType {
@@ -414,7 +413,6 @@ model Notebook {
   title       String @db.VarChar(255)
   slug        String @unique @db.VarChar(300)
   content     String @db.Text
-  contentType String @default("html") @map("content_type") @db.VarChar(20)
   excerpt     String? @db.VarChar(500)
 
   searchSpaceId Int    @map("search_space_id")

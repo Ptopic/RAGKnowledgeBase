@@ -8,7 +8,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import useCreateNotebook from "@/api/notebooks/hooks/useCreateNotebook";
-import type { ContentType } from "@/api/notebooks/types";
+import { NotebookBlockEditor } from "@/components/ui/notebook-editor";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -19,15 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 export default function CreateNotebookPage({
 	params,
@@ -40,8 +32,7 @@ export default function CreateNotebookPage({
 
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
-	const [contentType, setContentType] = useState<ContentType>("html");
-	const [excerpt, setExcerpt] = useState("");
+	const [summary, setSummary] = useState("");
 
 	const createMutation = useCreateNotebook();
 
@@ -58,8 +49,8 @@ export default function CreateNotebookPage({
 			return;
 		}
 
-		if (excerpt.length > 500) {
-			toast.error("Excerpt must be 500 characters or less");
+		if (summary.length > 500) {
+			toast.error("Summary must be 500 characters or less");
 			return;
 		}
 
@@ -69,8 +60,7 @@ export default function CreateNotebookPage({
 				data: {
 					title: title.trim(),
 					content,
-					content_type: contentType,
-					...(excerpt.trim() ? { excerpt: excerpt.trim() } : {}),
+					...(summary.trim() ? { excerpt: summary.trim() } : {}),
 				},
 			},
 			{
@@ -120,51 +110,37 @@ export default function CreateNotebookPage({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="content-type">Content Type</Label>
-								<Select
-									value={contentType}
-									onValueChange={(val) => setContentType(val as ContentType)}
-								>
-									<SelectTrigger id="content-type" className="w-[180px]">
-										<SelectValue placeholder="Select type" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="html">HTML</SelectItem>
-										<SelectItem value="json">JSON</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-2">
-								<Label>Content</Label>
-								<RichTextEditor
-									content={content}
-									onChange={setContent}
-									placeholder="Write your notebook content..."
-								/>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="excerpt">
-									Excerpt{" "}
+								<Label htmlFor="summary">
+									Summary{" "}
 									<span className="text-muted-foreground font-normal">
 										(optional, max 500 chars)
 									</span>
 								</Label>
 								<Textarea
-									id="excerpt"
+									id="summary"
 									placeholder="Brief summary of the notebook"
-									value={excerpt}
+									value={summary}
 									onChange={(e) => {
 										if (e.target.value.length <= 500) {
-											setExcerpt(e.target.value);
+											setSummary(e.target.value);
 										}
 									}}
 									rows={3}
 								/>
 								<p className="text-xs text-muted-foreground text-right">
-									{excerpt.length}/500
+									{summary.length}/500
 								</p>
+							</div>
+
+							<div className="space-y-2">
+								<Label>Content</Label>
+								<div className="min-h-[300px] rounded-md border bg-background p-4">
+									<NotebookBlockEditor
+										value={content}
+										onChange={setContent}
+										placeholder='Type "/" for commands...'
+									/>
+								</div>
 							</div>
 
 							<div className="flex justify-end gap-3 pt-4">

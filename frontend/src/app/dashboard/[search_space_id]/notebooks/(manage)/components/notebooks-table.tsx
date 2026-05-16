@@ -14,7 +14,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -64,8 +63,7 @@ export function NotebooksTable({
 						<TableRow>
 							<TableHead>Title</TableHead>
 							<TableHead>Slug</TableHead>
-							<TableHead>Content Type</TableHead>
-							<TableHead>Excerpt</TableHead>
+							<TableHead>Summary</TableHead>
 							<TableHead>Created</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
@@ -75,7 +73,6 @@ export function NotebooksTable({
 							<TableRow key={key}>
 								<TableCell><Skeleton className="h-4 w-40" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-28" /></TableCell>
-								<TableCell><Skeleton className="h-5 w-14" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-48" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-24" /></TableCell>
 								<TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
@@ -111,8 +108,7 @@ export function NotebooksTable({
 						<TableRow>
 							<TableHead>Title</TableHead>
 							<TableHead>Slug</TableHead>
-							<TableHead>Content Type</TableHead>
-							<TableHead>Excerpt</TableHead>
+							<TableHead>Summary</TableHead>
 							<TableHead>Created</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
@@ -130,9 +126,6 @@ export function NotebooksTable({
 								</TableCell>
 								<TableCell className="text-muted-foreground text-sm">
 									{notebook.slug}
-								</TableCell>
-								<TableCell>
-									<Badge variant="secondary">{notebook.content_type}</Badge>
 								</TableCell>
 								<TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
 									{notebook.excerpt || "—"}

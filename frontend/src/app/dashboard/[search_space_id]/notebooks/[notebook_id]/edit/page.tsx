@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import useUpdateNotebook from "@/api/notebooks/hooks/useUpdateNotebook";
-import type { ContentType } from "@/api/notebooks/types";
+import { NotebookBlockEditor } from "@/components/ui/notebook-editor";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -20,15 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EditNotebookPage({
@@ -46,15 +38,13 @@ export default function EditNotebookPage({
 
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
-	const [contentType, setContentType] = useState<ContentType>("html");
-	const [excerpt, setExcerpt] = useState("");
+	const [summary, setSummary] = useState("");
 
 	useEffect(() => {
 		if (notebook) {
 			setTitle(notebook.title);
 			setContent(notebook.content);
-			setContentType(notebook.content_type);
-			setExcerpt(notebook.excerpt || "");
+			setSummary(notebook.excerpt || "");
 		}
 	}, [notebook]);
 
@@ -71,8 +61,8 @@ export default function EditNotebookPage({
 			return;
 		}
 
-		if (excerpt.length > 500) {
-			toast.error("Excerpt must be 500 characters or less");
+		if (summary.length > 500) {
+			toast.error("Summary must be 500 characters or less");
 			return;
 		}
 
@@ -83,8 +73,7 @@ export default function EditNotebookPage({
 				data: {
 					title: title.trim(),
 					content,
-					content_type: contentType,
-					excerpt: excerpt.trim() || undefined,
+					excerpt: summary.trim() || undefined,
 				},
 			},
 			{
@@ -103,9 +92,8 @@ export default function EditNotebookPage({
 				<Skeleton className="h-10 w-1/2 mb-8" />
 				<div className="space-y-6">
 					<Skeleton className="h-10 w-full" />
-					<Skeleton className="h-10 w-48" />
-					<Skeleton className="h-64 w-full" />
 					<Skeleton className="h-24 w-full" />
+					<Skeleton className="h-64 w-full" />
 				</div>
 			</div>
 		);
@@ -158,51 +146,37 @@ export default function EditNotebookPage({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="content-type">Content Type</Label>
-								<Select
-									value={contentType}
-									onValueChange={(val) => setContentType(val as ContentType)}
-								>
-									<SelectTrigger id="content-type" className="w-[180px]">
-										<SelectValue placeholder="Select type" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="html">HTML</SelectItem>
-										<SelectItem value="json">JSON</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-2">
-								<Label>Content</Label>
-								<RichTextEditor
-									content={content}
-									onChange={setContent}
-									placeholder="Write your notebook content..."
-								/>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="excerpt">
-									Excerpt{" "}
+								<Label htmlFor="summary">
+									Summary{" "}
 									<span className="text-muted-foreground font-normal">
 										(optional, max 500 chars)
 									</span>
 								</Label>
 								<Textarea
-									id="excerpt"
+									id="summary"
 									placeholder="Brief summary of the notebook"
-									value={excerpt}
+									value={summary}
 									onChange={(e) => {
 										if (e.target.value.length <= 500) {
-											setExcerpt(e.target.value);
+											setSummary(e.target.value);
 										}
 									}}
 									rows={3}
 								/>
 								<p className="text-xs text-muted-foreground text-right">
-									{excerpt.length}/500
+									{summary.length}/500
 								</p>
+							</div>
+
+							<div className="space-y-2">
+								<Label>Content</Label>
+								<div className="min-h-[300px] rounded-md border bg-background p-4">
+									<NotebookBlockEditor
+										value={content}
+										onChange={setContent}
+										placeholder='Type "/" for commands...'
+									/>
+								</div>
 							</div>
 
 							<div className="flex justify-end gap-3 pt-4">

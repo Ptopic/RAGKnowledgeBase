@@ -1,13 +1,10 @@
 import { Type } from "class-transformer";
 import {
-	IsEnum,
 	IsInt,
 	IsOptional,
 	IsString,
 	MaxLength,
 } from "class-validator";
-
-export type ContentType = "html" | "json";
 
 export class CreateNotebookDto {
 	@IsString()
@@ -15,10 +12,6 @@ export class CreateNotebookDto {
 
 	@IsString()
 	content: string;
-
-	@IsEnum(["html", "json"] as const)
-	@IsOptional()
-	contentType?: ContentType;
 
 	@IsString()
 	@IsOptional()
@@ -37,10 +30,6 @@ export class UpdateNotebookDto {
 	@IsString()
 	@IsOptional()
 	content?: string;
-
-	@IsEnum(["html", "json"] as const)
-	@IsOptional()
-	contentType?: ContentType;
 
 	@IsString()
 	@IsOptional()
@@ -74,9 +63,6 @@ export class NotebookListItemDto {
 
 	@IsString()
 	slug: string;
-
-	@IsEnum(["html", "json"] as const)
-	contentType: ContentType;
 
 	@IsString()
 	@IsOptional()
