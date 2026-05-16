@@ -6,7 +6,7 @@ import { ApiKeysModule } from "./api-keys/api-keys.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./auth/auth.module";
-import { BlogsModule } from "./blogs/blogs.module";
+import { NotebooksModule } from "./notebooks/notebooks.module";
 import { ChatShareModule } from "./chat-share/chat-share.module";
 import { ChatsModule } from "./chats/chats.module";
 import { AppConfigModule } from "./config/config.module";
@@ -43,7 +43,7 @@ import { ServicesModule } from "./services/services.module";
 		SearchSpacesModule,
 		DocumentsModule,
 		ChatsModule,
-		BlogsModule,
+		NotebooksModule,
 		ChatShareModule,
 		SearchSourceConnectorsModule,
 		LLMConfigsModule,

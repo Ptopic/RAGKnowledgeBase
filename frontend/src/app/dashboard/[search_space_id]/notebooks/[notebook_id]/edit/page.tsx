@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 
-import useGetBlog from "@/api/blogs/hooks/useGetBlog";
-import useUpdateBlog from "@/api/blogs/hooks/useUpdateBlog";
-import type { ContentType } from "@/api/blogs/types";
+import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
+import useUpdateNotebook from "@/api/notebooks/hooks/useUpdateNotebook";
+import type { ContentType } from "@/api/notebooks/types";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -31,18 +31,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function EditBlogPage({
+export default function EditNotebookPage({
 	params,
 }: {
-	params: Promise<{ search_space_id: string; blog_id: string }>;
+	params: Promise<{ search_space_id: string; notebook_id: string }>;
 }) {
-	const { search_space_id, blog_id } = use(params);
+	const { search_space_id, notebook_id } = use(params);
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
-	const blogIdNum = Number(blog_id);
+	const notebookIdNum = Number(notebook_id);
 
-	const { data: blog, isLoading } = useGetBlog(searchSpaceIdNum, blogIdNum);
-	const updateMutation = useUpdateBlog();
+	const { data: notebook, isLoading } = useGetNotebook(searchSpaceIdNum, notebookIdNum);
+	const updateMutation = useUpdateNotebook();
 
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
@@ -50,13 +50,13 @@ export default function EditBlogPage({
 	const [excerpt, setExcerpt] = useState("");
 
 	useEffect(() => {
-		if (blog) {
-			setTitle(blog.title);
-			setContent(blog.content);
-			setContentType(blog.content_type);
-			setExcerpt(blog.excerpt || "");
+		if (notebook) {
+			setTitle(notebook.title);
+			setContent(notebook.content);
+			setContentType(notebook.content_type);
+			setExcerpt(notebook.excerpt || "");
 		}
-	}, [blog]);
+	}, [notebook]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -79,7 +79,7 @@ export default function EditBlogPage({
 		updateMutation.mutate(
 			{
 				searchSpaceId: searchSpaceIdNum,
-				blogId: blogIdNum,
+				notebookId: notebookIdNum,
 				data: {
 					title: title.trim(),
 					content,
@@ -89,8 +89,8 @@ export default function EditBlogPage({
 			},
 			{
 				onSuccess: () => {
-					toast.success("Blog updated successfully");
-					router.push(`/dashboard/${search_space_id}/blogs/${blog_id}`);
+					toast.success("Notebook updated successfully");
+					router.push(`/dashboard/${search_space_id}/notebooks/${notebook_id}`);
 				},
 			},
 		);
@@ -120,18 +120,18 @@ export default function EditBlogPage({
 			>
 				<div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
 					<Link
-						href={`/dashboard/${search_space_id}/blogs`}
+						href={`/dashboard/${search_space_id}/notebooks`}
 						className="hover:underline flex items-center gap-1"
 					>
 						<ArrowLeft className="h-3 w-3" />
-						Blogs
+						Notebooks
 					</Link>
 					<span>/</span>
 					<Link
-						href={`/dashboard/${search_space_id}/blogs/${blog_id}`}
+						href={`/dashboard/${search_space_id}/notebooks/${notebook_id}`}
 						className="hover:underline"
 					>
-						{blog?.title || "Blog"}
+						{notebook?.title || "Notebook"}
 					</Link>
 					<span>/</span>
 					<span>Edit</span>
@@ -139,9 +139,9 @@ export default function EditBlogPage({
 
 				<Card>
 					<CardHeader>
-						<CardTitle>Edit Blog Post</CardTitle>
+						<CardTitle>Edit Notebook</CardTitle>
 						<CardDescription>
-							Update your blog post content and settings
+							Update your notebook content and settings
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -150,7 +150,7 @@ export default function EditBlogPage({
 								<Label htmlFor="title">Title</Label>
 								<Input
 									id="title"
-									placeholder="Enter blog title"
+									placeholder="Enter notebook title"
 									value={title}
 									onChange={(e) => setTitle(e.target.value)}
 									required
@@ -178,7 +178,7 @@ export default function EditBlogPage({
 								<RichTextEditor
 									content={content}
 									onChange={setContent}
-									placeholder="Write your blog content..."
+									placeholder="Write your notebook content..."
 								/>
 							</div>
 
@@ -191,7 +191,7 @@ export default function EditBlogPage({
 								</Label>
 								<Textarea
 									id="excerpt"
-									placeholder="Brief summary of the blog post"
+									placeholder="Brief summary of the notebook"
 									value={excerpt}
 									onChange={(e) => {
 										if (e.target.value.length <= 500) {
@@ -211,7 +211,7 @@ export default function EditBlogPage({
 									variant="outline"
 									onClick={() =>
 										router.push(
-											`/dashboard/${search_space_id}/blogs/${blog_id}`,
+											`/dashboard/${search_space_id}/notebooks/${notebook_id}`,
 										)
 									}
 								>

@@ -6,8 +6,8 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import useGetBlog from "@/api/blogs/hooks/useGetBlog";
-import useDeleteBlog from "@/api/blogs/hooks/useDeleteBlog";
+import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
+import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -44,25 +44,25 @@ function formatDate(dateStr: string): string {
 	}
 }
 
-export default function BlogDetailPage({
+export default function NotebookDetailPage({
 	params,
 }: {
-	params: Promise<{ search_space_id: string; blog_id: string }>;
+	params: Promise<{ search_space_id: string; notebook_id: string }>;
 }) {
-	const { search_space_id, blog_id } = use(params);
+	const { search_space_id, notebook_id } = use(params);
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
-	const blogIdNum = Number(blog_id);
+	const notebookIdNum = Number(notebook_id);
 
-	const { data: blog, isLoading } = useGetBlog(searchSpaceIdNum, blogIdNum);
-	const deleteMutation = useDeleteBlog();
+	const { data: notebook, isLoading } = useGetNotebook(searchSpaceIdNum, notebookIdNum);
+	const deleteMutation = useDeleteNotebook();
 
 	const handleDelete = () => {
 		deleteMutation.mutate(
-			{ searchSpaceId: searchSpaceIdNum, blogId: blogIdNum },
+			{ searchSpaceId: searchSpaceIdNum, notebookId: notebookIdNum },
 			{
 				onSuccess: () => {
-					router.push(`/dashboard/${search_space_id}/blogs`);
+					router.push(`/dashboard/${search_space_id}/notebooks`);
 				},
 			},
 		);
@@ -83,16 +83,16 @@ export default function BlogDetailPage({
 		);
 	}
 
-	if (!blog) {
+	if (!notebook) {
 		return (
 			<div className="container mx-auto py-8 max-w-4xl text-center">
-				<h2 className="text-xl font-medium mb-2">Blog not found</h2>
+				<h2 className="text-xl font-medium mb-2">Notebook not found</h2>
 				<p className="text-muted-foreground mb-6">
-					The blog post you are looking for does not exist.
+					The notebook you are looking for does not exist.
 				</p>
 				<Button asChild>
-					<Link href={`/dashboard/${search_space_id}/blogs`}>
-						Back to Blogs
+					<Link href={`/dashboard/${search_space_id}/notebooks`}>
+						Back to Notebooks
 					</Link>
 				</Button>
 			</div>
@@ -108,28 +108,28 @@ export default function BlogDetailPage({
 			>
 				<div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
 					<Link
-						href={`/dashboard/${search_space_id}/blogs`}
+						href={`/dashboard/${search_space_id}/notebooks`}
 						className="hover:underline flex items-center gap-1"
 					>
 						<ArrowLeft className="h-3 w-3" />
-						Blogs
+						Notebooks
 					</Link>
 				</div>
 
 				<div className="flex items-start justify-between mb-8">
 					<div>
 						<h1 className="text-3xl font-bold tracking-tight mb-2">
-							{blog.title}
+							{notebook.title}
 						</h1>
 						<div className="flex items-center gap-3 text-sm text-muted-foreground">
-							<Badge variant="secondary">{blog.content_type}</Badge>
-							<span>{blog.slug}</span>
+							<Badge variant="secondary">{notebook.content_type}</Badge>
+							<span>{notebook.slug}</span>
 						</div>
 					</div>
 					<div className="flex gap-2">
 						<Button variant="outline" size="sm" asChild>
 							<Link
-								href={`/dashboard/${search_space_id}/blogs/${blog_id}/edit`}
+								href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}
 							>
 								<Edit className="h-4 w-4 mr-1" />
 								Edit
@@ -148,9 +148,9 @@ export default function BlogDetailPage({
 							</AlertDialogTrigger>
 							<AlertDialogContent>
 								<AlertDialogHeader>
-									<AlertDialogTitle>Delete Blog</AlertDialogTitle>
+									<AlertDialogTitle>Delete Notebook</AlertDialogTitle>
 									<AlertDialogDescription>
-										Are you sure you want to delete &quot;{blog.title}&quot;?
+										Are you sure you want to delete &quot;{notebook.title}&quot;?
 										This action cannot be undone.
 									</AlertDialogDescription>
 								</AlertDialogHeader>
@@ -172,13 +172,13 @@ export default function BlogDetailPage({
 					</div>
 				</div>
 
-				{blog.excerpt && (
+				{notebook.excerpt && (
 					<Card className="mb-6">
 						<CardHeader className="pb-2">
 							<CardTitle className="text-sm">Excerpt</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p className="text-muted-foreground text-sm">{blog.excerpt}</p>
+							<p className="text-muted-foreground text-sm">{notebook.excerpt}</p>
 						</CardContent>
 					</Card>
 				)}
@@ -187,20 +187,20 @@ export default function BlogDetailPage({
 					<CardHeader>
 						<CardTitle>Content</CardTitle>
 						<CardDescription>
-							Created {formatDate(blog.created_at)}
-							{blog.updated_at !== blog.created_at &&
-								` · Updated ${formatDate(blog.updated_at)}`}
+							Created {formatDate(notebook.created_at)}
+							{notebook.updated_at !== notebook.created_at &&
+								` · Updated ${formatDate(notebook.updated_at)}`}
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{blog.content_type === "html" ? (
+						{notebook.content_type === "html" ? (
 							<div
 								className="prose prose-sm dark:prose-invert max-w-none"
-								dangerouslySetInnerHTML={{ __html: blog.content }}
+								dangerouslySetInnerHTML={{ __html: notebook.content }}
 							/>
 						) : (
 							<pre className="bg-muted rounded-md p-4 overflow-x-auto text-sm">
-								<code>{blog.content}</code>
+								<code>{notebook.content}</code>
 							</pre>
 						)}
 					</CardContent>

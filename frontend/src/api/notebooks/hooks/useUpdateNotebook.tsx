@@ -1,0 +1,35 @@
+import {
+	type UseMutationOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
+import { NOTEBOOK, NOTEBOOKS } from "@/shared/queryKeys";
+import notebooksClientRequests from "../authClientRequests";
+import type { Notebook, UpdateNotebookRequest } from "../types";
+
+interface UpdateNotebookParams {
+	searchSpaceId: number;
+	notebookId: number;
+	data: UpdateNotebookRequest;
+}
+
+const useUpdateNotebook = (
+	options?: UseMutationOptions<Notebook, Error, UpdateNotebookParams, unknown>,
+) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ searchSpaceId, notebookId, data }: UpdateNotebookParams) =>
+			notebooksClientRequests.updateNotebook(searchSpaceId, notebookId, data),
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: [NOTEBOOKS] });
+			queryClient.invalidateQueries({ queryKey: [NOTEBOOK] });
+		},
+		onError: (error) => {
+			console.error("Error updating notebook:", error);
+		},
+		...options,
+	});
+};
+
+export default useUpdateNotebook;

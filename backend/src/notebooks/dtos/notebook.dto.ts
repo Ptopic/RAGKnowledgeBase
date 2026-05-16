@@ -9,7 +9,7 @@ import {
 
 export type ContentType = "html" | "json";
 
-export class CreateBlogDto {
+export class CreateNotebookDto {
 	@IsString()
 	title: string;
 
@@ -29,7 +29,7 @@ export class CreateBlogDto {
 	search_space_id: number;
 }
 
-export class UpdateBlogDto {
+export class UpdateNotebookDto {
 	@IsString()
 	@IsOptional()
 	title?: string;
@@ -48,7 +48,7 @@ export class UpdateBlogDto {
 	excerpt?: string;
 }
 
-export class BlogDto extends CreateBlogDto {
+export class NotebookDto extends CreateNotebookDto {
 	@IsInt()
 	id: number;
 
@@ -65,7 +65,7 @@ export class BlogDto extends CreateBlogDto {
 	updated_at: Date;
 }
 
-export class BlogListItemDto {
+export class NotebookListItemDto {
 	@IsInt()
 	id: number;
 

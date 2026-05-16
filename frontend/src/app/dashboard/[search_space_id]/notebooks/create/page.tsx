@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 
-import useCreateBlog from "@/api/blogs/hooks/useCreateBlog";
-import type { ContentType } from "@/api/blogs/types";
+import useCreateNotebook from "@/api/notebooks/hooks/useCreateNotebook";
+import type { ContentType } from "@/api/notebooks/types";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
-export default function CreateBlogPage({
+export default function CreateNotebookPage({
 	params,
 }: {
 	params: Promise<{ search_space_id: string }>;
@@ -43,7 +43,7 @@ export default function CreateBlogPage({
 	const [contentType, setContentType] = useState<ContentType>("html");
 	const [excerpt, setExcerpt] = useState("");
 
-	const createMutation = useCreateBlog();
+	const createMutation = useCreateNotebook();
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -75,8 +75,8 @@ export default function CreateBlogPage({
 			},
 			{
 				onSuccess: () => {
-					toast.success("Blog created successfully");
-					router.push(`/dashboard/${search_space_id}/blogs`);
+					toast.success("Notebook created successfully");
+					router.push(`/dashboard/${search_space_id}/notebooks`);
 				},
 			},
 		);
@@ -91,19 +91,19 @@ export default function CreateBlogPage({
 			>
 				<div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
 					<Link
-						href={`/dashboard/${search_space_id}/blogs`}
+						href={`/dashboard/${search_space_id}/notebooks`}
 						className="hover:underline flex items-center gap-1"
 					>
 						<ArrowLeft className="h-3 w-3" />
-						Blogs
+						Notebooks
 					</Link>
 				</div>
 
 				<Card>
 					<CardHeader>
-						<CardTitle>Create Blog Post</CardTitle>
+						<CardTitle>Create Notebook</CardTitle>
 						<CardDescription>
-							Write a new blog post for your knowledge base
+							Write a new notebook for your knowledge base
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -112,7 +112,7 @@ export default function CreateBlogPage({
 								<Label htmlFor="title">Title</Label>
 								<Input
 									id="title"
-									placeholder="Enter blog title"
+									placeholder="Enter notebook title"
 									value={title}
 									onChange={(e) => setTitle(e.target.value)}
 									required
@@ -140,7 +140,7 @@ export default function CreateBlogPage({
 								<RichTextEditor
 									content={content}
 									onChange={setContent}
-									placeholder="Write your blog content..."
+									placeholder="Write your notebook content..."
 								/>
 							</div>
 
@@ -153,7 +153,7 @@ export default function CreateBlogPage({
 								</Label>
 								<Textarea
 									id="excerpt"
-									placeholder="Brief summary of the blog post"
+									placeholder="Brief summary of the notebook"
 									value={excerpt}
 									onChange={(e) => {
 										if (e.target.value.length <= 500) {
@@ -172,7 +172,7 @@ export default function CreateBlogPage({
 									type="button"
 									variant="outline"
 									onClick={() =>
-										router.push(`/dashboard/${search_space_id}/blogs`)
+										router.push(`/dashboard/${search_space_id}/notebooks`)
 									}
 								>
 									Cancel
@@ -181,7 +181,7 @@ export default function CreateBlogPage({
 									{createMutation.isPending && (
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 									)}
-									Create Blog
+									Create Notebook
 								</Button>
 							</div>
 						</form>

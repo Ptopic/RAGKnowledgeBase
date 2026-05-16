@@ -6,8 +6,8 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import useGetBlogs from "@/api/blogs/hooks/useGetBlogs";
-import useDeleteBlog from "@/api/blogs/hooks/useDeleteBlog";
+import useGetNotebooks from "@/api/notebooks/hooks/useGetNotebooks";
+import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -16,9 +16,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { BlogsTable } from "./components/blogs-table";
+import { NotebooksTable } from "./components/notebooks-table";
 
-export default function BlogsManagePage({
+export default function NotebooksManagePage({
 	params,
 }: {
 	params: Promise<{ search_space_id: string }>;
@@ -27,18 +27,18 @@ export default function BlogsManagePage({
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
 
-	const { data: blogs = [], isLoading } = useGetBlogs({
+	const { data: notebooks = [], isLoading } = useGetNotebooks({
 		search_space_id: searchSpaceIdNum,
 	});
 
-	const deleteMutation = useDeleteBlog();
+	const deleteMutation = useDeleteNotebook();
 
-	const handleDelete = (blogId: number) => {
+	const handleDelete = (notebookId: number) => {
 		deleteMutation.mutate(
-			{ searchSpaceId: searchSpaceIdNum, blogId },
+			{ searchSpaceId: searchSpaceIdNum, notebookId },
 			{
 				onSuccess: () => {
-					router.push(`/dashboard/${search_space_id}/blogs`);
+					router.push(`/dashboard/${search_space_id}/notebooks`);
 				},
 			},
 		);
@@ -55,37 +55,37 @@ export default function BlogsManagePage({
 				<div>
 					<div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
 						<Link
-							href={`/dashboard/${search_space_id}/blogs`}
+							href={`/dashboard/${search_space_id}/notebooks`}
 							className="hover:underline"
 						>
-							Blogs
+							Notebooks
 						</Link>
 					</div>
-					<h1 className="text-3xl font-bold tracking-tight">Manage Blogs</h1>
+					<h1 className="text-3xl font-bold tracking-tight">Manage Notebooks</h1>
 					<p className="text-muted-foreground mt-2">
-						Create, edit, and manage your blog posts
+						Create, edit, and manage your notebooks
 					</p>
 				</div>
 				<Button
 					onClick={() =>
-						router.push(`/dashboard/${search_space_id}/blogs/create`)
+						router.push(`/dashboard/${search_space_id}/notebooks/create`)
 					}
 				>
 					<Plus className="mr-2 h-4 w-4" />
-					Create Blog
+					Create Notebook
 				</Button>
 			</motion.div>
 
 			<Card>
 				<CardHeader className="pb-3">
-					<CardTitle>Your Blogs</CardTitle>
+					<CardTitle>Your Notebooks</CardTitle>
 					<CardDescription>
-						View and manage your blog posts
+						View and manage your notebooks
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<BlogsTable
-						blogs={blogs}
+					<NotebooksTable
+						notebooks={notebooks}
 						searchSpaceId={search_space_id}
 						isLoading={isLoading}
 						onDelete={handleDelete}

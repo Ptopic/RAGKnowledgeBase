@@ -25,13 +25,13 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import type { BlogListItem } from "@/api/blogs/types";
+import type { NotebookListItem } from "@/api/notebooks/types";
 
-interface BlogsTableProps {
-	blogs: BlogListItem[];
+interface NotebooksTableProps {
+	notebooks: NotebookListItem[];
 	searchSpaceId: string;
 	isLoading: boolean;
-	onDelete: (blogId: number) => void;
+	onDelete: (notebookId: number) => void;
 	isDeleting: boolean;
 }
 
@@ -47,14 +47,14 @@ function formatDate(dateStr: string): string {
 	}
 }
 
-export function BlogsTable({
-	blogs,
+export function NotebooksTable({
+	notebooks,
 	searchSpaceId,
 	isLoading,
 	onDelete,
 	isDeleting,
-}: BlogsTableProps) {
-	const [blogToDelete, setBlogToDelete] = useState<BlogListItem | null>(null);
+}: NotebooksTableProps) {
+	const [notebookToDelete, setNotebookToDelete] = useState<NotebookListItem | null>(null);
 
 	if (isLoading) {
 		return (
@@ -87,16 +87,16 @@ export function BlogsTable({
 		);
 	}
 
-	if (blogs.length === 0) {
+	if (notebooks.length === 0) {
 		return (
 			<div className="text-center py-12">
-				<h3 className="text-lg font-medium mb-2">No blogs yet</h3>
+				<h3 className="text-lg font-medium mb-2">No notebooks yet</h3>
 				<p className="text-muted-foreground mb-6">
-					Get started by creating your first blog post
+					Get started by creating your first notebook
 				</p>
 				<Button asChild>
-					<Link href={`/dashboard/${searchSpaceId}/blogs/create`}>
-						Create Blog
+					<Link href={`/dashboard/${searchSpaceId}/notebooks/create`}>
+						Create Notebook
 					</Link>
 				</Button>
 			</div>
@@ -118,32 +118,32 @@ export function BlogsTable({
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{blogs.map((blog) => (
-							<TableRow key={blog.id}>
+						{notebooks.map((notebook) => (
+							<TableRow key={notebook.id}>
 								<TableCell className="font-medium">
 									<Link
-										href={`/dashboard/${searchSpaceId}/blogs/${blog.id}`}
+										href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}`}
 										className="hover:underline"
 									>
-										{blog.title}
+										{notebook.title}
 									</Link>
 								</TableCell>
 								<TableCell className="text-muted-foreground text-sm">
-									{blog.slug}
+									{notebook.slug}
 								</TableCell>
 								<TableCell>
-									<Badge variant="secondary">{blog.content_type}</Badge>
+									<Badge variant="secondary">{notebook.content_type}</Badge>
 								</TableCell>
 								<TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-									{blog.excerpt || "—"}
+									{notebook.excerpt || "—"}
 								</TableCell>
 								<TableCell className="text-sm text-muted-foreground">
-									{formatDate(blog.created_at)}
+									{formatDate(notebook.created_at)}
 								</TableCell>
 								<TableCell className="text-right">
 									<div className="flex justify-end gap-2">
 										<Button variant="outline" size="sm" asChild>
-											<Link href={`/dashboard/${searchSpaceId}/blogs/${blog.id}/edit`}>
+											<Link href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}/edit`}>
 												<Edit className="h-4 w-4" />
 												<span className="sr-only">Edit</span>
 											</Link>
@@ -152,7 +152,7 @@ export function BlogsTable({
 											variant="outline"
 											size="sm"
 											className="text-destructive-foreground hover:bg-destructive/10"
-											onClick={() => setBlogToDelete(blog)}
+											onClick={() => setNotebookToDelete(notebook)}
 										>
 											<Trash2 className="h-4 w-4" />
 											<span className="sr-only">Delete</span>
@@ -166,27 +166,27 @@ export function BlogsTable({
 			</div>
 
 			<AlertDialog
-				open={!!blogToDelete}
-				onOpenChange={(open) => !open && setBlogToDelete(null)}
+				open={!!notebookToDelete}
+				onOpenChange={(open) => !open && setNotebookToDelete(null)}
 			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Delete Blog</AlertDialogTitle>
+						<AlertDialogTitle>Delete Notebook</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete &quot;{blogToDelete?.title}&quot;? This
+							Are you sure you want to delete &quot;{notebookToDelete?.title}&quot;? This
 							action cannot be undone.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel onClick={() => setBlogToDelete(null)}>
+						<AlertDialogCancel onClick={() => setNotebookToDelete(null)}>
 							Cancel
 						</AlertDialogCancel>
 						<AlertDialogAction
 							className="bg-destructive text-white hover:bg-destructive/90"
 							onClick={() => {
-								if (blogToDelete) {
-									onDelete(blogToDelete.id);
-									setBlogToDelete(null);
+								if (notebookToDelete) {
+									onDelete(notebookToDelete.id);
+									setNotebookToDelete(null);
 								}
 							}}
 							disabled={isDeleting}

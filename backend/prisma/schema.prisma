@@ -117,7 +117,7 @@ model User {
   searchSpaces           SearchSpace[]
   searchSourceConnectors SearchSourceConnector[]
   searchSpacePreferences UserSearchSpacePreference[]
-  blogs                  Blog[]
+  notebooks              Notebook[]
   providerApiKeys        UserProviderApiKey[]
   queryTemplates         QueryTemplate[]
   favoriteDocuments      UserDocumentFavorite[]
@@ -160,7 +160,7 @@ model SearchSpace {
   user                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents              Document[]
   chats                  Chat[]
-  blogs                  Blog[]
+  notebooks              Notebook[]
   logs                   Log[]
   searchSourceConnectors SearchSourceConnector[]
   llmConfigs             LLMConfig[]
@@ -405,8 +405,8 @@ model UserSearchSpacePreference {
   @@map("user_search_space_preferences")
 }
 
-// Blog Model
-model Blog {
+// Notebook Model
+model Notebook {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -427,7 +427,7 @@ model Blog {
   @@index([searchSpaceId])
   @@index([slug])
   @@index([authorId])
-  @@map("blogs")
+  @@map("notebooks")
 }
 
 // Log Model

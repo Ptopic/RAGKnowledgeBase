@@ -2,18 +2,18 @@ import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {
-	Blog,
-	BlogListItem,
-	CreateBlogRequest,
-	GetBlogsParams,
-	UpdateBlogRequest,
+	Notebook,
+	NotebookListItem,
+	CreateNotebookRequest,
+	GetNotebooksParams,
+	UpdateNotebookRequest,
 } from "./types";
 
-export const getBlogs =
-	(request: ICallableRequestBuilder<BlogListItem[]>) =>
-	async (params: GetBlogsParams) => {
+export const getNotebooks =
+	(request: ICallableRequestBuilder<NotebookListItem[]>) =>
+	async (params: GetNotebooksParams) => {
 		const url = new URL(
-			`${config.apiUrl}/searchspaces/${params.search_space_id}/blogs`,
+			`${config.apiUrl}/searchspaces/${params.search_space_id}/notebooks`,
 		);
 		if (params.skip !== undefined)
 			url.searchParams.append("skip", params.skip.toString());
@@ -25,25 +25,25 @@ export const getBlogs =
 		}));
 	};
 
-export const getBlog =
-	(request: ICallableRequestBuilder<Blog>) =>
-	async (searchSpaceId: number, blogId: number) =>
+export const getNotebook =
+	(request: ICallableRequestBuilder<Notebook>) =>
+	async (searchSpaceId: number, notebookId: number) =>
 		request.call(
-			`${config.apiUrl}/searchspaces/${searchSpaceId}/blogs/${blogId}`,
+			`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/${notebookId}`,
 			(init) => ({
 				...init,
 				method: "GET",
 			}),
 		);
 
-export const createBlog =
-	(request: ICallableRequestBuilder<Blog>) =>
+export const createNotebook =
+	(request: ICallableRequestBuilder<Notebook>) =>
 	async (
 		searchSpaceId: number,
-		data: Omit<CreateBlogRequest, "search_space_id">,
+		data: Omit<CreateNotebookRequest, "search_space_id">,
 	) =>
 		request.call(
-			`${config.apiUrl}/searchspaces/${searchSpaceId}/blogs`,
+			`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks`,
 			(init) => ({
 				...init,
 				method: "POST",
@@ -55,15 +55,15 @@ export const createBlog =
 			}),
 		);
 
-export const updateBlog =
-	(request: ICallableRequestBuilder<Blog>) =>
+export const updateNotebook =
+	(request: ICallableRequestBuilder<Notebook>) =>
 	async (
 		searchSpaceId: number,
-		blogId: number,
-		data: UpdateBlogRequest,
+		notebookId: number,
+		data: UpdateNotebookRequest,
 	) =>
 		request.call(
-			`${config.apiUrl}/searchspaces/${searchSpaceId}/blogs/${blogId}`,
+			`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/${notebookId}`,
 			(init) => ({
 				...init,
 				method: "PUT",
@@ -75,11 +75,11 @@ export const updateBlog =
 			}),
 		);
 
-export const deleteBlog =
+export const deleteNotebook =
 	(request: ICallableRequestBuilder<void>) =>
-	async (searchSpaceId: number, blogId: number) =>
+	async (searchSpaceId: number, notebookId: number) =>
 		request.call(
-			`${config.apiUrl}/searchspaces/${searchSpaceId}/blogs/${blogId}`,
+			`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/${notebookId}`,
 			(init) => ({
 				...init,
 				method: "DELETE",

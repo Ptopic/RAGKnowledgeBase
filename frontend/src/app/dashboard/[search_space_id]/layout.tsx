@@ -61,6 +61,14 @@ export default function DashboardLayout({
 					title: "Manage Documents",
 					url: `/dashboard/${search_space_id}/documents`,
 				},
+				{
+					title: "Create Notebook",
+					url: `/dashboard/${search_space_id}/notebooks/create`,
+				},
+				{
+					title: "Manage Notebooks",
+					url: `/dashboard/${search_space_id}/notebooks`,
+				},
 			],
 		},
 		{
@@ -75,21 +83,6 @@ export default function DashboardLayout({
 				{
 					title: "Manage Connectors",
 					url: `/dashboard/${search_space_id}/connectors`,
-				},
-			],
-		},
-		{
-			title: "Blogs",
-			url: "#",
-			icon: "BookOpen",
-			items: [
-				{
-					title: "Create Blog",
-					url: `/dashboard/${search_space_id}/blogs/create`,
-				},
-				{
-					title: "Manage Blogs",
-					url: `/dashboard/${search_space_id}/blogs`,
 				},
 			],
 		},

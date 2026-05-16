@@ -6,14 +6,14 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import {
-	BlogDto,
-	BlogListItemDto,
-	CreateBlogDto,
-	UpdateBlogDto,
-} from "./dtos/blog.dto";
+	NotebookDto,
+	NotebookListItemDto,
+	CreateNotebookDto,
+	UpdateNotebookDto,
+} from "./dtos/notebook.dto";
 
 @Injectable()
-export class BlogsService {
+export class NotebooksService {
 	constructor(private prisma: PrismaService) {}
 
 	async checkSearchSpaceOwnership(
@@ -39,21 +39,21 @@ export class BlogsService {
 			.slice(0, 80);
 		const suffix = Math.random().toString(36).slice(2, 8);
 		const slug = `${base}-${suffix}`;
-		const existing = await this.prisma.blog.findUnique({ where: { slug } });
+		const existing = await this.prisma.notebook.findUnique({ where: { slug } });
 		if (existing) return this.generateSlug(title);
 		return slug;
 	}
 
 	async create(
-		createDto: CreateBlogDto,
+		createDto: CreateNotebookDto,
 		userId: string,
-	): Promise<BlogDto> {
+	): Promise<NotebookDto> {
 		try {
 			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
 
 			const slug = await this.generateSlug(createDto.title);
 
-			const blog = await this.prisma.blog.create({
+			const notebook = await this.prisma.notebook.create({
 				data: {
 					title: createDto.title,
 					slug,
@@ -65,7 +65,7 @@ export class BlogsService {
 				},
 			});
 
-			return this.toDto(blog);
+			return this.toDto(notebook);
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
@@ -74,7 +74,7 @@ export class BlogsService {
 				throw error;
 			}
 			throw new InternalServerErrorException(
-				`Failed to create blog: ${error.message}`,
+				`Failed to create notebook: ${error.message}`,
 			);
 		}
 	}
@@ -84,7 +84,7 @@ export class BlogsService {
 		searchSpaceId: number,
 		skip: number = 0,
 		limit: number = 100,
-	): Promise<BlogListItemDto[]> {
+	): Promise<NotebookListItemDto[]> {
 		try {
 			if (skip < 0) {
 				throw new BadRequestException("skip must be a non-negative integer");
@@ -95,7 +95,7 @@ export class BlogsService {
 
 			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
 
-			const blogs = await this.prisma.blog.findMany({
+			const notebooks = await this.prisma.notebook.findMany({
 				where: {
 					searchSpaceId,
 					searchSpace: { userId },
@@ -116,7 +116,7 @@ export class BlogsService {
 				},
 			});
 
-			return blogs.map((blog) => this.toListItemDto(blog));
+			return notebooks.map((notebook) => this.toListItemDto(notebook));
 		} catch (error) {
 			if (
 				error instanceof BadRequestException ||
@@ -125,58 +125,58 @@ export class BlogsService {
 				throw error;
 			}
 			throw new InternalServerErrorException(
-				`Failed to fetch blogs: ${error.message}`,
+				`Failed to fetch notebooks: ${error.message}`,
 			);
 		}
 	}
 
-	async findOne(blogId: number, userId: string): Promise<BlogDto> {
+	async findOne(notebookId: number, userId: string): Promise<NotebookDto> {
 		try {
-			const blog = await this.prisma.blog.findFirst({
+			const notebook = await this.prisma.notebook.findFirst({
 				where: {
-					id: blogId,
+					id: notebookId,
 					searchSpace: { userId },
 				},
 			});
 
-			if (!blog) {
+			if (!notebook) {
 				throw new NotFoundException(
-					"Blog not found or you do not have permission to access it",
+					"Notebook not found or you do not have permission to access it",
 				);
 			}
 
-			return this.toDto(blog);
+			return this.toDto(notebook);
 		} catch (error) {
 			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
-				`Failed to fetch blog: ${error.message}`,
+				`Failed to fetch notebook: ${error.message}`,
 			);
 		}
 	}
 
 	async update(
-		blogId: number,
-		updateDto: UpdateBlogDto,
+		notebookId: number,
+		updateDto: UpdateNotebookDto,
 		userId: string,
-	): Promise<BlogDto> {
+	): Promise<NotebookDto> {
 		try {
-			const blog = await this.prisma.blog.findFirst({
+			const notebook = await this.prisma.notebook.findFirst({
 				where: {
-					id: blogId,
+					id: notebookId,
 					searchSpace: { userId },
 				},
 			});
 
-			if (!blog) {
+			if (!notebook) {
 				throw new NotFoundException(
-					"Blog not found or you do not have permission to access it",
+					"Notebook not found or you do not have permission to access it",
 				);
 			}
 
-			const updated = await this.prisma.blog.update({
-				where: { id: blogId },
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
 				data: {
 					title: updateDto.title,
 					content: updateDto.content,
@@ -191,67 +191,67 @@ export class BlogsService {
 				throw error;
 			}
 			throw new InternalServerErrorException(
-				`Failed to update blog: ${error.message}`,
+				`Failed to update notebook: ${error.message}`,
 			);
 		}
 	}
 
-	async remove(blogId: number, userId: string): Promise<{ message: string }> {
+	async remove(notebookId: number, userId: string): Promise<{ message: string }> {
 		try {
-			const blog = await this.prisma.blog.findFirst({
+			const notebook = await this.prisma.notebook.findFirst({
 				where: {
-					id: blogId,
+					id: notebookId,
 					searchSpace: { userId },
 				},
 			});
 
-			if (!blog) {
+			if (!notebook) {
 				throw new NotFoundException(
-					"Blog not found or you do not have permission to access it",
+					"Notebook not found or you do not have permission to access it",
 				);
 			}
 
-			await this.prisma.blog.delete({
-				where: { id: blogId },
+			await this.prisma.notebook.delete({
+				where: { id: notebookId },
 			});
 
-			return { message: "Blog deleted successfully" };
+			return { message: "Notebook deleted successfully" };
 		} catch (error) {
 			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
-				`Failed to delete blog: ${error.message}`,
+				`Failed to delete notebook: ${error.message}`,
 			);
 		}
 	}
 
-	private toDto(blog: any): BlogDto {
+	private toDto(notebook: any): NotebookDto {
 		return {
-			id: blog.id,
-			title: blog.title,
-			slug: blog.slug,
-			content: blog.content,
-			contentType: blog.contentType,
-			excerpt: blog.excerpt,
-			search_space_id: blog.searchSpaceId,
-			author_id: blog.authorId,
-			created_at: blog.createdAt,
-			updated_at: blog.updatedAt,
+			id: notebook.id,
+			title: notebook.title,
+			slug: notebook.slug,
+			content: notebook.content,
+			contentType: notebook.contentType,
+			excerpt: notebook.excerpt,
+			search_space_id: notebook.searchSpaceId,
+			author_id: notebook.authorId,
+			created_at: notebook.createdAt,
+			updated_at: notebook.updatedAt,
 		};
 	}
 
-	private toListItemDto(blog: any): BlogListItemDto {
+	private toListItemDto(notebook: any): NotebookListItemDto {
 		return {
-			id: blog.id,
-			title: blog.title,
-			slug: blog.slug,
-			contentType: blog.contentType,
-			excerpt: blog.excerpt,
-			author_id: blog.authorId,
-			search_space_id: blog.searchSpaceId,
-			created_at: blog.createdAt,
-			updated_at: blog.updatedAt,
+			id: notebook.id,
+			title: notebook.title,
+			slug: notebook.slug,
+			contentType: notebook.contentType,
+			excerpt: notebook.excerpt,
+			author_id: notebook.authorId,
+			search_space_id: notebook.searchSpaceId,
+			created_at: notebook.createdAt,
+			updated_at: notebook.updatedAt,
 		};
 	}
 }

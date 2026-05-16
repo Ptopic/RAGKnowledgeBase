@@ -1,6 +1,6 @@
 export type ContentType = "html" | "json";
 
-export interface Blog {
+export interface Notebook {
 	id: number;
 	title: string;
 	slug: string;
@@ -13,7 +13,7 @@ export interface Blog {
 	updated_at: string;
 }
 
-export interface BlogListItem {
+export interface NotebookListItem {
 	id: number;
 	title: string;
 	slug: string;
@@ -25,13 +25,13 @@ export interface BlogListItem {
 	updated_at: string;
 }
 
-export interface GetBlogsParams {
+export interface GetNotebooksParams {
 	search_space_id: number;
 	skip?: number;
 	limit?: number;
 }
 
-export interface CreateBlogRequest {
+export interface CreateNotebookRequest {
 	title: string;
 	content: string;
 	content_type?: ContentType;
@@ -39,7 +39,7 @@ export interface CreateBlogRequest {
 	search_space_id: number;
 }
 
-export interface UpdateBlogRequest {
+export interface UpdateNotebookRequest {
 	title?: string;
 	content?: string;
 	content_type?: ContentType;
