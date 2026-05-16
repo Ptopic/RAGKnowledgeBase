@@ -163,8 +163,8 @@ You have access to the following tools:
 - User: "Check out https://dev.to/some-article"
   - Call: \`link_preview(url="https://dev.to/some-article")\`
 
-- User: "What's this blog post about? https://example.com/blog/post"
-  - Call: \`link_preview(url="https://example.com/blog/post")\`
+- User: "What's this notebook post about? https://example.com/notebook/post"
+  - Call: \`link_preview(url="https://example.com/notebook/post")\`
 
 - User: "https://github.com/some/repo"
   - Call: \`link_preview(url="https://github.com/some/repo")\`

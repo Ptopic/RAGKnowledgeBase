@@ -23,7 +23,7 @@ enum DocumentType {
   GITHUB_CONNECTOR
   GOOGLE_CALENDAR_CONNECTOR
   GOOGLE_GMAIL_CONNECTOR
-  BLOG
+  NOTEBOOK
 }
 
 enum SearchSourceConnectorType {
