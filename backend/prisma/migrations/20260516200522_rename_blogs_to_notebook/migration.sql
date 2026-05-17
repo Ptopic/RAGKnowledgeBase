@@ -20,6 +20,11 @@ ALTER TABLE "blogs" DROP CONSTRAINT "blogs_author_id_fkey";
 -- DropForeignKey
 ALTER TABLE "blogs" DROP CONSTRAINT "blogs_search_space_id_fkey";
 
+-- Preserve existing blog data before dropping the table
+INSERT INTO "notebooks" ("id", "created_at", "updated_at", "title", "slug", "content", "content_type", "excerpt", "search_space_id", "author_id")
+SELECT "id", "created_at", "updated_at", "title", "slug", "content", 'html', "excerpt", "search_space_id", "author_id"
+FROM "blogs";
+
 -- DropTable
 DROP TABLE "blogs";
 

@@ -3,6 +3,7 @@ import {
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { NOTEBOOK, NOTEBOOKS } from "@/shared/queryKeys";
 import notebooksClientRequests from "../authClientRequests";
 import type { Notebook, UpdateNotebookRequest } from "../types";
@@ -29,6 +30,7 @@ const useUpdateNotebook = (
 		},
 		onError: (error) => {
 			console.error("Error updating notebook:", error);
+			toast.error("Failed to update notebook");
 		},
 		...options,
 	});

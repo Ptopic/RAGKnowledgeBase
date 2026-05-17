@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
 	IsInt,
+	IsNotEmpty,
 	IsOptional,
 	IsString,
 	MaxLength,
@@ -8,9 +9,12 @@ import {
 
 export class CreateNotebookDto {
 	@IsString()
+	@IsNotEmpty()
+	@MaxLength(255)
 	title: string;
 
 	@IsString()
+	@IsNotEmpty()
 	content: string;
 
 	@IsString()
@@ -25,6 +29,7 @@ export class CreateNotebookDto {
 export class UpdateNotebookDto {
 	@IsString()
 	@IsOptional()
+	@MaxLength(255)
 	title?: string;
 
 	@IsString()
@@ -37,12 +42,26 @@ export class UpdateNotebookDto {
 	excerpt?: string;
 }
 
-export class NotebookDto extends CreateNotebookDto {
+export class NotebookDto {
 	@IsInt()
 	id: number;
 
 	@IsString()
+	title: string;
+
+	@IsString()
 	slug: string;
+
+	@IsString()
+	content: string;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	excerpt?: string;
+
+	@IsInt()
+	search_space_id: number;
 
 	@IsString()
 	author_id: string;

@@ -2,65 +2,12 @@
 
 import "@blocknote/shadcn/style.css";
 
-import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import { createCssVariablesTheme, createHighlighter } from "shiki/bundle/full";
 import { useTheme } from "next-themes";
 import { useEffect, useRef } from "react";
 
-const {
-	audio: _audio,
-	video: _video,
-	file: _file,
-	toggleListItem: _toggleListItem,
-	codeBlock: _codeBlock,
-	...blockSpecs
-} = defaultBlockSpecs;
-
-const SUPPORTED_LANGUAGES: Record<string, { name: string; aliases?: string[] }> = {
-	javascript: { name: "JavaScript", aliases: ["js"] },
-	typescript: { name: "TypeScript", aliases: ["ts"] },
-	python: { name: "Python" },
-	java: { name: "Java" },
-	csharp: { name: "C#", aliases: ["cs"] },
-	cpp: { name: "C++", aliases: ["c++"] },
-	c: { name: "C" },
-	go: { name: "Go" },
-	rust: { name: "Rust" },
-	ruby: { name: "Ruby" },
-	php: { name: "PHP" },
-	swift: { name: "Swift" },
-	kotlin: { name: "Kotlin" },
-	sql: { name: "SQL" },
-	json: { name: "JSON" },
-	yaml: { name: "YAML" },
-	xml: { name: "XML" },
-	html: { name: "HTML" },
-	css: { name: "CSS" },
-	scss: { name: "SCSS" },
-	bash: { name: "Bash", aliases: ["sh", "shell"] },
-	powershell: { name: "PowerShell" },
-	markdown: { name: "Markdown", aliases: ["md"] },
-	text: { name: "Plain Text" },
-};
-
-const shikiCssTheme = createCssVariablesTheme({ name: "css-variables" });
-const SHIKI_LANGS = Object.keys(SUPPORTED_LANGUAGES).filter((l) => l !== "text");
-
-const codeBlockSpec = createCodeBlockSpec({
-	defaultLanguage: "text",
-	supportedLanguages: SUPPORTED_LANGUAGES,
-	createHighlighter: async () =>
-		createHighlighter({
-			themes: [shikiCssTheme],
-			langs: SHIKI_LANGS,
-		}) as Promise<any>,
-});
-
-const schema = BlockNoteSchema.create({
-	blockSpecs: { ...blockSpecs, codeBlock: codeBlockSpec },
-});
+import { schema } from "./blocknote-config";
 
 interface NotebookViewerProps {
 	content: string;
@@ -86,11 +33,13 @@ export function NotebookViewer({ content }: NotebookViewerProps) {
 					}
 				} catch {}
 
-				const blocks = await editor.tryParseHTMLToBlocks(content);
-				if (blocks.length > 0) {
-					editor.replaceBlocks(editor.document, blocks);
-					return;
-				}
+				try {
+					const blocks = await editor.tryParseHTMLToBlocks(content);
+					if (blocks.length > 0) {
+						editor.replaceBlocks(editor.document, blocks);
+						return;
+					}
+				} catch {}
 
 				const mdBlocks = await editor.tryParseMarkdownToBlocks(content);
 				editor.replaceBlocks(editor.document, mdBlocks);
@@ -105,7 +54,6 @@ export function NotebookViewer({ content }: NotebookViewerProps) {
 			root.style.setProperty("--bn-colors-editor-background", "var(--background)", "important");
 			root.style.setProperty("--bn-colors-editor-text", "var(--foreground)", "important");
 		}
-		void isDark;
 	}, [isDark]);
 
 	return (

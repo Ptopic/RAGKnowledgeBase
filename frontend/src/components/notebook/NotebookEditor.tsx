@@ -2,7 +2,7 @@
 
 import "@blocknote/shadcn/style.css";
 
-import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from "@blocknote/core";
+import { filterSuggestionItems } from "@blocknote/core";
 import {
 	BasicTextStyleButton,
 	BlockTypeSelect,
@@ -26,62 +26,13 @@ import {
 	useEditorChange,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import { createCssVariablesTheme, createHighlighter } from "shiki/bundle/full";
 import { useTheme } from "next-themes";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-const {
-	audio: _audio,
-	video: _video,
-	file: _file,
-	toggleListItem: _toggleListItem,
-	codeBlock: _codeBlock,
-	...blockSpecs
-} = defaultBlockSpecs;
+import { config } from "@/shared/config";
+import { schema } from "./blocknote-config";
 
-const SUPPORTED_LANGUAGES: Record<string, { name: string; aliases?: string[] }> = {
-	javascript: { name: "JavaScript", aliases: ["js"] },
-	typescript: { name: "TypeScript", aliases: ["ts"] },
-	python: { name: "Python" },
-	java: { name: "Java" },
-	csharp: { name: "C#", aliases: ["cs"] },
-	cpp: { name: "C++", aliases: ["c++"] },
-	c: { name: "C" },
-	go: { name: "Go" },
-	rust: { name: "Rust" },
-	ruby: { name: "Ruby" },
-	php: { name: "PHP" },
-	swift: { name: "Swift" },
-	kotlin: { name: "Kotlin" },
-	sql: { name: "SQL" },
-	json: { name: "JSON" },
-	yaml: { name: "YAML" },
-	xml: { name: "XML" },
-	html: { name: "HTML" },
-	css: { name: "CSS" },
-	scss: { name: "SCSS" },
-	bash: { name: "Bash", aliases: ["sh", "shell"] },
-	powershell: { name: "PowerShell" },
-	markdown: { name: "Markdown", aliases: ["md"] },
-	text: { name: "Plain Text" },
-};
-
-const shikiCssTheme = createCssVariablesTheme({ name: "css-variables" });
-const SHIKI_LANGS = Object.keys(SUPPORTED_LANGUAGES).filter((l) => l !== "text");
-
-const codeBlockSpec = createCodeBlockSpec({
-	defaultLanguage: "text",
-	supportedLanguages: SUPPORTED_LANGUAGES,
-	createHighlighter: async () =>
-		createHighlighter({
-			themes: [shikiCssTheme],
-			langs: SHIKI_LANGS,
-		}) as Promise<any>,
-});
-
-const schema = BlockNoteSchema.create({
-	blockSpecs: { ...blockSpecs, codeBlock: codeBlockSpec },
-});
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 function CustomFormattingToolbar() {
 	const dict = useDictionary();
@@ -149,31 +100,75 @@ function UploadOnlyFilePanel({ blockId }: { blockId: string }) {
 interface NotebookEditorProps {
 	initialContent?: string;
 	onChange: (content: string) => void;
+	searchSpaceId: number;
 }
 
-export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps) {
+export function NotebookEditor({ initialContent, onChange, searchSpaceId }: NotebookEditorProps) {
 	const initialized = useRef(false);
 	const containerRef = useRef<HTMLDivElement>(null);
+	const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const { resolvedTheme } = useTheme();
 	const isDark = resolvedTheme === "dark";
+
+	const uploadFile = useCallback(async (file: File): Promise<string> => {
+		if (file.size > MAX_IMAGE_SIZE) {
+			console.warn("File exceeds 5 MB limit and was not uploaded.");
+			return "";
+		}
+
+		const formData = new FormData();
+		formData.append("file", file);
+
+		try {
+			const res = await fetch(
+				`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/upload-image`,
+				{
+					method: "POST",
+					body: formData,
+					credentials: "include",
+				},
+			);
+			if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+			const { url } = await res.json();
+			return url;
+		} catch (err) {
+			console.warn("Image upload failed:", err);
+			const reader = new FileReader();
+			return new Promise((resolve) => {
+				reader.onload = () => resolve(reader.result as string);
+				reader.readAsDataURL(file);
+			});
+		}
+	}, [searchSpaceId]);
 
 	const editor = useCreateBlockNote({
 		schema,
 		tables: {
 			headers: true,
 		},
-		uploadFile: async (file) => {
-			return new Promise((resolve) => {
-				const reader = new FileReader();
-				reader.onload = () => resolve(reader.result as string);
-				reader.readAsDataURL(file);
-			});
-		},
+		uploadFile,
 	});
 
-	useEditorChange(async (editor) => {
-		onChange(editor.blocksToFullHTML(editor.document));
+	const debouncedOnChange = useCallback((html: string) => {
+		if (debounceTimerRef.current) {
+			clearTimeout(debounceTimerRef.current);
+		}
+		debounceTimerRef.current = setTimeout(() => {
+			onChange(html);
+		}, 300);
+	}, [onChange]);
+
+	useEditorChange((editor) => {
+		debouncedOnChange(editor.blocksToFullHTML(editor.document));
 	}, editor);
+
+	useEffect(() => {
+		return () => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		if (initialContent && editor && !initialized.current) {
@@ -187,11 +182,13 @@ export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps
 					}
 				} catch {}
 
-				const blocks = await editor.tryParseHTMLToBlocks(initialContent);
-				if (blocks.length > 0) {
-					editor.replaceBlocks(editor.document, blocks);
-					return;
-				}
+				try {
+					const blocks = await editor.tryParseHTMLToBlocks(initialContent);
+					if (blocks.length > 0) {
+						editor.replaceBlocks(editor.document, blocks);
+						return;
+					}
+				} catch {}
 
 				const mdBlocks = await editor.tryParseMarkdownToBlocks(initialContent);
 				editor.replaceBlocks(editor.document, mdBlocks);
@@ -206,7 +203,6 @@ export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps
 			root.style.setProperty("--bn-colors-editor-background", "var(--background)", "important");
 			root.style.setProperty("--bn-colors-editor-text", "var(--foreground)", "important");
 		}
-		void isDark;
 	}, [isDark]);
 
 	return (
