@@ -29,7 +29,7 @@ import { BlockNoteView } from "@blocknote/shadcn";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { config } from "@/shared/config";
+import config from "@/shared/config";
 import { schema } from "./blocknote-config";
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
