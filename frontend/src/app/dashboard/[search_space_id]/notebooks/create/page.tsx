@@ -20,6 +20,10 @@ export default function CreateNotebookPage({
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
 
+	if (isNaN(searchSpaceIdNum)) {
+		throw new Error("Invalid search space ID");
+	}
+
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [summary, setSummary] = useState("");

@@ -72,15 +72,14 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			hr: ({ ...props }: HrProps) => (
 				<hr className="border-none border-t border-muted-foreground my-2" {...props} />
 			),
-			img: ({ alt, src, ...props }: ImgProps) => (
+			img: ({ alt, src, width, height, className, ...rest }: ImgProps) => (
 				<Image
-					className="max-w-full h-auto my-4 rounded"
+					className={className || "max-w-full h-auto my-4 rounded"}
 					alt={alt || ""}
 					src={src || ""}
-					width={800}
-					height={400}
+					width={Number(width) || 800}
+					height={Number(height) || 400}
 					unoptimized
-					{...props}
 				/>
 			),
 			table: ({ children, ...props }: TableProps) => (

@@ -37,7 +37,7 @@ export class UploadService {
 		});
 	}
 
-	async upload(buffer: Buffer, filename: string, subDir: string): Promise<UploadResult> {
+	async upload(buffer: Buffer, filename: string, subDir: string, mimetype?: string): Promise<UploadResult> {
 		const key = `${subDir}/${filename}`;
 		try {
 			await this.s3Client.send(
@@ -45,6 +45,7 @@ export class UploadService {
 					Bucket: this.s3Bucket,
 					Key: key,
 					Body: buffer,
+					ContentType: mimetype,
 				}),
 			);
 			const url = `${this.s3PublicUrlPrefix.replace(/\/$/, "")}/${key}`;

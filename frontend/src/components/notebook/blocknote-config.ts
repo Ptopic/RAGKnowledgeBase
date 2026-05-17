@@ -53,5 +53,3 @@ const codeBlockSpec = createCodeBlockSpec({
 export const schema = BlockNoteSchema.create({
 	blockSpecs: { ...blockSpecs, codeBlock: codeBlockSpec },
 });
-
-export { SUPPORTED_LANGUAGES };

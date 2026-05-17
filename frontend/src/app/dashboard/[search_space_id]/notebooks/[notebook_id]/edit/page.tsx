@@ -25,6 +25,10 @@ export default function EditNotebookPage({
 	const searchSpaceIdNum = Number(search_space_id);
 	const notebookIdNum = Number(notebook_id);
 
+	if (isNaN(searchSpaceIdNum) || isNaN(notebookIdNum)) {
+		throw new Error("Invalid ID parameter");
+	}
+
 	const { data: notebook, isLoading } = useGetNotebook(
 		searchSpaceIdNum,
 		notebookIdNum,
@@ -74,9 +78,9 @@ export default function EditNotebookPage({
 				},
 			},
 			{
-				onSuccess: async () => {
+				onSuccess: async (_data, variables) => {
 					await queryClient.invalidateQueries({
-						queryKey: [NOTEBOOK, searchSpaceIdNum, notebookIdNum],
+						queryKey: [NOTEBOOK, variables.searchSpaceId, variables.notebookId],
 					});
 					toast.success("Notebook updated successfully");
 					router.push(`/dashboard/${search_space_id}/notebooks/${notebook_id}`);

@@ -1,4 +1,3 @@
-import { Type } from "class-transformer";
 import {
 	IsInt,
 	IsNotEmpty,
@@ -42,60 +41,25 @@ export class UpdateNotebookDto {
 	excerpt?: string;
 }
 
-export class NotebookDto {
-	@IsInt()
+export interface NotebookDto {
 	id: number;
-
-	@IsString()
 	title: string;
-
-	@IsString()
 	slug: string;
-
-	@IsString()
 	content: string;
-
-	@IsString()
-	@IsOptional()
-	@MaxLength(500)
-	excerpt?: string;
-
-	@IsInt()
+	excerpt: string | null;
 	search_space_id: number;
-
-	@IsString()
 	author_id: string;
-
-	@Type(() => Date)
 	created_at: Date;
-
-	@Type(() => Date)
 	updated_at: Date;
 }
 
-export class NotebookListItemDto {
-	@IsInt()
+export interface NotebookListItemDto {
 	id: number;
-
-	@IsString()
 	title: string;
-
-	@IsString()
 	slug: string;
-
-	@IsString()
-	@IsOptional()
-	excerpt?: string;
-
-	@IsString()
+	excerpt: string | null;
 	author_id: string;
-
-	@IsInt()
 	search_space_id: number;
-
-	@Type(() => Date)
 	created_at: Date;
-
-	@Type(() => Date)
 	updated_at: Date;
 }

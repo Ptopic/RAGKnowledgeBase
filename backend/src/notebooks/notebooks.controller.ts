@@ -66,7 +66,7 @@ export class NotebooksController {
 		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 		const ext = file.originalname.split(".").pop() || "png";
 		const filename = `notebook-${uniqueSuffix}.${ext}`;
-		const result = await this.uploadService.upload(file.buffer, filename, "notebooks");
+		const result = await this.uploadService.upload(file.buffer, filename, "notebooks", file.mimetype);
 		return { url: result.url };
 	}
 

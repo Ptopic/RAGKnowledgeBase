@@ -76,7 +76,7 @@ export const updateNotebook =
 		);
 
 export const deleteNotebook =
-	(request: ICallableRequestBuilder<void>) =>
+	(request: ICallableRequestBuilder<{ message: string }>) =>
 	async (searchSpaceId: number, notebookId: number) =>
 		request.call(
 			`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/${notebookId}`,

@@ -112,9 +112,10 @@ export function NotebookEditor({ initialContent, onChange, searchSpaceId }: Note
 
 	const uploadFile = useCallback(async (file: File): Promise<string> => {
 		if (file.size > MAX_IMAGE_SIZE) {
-			console.warn("File exceeds 5 MB limit and was not uploaded.");
-			return "";
+			throw new Error("File exceeds 5 MB limit");
 		}
+
+		if (!config.apiUrl) throw new Error("API URL not configured");
 
 		const formData = new FormData();
 		formData.append("file", file);
@@ -132,7 +133,6 @@ export function NotebookEditor({ initialContent, onChange, searchSpaceId }: Note
 			const { url } = await res.json();
 			return url;
 		} catch (err) {
-			console.warn("Image upload failed:", err);
 			const reader = new FileReader();
 			return new Promise((resolve) => {
 				reader.onload = () => resolve(reader.result as string);
@@ -155,6 +155,7 @@ export function NotebookEditor({ initialContent, onChange, searchSpaceId }: Note
 		}
 		debounceTimerRef.current = setTimeout(() => {
 			onChange(html);
+			debounceTimerRef.current = null;
 		}, 300);
 	}, [onChange]);
 

@@ -39,7 +39,7 @@ export class NotebooksService {
 			.toLowerCase()
 			.replace(/[^a-z0-9]+/g, "-")
 			.replace(/^-|-$/g, "")
-			.slice(0, 80);
+			.slice(0, 80) || "notebook";
 		const suffix = Math.random().toString(36).slice(2, 8);
 		const slug = `${base}-${suffix}`;
 		const existing = await this.prisma.notebook.findUnique({ where: { slug } });
