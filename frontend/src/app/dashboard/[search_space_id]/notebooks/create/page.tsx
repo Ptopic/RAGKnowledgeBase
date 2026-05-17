@@ -65,7 +65,7 @@ export default function CreateNotebookPage({
 	return (
 		<div className="h-screen flex flex-col">
 			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-				<Button variant="ghost" size="icon" onClick={() => router.back()}>
+				<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)}>
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex gap-3">
