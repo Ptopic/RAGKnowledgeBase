@@ -2,12 +2,11 @@
 
 import { ArrowLeft, Edit, Loader2, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
-import { use } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { use } from "react";
 
-import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
+import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,14 +19,6 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 
 function formatDate(dateStr: string): string {
 	try {
@@ -69,133 +60,107 @@ export default function NotebookDetailPage({
 
 	if (isLoading) {
 		return (
-			<div className="container mx-auto py-8 max-w-4xl">
-				<Skeleton className="h-6 w-24 mb-6" />
-				<Skeleton className="h-10 w-3/4 mb-4" />
-				<Skeleton className="h-4 w-1/2 mb-8" />
-				<div className="space-y-4">
-					<Skeleton className="h-4 w-full" />
-					<Skeleton className="h-4 w-full" />
-					<Skeleton className="h-4 w-2/3" />
-				</div>
+			<div className="h-screen flex items-center justify-center">
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
 			</div>
 		);
 	}
 
 	if (!notebook) {
 		return (
-			<div className="container mx-auto py-8 max-w-4xl text-center">
-				<h2 className="text-xl font-medium mb-2">Notebook not found</h2>
-				<p className="text-muted-foreground mb-6">
+			<div className="h-screen flex flex-col items-center justify-center gap-4">
+				<h2 className="text-xl font-medium">Notebook not found</h2>
+				<p className="text-muted-foreground">
 					The notebook you are looking for does not exist.
 				</p>
-				<Button asChild>
-					<Link href={`/dashboard/${search_space_id}/notebooks`}>
-						Back to Notebooks
-					</Link>
+				<Button onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)}>
+					Back to Notebooks
 				</Button>
 			</div>
 		);
 	}
 
 	return (
-		<div className="container mx-auto py-8 max-w-4xl">
+		<div className="h-screen flex flex-col">
+			<div className="sticky top-0 z-50 flex items-center justify-between px-8 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={() => router.back()}
+				>
+					<ArrowLeft className="h-5 w-5" />
+				</Button>
+				<div className="flex gap-2">
+					<Button variant="outline" size="sm" asChild>
+						<a href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}>
+							<Edit className="h-4 w-4 mr-1" />
+							Edit
+						</a>
+					</Button>
+					<AlertDialog>
+						<AlertDialogTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="text-destructive-foreground hover:bg-destructive/10"
+							>
+								<Trash2 className="h-4 w-4 mr-1" />
+								Delete
+							</Button>
+						</AlertDialogTrigger>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>Delete Notebook</AlertDialogTitle>
+								<AlertDialogDescription>
+									Are you sure you want to delete &quot;{notebook.title}&quot;?
+									This action cannot be undone.
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+							<AlertDialogFooter>
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<AlertDialogAction
+									className="bg-destructive text-white hover:bg-destructive/90"
+									onClick={handleDelete}
+									disabled={deleteMutation.isPending}
+								>
+									{deleteMutation.isPending && (
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									)}
+									Delete
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				</div>
+			</div>
+
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5 }}
+				className="flex-1 flex flex-col overflow-y-auto"
 			>
-				<div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-					<Link
-						href={`/dashboard/${search_space_id}/notebooks`}
-						className="hover:underline flex items-center gap-1"
-					>
-						<ArrowLeft className="h-3 w-3" />
-						Notebooks
-					</Link>
-				</div>
+				<div className="max-w-3xl mx-auto w-full px-6 py-12">
+					<h1 className="text-4xl font-bold tracking-tight mb-2">
+						{notebook.title}
+					</h1>
 
-				<div className="flex items-start justify-between mb-8">
-					<div>
-						<h1 className="text-3xl font-bold tracking-tight mb-2">
-							{notebook.title}
-						</h1>
-						<div className="flex items-center gap-3 text-sm text-muted-foreground">
-							<span>{notebook.slug}</span>
-						</div>
+					{notebook.excerpt && (
+						<p className="text-lg text-muted-foreground italic mb-8">
+							{notebook.excerpt}
+						</p>
+					)}
+
+					<div className="text-xs text-muted-foreground mb-8">
+						Created {formatDate(notebook.created_at)}
+						{notebook.updated_at !== notebook.created_at &&
+							` · Updated ${formatDate(notebook.updated_at)}`}
 					</div>
-					<div className="flex gap-2">
-						<Button variant="outline" size="sm" asChild>
-							<Link
-								href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}
-							>
-								<Edit className="h-4 w-4 mr-1" />
-								Edit
-							</Link>
-						</Button>
-						<AlertDialog>
-							<AlertDialogTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									className="text-destructive-foreground hover:bg-destructive/10"
-								>
-									<Trash2 className="h-4 w-4 mr-1" />
-									Delete
-								</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Delete Notebook</AlertDialogTitle>
-									<AlertDialogDescription>
-										Are you sure you want to delete &quot;{notebook.title}&quot;?
-										This action cannot be undone.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								<AlertDialogFooter>
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
-									<AlertDialogAction
-										className="bg-destructive text-white hover:bg-destructive/90"
-										onClick={handleDelete}
-										disabled={deleteMutation.isPending}
-									>
-										{deleteMutation.isPending && (
-											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										)}
-										Delete
-									</AlertDialogAction>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
+
+					<div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+						{notebook.content}
 					</div>
 				</div>
-
-				{notebook.excerpt && (
-					<Card className="mb-6">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-sm">Summary</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<p className="text-muted-foreground text-sm">{notebook.excerpt}</p>
-						</CardContent>
-					</Card>
-				)}
-
-				<Card>
-					<CardHeader>
-						<CardTitle>Content</CardTitle>
-						<CardDescription>
-							Created {formatDate(notebook.created_at)}
-							{notebook.updated_at !== notebook.created_at &&
-								` · Updated ${formatDate(notebook.updated_at)}`}
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-							{notebook.content}
-						</div>
-					</CardContent>
-				</Card>
 			</motion.div>
 		</div>
 	);

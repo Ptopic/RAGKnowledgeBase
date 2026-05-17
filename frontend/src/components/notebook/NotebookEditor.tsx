@@ -47,7 +47,7 @@ export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps
 	}, [isDark]);
 
 	return (
-		<div ref={containerRef} className="min-h-[300px] rounded-md border bg-background text-foreground">
+		<div ref={containerRef} className="flex-1 min-h-0 bg-background text-foreground">
 			<BlockNoteView
 				editor={editor}
 				theme={isDark ? "dark" : "light"}
