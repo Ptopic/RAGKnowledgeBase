@@ -11,6 +11,25 @@
    --font-mono: var(--font-geist-mono);
 }
 
+@utility text-3em {
+	font-size: 3em;
+}
+@utility text-2em {
+	font-size: 2em;
+}
+@utility text-1_3em {
+	font-size: 1.3em;
+}
+@utility text-1em {
+	font-size: 1em;
+}
+@utility text-0_9em {
+	font-size: 0.9em;
+}
+@utility text-0_8em {
+	font-size: 0.8em;
+}
+
 :root {
    --background: oklch(1 0 0);
    --foreground: oklch(0.145 0 0);
@@ -45,7 +64,38 @@
    --sidebar-accent-foreground: oklch(0.205 0 0);
    --sidebar-border: oklch(0.922 0 0);
    --sidebar-ring: oklch(0.708 0 0);
-   --syntax-bg: #f5f5f5;
+    --syntax-bg: #f5f5f5;
+    --shiki-background: #f5f5f5;
+    --shiki-foreground: #24292e;
+    --shiki-token-keyword: #d73a49;
+    --shiki-token-string: #032f62;
+    --shiki-token-comment: #6a737d;
+    --shiki-token-function: #6f42c1;
+    --shiki-token-number: #005cc5;
+    --shiki-token-constant: #005cc5;
+    --shiki-token-operator: #d73a49;
+    --shiki-token-punctuation: #24292e;
+    --shiki-token-parameter: #e36209;
+    --shiki-token-type: #6f42c1;
+    --shiki-token-variable: #e36209;
+    --shiki-token-property: #005cc5;
+    --shiki-token-regexp: #032f62;
+    --shiki-ansi-black: #24292e;
+    --shiki-ansi-red: #d73a49;
+    --shiki-ansi-green: #22863a;
+    --shiki-ansi-yellow: #e36209;
+    --shiki-ansi-blue: #005cc5;
+    --shiki-ansi-magenta: #6f42c1;
+    --shiki-ansi-cyan: #005cc5;
+    --shiki-ansi-white: #6a737d;
+    --shiki-ansi-bright-black: #6a737d;
+    --shiki-ansi-bright-red: #d73a49;
+    --shiki-ansi-bright-green: #22863a;
+    --shiki-ansi-bright-yellow: #e36209;
+    --shiki-ansi-bright-blue: #005cc5;
+    --shiki-ansi-bright-magenta: #6f42c1;
+    --shiki-ansi-bright-cyan: #005cc5;
+    --shiki-ansi-bright-white: #24292e;
 }
 
 .dark {
@@ -81,7 +131,38 @@
    --sidebar-accent-foreground: oklch(0.985 0 0);
    --sidebar-border: oklch(0.269 0 0);
    --sidebar-ring: oklch(0.439 0 0);
-   --syntax-bg: #1e1e1e;
+    --syntax-bg: #1e1e1e;
+    --shiki-background: #1e1e1e;
+    --shiki-foreground: #c9d1d9;
+    --shiki-token-keyword: #ff7b72;
+    --shiki-token-string: #a5d6ff;
+    --shiki-token-comment: #8b949e;
+    --shiki-token-function: #d2a8ff;
+    --shiki-token-number: #79c0ff;
+    --shiki-token-constant: #79c0ff;
+    --shiki-token-operator: #ff7b72;
+    --shiki-token-punctuation: #c9d1d9;
+    --shiki-token-parameter: #ffa657;
+    --shiki-token-type: #d2a8ff;
+    --shiki-token-variable: #ffa657;
+    --shiki-token-property: #79c0ff;
+    --shiki-token-regexp: #a5d6ff;
+    --shiki-ansi-black: #484f58;
+    --shiki-ansi-red: #ff7b72;
+    --shiki-ansi-green: #3fb950;
+    --shiki-ansi-yellow: #ffa657;
+    --shiki-ansi-blue: #79c0ff;
+    --shiki-ansi-magenta: #d2a8ff;
+    --shiki-ansi-cyan: #79c0ff;
+    --shiki-ansi-white: #8b949e;
+    --shiki-ansi-bright-black: #8b949e;
+    --shiki-ansi-bright-red: #ff7b72;
+    --shiki-ansi-bright-green: #3fb950;
+    --shiki-ansi-bright-yellow: #ffa657;
+    --shiki-ansi-bright-blue: #79c0ff;
+    --shiki-ansi-bright-magenta: #d2a8ff;
+    --shiki-ansi-bright-cyan: #79c0ff;
+    --shiki-ansi-bright-white: #c9d1d9;
 }
 
 @theme inline {
@@ -160,3 +241,274 @@ button {
 }
 
 @source '../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}';
+@source '../node_modules/@blocknote/shadcn';
+
+/* BlockNote theme overrides — map shadcn/ui CSS variables to BlockNote's --bn-colors-*
+   BlockNote's style.css is imported in the component, so it loads AFTER globals.css in
+   the CSS bundle. Matching selector specificity isn't enough — BlockNote's later-in-cascade
+   rule wins on a tie. We use .dark .bn-root[data-color-scheme=dark] (0,3,0) to exceed
+   BlockNote's .bn-root[data-color-scheme=dark] (0,2,0) and force our variables to win. */
+.bn-root {
+	--bn-colors-editor-text: var(--foreground) !important;
+	--bn-colors-editor-background: var(--background) !important;
+	--bn-colors-menu-text: var(--foreground) !important;
+	--bn-colors-menu-background: var(--popover) !important;
+	--bn-colors-tooltip-text: var(--foreground) !important;
+	--bn-colors-tooltip-background: var(--muted) !important;
+	--bn-colors-hovered-text: var(--foreground) !important;
+	--bn-colors-hovered-background: var(--accent) !important;
+	--bn-colors-selected-text: var(--primary-foreground) !important;
+	--bn-colors-selected-background: var(--primary) !important;
+	--bn-colors-disabled-text: var(--muted-foreground) !important;
+	--bn-colors-disabled-background: var(--muted) !important;
+	--bn-colors-shadow: var(--border) !important;
+	--bn-colors-border: var(--border) !important;
+	--bn-colors-side-menu: var(--muted-foreground) !important;
+	--bn-colors-highlights-gray-text: var(--muted-foreground) !important;
+	--bn-colors-highlights-gray-background: var(--muted) !important;
+	--bn-colors-highlights-red-text: var(--destructive) !important;
+	--bn-colors-highlights-red-background: var(--destructive) !important;
+	--bn-font-family: var(--font-sans) !important;
+	--bn-border-radius: var(--radius) !important;
+}
+
+.dark .bn-root[data-color-scheme=dark] {
+	--bn-colors-editor-text: var(--foreground) !important;
+	--bn-colors-editor-background: var(--background) !important;
+	--bn-colors-menu-text: var(--foreground) !important;
+	--bn-colors-menu-background: var(--popover) !important;
+	--bn-colors-tooltip-text: var(--foreground) !important;
+	--bn-colors-tooltip-background: var(--muted) !important;
+	--bn-colors-hovered-text: var(--foreground) !important;
+	--bn-colors-hovered-background: var(--accent) !important;
+	--bn-colors-selected-text: var(--primary-foreground) !important;
+	--bn-colors-selected-background: var(--primary) !important;
+	--bn-colors-disabled-text: var(--muted-foreground) !important;
+	--bn-colors-disabled-background: var(--muted) !important;
+	--bn-colors-shadow: var(--border) !important;
+	--bn-colors-border: var(--border) !important;
+	--bn-colors-side-menu: var(--muted-foreground) !important;
+	--bn-colors-highlights-gray-text: var(--muted-foreground) !important;
+	--bn-colors-highlights-gray-background: var(--muted) !important;
+	--bn-colors-highlights-red-text: var(--destructive) !important;
+	--bn-colors-highlights-red-background: var(--destructive) !important;
+}
+
+/* BlockNote font styles — match the app's assistant markdown renderer */
+.bn-editor {
+	font-size: 16px;
+	line-height: 1.75;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	padding-right: 0 !important;
+}
+
+[data-content-type=heading][data-level="1"] {
+	font-size: 2.25rem;
+	font-weight: 800;
+	letter-spacing: -0.025em;
+	line-height: 1.1;
+}
+
+[data-content-type=heading][data-level="2"] {
+	font-size: 1.875rem;
+	font-weight: 600;
+	letter-spacing: -0.025em;
+	line-height: 1.25;
+}
+
+[data-content-type=heading][data-level="3"] {
+	font-size: 1.3rem;
+	font-weight: 600;
+	letter-spacing: -0.025em;
+}
+
+[data-content-type=heading][data-level="4"] {
+	font-size: 1.125rem;
+	font-weight: 600;
+}
+
+[data-content-type=heading][data-level="5"] {
+	font-size: 0.9rem;
+	font-weight: 600;
+}
+
+[data-content-type=heading][data-level="6"] {
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+
+.bn-editor [data-content-type=paragraph] {
+	margin-top: 1.25rem;
+	margin-bottom: 20px !important;
+	font-size: 19px;
+}
+
+.bn-editor [data-content-type=paragraph]:first-child {
+	margin-top: 0;
+}
+
+.bn-editor [data-content-type=paragraph]:last-child {
+	margin-bottom: 0;
+}
+
+.bn-editor [data-content-type=heading],
+.bn-editor [data-content-type=quote],
+.bn-editor [data-content-type=codeBlock],
+.bn-editor [data-content-type=divider],
+.bn-editor [data-content-type=image],
+.bn-editor [data-content-type=table] {
+	margin-bottom: 20px !important;
+}
+
+.bn-editor [data-content-type=heading] {
+	padding-top: 30px !important;
+}
+
+[data-content-type=quote] blockquote {
+	color: var(--muted-foreground);
+	border-left: 2px solid var(--muted-foreground);
+	margin: 0;
+	padding-left: 1em;
+}
+
+[data-content-type=divider] hr {
+	border: none;
+	border-top: 1px solid var(--border);
+	flex: 1;
+	margin: 0.5em 0;
+}
+
+[data-content-type=bulletListItem],
+[data-content-type=numberedListItem],
+[data-content-type=checkListItem] {
+	margin-top: 0;
+	margin-bottom: 8px;
+	margin-left: 16px;
+	font-size: 19px;
+}
+
+.bn-block-content[data-content-type=bulletListItem] {
+	align-items: flex-start;
+}
+
+.bn-block-content[data-content-type=bulletListItem]:before {
+	content: "●" !important;
+	font-size: 7px;
+	min-width: 16px;
+	margin: auto 0;
+	transform: translateY(-1em);
+}
+
+.bn-block-content[data-content-type=checkListItem] > div:has(> input) {
+	height: auto !important;
+	display: flex !important;
+	align-items: center !important;
+}
+
+.bn-block-content[data-content-type=checkListItem] > div > input {
+	width: 16px !important;
+	height: 16px !important;
+	margin-block: 0 !important;
+}
+
+.bn-block-content[data-content-type=numberedListItem]:before {
+	min-width: 16px;
+}
+
+[data-content-type=table] th {
+	background-color: var(--muted);
+	font-weight: 600;
+}
+
+[data-file-block] .bn-file-caption {
+	-webkit-user-select: auto;
+	user-select: auto;
+}
+
+.bn-block-content[data-content-type=codeBlock] {
+	background-color: var(--syntax-bg);
+	color: var(--foreground);
+	border-radius: 0.5rem;
+}
+
+.bn-block-content[data-content-type=codeBlock] > pre {
+	font-family: var(--font-mono);
+	tab-size: 2;
+}
+
+.bn-inline-content code {
+	font-family: var(--font-mono);
+	background-color: var(--muted);
+	border: 1px solid var(--border);
+	border-radius: 0.25rem;
+	padding: 0.125rem 0.25rem;
+	font-size: 0.875em;
+	font-weight: 600;
+}
+
+.bn-editor a {
+	color: var(--primary);
+	text-decoration: underline;
+	text-underline-offset: 4px;
+	font-weight: 500;
+	font-size: 19px;
+}
+
+.ProseMirror-selectednode > .bn-block-content > *,
+.ProseMirror-selectednode > * {
+	outline-color: var(--ring);
+}
+
+.bn-editor [data-content-type=table] th,
+.bn-editor [data-content-type=table] td {
+	border-color: var(--border);
+}
+
+[data-file-block] .bn-add-file-button {
+	color: var(--muted-foreground);
+	background-color: var(--muted);
+}
+
+[data-file-block] .bn-file-name-with-icon:hover,
+.ProseMirror-selectednode .bn-file-name-with-icon {
+	background-color: var(--accent);
+}
+
+/* Dark mode overrides for BlockNote hardcoded values that bypass --bn-colors-* variables.
+   BlockNote's shadcn CSS hardcodes colors on code blocks, file blocks, quotes, dividers,
+   selection outlines, and table borders — these must be overridden per-element. */
+.dark .bn-block-content[data-content-type=codeBlock] {
+	background-color: var(--syntax-bg);
+	color: var(--foreground);
+}
+
+.dark [data-content-type=quote] blockquote {
+	color: var(--muted-foreground);
+	border-left-color: var(--muted-foreground);
+}
+
+.dark [data-content-type=divider] hr {
+	border-top-color: var(--border);
+}
+
+.dark [data-file-block] .bn-add-file-button {
+	color: var(--muted-foreground);
+	background-color: var(--muted);
+}
+
+.dark [data-file-block] .bn-file-name-with-icon:hover,
+.dark .ProseMirror-selectednode .bn-file-name-with-icon {
+	background-color: var(--accent);
+}
+
+.dark .bn-block-content.ProseMirror-selectednode > *,
+.dark .ProseMirror-selectednode > .bn-block-content > *,
+.dark .ProseMirror-selectednode > * {
+	outline-color: var(--ring);
+}
+
+.dark .bn-editor [data-content-type=table] th,
+.dark .bn-editor [data-content-type=table] td {
+	border-color: var(--border);
+}

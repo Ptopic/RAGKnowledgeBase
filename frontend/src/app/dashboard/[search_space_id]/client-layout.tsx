@@ -54,6 +54,8 @@ export function DashboardClientLayout({
 	const isOnboardingPage = pathname === onboardingPath || pathname?.startsWith(`${onboardingPath}/`);
 	const isSettingsPage = pathname === settingsPath || pathname?.startsWith(`${settingsPath}/`);
 
+	const isEditorPage = pathname?.match(/\/notebooks\/(create|\d+\/edit|\d+)$/) !== null;
+
 	const translatedNavMain = useMemo(() => {
 		return navMain;
 	}, [navMain]);
@@ -134,6 +136,10 @@ export function DashboardClientLayout({
 				</Card>
 			</div>
 		);
+	}
+
+	if (isEditorPage) {
+		return <>{children}</>;
 	}
 
 	return (

@@ -61,6 +61,14 @@ export default function DashboardLayout({
 					title: "Manage Documents",
 					url: `/dashboard/${search_space_id}/documents`,
 				},
+				{
+					title: "Create Notebook",
+					url: `/dashboard/${search_space_id}/notebooks/create`,
+				},
+				{
+					title: "Manage Notebooks",
+					url: `/dashboard/${search_space_id}/notebooks`,
+				},
 			],
 		},
 		{
