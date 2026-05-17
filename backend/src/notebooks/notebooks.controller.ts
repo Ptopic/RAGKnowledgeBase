@@ -15,7 +15,6 @@ import {
 	UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import * as path from "path";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { UploadService } from "../upload";
 import { NotebooksService } from "./notebooks.service";
@@ -65,8 +64,8 @@ export class NotebooksController {
 		await this.notebooksService.checkSearchSpaceOwnership(searchSpaceId, req.user.id);
 
 		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-		const ext = path.extname(file.originalname) || ".png";
-		const filename = `notebook-${uniqueSuffix}${ext}`;
+		const ext = file.originalname.split(".").pop() || "png";
+		const filename = `notebook-${uniqueSuffix}.${ext}`;
 		const result = await this.uploadService.upload(file.buffer, filename, "notebooks");
 		return { url: result.url };
 	}
