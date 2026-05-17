@@ -96,11 +96,8 @@ export default function EditNotebookPage({
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex gap-3">
-					<Button
-						variant="outline"
-						onClick={() => router.push(`/dashboard/${search_space_id}/notebooks/${notebook_id}`)}
-					>
-						Cancel
+					<Button variant="outline">
+						Preview
 					</Button>
 					<Button type="submit" form="edit-notebook-form" disabled={updateMutation.isPending}>
 						{updateMutation.isPending && (
@@ -136,8 +133,11 @@ export default function EditNotebookPage({
 									setSummary(e.target.value);
 								}
 							}}
-							rows={2}
-							className="overflow-y-auto max-h-[4.5rem] text-lg text-muted-foreground italic bg-transparent border-0 shadow-none focus-visible:ring-0 px-0 placeholder:text-muted-foreground/40"
+							onKeyDown={(e) => {
+								if (e.key === "Enter") e.preventDefault();
+							}}
+							rows={1}
+							className="text-lg text-muted-foreground italic bg-transparent border-0 shadow-none focus-visible:ring-0 px-0 placeholder:text-muted-foreground/40"
 						/>
 
 						<div className="text-xs text-muted-foreground text-right">
