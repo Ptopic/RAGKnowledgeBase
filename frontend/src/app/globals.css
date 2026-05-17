@@ -11,6 +11,25 @@
    --font-mono: var(--font-geist-mono);
 }
 
+@utility text-3em {
+	font-size: 3em;
+}
+@utility text-2em {
+	font-size: 2em;
+}
+@utility text-1_3em {
+	font-size: 1.3em;
+}
+@utility text-1em {
+	font-size: 1em;
+}
+@utility text-0_9em {
+	font-size: 0.9em;
+}
+@utility text-0_8em {
+	font-size: 0.8em;
+}
+
 :root {
    --background: oklch(1 0 0);
    --foreground: oklch(0.145 0 0);
@@ -319,17 +338,31 @@ button {
 	font-weight: 600;
 }
 
-[data-content-type=paragraph] {
+.bn-editor [data-content-type=paragraph] {
 	margin-top: 1.25rem;
-	margin-bottom: 1.25rem;
+	margin-bottom: 20px !important;
+	font-size: 19px;
 }
 
-[data-content-type=paragraph]:first-child {
+.bn-editor [data-content-type=paragraph]:first-child {
 	margin-top: 0;
 }
 
-[data-content-type=paragraph]:last-child {
+.bn-editor [data-content-type=paragraph]:last-child {
 	margin-bottom: 0;
+}
+
+.bn-editor [data-content-type=heading],
+.bn-editor [data-content-type=quote],
+.bn-editor [data-content-type=codeBlock],
+.bn-editor [data-content-type=divider],
+.bn-editor [data-content-type=image],
+.bn-editor [data-content-type=table] {
+	margin-bottom: 20px !important;
+}
+
+.bn-editor [data-content-type=heading] {
+	padding-top: 30px !important;
 }
 
 [data-content-type=quote] blockquote {
@@ -347,10 +380,50 @@ button {
 }
 
 [data-content-type=bulletListItem],
-[data-content-type=numberedListItem] {
-	margin-top: 0.5rem;
-	margin-bottom: 0.5rem;
-	margin-left: 1.5rem;
+[data-content-type=numberedListItem],
+[data-content-type=checkListItem] {
+	margin-top: 0;
+	margin-bottom: 8px;
+	margin-left: 16px;
+	font-size: 19px;
+}
+
+.bn-block-content[data-content-type=bulletListItem] {
+	align-items: flex-start;
+}
+
+.bn-block-content[data-content-type=bulletListItem]:before {
+	content: "●" !important;
+	font-size: 7px;
+	min-width: 16px;
+	margin: auto 0;
+	transform: translateY(-1em);
+}
+
+.bn-block-content[data-content-type=checkListItem] > div:has(> input) {
+	height: auto !important;
+	display: flex !important;
+	align-items: center !important;
+}
+
+.bn-block-content[data-content-type=checkListItem] > div > input {
+	width: 16px !important;
+	height: 16px !important;
+	margin-block: 0 !important;
+}
+
+.bn-block-content[data-content-type=numberedListItem]:before {
+	min-width: 16px;
+}
+
+[data-content-type=table] th {
+	background-color: var(--muted);
+	font-weight: 600;
+}
+
+[data-file-block] .bn-file-caption {
+	-webkit-user-select: auto;
+	user-select: auto;
 }
 
 .bn-block-content[data-content-type=codeBlock] {
@@ -379,6 +452,7 @@ button {
 	text-decoration: underline;
 	text-underline-offset: 4px;
 	font-weight: 500;
+	font-size: 19px;
 }
 
 .ProseMirror-selectednode > .bn-block-content > *,

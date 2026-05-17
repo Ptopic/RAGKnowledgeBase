@@ -7,6 +7,7 @@ import { use } from "react";
 
 import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
+import { NotebookViewer } from "@/components/notebook/NotebookViewer";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -44,7 +45,10 @@ export default function NotebookDetailPage({
 	const searchSpaceIdNum = Number(search_space_id);
 	const notebookIdNum = Number(notebook_id);
 
-	const { data: notebook, isLoading } = useGetNotebook(searchSpaceIdNum, notebookIdNum);
+	const { data: notebook, isLoading } = useGetNotebook(
+		searchSpaceIdNum,
+		notebookIdNum,
+	);
 	const deleteMutation = useDeleteNotebook();
 
 	const handleDelete = () => {
@@ -73,7 +77,9 @@ export default function NotebookDetailPage({
 				<p className="text-muted-foreground">
 					The notebook you are looking for does not exist.
 				</p>
-				<Button onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)}>
+				<Button
+					onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)}
+				>
 					Back to Notebooks
 				</Button>
 			</div>
@@ -82,17 +88,15 @@ export default function NotebookDetailPage({
 
 	return (
 		<div className="h-screen flex flex-col">
-			<div className="sticky top-0 z-50 flex items-center justify-between px-8 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-				<Button
-					variant="ghost"
-					size="icon"
-					onClick={() => router.back()}
-				>
+			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+				<Button variant="ghost" size="icon" onClick={() => router.back()}>
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex gap-2">
 					<Button variant="outline" size="sm" asChild>
-						<a href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}>
+						<a
+							href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}
+						>
 							<Edit className="h-4 w-4 mr-1" />
 							Edit
 						</a>
@@ -157,9 +161,7 @@ export default function NotebookDetailPage({
 							` · Updated ${formatDate(notebook.updated_at)}`}
 					</div>
 
-					<div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-						{notebook.content}
-					</div>
+					<NotebookViewer content={notebook.content} />
 				</div>
 			</motion.div>
 		</div>

@@ -21,9 +21,11 @@ const useUpdateNotebook = (
 	return useMutation({
 		mutationFn: ({ searchSpaceId, notebookId, data }: UpdateNotebookParams) =>
 			notebooksClientRequests.updateNotebook(searchSpaceId, notebookId, data),
-		onSettled: () => {
+		onSuccess: (_data, variables) => {
 			queryClient.invalidateQueries({ queryKey: [NOTEBOOKS] });
-			queryClient.invalidateQueries({ queryKey: [NOTEBOOK] });
+			queryClient.invalidateQueries({
+				queryKey: [NOTEBOOK, variables.searchSpaceId, variables.notebookId],
+			});
 		},
 		onError: (error) => {
 			console.error("Error updating notebook:", error);

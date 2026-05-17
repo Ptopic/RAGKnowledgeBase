@@ -5,15 +5,24 @@ import "@blocknote/shadcn/style.css";
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from "@blocknote/core";
 import {
 	BasicTextStyleButton,
+	BlockTypeSelect,
+	blockTypeSelectItems,
+	ColorStyleButton,
+	CreateLinkButton,
+	FileCaptionButton,
 	FilePanelController,
 	FormattingToolbar,
 	FormattingToolbarController,
 	getDefaultReactSlashMenuItems,
+	NestBlockButton,
 	SuggestionMenuController,
+	TextAlignButton,
+	UnnestBlockButton,
 	UploadTab,
 	useBlockNoteEditor,
 	useComponentsContext,
 	useCreateBlockNote,
+	useDictionary,
 	useEditorChange,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
@@ -75,11 +84,27 @@ const schema = BlockNoteSchema.create({
 });
 
 function CustomFormattingToolbar() {
+	const dict = useDictionary();
+	const items = blockTypeSelectItems(dict).filter(
+		(item) => item.type !== "toggleListItem" && !(item.props as Record<string, unknown>)?.isToggleable,
+	);
+
 	return (
 		<FormattingToolbar>
+			<BlockTypeSelect items={items} />
 			<BasicTextStyleButton basicTextStyle="bold" />
 			<BasicTextStyleButton basicTextStyle="italic" />
+			<BasicTextStyleButton basicTextStyle="underline" />
 			<BasicTextStyleButton basicTextStyle="strike" />
+			<BasicTextStyleButton basicTextStyle="code" />
+			<TextAlignButton textAlignment="left" />
+			<TextAlignButton textAlignment="center" />
+			<TextAlignButton textAlignment="right" />
+			<ColorStyleButton />
+			<FileCaptionButton />
+			<NestBlockButton />
+			<UnnestBlockButton />
+			<CreateLinkButton />
 		</FormattingToolbar>
 	);
 }
@@ -123,7 +148,7 @@ function UploadOnlyFilePanel({ blockId }: { blockId: string }) {
 
 interface NotebookEditorProps {
 	initialContent?: string;
-	onChange: (markdown: string) => void;
+	onChange: (content: string) => void;
 }
 
 export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps) {
@@ -134,6 +159,9 @@ export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps
 
 	const editor = useCreateBlockNote({
 		schema,
+		tables: {
+			headers: true,
+		},
 		uploadFile: async (file) => {
 			return new Promise((resolve) => {
 				const reader = new FileReader();
@@ -144,19 +172,31 @@ export function NotebookEditor({ initialContent, onChange }: NotebookEditorProps
 	});
 
 	useEditorChange(async (editor) => {
-		const markdown = editor.blocksToMarkdownLossy(editor.document);
-		onChange(markdown);
+		onChange(editor.blocksToFullHTML(editor.document));
 	}, editor);
 
 	useEffect(() => {
 		if (initialContent && editor && !initialized.current) {
 			initialized.current = true;
-			const content = initialContent;
-			const loadMarkdown = async () => {
-				const blocks = await editor.tryParseMarkdownToBlocks(content);
-				editor.replaceBlocks(editor.document, blocks);
+			const loadContent = async () => {
+				try {
+					const blocks = JSON.parse(initialContent);
+					if (Array.isArray(blocks)) {
+						editor.replaceBlocks(editor.document, blocks);
+						return;
+					}
+				} catch {}
+
+				const blocks = await editor.tryParseHTMLToBlocks(initialContent);
+				if (blocks.length > 0) {
+					editor.replaceBlocks(editor.document, blocks);
+					return;
+				}
+
+				const mdBlocks = await editor.tryParseMarkdownToBlocks(initialContent);
+				editor.replaceBlocks(editor.document, mdBlocks);
 			};
-			loadMarkdown();
+			loadContent();
 		}
 	}, [initialContent, editor]);
 
