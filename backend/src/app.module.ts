@@ -21,6 +21,7 @@ import { SearchSourceConnectorsModule } from "./search-source-connectors/search-
 import { SearchSpacesModule } from "./search-spaces/search-spaces.module";
 import { QueryTemplatesModule } from "./query-templates/query-templates.module";
 import { ServicesModule } from "./services/services.module";
+import { UploadModule } from "./upload";
 
 @Module({
 	imports: [
@@ -42,6 +43,7 @@ import { ServicesModule } from "./services/services.module";
 		ApiKeysModule,
 		SearchSpacesModule,
 		DocumentsModule,
+		UploadModule,
 		ChatsModule,
 		NotebooksModule,
 		ChatShareModule,

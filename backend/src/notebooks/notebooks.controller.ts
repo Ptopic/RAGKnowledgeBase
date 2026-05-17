@@ -15,9 +15,9 @@ import {
 	UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import * as fs from "fs";
 import * as path from "path";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { UploadService } from "../upload";
 import { NotebooksService } from "./notebooks.service";
 import {
 	NotebookDto,
@@ -33,7 +33,10 @@ interface AuthenticatedRequest extends Request {
 @Controller("searchspaces")
 @UseGuards(JwtAuthGuard)
 export class NotebooksController {
-	constructor(private readonly notebooksService: NotebooksService) {}
+	constructor(
+		private readonly notebooksService: NotebooksService,
+		private readonly uploadService: UploadService,
+	) {}
 
 	@Post(":searchSpaceId/notebooks")
 	async create(
@@ -61,17 +64,11 @@ export class NotebooksController {
 		}
 		await this.notebooksService.checkSearchSpaceOwnership(searchSpaceId, req.user.id);
 
-		const uploadsDir = path.join(process.cwd(), "uploads", "notebooks");
-		if (!fs.existsSync(uploadsDir)) {
-			fs.mkdirSync(uploadsDir, { recursive: true });
-		}
 		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 		const ext = path.extname(file.originalname) || ".png";
 		const filename = `notebook-${uniqueSuffix}${ext}`;
-		const filePath = path.join(uploadsDir, filename);
-		fs.writeFileSync(filePath, file.buffer);
-		const url = `/uploads/notebooks/${filename}`;
-		return { url };
+		const result = await this.uploadService.upload(file.buffer, filename, "notebooks");
+		return { url: result.url };
 	}
 
 	@Get(":searchSpaceId/notebooks")
