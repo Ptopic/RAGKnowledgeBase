@@ -40,6 +40,11 @@ const nextConfig = {
 
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
 
+    // Force a single Yjs instance to prevent "Yjs was already imported" warning
+    // which breaks constructor/instanceof checks across copies
+    // See: https://github.com/yjs/yjs/issues/438
+    config.resolve.alias.yjs = require.resolve('yjs');
+
     return config;
   },
 };
