@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import type React from "react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { ImageChunkCard, isImageChunk } from "@/components/image-chunk-card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -221,7 +222,9 @@ export function SourceDetailSheet({
 									>
 										<div className="mb-4 flex items-center justify-between">
 											<span className="text-sm font-medium text-muted-foreground">
-												Chunk {idx + 1} of {document.chunks.length}
+												{isImageChunk(chunk.content)
+													? "Image Analysis"
+													: `Chunk ${idx + 1} of ${document.chunks.length}`}
 											</span>
 											{chunk.id === chunkId && (
 												<span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
@@ -229,9 +232,13 @@ export function SourceDetailSheet({
 												</span>
 											)}
 										</div>
-										<div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-											<MarkdownViewer content={chunk.content} className="max-w-fit" />
-										</div>
+										{isImageChunk(chunk.content) ? (
+											<ImageChunkCard content={chunk.content} />
+										) : (
+											<div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+												<MarkdownViewer content={chunk.content} className="max-w-fit" />
+											</div>
+										)}
 									</div>
 								))}
 							</div>
