@@ -42,7 +42,8 @@ export type DocumentType =
 	| "YOUTUBE_VIDEO"
 	| "GITHUB_CONNECTOR"
 	| "GOOGLE_CALENDAR_CONNECTOR"
-	| "GOOGLE_GMAIL_CONNECTOR";
+	| "GOOGLE_GMAIL_CONNECTOR"
+	| "NOTEBOOK";
 
 export interface DocumentWithChunks {
 	id: number;

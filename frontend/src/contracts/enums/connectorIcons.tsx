@@ -10,6 +10,7 @@ import {
 	File,
 	Globe,
 	Microscope,
+	Notebook,
 	Search,
 	Sparkles,
 	Telescope,
@@ -40,6 +41,8 @@ export const getConnectorIcon = (
 			return <Globe {...iconProps} />;
 		case "FILE":
 			return <File {...iconProps} />;
+		case "NOTEBOOK":
+			return <Notebook {...iconProps} />;
 		case "DEEP":
 			return <Sparkles {...iconProps} />;
 		case "DEEPER":

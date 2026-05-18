@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp, FileX, Star } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import React from "react";
 import documentsClientRequests from "@/api/documents/authClientRequests";
 import type { DocumentWithChunks } from "@/api/documents/types";
@@ -287,6 +288,12 @@ export function DocumentsTableShell({
 									const title = doc.title;
 									const truncatedTitle =
 										title.length > 30 ? `${title.slice(0, 30)}...` : title;
+									const notebookId = doc.document_type === "NOTEBOOK" && doc.document_metadata && typeof doc.document_metadata === "object"
+										? (doc.document_metadata as Record<string, unknown>).notebook_id
+										: undefined;
+									const notebookHref = notebookId && typeof notebookId === "number"
+										? `/dashboard/${doc.search_space_id}/notebooks/${notebookId}`
+										: undefined;
 									return (
 										<motion.tr
 											key={doc.id}
@@ -321,12 +328,21 @@ export function DocumentsTableShell({
 													>
 														<Tooltip>
 															<TooltipTrigger asChild>
-																<span className="flex items-center gap-2">
-																	<span className="text-muted-foreground shrink-0">
-																		{icon}
+																{notebookHref ? (
+																	<Link href={notebookHref} className="flex items-center gap-2 hover:underline">
+																		<span className="text-muted-foreground shrink-0">
+																			{icon}
+																		</span>
+																		<span>{truncatedTitle}</span>
+																	</Link>
+																) : (
+																	<span className="flex items-center gap-2">
+																		<span className="text-muted-foreground shrink-0">
+																			{icon}
+																		</span>
+																		<span>{truncatedTitle}</span>
 																	</span>
-																	<span>{truncatedTitle}</span>
-																</span>
+																)}
 															</TooltipTrigger>
 															<TooltipContent>
 																<p>{title}</p>
