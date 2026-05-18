@@ -276,13 +276,11 @@ export class NotebooksService {
 	 *
 	 * 1. Strips HTML from content using stripHtmlAndExtractImages, which:
 	 *    - Removes ALL HTML tag attributes (style, class, etc.)
-	 *    - Replaces <img> tags with "Image: {url}" placeholders
+	 *    - Removes <img> tags from plain text entirely
 	 *    - Returns extracted image URLs for vision analysis
-	 * 2. Fetches image descriptions via Gemini vision model
-	 * 3. Replaces "Image: {url}" placeholders with "Image: {description}" inline
-	 * 4. Chunks the enriched plain text and generates embeddings
-	 * 5. Upserts a Document of type NOTEBOOK linked to this notebook
-	 * 6. Enqueues image analysis for extracted images via Gemini vision model
+	 * 2. Chunks the plain text and generates embeddings
+	 * 3. Upserts a Document of type NOTEBOOK linked to this notebook
+	 * 4. Enqueues image analysis for extracted images via Gemini vision model
 	 *    (Image descriptions are embedded as separate <image_chunk> entries)
 	 */
 	private async indexNotebook(notebook: {
@@ -302,20 +300,6 @@ export class NotebooksService {
 					`Notebook ${notebook.id} has no text content after HTML stripping, skipping indexing`,
 				);
 				return;
-			}
-
-			let enrichedText = plainText;
-
-			if (images.length > 0) {
-				const descriptions = await this.imageAnalysisService.describeImages(images);
-				for (const desc of descriptions) {
-					if (desc.description) {
-						enrichedText = enrichedText.replace(
-							`Image: ${desc.url}`,
-							`Image: ${desc.description}`,
-						);
-					}
-				}
 			}
 
 			// Generate content hash from the raw content (not stripped, so re-index triggers on any change)
@@ -340,10 +324,10 @@ export class NotebooksService {
 			}
 
 			this.logger.log(
-				`Notebook ${notebook.id}: extracted ${images.length} image(s), ${enrichedText.length} chars text`,
+				`Notebook ${notebook.id}: extracted ${images.length} image(s), ${plainText.length} chars text`,
 			);
 
-			const chunks = await chunkMarkdownContent(enrichedText, this.textSplitter, "generic");
+			const chunks = await chunkMarkdownContent(plainText, this.textSplitter, "generic");
 
 			const avgChunkChars =
 				chunks.length > 0

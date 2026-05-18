@@ -6,8 +6,8 @@
  * - Removes ALL HTML tag attributes (style, class, id, etc.)
  * - Handles attributes containing > inside quoted values without breaking
  * - Replaces block-level elements with newlines
- * - Extracts <img> tags and replaces them with "Image: {url}" placeholders
- *   so image analysis can later replace them with descriptions
+ * - Extracts <img> tag URLs into a separate array for vision analysis
+ *   (images are NOT included in the plain text output)
  * - Decodes HTML entities
  * - Collapses excessive whitespace
  */
@@ -19,9 +19,9 @@ export interface ImagePlaceholder {
 }
 
 /**
- * Strip HTML while extracting image URLs as placeholders.
- * Returns plain text with "Image: {url}" where <img> tags appeared,
- * plus a list of extracted image candidates for later vision analysis.
+ * Strip HTML while extracting image URLs for separate vision analysis.
+ * Returns clean plain text (without any image placeholders or URLs)
+ * plus a list of extracted image candidates for <image_chunk> processing.
  */
 export function stripHtmlAndExtractImages(html: string): {
 	plainText: string;
@@ -32,7 +32,7 @@ export function stripHtmlAndExtractImages(html: string): {
 	const images: ImagePlaceholder[] = [];
 	let imageIndex = 0;
 
-		const withPlaceholders = html.replace(/<img\s+(?:[^>"']*|"[^"]*"|'[^']*')*\s*\/?>/gi, (match) => {
+	const withoutImages = html.replace(/<img\s+(?:[^>"']*|"[^"]*"|'[^']*')*\s*\/?>/gi, (match) => {
 		const srcMatch = match.match(/src=["']([^"']+)["']/i);
 		const altMatch = match.match(/alt=["']([^"']*)["']/i);
 		const url = srcMatch?.[1]?.trim() || "";
@@ -40,12 +40,11 @@ export function stripHtmlAndExtractImages(html: string): {
 
 		if (!url) return "";
 
-		const idx = imageIndex++;
-		images.push({ index: idx, url, altText });
-		return `Image: ${url}`;
+		images.push({ index: imageIndex++, url, altText });
+		return "";
 	});
 
-	const plainText = stripHtml(withPlaceholders);
+	const plainText = stripHtml(withoutImages);
 	return { plainText, images };
 }
 
