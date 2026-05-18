@@ -276,9 +276,9 @@ export class NotebooksService {
 	 *
 	 * 1. Strips HTML from content using stripHtmlAndExtractImages, which:
 	 *    - Removes ALL HTML tag attributes (style, class, etc.)
-	 *    - Removes <img> tags from plain text entirely
+	 *    - Converts <img> tags to markdown image references: ![Image N: alt](url)
 	 *    - Returns extracted image URLs for vision analysis
-	 * 2. Chunks the plain text and generates embeddings
+	 * 2. Chunks the markdown text (with inline image references) and generates embeddings
 	 * 3. Upserts a Document of type NOTEBOOK linked to this notebook
 	 * 4. Enqueues image analysis for extracted images via Gemini vision model
 	 *    (Image descriptions are embedded as separate <image_chunk> entries)
