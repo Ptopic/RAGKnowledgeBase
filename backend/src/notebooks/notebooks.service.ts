@@ -2,11 +2,18 @@ import {
 	BadRequestException,
 	Injectable,
 	InternalServerErrorException,
+	Logger,
 	NotFoundException,
 } from "@nestjs/common";
-import { Notebook as PrismaNotebook } from "@prisma/client";
+import { DocumentType, Notebook as PrismaNotebook } from "@prisma/client";
+import * as crypto from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
+import { EmbeddingService } from "../retriever/embedding.service";
 import { UploadService } from "../upload";
+import {
+	chunkMarkdownContent,
+	createMarkdownAwareSplitter,
+} from "../utils/chunking";
 import {
 	NotebookDto,
 	NotebookListItemDto,
@@ -16,9 +23,13 @@ import {
 
 @Injectable()
 export class NotebooksService {
+	private readonly logger = new Logger(NotebooksService.name);
+	private readonly textSplitter = createMarkdownAwareSplitter();
+
 	constructor(
 		private prisma: PrismaService,
 		private uploadService: UploadService,
+		private embeddingService: EmbeddingService,
 	) {}
 
 	async checkSearchSpaceOwnership(
@@ -70,6 +81,10 @@ export class NotebooksService {
 					authorId: userId,
 				},
 			});
+
+			await this.indexNotebook(notebook).catch((err) =>
+				this.logger.warn(`Failed to index notebook ${notebook.id}: ${err.message}`),
+			);
 
 			return this.toDto(notebook);
 		} catch (error) {
@@ -192,6 +207,10 @@ export class NotebooksService {
 				},
 			});
 
+			await this.indexNotebook(updated).catch((err) =>
+				this.logger.warn(`Failed to re-index notebook ${updated.id}: ${err.message}`),
+			);
+
 			return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException) {
@@ -219,6 +238,10 @@ export class NotebooksService {
 				);
 			}
 
+			await this.prisma.document.deleteMany({
+				where: { notebookId: notebook.id },
+			});
+
 			await this.uploadService.deleteAllFromContent(notebook.content);
 			await this.prisma.notebook.delete({
 				where: { id: notebookId },
@@ -233,6 +256,116 @@ export class NotebooksService {
 				`Failed to delete notebook: ${error.message}`,
 			);
 		}
+	}
+
+	private async indexNotebook(notebook: { id: number; title: string; content: string; searchSpaceId: number }): Promise<void> {
+		const plainText = notebook.content
+			.replace(/!\[.*?\]\(.*?\)/g, "")
+			.replace(/\[([^\]]*)\]\([^\)]*\)/g, "$1")
+			.replace(/[#*_`~>|\-]{2,}/g, "")
+			.replace(/\n{3,}/g, "\n\n")
+			.trim();
+
+		if (!plainText || plainText.length < 40) {
+			this.logger.log(`Notebook ${notebook.id} has insufficient content for indexing, skipping`);
+			return;
+		}
+
+		const contentHash = crypto
+			.createHash("sha256")
+			.update(`${notebook.content}-${notebook.searchSpaceId}`)
+			.digest("hex");
+
+		const uniqueIdentifierHash = crypto
+			.createHash("sha256")
+			.update(`NOTEBOOK-${notebook.id}-${notebook.searchSpaceId}`)
+			.digest("hex");
+
+		const existingDocument = await this.prisma.document.findFirst({
+			where: { notebookId: notebook.id },
+			include: { chunks: true },
+		});
+
+		if (existingDocument && existingDocument.contentHash === contentHash) {
+			this.logger.log(`Notebook ${notebook.id} content unchanged, skipping re-indexing`);
+			return;
+		}
+
+		const chunks = await chunkMarkdownContent(plainText, this.textSplitter, "generic");
+
+		const chunksWithEmbeddings = await Promise.all(
+			chunks.map(async (chunkText) => ({
+				content: chunkText,
+				embedding: await this.embeddingService.embed(chunkText),
+			})),
+		);
+
+		const summaryEmbedding = await this.embeddingService.embed(plainText.substring(0, 8000));
+
+		if (existingDocument) {
+			await this.prisma.chunk.deleteMany({
+				where: { documentId: existingDocument.id },
+			});
+
+			await this.prisma.document.update({
+				where: { id: existingDocument.id },
+				data: {
+					title: notebook.title,
+					content: plainText.substring(0, 8000),
+					contentHash,
+				},
+			});
+
+			await this.updateDocumentEmbedding(existingDocument.id, summaryEmbedding);
+			await this.insertChunksWithEmbeddings(existingDocument.id, chunksWithEmbeddings);
+
+			this.logger.log(`Re-indexed notebook ${notebook.id}: ${chunksWithEmbeddings.length} chunks`);
+		} else {
+			const document = await this.prisma.document.create({
+				data: {
+					searchSpaceId: notebook.searchSpaceId,
+					title: notebook.title,
+					documentType: DocumentType.NOTEBOOK,
+					documentMetadata: { notebook_id: notebook.id },
+					content: plainText.substring(0, 8000),
+					contentHash,
+					uniqueIdentifierHash,
+					notebookId: notebook.id,
+				},
+			});
+
+			await this.updateDocumentEmbedding(document.id, summaryEmbedding);
+			await this.insertChunksWithEmbeddings(document.id, chunksWithEmbeddings);
+
+			this.logger.log(`Indexed notebook ${notebook.id}: ${chunksWithEmbeddings.length} chunks`);
+		}
+	}
+
+	private async insertChunksWithEmbeddings(
+		documentId: number,
+		chunks: { content: string; embedding: number[] }[],
+	): Promise<void> {
+		for (const chunk of chunks) {
+			const vectorString = `[${chunk.embedding.join(",")}]`;
+			await this.prisma.$executeRawUnsafe(
+				`INSERT INTO chunks (content, embedding, document_id, created_at) VALUES ($1, $2::vector, $3, NOW())`,
+				chunk.content,
+				vectorString,
+				documentId,
+			);
+		}
+	}
+
+	private async updateDocumentEmbedding(
+		documentId: number,
+		embedding: number[],
+	): Promise<void> {
+		const vectorString = `[${embedding.join(",")}]`;
+		await this.prisma.$executeRawUnsafe(
+			`UPDATE documents SET embedding = $1::vector WHERE id = $2`,
+			vectorString,
+			documentId,
+		);
 	}
 
 	private toDto(notebook: PrismaNotebook): NotebookDto {
