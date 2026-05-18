@@ -36,11 +36,6 @@ export default function NotebooksManagePage({
 	const handleDelete = (notebookId: number) => {
 		deleteMutation.mutate(
 			{ searchSpaceId: searchSpaceIdNum, notebookId },
-			{
-				onSuccess: () => {
-					router.push(`/dashboard/${search_space_id}/notebooks`);
-				},
-			},
 		);
 	};
 

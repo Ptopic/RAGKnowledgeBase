@@ -39,3 +39,17 @@ export interface UpdateNotebookRequest {
 	content?: string;
 	excerpt?: string;
 }
+
+export interface UploadNotebookImageRequest {
+	searchSpaceId: number;
+	file: File;
+}
+
+export interface UploadNotebookImageResponse {
+	url: string;
+}
+
+export interface DeleteNotebookImageRequest {
+	searchSpaceId: number;
+	url: string;
+}

@@ -1,5 +1,6 @@
 import { Check, Copy } from "lucide-react";
 import { useTheme } from "next-themes";
+import Image from "next/image";
 import { type ComponentPropsWithoutRef, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -71,8 +72,15 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			hr: ({ ...props }: HrProps) => (
 				<hr className="border-none border-t border-muted-foreground my-2" {...props} />
 			),
-			img: ({ ...props }: ImgProps) => (
-				<img className="max-w-full h-auto my-4 rounded" alt="" {...props} />
+			img: ({ alt, src, width, height, className, ...rest }: ImgProps) => (
+				<Image
+					className={className || "max-w-full h-auto my-4 rounded"}
+					alt={alt || ""}
+					src={src || ""}
+					width={Number(width) || 800}
+					height={Number(height) || 400}
+					unoptimized
+				/>
 			),
 			table: ({ children, ...props }: TableProps) => (
 				<div className="overflow-x-auto my-4">

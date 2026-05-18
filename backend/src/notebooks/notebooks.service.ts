@@ -4,7 +4,9 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { Notebook as PrismaNotebook } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { UploadService } from "../upload";
 import {
 	NotebookDto,
 	NotebookListItemDto,
@@ -14,7 +16,10 @@ import {
 
 @Injectable()
 export class NotebooksService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private uploadService: UploadService,
+	) {}
 
 	async checkSearchSpaceOwnership(
 		searchSpaceId: number,
@@ -31,16 +36,18 @@ export class NotebooksService {
 		}
 	}
 
-	private async generateSlug(title: string): Promise<string> {
+	private async generateSlug(title: string, attempt = 0): Promise<string> {
+		if (attempt > 10) throw new InternalServerErrorException("Failed to generate unique slug");
+
 		const base = title
 			.toLowerCase()
 			.replace(/[^a-z0-9]+/g, "-")
 			.replace(/^-|-$/g, "")
-			.slice(0, 80);
+			.slice(0, 80) || "notebook";
 		const suffix = Math.random().toString(36).slice(2, 8);
 		const slug = `${base}-${suffix}`;
 		const existing = await this.prisma.notebook.findUnique({ where: { slug } });
-		if (existing) return this.generateSlug(title);
+		if (existing) return this.generateSlug(title, attempt + 1);
 		return slug;
 	}
 
@@ -128,11 +135,12 @@ export class NotebooksService {
 		}
 	}
 
-	async findOne(notebookId: number, userId: string): Promise<NotebookDto> {
+	async findOne(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
 					id: notebookId,
+					searchSpaceId,
 					searchSpace: { userId },
 				},
 			});
@@ -156,6 +164,7 @@ export class NotebooksService {
 
 	async update(
 		notebookId: number,
+		searchSpaceId: number,
 		updateDto: UpdateNotebookDto,
 		userId: string,
 	): Promise<NotebookDto> {
@@ -163,6 +172,7 @@ export class NotebooksService {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
 					id: notebookId,
+					searchSpaceId,
 					searchSpace: { userId },
 				},
 			});
@@ -193,11 +203,12 @@ export class NotebooksService {
 		}
 	}
 
-	async remove(notebookId: number, userId: string): Promise<{ message: string }> {
+	async remove(notebookId: number, searchSpaceId: number, userId: string): Promise<{ message: string }> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
 					id: notebookId,
+					searchSpaceId,
 					searchSpace: { userId },
 				},
 			});
@@ -208,6 +219,7 @@ export class NotebooksService {
 				);
 			}
 
+			await this.uploadService.deleteAllFromContent(notebook.content);
 			await this.prisma.notebook.delete({
 				where: { id: notebookId },
 			});
@@ -223,7 +235,7 @@ export class NotebooksService {
 		}
 	}
 
-	private toDto(notebook: any): NotebookDto {
+	private toDto(notebook: PrismaNotebook): NotebookDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,
@@ -237,7 +249,7 @@ export class NotebooksService {
 		};
 	}
 
-	private toListItemDto(notebook: any): NotebookListItemDto {
+	private toListItemDto(notebook: Omit<PrismaNotebook, never>): NotebookListItemDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
@@ -25,6 +25,10 @@ export default function EditNotebookPage({
 	const searchSpaceIdNum = Number(search_space_id);
 	const notebookIdNum = Number(notebook_id);
 
+	if (isNaN(searchSpaceIdNum) || isNaN(notebookIdNum)) {
+		throw new Error("Invalid ID parameter");
+	}
+
 	const { data: notebook, isLoading } = useGetNotebook(
 		searchSpaceIdNum,
 		notebookIdNum,
@@ -34,16 +38,20 @@ export default function EditNotebookPage({
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [summary, setSummary] = useState("");
+	const initialized = useRef(false);
 
 	useEffect(() => {
-		if (notebook) {
+		if (notebook && !initialized.current) {
+			initialized.current = true;
 			setTitle(notebook.title);
 			setContent(notebook.content);
 			setSummary(notebook.excerpt || "");
 		}
 	}, [notebook]);
 
-	const handleSubmit = () => {
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+
 		if (!title.trim()) {
 			toast.error("Title is required");
 			return;
@@ -70,9 +78,9 @@ export default function EditNotebookPage({
 				},
 			},
 			{
-				onSuccess: async () => {
+				onSuccess: async (_data, variables) => {
 					await queryClient.invalidateQueries({
-						queryKey: [NOTEBOOK, searchSpaceIdNum, notebookIdNum],
+						queryKey: [NOTEBOOK, variables.searchSpaceId, variables.notebookId],
 					});
 					toast.success("Notebook updated successfully");
 					router.push(`/dashboard/${search_space_id}/notebooks/${notebook_id}`);
@@ -92,12 +100,11 @@ export default function EditNotebookPage({
 	return (
 		<div className="h-screen flex flex-col">
 			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-				<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)}>
+				<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
 				<div className="flex gap-3">
-					<Button variant="outline">Preview</Button>
-					<Button onClick={handleSubmit} disabled={updateMutation.isPending}>
+					<Button type="submit" form="edit-notebook-form" disabled={updateMutation.isPending}>
 						{updateMutation.isPending && (
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 						)}
@@ -112,43 +119,45 @@ export default function EditNotebookPage({
 				transition={{ duration: 0.5 }}
 				className="flex-1 flex flex-col overflow-y-auto"
 			>
-				<div className="max-w-3xl mx-auto w-full px-6 py-12 pb-[50dvh]">
-					<div className="space-y-4">
-						<input
-							type="text"
-							placeholder="Title"
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-							required
-							className="w-full text-4xl font-bold tracking-tight bg-transparent border-0 outline-none placeholder:text-muted-foreground/50 focus:ring-0 focus:outline-none px-0 py-0"
-						/>
-
-						<div>
-							<Textarea
-								placeholder="Add a summary..."
-								value={summary}
-								onChange={(e) => {
-									if (e.target.value.length <= 500) {
-										setSummary(e.target.value);
-									}
-								}}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") e.preventDefault();
-								}}
-								rows={1}
-								className="text-lg text-muted-foreground italic bg-transparent border-0 shadow-none focus-visible:ring-0 px-0 min-h-0 placeholder:text-muted-foreground/40"
+				<form id="edit-notebook-form" onSubmit={handleSubmit} className="flex-1 flex flex-col">
+					<div className="max-w-3xl mx-auto w-full px-6 py-12 pb-[50dvh]">
+						<div className="space-y-4">
+							<input
+								type="text"
+								placeholder="Title"
+								value={title}
+								onChange={(e) => setTitle(e.target.value)}
+								required
+								className="w-full text-4xl font-bold tracking-tight bg-transparent border-0 outline-none placeholder:text-muted-foreground/50 focus:ring-0 focus:outline-none px-0 py-0"
 							/>
 
-							<div className="text-xs text-muted-foreground text-right">
-								{summary.length}/500
+							<div>
+								<Textarea
+									placeholder="Add a summary..."
+									value={summary}
+									onChange={(e) => {
+										if (e.target.value.length <= 500) {
+											setSummary(e.target.value);
+										}
+									}}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") e.preventDefault();
+									}}
+									rows={1}
+									className="text-lg text-muted-foreground italic bg-transparent border-0 shadow-none focus-visible:ring-0 px-0 min-h-0 placeholder:text-muted-foreground/40"
+								/>
+
+								<div className="text-xs text-muted-foreground text-right">
+									{summary.length}/500
+								</div>
+							</div>
+
+							<div className="flex-1 min-h-[334px] -ml-[54px]">
+								<NotebookEditor initialContent={content} onChange={setContent} searchSpaceId={searchSpaceIdNum} />
 							</div>
 						</div>
-
-						<div className="flex-1 min-h-[334px] -ml-[54px]">
-							<NotebookEditor initialContent={content} onChange={setContent} />
-						</div>
 					</div>
-				</div>
+				</form>
 			</motion.div>
 		</div>
 	);

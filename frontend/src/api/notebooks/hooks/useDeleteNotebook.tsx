@@ -13,7 +13,7 @@ interface DeleteNotebookParams {
 }
 
 const useDeleteNotebook = (
-	options?: UseMutationOptions<void, Error, DeleteNotebookParams, unknown>,
+	options?: UseMutationOptions<{ message: string }, Error, DeleteNotebookParams, unknown>,
 ) => {
 	const queryClient = useQueryClient();
 
