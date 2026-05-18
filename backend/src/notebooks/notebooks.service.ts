@@ -10,6 +10,8 @@ import { UploadService } from "../upload";
 import {
 	NotebookDto,
 	NotebookListItemDto,
+	PublicNotebookDto,
+	PublicNotebookListItemDto,
 	CreateNotebookDto,
 	UpdateNotebookDto,
 } from "./dtos/notebook.dto";
@@ -114,6 +116,8 @@ export class NotebooksService {
 					title: true,
 					slug: true,
 					excerpt: true,
+					isPublished: true,
+					publishedAt: true,
 					authorId: true,
 					searchSpaceId: true,
 					createdAt: true,
@@ -235,6 +239,137 @@ export class NotebooksService {
 		}
 	}
 
+	async publish(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+		try {
+			const notebook = await this.prisma.notebook.findFirst({
+				where: {
+					id: notebookId,
+					searchSpaceId,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!notebook) {
+				throw new NotFoundException(
+					"Notebook not found or you do not have permission to access it",
+				);
+			}
+
+			if (notebook.isPublished) {
+				throw new BadRequestException("Notebook is already published");
+			}
+
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
+				data: {
+					isPublished: true,
+					publishedAt: new Date(),
+				},
+			});
+
+			return this.toDto(updated);
+		} catch (error) {
+			if (error instanceof NotFoundException || error instanceof BadRequestException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to publish notebook: ${error.message}`,
+			);
+		}
+	}
+
+	async unpublish(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+		try {
+			const notebook = await this.prisma.notebook.findFirst({
+				where: {
+					id: notebookId,
+					searchSpaceId,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!notebook) {
+				throw new NotFoundException(
+					"Notebook not found or you do not have permission to access it",
+				);
+			}
+
+			if (!notebook.isPublished) {
+				throw new BadRequestException("Notebook is not published");
+			}
+
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
+				data: {
+					isPublished: false,
+					publishedAt: null,
+				},
+			});
+
+			return this.toDto(updated);
+		} catch (error) {
+			if (error instanceof NotFoundException || error instanceof BadRequestException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to unpublish notebook: ${error.message}`,
+			);
+		}
+	}
+
+	// Public methods (no auth)
+	async findPublishedNotebooks(searchSpaceId?: number): Promise<PublicNotebookListItemDto[]> {
+		try {
+			const where: any = { isPublished: true };
+			if (searchSpaceId) {
+				where.searchSpaceId = searchSpaceId;
+			}
+
+			const notebooks = await this.prisma.notebook.findMany({
+				where,
+				orderBy: { publishedAt: "desc" },
+				select: {
+					id: true,
+					title: true,
+					slug: true,
+					excerpt: true,
+					publishedAt: true,
+					authorId: true,
+					searchSpaceId: true,
+					createdAt: true,
+					updatedAt: true,
+				},
+			});
+
+			return notebooks.map((n) => this.toPublicListItemDto(n));
+		} catch (error) {
+			throw new InternalServerErrorException(
+				`Failed to fetch published notebooks: ${error.message}`,
+			);
+		}
+	}
+
+	async findPublishedBySlug(slug: string): Promise<PublicNotebookDto> {
+		try {
+			const notebook = await this.prisma.notebook.findUnique({
+				where: { slug },
+			});
+
+			if (!notebook || !notebook.isPublished) {
+				throw new NotFoundException("Published notebook not found");
+			}
+
+			return this.toPublicDto(notebook);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to fetch published notebook: ${error.message}`,
+			);
+		}
+	}
+
 	private toDto(notebook: PrismaNotebook): NotebookDto {
 		return {
 			id: notebook.id,
@@ -242,6 +377,8 @@ export class NotebooksService {
 			slug: notebook.slug,
 			content: notebook.content,
 			excerpt: notebook.excerpt,
+			is_published: notebook.isPublished,
+			published_at: notebook.publishedAt,
 			search_space_id: notebook.searchSpaceId,
 			author_id: notebook.authorId,
 			created_at: notebook.createdAt,
@@ -249,12 +386,43 @@ export class NotebooksService {
 		};
 	}
 
-	private toListItemDto(notebook: Omit<PrismaNotebook, never>): NotebookListItemDto {
+	private toListItemDto(notebook: any): NotebookListItemDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,
 			slug: notebook.slug,
 			excerpt: notebook.excerpt,
+			is_published: notebook.isPublished,
+			published_at: notebook.publishedAt,
+			author_id: notebook.authorId,
+			search_space_id: notebook.searchSpaceId,
+			created_at: notebook.createdAt,
+			updated_at: notebook.updatedAt,
+		};
+	}
+
+	private toPublicListItemDto(notebook: any): PublicNotebookListItemDto {
+		return {
+			id: notebook.id,
+			title: notebook.title,
+			slug: notebook.slug,
+			excerpt: notebook.excerpt,
+			published_at: notebook.publishedAt,
+			author_id: notebook.authorId,
+			search_space_id: notebook.searchSpaceId,
+			created_at: notebook.createdAt,
+			updated_at: notebook.updatedAt,
+		};
+	}
+
+	private toPublicDto(notebook: PrismaNotebook): PublicNotebookDto {
+		return {
+			id: notebook.id,
+			title: notebook.title,
+			slug: notebook.slug,
+			content: notebook.content,
+			excerpt: notebook.excerpt,
+			published_at: notebook.publishedAt,
 			author_id: notebook.authorId,
 			search_space_id: notebook.searchSpaceId,
 			created_at: notebook.createdAt,
