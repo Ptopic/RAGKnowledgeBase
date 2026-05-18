@@ -1,12 +1,14 @@
 "use client";
 
-import { ArrowLeft, Edit, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, Eye, Globe, Loader2, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
 
 import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
+import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
+import useUnpublishNotebook from "@/api/notebooks/hooks/useUnpublishNotebook";
 import { NotebookViewer } from "@/components/notebook/NotebookViewer";
 import {
 	AlertDialog,
@@ -19,7 +21,14 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function formatDate(dateStr: string): string {
 	try {
@@ -54,6 +63,8 @@ export default function NotebookDetailPage({
 		notebookIdNum,
 	);
 	const deleteMutation = useDeleteNotebook();
+	const publishMutation = usePublishNotebook();
+	const unpublishMutation = useUnpublishNotebook();
 
 	const handleDelete = () => {
 		deleteMutation.mutate(
@@ -65,6 +76,22 @@ export default function NotebookDetailPage({
 			},
 		);
 	};
+
+	const handlePublish = () => {
+		publishMutation.mutate({
+			searchSpaceId: searchSpaceIdNum,
+			notebookId: notebookIdNum,
+		});
+	};
+
+	const handleUnpublish = () => {
+		unpublishMutation.mutate({
+			searchSpaceId: searchSpaceIdNum,
+			notebookId: notebookIdNum,
+		});
+	};
+
+	const isTogglingPublish = publishMutation.isPending || unpublishMutation.isPending;
 
 	if (isLoading) {
 		return (
@@ -93,10 +120,30 @@ export default function NotebookDetailPage({
 	return (
 		<div className="h-screen flex flex-col">
 			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-				<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
-					<ArrowLeft className="h-5 w-5" />
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
+						<ArrowLeft className="h-5 w-5" />
+					</Button>
+					{notebook.is_published && (
+						<Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+							<Globe className="h-3 w-3" />
+							Published
+						</Badge>
+					)}
+				</div>
 				<div className="flex gap-2">
+					{notebook.is_published && (
+						<Button variant="outline" size="sm" asChild>
+							<a
+								href={`/public/notebooks/${notebook.slug}`}
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								<Eye className="h-4 w-4 mr-1" />
+								View Public
+							</a>
+						</Button>
+					)}
 					<Button variant="outline" size="sm" asChild>
 						<a
 							href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}
@@ -105,6 +152,27 @@ export default function NotebookDetailPage({
 							Edit
 						</a>
 					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm" disabled={isTogglingPublish}>
+								{isTogglingPublish && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+								{notebook.is_published ? "Unpublish" : "Publish"}
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							{notebook.is_published ? (
+								<DropdownMenuItem onClick={handleUnpublish} disabled={unpublishMutation.isPending}>
+									<Globe className="h-4 w-4 mr-2" />
+									Unpublish Notebook
+								</DropdownMenuItem>
+							) : (
+								<DropdownMenuItem onClick={handlePublish} disabled={publishMutation.isPending}>
+									<Globe className="h-4 w-4 mr-2" />
+									Publish Notebook
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 					<AlertDialog>
 						<AlertDialogTrigger asChild>
 							<Button
@@ -163,6 +231,8 @@ export default function NotebookDetailPage({
 						Created {formatDate(notebook.created_at)}
 						{notebook.updated_at !== notebook.created_at &&
 							` · Updated ${formatDate(notebook.updated_at)}`}
+						{notebook.is_published && notebook.published_at &&
+							` · Published ${formatDate(notebook.published_at)}`}
 					</div>
 
 					<NotebookViewer content={notebook.content} />
