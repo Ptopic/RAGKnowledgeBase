@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { Notebook as PrismaNotebook } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { UploadService } from "../upload";
 import {
 	NotebookDto,
 	NotebookListItemDto,
@@ -15,7 +16,10 @@ import {
 
 @Injectable()
 export class NotebooksService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private uploadService: UploadService,
+	) {}
 
 	async checkSearchSpaceOwnership(
 		searchSpaceId: number,
@@ -215,6 +219,7 @@ export class NotebooksService {
 				);
 			}
 
+			await this.uploadService.deleteAllFromContent(notebook.content);
 			await this.prisma.notebook.delete({
 				where: { id: notebookId },
 			});

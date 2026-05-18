@@ -80,4 +80,18 @@ export class UploadService {
 			this.logger.error(`S3 delete failed for key ${key}: ${error.message}`);
 		}
 	}
+
+	async deleteAllFromContent(htmlContent: string): Promise<void> {
+		const imgSrcRegex = /<img[^>]+src="([^"]+)"/g;
+		const prefix = this.publicUrlPrefix.replace(/\/$/, "");
+		const urls: string[] = [];
+		let match: RegExpExecArray | null = imgSrcRegex.exec(htmlContent);
+		while (match !== null) {
+			if (match[1].startsWith(prefix)) {
+				urls.push(match[1]);
+			}
+			match = imgSrcRegex.exec(htmlContent);
+		}
+		await Promise.all(urls.map((url) => this.delete(url)));
+	}
 }
