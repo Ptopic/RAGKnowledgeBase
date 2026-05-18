@@ -2,9 +2,11 @@ import { withAuthenticatedClientRequest } from "@api/requestBuilder/client/withC
 import {
 	createNotebook,
 	deleteNotebook,
+	deleteNotebookImage,
 	getNotebook,
 	getNotebooks,
 	updateNotebook,
+	uploadNotebookImage,
 } from "./requests";
 
 const notebooksClientRequests = {
@@ -13,6 +15,8 @@ const notebooksClientRequests = {
 	createNotebook: withAuthenticatedClientRequest(createNotebook),
 	updateNotebook: withAuthenticatedClientRequest(updateNotebook),
 	deleteNotebook: withAuthenticatedClientRequest(deleteNotebook),
+	uploadNotebookImage: withAuthenticatedClientRequest(uploadNotebookImage),
+	deleteNotebookImage: withAuthenticatedClientRequest(deleteNotebookImage),
 };
 
 export default notebooksClientRequests;

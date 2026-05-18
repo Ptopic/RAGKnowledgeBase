@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
 	Injectable,
 	InternalServerErrorException,
@@ -14,15 +14,18 @@ export class UploadService {
 	private readonly logger = new Logger(UploadService.name);
 	private readonly s3Client: S3Client;
 	private readonly s3Bucket: string;
-	private readonly s3PublicUrlPrefix: string;
+	private readonly publicUrlPrefix: string;
 
 	constructor() {
 		const region = process.env.AWS_REGION || "us-east-1";
 		const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 		const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 		this.s3Bucket = process.env.S3_BUCKET_NAME || "";
-		this.s3PublicUrlPrefix =
+		const endpoint = process.env.S3_ENDPOINT;
+
+		this.publicUrlPrefix =
 			process.env.S3_PUBLIC_URL_PREFIX ||
+			endpoint ||
 			`https://${this.s3Bucket}.s3.${region}.amazonaws.com`;
 
 		if (!accessKeyId || !secretAccessKey || !this.s3Bucket) {
@@ -34,6 +37,7 @@ export class UploadService {
 		this.s3Client = new S3Client({
 			region,
 			credentials: { accessKeyId, secretAccessKey },
+			...(endpoint && { endpoint, forcePathStyle: true }),
 		});
 	}
 
@@ -48,13 +52,32 @@ export class UploadService {
 					ContentType: mimetype,
 				}),
 			);
-			const url = `${this.s3PublicUrlPrefix.replace(/\/$/, "")}/${key}`;
+			const url = `${this.publicUrlPrefix.replace(/\/$/, "")}/${key}`;
 			return { url };
-		} catch (error) {
+		} 		catch (error) {
 			this.logger.error(`S3 upload failed for key ${key}: ${error.message}`);
 			throw new InternalServerErrorException(
 				`File upload failed: ${error.message}`,
 			);
+		}
+	}
+
+	async delete(url: string): Promise<void> {
+		const prefix = this.publicUrlPrefix.replace(/\/$/, "");
+		if (!url.startsWith(prefix)) {
+			this.logger.warn(`Skipping delete: URL does not match bucket prefix`);
+			return;
+		}
+		const key = url.slice(prefix.length + 1);
+		try {
+			await this.s3Client.send(
+				new DeleteObjectCommand({
+					Bucket: this.s3Bucket,
+					Key: key,
+				}),
+			);
+		} catch (error) {
+			this.logger.error(`S3 delete failed for key ${key}: ${error.message}`);
 		}
 	}
 }

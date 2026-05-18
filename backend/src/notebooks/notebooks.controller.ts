@@ -70,6 +70,17 @@ export class NotebooksController {
 		return { url: result.url };
 	}
 
+	@Delete(":searchSpaceId/notebooks/delete-image")
+	async deleteImage(
+		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
+		@Body() body: { url: string },
+		@Req() req: AuthenticatedRequest,
+	): Promise<{ message: string }> {
+		await this.notebooksService.checkSearchSpaceOwnership(searchSpaceId, req.user.id);
+		await this.uploadService.delete(body.url);
+		return { message: "Image deleted" };
+	}
+
 	@Get(":searchSpaceId/notebooks")
 	async findAll(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,

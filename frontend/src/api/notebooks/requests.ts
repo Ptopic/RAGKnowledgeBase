@@ -7,6 +7,9 @@ import type {
 	CreateNotebookRequest,
 	GetNotebooksParams,
 	UpdateNotebookRequest,
+	UploadNotebookImageRequest,
+	UploadNotebookImageResponse,
+	DeleteNotebookImageRequest,
 } from "./types";
 
 export const getNotebooks =
@@ -83,5 +86,45 @@ export const deleteNotebook =
 			(init) => ({
 				...init,
 				method: "DELETE",
+			}),
+		);
+
+export const uploadNotebookImage =
+	(request: ICallableRequestBuilder<UploadNotebookImageResponse>) =>
+	async (data: UploadNotebookImageRequest) => {
+		const formData = new FormData();
+		formData.append("file", data.file);
+
+		return request.call(
+			`${config.apiUrl}/searchspaces/${data.searchSpaceId}/notebooks/upload-image`,
+			(init) => {
+				// For FormData, don't set Content-Type - browser will set it automatically with boundary
+				const headers = new Headers(init.headers);
+				headers.delete("Content-Type");
+				headers.delete("content-type");
+
+				return {
+					...init,
+					method: "POST",
+					headers,
+					body: formData,
+				};
+			},
+		);
+	};
+
+export const deleteNotebookImage =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (data: DeleteNotebookImageRequest) =>
+		request.call(
+			`${config.apiUrl}/searchspaces/${data.searchSpaceId}/notebooks/delete-image`,
+			(init) => ({
+				...init,
+				method: "DELETE",
+				headers: {
+					...init.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ url: data.url }),
 			}),
 		);

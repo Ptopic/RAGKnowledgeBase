@@ -29,7 +29,9 @@ import { BlockNoteView } from "@blocknote/shadcn";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import config from "@/shared/config";
+import useDeleteNotebookImage from "@/api/notebooks/hooks/useDeleteNotebookImage";
+import useUploadNotebookImage from "@/api/notebooks/hooks/useUploadNotebookImage";
+import { toast } from "sonner";
 import { schema } from "./blocknote-config";
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -110,36 +112,18 @@ export function NotebookEditor({ initialContent, onChange, searchSpaceId }: Note
 	const { resolvedTheme } = useTheme();
 	const isDark = resolvedTheme === "dark";
 
+	const uploadNotebookImage = useUploadNotebookImage();
+	const deleteNotebookImage = useDeleteNotebookImage();
+
 	const uploadFile = useCallback(async (file: File): Promise<string> => {
 		if (file.size > MAX_IMAGE_SIZE) {
+			toast.error("File exceeds 5 MB limit");
 			throw new Error("File exceeds 5 MB limit");
 		}
 
-		if (!config.apiUrl) throw new Error("API URL not configured");
-
-		const formData = new FormData();
-		formData.append("file", file);
-
-		try {
-			const res = await fetch(
-				`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/upload-image`,
-				{
-					method: "POST",
-					body: formData,
-					credentials: "include",
-				},
-			);
-			if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-			const { url } = await res.json();
-			return url;
-		} catch (err) {
-			const reader = new FileReader();
-			return new Promise((resolve) => {
-				reader.onload = () => resolve(reader.result as string);
-				reader.readAsDataURL(file);
-			});
-		}
-	}, [searchSpaceId]);
+		const { url } = await uploadNotebookImage.mutateAsync({ searchSpaceId, file });
+		return url;
+	}, [searchSpaceId, uploadNotebookImage]);
 
 	const editor = useCreateBlockNote({
 		schema,
@@ -159,7 +143,16 @@ export function NotebookEditor({ initialContent, onChange, searchSpaceId }: Note
 		}, 300);
 	}, [onChange]);
 
-	useEditorChange((editor) => {
+	useEditorChange((editor, { getChanges }) => {
+		const changes = getChanges();
+		for (const change of changes) {
+			if (change.type === "delete" && change.block.type === "image") {
+				const url = (change.block.props as Record<string, unknown>).url as string | undefined;
+				if (url) {
+					deleteNotebookImage.mutate({ searchSpaceId, url });
+				}
+			}
+		}
 		debouncedOnChange(editor.blocksToFullHTML(editor.document));
 	}, editor);
 
