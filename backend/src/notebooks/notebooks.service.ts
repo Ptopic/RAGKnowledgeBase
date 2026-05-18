@@ -9,11 +9,14 @@ import { DocumentType, Notebook as PrismaNotebook } from "@prisma/client";
 import * as crypto from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmbeddingService } from "../retriever/embedding.service";
+import { ImageAnalysisService } from "../services/image-analysis.service";
 import { UploadService } from "../upload";
 import {
 	chunkMarkdownContent,
 	createMarkdownAwareSplitter,
 } from "../utils/chunking";
+import { stripHtmlAndExtractImages } from "../utils/html-stripper";
+import { ImageCandidate } from "../utils/image-markdown";
 import {
 	NotebookDto,
 	NotebookListItemDto,
@@ -30,6 +33,7 @@ export class NotebooksService {
 		private prisma: PrismaService,
 		private uploadService: UploadService,
 		private embeddingService: EmbeddingService,
+		private imageAnalysisService: ImageAnalysisService,
 	) {}
 
 	async checkSearchSpaceOwnership(
@@ -136,7 +140,16 @@ export class NotebooksService {
 				},
 			});
 
-			return notebooks.map((notebook) => this.toListItemDto(notebook));
+			return notebooks.map((notebook) => ({
+				id: notebook.id,
+				title: notebook.title,
+				slug: notebook.slug,
+				excerpt: notebook.excerpt,
+				author_id: notebook.authorId,
+				search_space_id: notebook.searchSpaceId,
+				created_at: notebook.createdAt,
+				updated_at: notebook.updatedAt,
+			}));
 		} catch (error) {
 			if (
 				error instanceof BadRequestException ||
@@ -258,86 +271,192 @@ export class NotebooksService {
 		}
 	}
 
-	private async indexNotebook(notebook: { id: number; title: string; content: string; searchSpaceId: number }): Promise<void> {
-		const plainText = notebook.content
-			.replace(/!\[.*?\]\(.*?\)/g, "")
-			.replace(/\[([^\]]*)\]\([^\)]*\)/g, "$1")
-			.replace(/[#*_`~>|\-]{2,}/g, "")
-			.replace(/\n{3,}/g, "\n\n")
-			.trim();
+	/**
+	 * Index a notebook for RAG search.
+	 *
+	 * 1. Strips HTML from content using stripHtmlAndExtractImages, which:
+	 *    - Removes ALL HTML tag attributes (style, class, etc.)
+	 *    - Replaces <img> tags with "Image: {url}" placeholders
+	 *    - Returns extracted image URLs for vision analysis
+	 * 2. Chunks the plain text and generates embeddings
+	 * 3. Upserts a Document of type NOTEBOOK linked to this notebook
+	 * 4. Enqueues image analysis for extracted images via Gemini vision model
+	 *    (Image descriptions are embedded as separate <image_chunk> entries)
+	 */
+	private async indexNotebook(notebook: {
+		id: number;
+		title: string;
+		content: string;
+		excerpt: string | null;
+		searchSpaceId: number;
+	}): Promise<void> {
+		this.logger.log(`Indexing notebook ${notebook.id} for RAG search`);
 
-		if (!plainText || plainText.length < 40) {
-			this.logger.log(`Notebook ${notebook.id} has insufficient content for indexing, skipping`);
-			return;
+		try {
+			// Strip HTML and extract image URLs for vision analysis
+			const { plainText, images } = stripHtmlAndExtractImages(notebook.content);
+
+			if (!plainText || plainText.trim().length === 0) {
+				this.logger.warn(
+					`Notebook ${notebook.id} has no text content after HTML stripping, skipping indexing`,
+				);
+				return;
+			}
+
+			// Generate content hash from the raw content (not stripped, so re-index triggers on any change)
+			const contentHash = crypto
+				.createHash("sha256")
+				.update(`${notebook.content}-${notebook.searchSpaceId}`)
+				.digest("hex");
+
+			const uniqueIdentifierHash = crypto
+				.createHash("sha256")
+				.update(`NOTEBOOK-${notebook.id}-${notebook.searchSpaceId}`)
+				.digest("hex");
+
+			const existingDocument = await this.prisma.document.findFirst({
+				where: { notebookId: notebook.id },
+				include: { chunks: true },
+			});
+
+			if (existingDocument && existingDocument.contentHash === contentHash) {
+				this.logger.log(`Notebook ${notebook.id} content unchanged, skipping re-indexing`);
+				return;
+			}
+
+			this.logger.log(
+				`Notebook ${notebook.id}: extracted ${images.length} image(s), ${plainText.length} chars text`,
+			);
+
+			// Chunk the plain text content (includes "Image: {url}" placeholders)
+			const chunks = await chunkMarkdownContent(plainText, this.textSplitter, "generic");
+
+			const avgChunkChars =
+				chunks.length > 0
+					? Math.round(
+							chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length,
+						)
+					: 0;
+			this.logger.debug(
+				`Chunking stats[notebook]: raw=${plainText.length} chunks=${chunks.length} avg=${avgChunkChars}`,
+			);
+
+			const chunksWithEmbeddings = await Promise.all(
+				chunks.map(async (chunkText) => ({
+					content: chunkText,
+					embedding: await this.embeddingService.embed(chunkText),
+				})),
+			);
+
+			// Generate document summary embedding (using title + excerpt as summary)
+			const summaryText = notebook.excerpt
+				? `${notebook.title}\n\n${notebook.excerpt}`
+				: notebook.title;
+			const summaryEmbedding = await this.embeddingService.embed(summaryText);
+
+			let documentId: number;
+
+			if (existingDocument) {
+				// Delete old chunks first
+				await this.prisma.chunk.deleteMany({
+					where: { documentId: existingDocument.id },
+				});
+
+				await this.prisma.document.update({
+					where: { id: existingDocument.id },
+					data: {
+						title: notebook.title,
+						content: summaryText,
+						contentHash,
+						documentMetadata: {
+							NOTEBOOK_ID: notebook.id,
+						},
+					},
+				});
+
+				await this.updateDocumentEmbedding(existingDocument.id, summaryEmbedding);
+				await this.insertChunksWithEmbeddings(existingDocument.id, chunksWithEmbeddings);
+
+				documentId = existingDocument.id;
+				this.logger.log(
+					`Re-indexed notebook ${notebook.id}: ${chunksWithEmbeddings.length} chunks`,
+				);
+			} else {
+				const document = await this.prisma.document.create({
+					data: {
+						searchSpaceId: notebook.searchSpaceId,
+						title: notebook.title,
+						documentType: DocumentType.NOTEBOOK,
+						documentMetadata: { NOTEBOOK_ID: notebook.id },
+						content: summaryText,
+						contentHash,
+						uniqueIdentifierHash,
+						notebookId: notebook.id,
+					},
+				});
+
+				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
+				await this.insertChunksWithEmbeddings(document.id, chunksWithEmbeddings);
+
+				documentId = document.id;
+				this.logger.log(
+					`Indexed notebook ${notebook.id}: document ${document.id}, ${chunksWithEmbeddings.length} chunks`,
+				);
+			}
+
+			// Enqueue image analysis for extracted images using Gemini vision
+			await this.enqueueImageAnalysis(
+				documentId,
+				notebook.searchSpaceId,
+				images,
+			);
+		} catch (error) {
+			this.logger.error(
+				`Failed to index notebook ${notebook.id}: ${error.message}`,
+				error.stack,
+			);
+			throw error;
 		}
+	}
 
-		const contentHash = crypto
-			.createHash("sha256")
-			.update(`${notebook.content}-${notebook.searchSpaceId}`)
-			.digest("hex");
+	/**
+	 * Enqueue image analysis for notebook images using the same Gemini vision
+	 * pipeline that URL/webpage documents use.
+	 *
+	 * Converts ImagePlaceholder[] to ImageCandidate[] format expected by
+	 * ImageAnalysisService, then delegates to analyzeDocumentImages which:
+	 * - Fetches each image from its URL (S3 public URL)
+	 * - Sends to Gemini vision model for description
+	 * - Creates <image_chunk> entries with embeddings alongside text chunks
+	 */
+	private async enqueueImageAnalysis(
+		documentId: number,
+		searchSpaceId: number,
+		images: { index: number; url: string; altText?: string }[],
+	): Promise<void> {
+		if (images.length === 0) return;
 
-		const uniqueIdentifierHash = crypto
-			.createHash("sha256")
-			.update(`NOTEBOOK-${notebook.id}-${notebook.searchSpaceId}`)
-			.digest("hex");
+		try {
+			const imageCandidates: ImageCandidate[] = images.map((img, idx) => ({
+				imageId: `img_${String(idx + 1).padStart(3, "0")}`,
+				url: img.url,
+				altText: img.altText,
+			}));
 
-		const existingDocument = await this.prisma.document.findFirst({
-			where: { notebookId: notebook.id },
-			include: { chunks: true },
-		});
-
-		if (existingDocument && existingDocument.contentHash === contentHash) {
-			this.logger.log(`Notebook ${notebook.id} content unchanged, skipping re-indexing`);
-			return;
-		}
-
-		const chunks = await chunkMarkdownContent(plainText, this.textSplitter, "generic");
-
-		const chunksWithEmbeddings = await Promise.all(
-			chunks.map(async (chunkText) => ({
-				content: chunkText,
-				embedding: await this.embeddingService.embed(chunkText),
-			})),
-		);
-
-		const summaryEmbedding = await this.embeddingService.embed(plainText.substring(0, 8000));
-
-		if (existingDocument) {
-			await this.prisma.chunk.deleteMany({
-				where: { documentId: existingDocument.id },
+			await this.imageAnalysisService.analyzeDocumentImages({
+				documentId,
+				searchSpaceId,
+				sourceType: "markdown",
+				images: imageCandidates,
 			});
 
-			await this.prisma.document.update({
-				where: { id: existingDocument.id },
-				data: {
-					title: notebook.title,
-					content: plainText.substring(0, 8000),
-					contentHash,
-				},
-			});
-
-			await this.updateDocumentEmbedding(existingDocument.id, summaryEmbedding);
-			await this.insertChunksWithEmbeddings(existingDocument.id, chunksWithEmbeddings);
-
-			this.logger.log(`Re-indexed notebook ${notebook.id}: ${chunksWithEmbeddings.length} chunks`);
-		} else {
-			const document = await this.prisma.document.create({
-				data: {
-					searchSpaceId: notebook.searchSpaceId,
-					title: notebook.title,
-					documentType: DocumentType.NOTEBOOK,
-					documentMetadata: { notebook_id: notebook.id },
-					content: plainText.substring(0, 8000),
-					contentHash,
-					uniqueIdentifierHash,
-					notebookId: notebook.id,
-				},
-			});
-
-			await this.updateDocumentEmbedding(document.id, summaryEmbedding);
-			await this.insertChunksWithEmbeddings(document.id, chunksWithEmbeddings);
-
-			this.logger.log(`Indexed notebook ${notebook.id}: ${chunksWithEmbeddings.length} chunks`);
+			this.logger.log(
+				`Enqueued image analysis for notebook document ${documentId}: ${imageCandidates.length} images`,
+			);
+		} catch (error) {
+			this.logger.warn(
+				`Failed to enqueue image analysis for document ${documentId}: ${error.message}`,
+			);
 		}
 	}
 
@@ -382,7 +501,16 @@ export class NotebooksService {
 		};
 	}
 
-	private toListItemDto(notebook: Omit<PrismaNotebook, never>): NotebookListItemDto {
+	private toListItemDto(notebook: {
+		id: number;
+		title: string;
+		slug: string;
+		excerpt: string | null;
+		authorId: string;
+		searchSpaceId: number;
+		createdAt: Date;
+		updatedAt: Date;
+	}): NotebookListItemDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,
