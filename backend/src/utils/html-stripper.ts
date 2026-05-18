@@ -4,6 +4,7 @@
  *
  * Key behaviors:
  * - Removes ALL HTML tag attributes (style, class, id, etc.)
+ * - Handles attributes containing > inside quoted values without breaking
  * - Replaces block-level elements with newlines
  * - Extracts <img> tags and replaces them with "Image: {url}" placeholders
  *   so image analysis can later replace them with descriptions
@@ -31,8 +32,7 @@ export function stripHtmlAndExtractImages(html: string): {
 	const images: ImagePlaceholder[] = [];
 	let imageIndex = 0;
 
-	// Extract <img> tags BEFORE stripping, replace with numbered placeholders
-	const withPlaceholders = html.replace(/<img[^>]*>/gi, (match) => {
+		const withPlaceholders = html.replace(/<img\s+(?:[^>"']*|"[^"]*"|'[^']*')*\s*\/?>/gi, (match) => {
 		const srcMatch = match.match(/src=["']([^"']+)["']/i);
 		const altMatch = match.match(/alt=["']([^"']*)["']/i);
 		const url = srcMatch?.[1]?.trim() || "";
@@ -52,24 +52,25 @@ export function stripHtmlAndExtractImages(html: string): {
 /**
  * Strip HTML tags and decode HTML entities from content.
  * Removes ALL attributes from HTML tags — only the tag name and text content survive.
+ *
+ * Uses a quote-aware regex to handle attribute values containing > characters
+ * (e.g., onclick="if(a>b)" or data-content="x > y") without breaking the match.
  */
 export function stripHtml(html: string): string {
 	if (!html) return "";
 
 	return (
 		html
-			// Remove ALL attributes from opening tags, keeping only the tag name
-			// e.g. <div style="..." class="..."> becomes <div>
-			.replace(/<(\w+)\s+[^>]*>/g, "<$1>")
+			// Quote-aware: handles attributes with > inside quoted values, e.g. style="x > y"
+			.replace(/<(\w+)(?:\s+(?:[^>"']*|"[^"]*"|'[^']*'))*\s*\/?>/g, "<$1>")
 
 			// Replace block-level elements with newlines
-			.replace(/<\/?(p|div|br|h[1-6]|li|tr|blockquote)[^>]*>/gi, "\n")
+			.replace(/<\/?(p|div|br|h[1-6]|li|tr|blockquote)>/gi, "\n")
 
 			// Replace <hr> with a separator
-			.replace(/<hr[^>]*>/gi, "\n---\n")
+			.replace(/<hr\s*\/?>/gi, "\n---\n")
 
-			// Remove all remaining HTML tags (now without attributes)
-			.replace(/<[^>]+>/g, "")
+			.replace(/<\/?\w+\s*\/?>/g, "")
 
 			// Decode common HTML entities
 			.replace(/&amp;/g, "&")
