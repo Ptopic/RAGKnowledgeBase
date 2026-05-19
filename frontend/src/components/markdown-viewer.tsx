@@ -72,7 +72,7 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 	const components = useMemo(
 		() => ({
 			p: ({ children, ...props }: PProps) => (
-				<p className="py-[3px]" {...props}>
+				<p className="my-1.5" {...props}>
 					{children}
 				</p>
 			),

@@ -226,6 +226,20 @@ function convertWithTurndown(html: string): string {
 
 	turndown.use(gfm);
 
+	turndown.addRule("blocknote-heading", {
+		filter: '[data-content-type="heading"]',
+		replacement(_content, node) {
+			const el = node as HTMLElement;
+			const level = Number.parseInt(
+				el.getAttribute("data-level") || "1",
+				10,
+			);
+			const hashes = "#".repeat(Math.min(Math.max(level, 1), 6));
+			const text = el.textContent?.trim() || "";
+			return `\n\n${hashes} ${text}\n\n`;
+		},
+	});
+
 	turndown.addRule("figure", {
 		filter: "figure",
 		replacement(_content, node) {
