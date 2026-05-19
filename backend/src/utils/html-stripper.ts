@@ -8,7 +8,10 @@
  * - Replaces block-level elements with newlines
  * - Converts <img> tags to markdown image references: ![Image N: alt](url)
  * - Extracts image URLs into a separate array for vision analysis
- * - Decodes HTML entities
+ * - Decodes safe HTML entities but preserves &lt; and &gt; as entities
+ *   to prevent them from being reinterpreted as HTML tags by downstream
+ *   markdown renderers (react-markdown treats <tag> as raw-HTML blocks
+ *   and silently drops them, including any markdown images inside).
  * - Collapses excessive whitespace
  */
 
@@ -59,6 +62,12 @@ export function stripHtmlAndExtractImages(html: string): {
  *
  * Uses a quote-aware regex to handle attribute values containing > characters
  * (e.g., onclick="if(a>b)" or data-content="x > y") without breaking the match.
+ *
+ * IMPORTANT: &lt; and &gt; are NOT decoded to < and > to prevent
+ * downstream markdown renderers (e.g. react-markdown) from treating
+ * the resulting text as raw-HTML blocks, which would cause entire
+ * sections — including inline ![alt](url) image references — to be
+ * silently dropped.
  */
 export function stripHtml(html: string): string {
 	if (!html) return "";
@@ -76,14 +85,20 @@ export function stripHtml(html: string): string {
 
 			.replace(/<\/?\w+\s*\/?>/g, "")
 
-			// Decode common HTML entities
+			// Decode safe HTML entities.
+			// NOTE: &lt; and &gt; are intentionally kept as entities to prevent
+			// downstream markdown renderers from misinterpreting them as HTML tags.
 			.replace(/&amp;/g, "&")
-			.replace(/&lt;/g, "<")
-			.replace(/&gt;/g, ">")
+			// &lt; and &gt; are NOT decoded — see docstring above
 			.replace(/&quot;/g, '"')
 			.replace(/&#39;/g, "'")
 			.replace(/&nbsp;/g, " ")
-			.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+			.replace(/&#(\d+);/g, (_, code) => {
+				const charCode = Number(code);
+				// Keep numeric entities that would produce < or > as entities
+				if (charCode === 60 || charCode === 62) return _;
+				return String.fromCharCode(charCode);
+			})
 
 			// Collapse excessive newlines
 			.replace(/\n{3,}/g, "\n\n")

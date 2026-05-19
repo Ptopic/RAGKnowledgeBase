@@ -1,4 +1,3 @@
-import { defaultSchema } from "hast-util-sanitize";
 import { Check, Copy } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
@@ -13,18 +12,36 @@ import {
 	oneDark,
 	oneLight,
 } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const sanitizeSchema = {
-	...defaultSchema,
-	protocols: {
-		...defaultSchema.protocols,
-		src: [...(defaultSchema.protocols?.src || []), "data"],
-	},
-};
+/**
+ * Escape stray HTML tags in markdown content so react-markdown does not
+ * treat them as raw-HTML blocks (which are silently skipped in v9+ when
+ * rehype-raw is not used).
+ *
+ * Background: the backend `stripHtml` utility decodes &lt;/&gt; entities
+ * to literal `<`/`>` characters.  When those characters spell out what
+ * looks like an HTML tag (e.g. `<div>`), react-markdown classifies the
+ * surrounding paragraph as an HTML block and **silently drops** it —
+ * including any `![alt](url)` image references inside the block.
+ *
+ * By re-encoding those stray tags back to entities we prevent the
+ * mis-classification while keeping genuine markdown syntax intact
+ * (headings, lists, images, code fences, etc. are never affected
+ * because they don't start with `<letter`).
+ */
+function escapeStrayHtmlTags(content: string): string {
+	// Match opening tags: <tag ...>, closing tags: </tag ...>, and
+	// self-closing tags: <tag .../>  — but NOT markdown-safe patterns
+	// like autolink <url> or HTML comments <!-- -->.
+	return content.replace(/<(\/?[a-zA-Z][a-zA-Z0-9]*(?:\s[^>]*)?\/?)>/g, (match) =>
+		match
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;"),
+	);
+}
 
 type PProps = ComponentPropsWithoutRef<"p">;
 type AProps = ComponentPropsWithoutRef<"a">;
@@ -170,6 +187,10 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 		[],
 	);
 
+	// Escape stray HTML tags that would cause react-markdown to
+	// mis-classify sections as raw-HTML blocks (silently dropped).
+	const safeContent = useMemo(() => escapeStrayHtmlTags(content), [content]);
+
 	return (
 		<div
 			className={cn(
@@ -178,12 +199,10 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			)}
 		>
 			<ReactMarkdown
-				rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
 				remarkPlugins={[remarkGfm]}
 				components={components}
-				urlTransform={(url) => url}
 			>
-				{content}
+				{safeContent}
 			</ReactMarkdown>
 		</div>
 	);
