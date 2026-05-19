@@ -7,6 +7,8 @@ import {
 	useState,
 } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
 	oneDark,
@@ -33,13 +35,17 @@ import { cn } from "@/lib/utils";
  * because they don't start with `<letter`).
  */
 function escapeStrayHtmlTags(content: string): string {
-	// Match opening tags: <tag ...>, closing tags: </tag ...>, and
+	// Quote-aware regex that handles > inside quoted attribute values,
+	// matching the same pattern used by the backend stripHtml utility.
+	// Matches opening tags: <tag ...>, closing tags: </tag ...>, and
 	// self-closing tags: <tag .../>  — but NOT markdown-safe patterns
 	// like autolink <url> or HTML comments <!-- -->.
-	return content.replace(/<(\/?[a-zA-Z][a-zA-Z0-9]*(?:\s[^>]*)?\/?)>/g, (match) =>
-		match
-			.replace(/</g, "&lt;")
-			.replace(/>/g, "&gt;"),
+	return content.replace(
+		/<(\/?[a-zA-Z]\w*)(?:\s+(?:"[^"]*"|'[^']*'|[^\s"'<>\/])+)*\s*\/?>/g,
+		(match) =>
+			match
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;"),
 	);
 }
 
@@ -199,6 +205,7 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			)}
 		>
 			<ReactMarkdown
+				rehypePlugins={[rehypeRaw, rehypeSanitize]}
 				remarkPlugins={[remarkGfm]}
 				components={components}
 			>
