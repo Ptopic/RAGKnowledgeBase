@@ -5,7 +5,6 @@ import { type ComponentPropsWithoutRef, useEffect, useMemo, useState } from "rea
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -122,7 +121,7 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			)}
 		>
 			<ReactMarkdown
-				rehypePlugins={[rehypeRaw, rehypeSanitize]}
+				rehypePlugins={[rehypeSanitize]}
 				remarkPlugins={[remarkGfm]}
 				components={components}
 			>
