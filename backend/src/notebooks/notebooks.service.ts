@@ -1,3 +1,4 @@
+import * as crypto from "node:crypto";
 import {
 	BadRequestException,
 	Injectable,
@@ -6,7 +7,6 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { DocumentType, Notebook as PrismaNotebook } from "@prisma/client";
-import * as crypto from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmbeddingService } from "../retriever/embedding.service";
 import { ImageAnalysisService } from "../services/image-analysis.service";
@@ -15,12 +15,12 @@ import {
 	chunkMarkdownContent,
 	createMarkdownAwareSplitter,
 } from "../utils/chunking";
-import { stripHtmlAndExtractImages } from "../utils/html-stripper";
 import { ImageCandidate } from "../utils/image-markdown";
+import { notebookHtmlToMarkdown } from "../utils/notebook-html-to-markdown";
 import {
+	CreateNotebookDto,
 	NotebookDto,
 	NotebookListItemDto,
-	CreateNotebookDto,
 	UpdateNotebookDto,
 } from "./dtos/notebook.dto";
 
@@ -52,13 +52,15 @@ export class NotebooksService {
 	}
 
 	private async generateSlug(title: string, attempt = 0): Promise<string> {
-		if (attempt > 10) throw new InternalServerErrorException("Failed to generate unique slug");
+		if (attempt > 10)
+			throw new InternalServerErrorException("Failed to generate unique slug");
 
-		const base = title
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/^-|-$/g, "")
-			.slice(0, 80) || "notebook";
+		const base =
+			title
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, "-")
+				.replace(/^-|-$/g, "")
+				.slice(0, 80) || "notebook";
 		const suffix = Math.random().toString(36).slice(2, 8);
 		const slug = `${base}-${suffix}`;
 		const existing = await this.prisma.notebook.findUnique({ where: { slug } });
@@ -87,7 +89,9 @@ export class NotebooksService {
 			});
 
 			await this.indexNotebook(notebook).catch((err) =>
-				this.logger.warn(`Failed to index notebook ${notebook.id}: ${err.message}`),
+				this.logger.warn(
+					`Failed to index notebook ${notebook.id}: ${err.message}`,
+				),
 			);
 
 			return this.toDto(notebook);
@@ -163,7 +167,11 @@ export class NotebooksService {
 		}
 	}
 
-	async findOne(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+	async findOne(
+		notebookId: number,
+		searchSpaceId: number,
+		userId: string,
+	): Promise<NotebookDto> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
@@ -221,7 +229,9 @@ export class NotebooksService {
 			});
 
 			await this.indexNotebook(updated).catch((err) =>
-				this.logger.warn(`Failed to re-index notebook ${updated.id}: ${err.message}`),
+				this.logger.warn(
+					`Failed to re-index notebook ${updated.id}: ${err.message}`,
+				),
 			);
 
 			return this.toDto(updated);
@@ -235,7 +245,11 @@ export class NotebooksService {
 		}
 	}
 
-	async remove(notebookId: number, searchSpaceId: number, userId: string): Promise<{ message: string }> {
+	async remove(
+		notebookId: number,
+		searchSpaceId: number,
+		userId: string,
+	): Promise<{ message: string }> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
@@ -274,10 +288,9 @@ export class NotebooksService {
 	/**
 	 * Index a notebook for RAG search.
 	 *
-	 * 1. Strips HTML from content using stripHtmlAndExtractImages, which:
-	 *    - Removes ALL HTML tag attributes (style, class, etc.)
-	 *    - Converts <img> tags to markdown image references: ![Image N: alt](url)
-	 *    - Returns extracted image URLs for vision analysis
+	 * 1. Converts notebook HTML to clean markdown using notebookHtmlToMarkdown,
+	 *    which strips BlockNote editor UI artifacts and uses Turndown + GFM.
+	 *    Falls back to stripHtmlAndExtractImages if Turndown fails.
 	 * 2. Chunks the markdown text (with inline image references) and generates embeddings
 	 * 3. Upserts a Document of type NOTEBOOK linked to this notebook
 	 * 4. Enqueues image analysis for extracted images via Gemini vision model
@@ -293,16 +306,33 @@ export class NotebooksService {
 		this.logger.log(`Indexing notebook ${notebook.id} for RAG search`);
 
 		try {
-			const { plainText, images } = stripHtmlAndExtractImages(notebook.content);
+			let markdown: string;
+			let images: { index: number; url: string; altText?: string }[];
 
-			if (!plainText || plainText.trim().length === 0) {
+			try {
+				const result = notebookHtmlToMarkdown(notebook.content);
+				markdown = result.markdown;
+				images = result.images;
+			} catch (err) {
+				const fallback = err as Error & {
+					fallbackMarkdown?: string;
+					images?: { index: number; url: string; altText?: string }[];
+				};
 				this.logger.warn(
-					`Notebook ${notebook.id} has no text content after HTML stripping, skipping indexing`,
+					`Notebook ${notebook.id}: ${err instanceof Error ? err.message : String(err)}`,
+				);
+				markdown = fallback.fallbackMarkdown || "";
+				images = fallback.images || [];
+			}
+
+			if (!markdown || markdown.trim().length === 0) {
+				this.logger.warn(
+					`Notebook ${notebook.id} has no text content after conversion, skipping indexing`,
 				);
 				return;
 			}
 
-			// Generate content hash from the raw content (not stripped, so re-index triggers on any change)
+			// Generate content hash from the raw content (not converted, so re-index triggers on any change)
 			const contentHash = crypto
 				.createHash("sha256")
 				.update(`${notebook.content}-${notebook.searchSpaceId}`)
@@ -319,24 +349,31 @@ export class NotebooksService {
 			});
 
 			if (existingDocument && existingDocument.contentHash === contentHash) {
-				this.logger.log(`Notebook ${notebook.id} content unchanged, skipping re-indexing`);
+				this.logger.log(
+					`Notebook ${notebook.id} content unchanged, skipping re-indexing`,
+				);
 				return;
 			}
 
 			this.logger.log(
-				`Notebook ${notebook.id}: extracted ${images.length} image(s), ${plainText.length} chars text`,
+				`Notebook ${notebook.id}: extracted ${images.length} image(s), ${markdown.length} chars markdown`,
 			);
 
-			const chunks = await chunkMarkdownContent(plainText, this.textSplitter, "generic");
+			const chunks = await chunkMarkdownContent(
+				markdown,
+				this.textSplitter,
+				"generic",
+			);
 
 			const avgChunkChars =
 				chunks.length > 0
 					? Math.round(
-							chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length,
+							chunks.reduce((acc, chunk) => acc + chunk.length, 0) /
+								chunks.length,
 						)
 					: 0;
 			this.logger.debug(
-				`Chunking stats[notebook]: raw=${plainText.length} chunks=${chunks.length} avg=${avgChunkChars}`,
+				`Chunking stats[notebook]: raw=${markdown.length} chunks=${chunks.length} avg=${avgChunkChars}`,
 			);
 
 			const chunksWithEmbeddings = await Promise.all(
@@ -372,8 +409,14 @@ export class NotebooksService {
 					},
 				});
 
-				await this.updateDocumentEmbedding(existingDocument.id, summaryEmbedding);
-				await this.insertChunksWithEmbeddings(existingDocument.id, chunksWithEmbeddings);
+				await this.updateDocumentEmbedding(
+					existingDocument.id,
+					summaryEmbedding,
+				);
+				await this.insertChunksWithEmbeddings(
+					existingDocument.id,
+					chunksWithEmbeddings,
+				);
 
 				documentId = existingDocument.id;
 				this.logger.log(
@@ -394,7 +437,10 @@ export class NotebooksService {
 				});
 
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
-				await this.insertChunksWithEmbeddings(document.id, chunksWithEmbeddings);
+				await this.insertChunksWithEmbeddings(
+					document.id,
+					chunksWithEmbeddings,
+				);
 
 				documentId = document.id;
 				this.logger.log(
