@@ -60,9 +60,9 @@ export default function CreateNotebookPage({
 				},
 			},
 			{
-				onSuccess: () => {
+				onSuccess: (notebook) => {
 					toast.success("Notebook created successfully");
-					router.push(`/dashboard/${search_space_id}/notebooks`);
+					router.push(`/dashboard/${search_space_id}/notebooks/${notebook.id}/edit`);
 				},
 			},
 		);

@@ -5,7 +5,7 @@ import type {
 	Notebook,
 	NotebookListItem,
 	PublicNotebook,
-	PublicNotebookListItem,
+	PaginatedPublicNotebooksResponse,
 	CreateNotebookRequest,
 	GetNotebooksParams,
 	UpdateNotebookRequest,
@@ -155,11 +155,15 @@ export const deleteNotebookImage =
 
 // Public endpoints (no auth required)
 export const getPublicNotebooks =
-	(request: ICallableRequestBuilder<PublicNotebookListItem[]>) =>
-	async (searchSpaceId?: number) => {
+	(request: ICallableRequestBuilder<PaginatedPublicNotebooksResponse>) =>
+	async (searchSpaceId?: number, skip?: number, limit?: number) => {
 		const url = new URL(`${config.apiUrl}/public/notebooks`);
 		if (searchSpaceId !== undefined)
 			url.searchParams.append("search_space_id", searchSpaceId.toString());
+		if (skip !== undefined)
+			url.searchParams.append("skip", skip.toString());
+		if (limit !== undefined)
+			url.searchParams.append("limit", limit.toString());
 		return request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",

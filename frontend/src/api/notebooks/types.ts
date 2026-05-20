@@ -41,6 +41,11 @@ export interface PublicNotebookListItem {
 	updated_at: string;
 }
 
+export interface PaginatedPublicNotebooksResponse {
+	items: PublicNotebookListItem[];
+	total: number;
+}
+
 export interface PublicNotebook {
 	id: number;
 	title: string;

@@ -319,31 +319,43 @@ export class NotebooksService {
 	}
 
 	// Public methods (no auth)
-	async findPublishedNotebooks(searchSpaceId?: number): Promise<PublicNotebookListItemDto[]> {
+	async findPublishedNotebooks(
+		searchSpaceId?: number,
+		skip: number = 0,
+		limit: number = 100,
+	): Promise<{ items: PublicNotebookListItemDto[]; total: number }> {
 		try {
 			const where: any = { isPublished: true };
 			if (searchSpaceId) {
 				where.searchSpaceId = searchSpaceId;
 			}
 
-			const notebooks = await this.prisma.notebook.findMany({
-				where,
-				orderBy: { publishedAt: "desc" },
-				select: {
-					id: true,
-					title: true,
-					slug: true,
-					excerpt: true,
-					publishedAt: true,
-					authorId: true,
-					searchSpaceId: true,
-					createdAt: true,
-					updatedAt: true,
-					author: { select: { fullName: true, picture: true } },
-				},
-			});
+			const [notebooks, total] = await Promise.all([
+				this.prisma.notebook.findMany({
+					where,
+					orderBy: { publishedAt: "desc" },
+					skip,
+					take: limit,
+					select: {
+						id: true,
+						title: true,
+						slug: true,
+						excerpt: true,
+						publishedAt: true,
+						authorId: true,
+						searchSpaceId: true,
+						createdAt: true,
+						updatedAt: true,
+						author: { select: { fullName: true, picture: true } },
+					},
+				}),
+				this.prisma.notebook.count({ where }),
+			]);
 
-			return notebooks.map((n) => this.toPublicListItemDto(n));
+			return {
+				items: notebooks.map((n) => this.toPublicListItemDto(n)),
+				total,
+			};
 		} catch (error) {
 			throw new InternalServerErrorException(
 				`Failed to fetch published notebooks: ${error.message}`,

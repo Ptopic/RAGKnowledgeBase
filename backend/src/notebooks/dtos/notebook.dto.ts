@@ -98,3 +98,8 @@ export interface PublicNotebookDto {
 	created_at: Date;
 	updated_at: Date;
 }
+
+export interface PaginatedPublicNotebooksResponseDto {
+	items: PublicNotebookListItemDto[];
+	total: number;
+}
