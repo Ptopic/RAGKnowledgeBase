@@ -127,4 +127,22 @@ export class NotebooksController {
 	): Promise<{ message: string }> {
 		return this.notebooksService.remove(notebookId, searchSpaceId, req.user.id);
 	}
+
+	@Post(":searchSpaceId/notebooks/:notebookId/publish")
+	async publish(
+		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
+		@Param("notebookId", ParseIntPipe) notebookId: number,
+		@Req() req: AuthenticatedRequest,
+	): Promise<NotebookDto> {
+		return this.notebooksService.publish(notebookId, searchSpaceId, req.user.id);
+	}
+
+	@Post(":searchSpaceId/notebooks/:notebookId/unpublish")
+	async unpublish(
+		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
+		@Param("notebookId", ParseIntPipe) notebookId: number,
+		@Req() req: AuthenticatedRequest,
+	): Promise<NotebookDto> {
+		return this.notebooksService.unpublish(notebookId, searchSpaceId, req.user.id);
+	}
 }

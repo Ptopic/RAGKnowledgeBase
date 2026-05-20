@@ -1,15 +1,28 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, Globe, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
+import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
 import useUpdateNotebook from "@/api/notebooks/hooks/useUpdateNotebook";
 import { NotebookEditor } from "@/components/notebook/NotebookEditor";
+import { NotebookPreviewModal } from "@/components/notebook/NotebookPreviewModal";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { NOTEBOOK } from "@/shared/queryKeys";
@@ -25,7 +38,7 @@ export default function EditNotebookPage({
 	const searchSpaceIdNum = Number(search_space_id);
 	const notebookIdNum = Number(notebook_id);
 
-	if (isNaN(searchSpaceIdNum) || isNaN(notebookIdNum)) {
+	if (Number.isNaN(searchSpaceIdNum) || Number.isNaN(notebookIdNum)) {
 		throw new Error("Invalid ID parameter");
 	}
 
@@ -34,11 +47,15 @@ export default function EditNotebookPage({
 		notebookIdNum,
 	);
 	const updateMutation = useUpdateNotebook();
+	const publishMutation = usePublishNotebook();
 
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [summary, setSummary] = useState("");
 	const initialized = useRef(false);
+
+	const [previewOpen, setPreviewOpen] = useState(false);
+	const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
 	useEffect(() => {
 		if (notebook && !initialized.current) {
@@ -49,23 +66,29 @@ export default function EditNotebookPage({
 		}
 	}, [notebook]);
 
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-
+	const validateFields = () => {
 		if (!title.trim()) {
 			toast.error("Title is required");
-			return;
+			return false;
 		}
 
 		if (!content.trim()) {
 			toast.error("Content is required");
-			return;
+			return false;
 		}
 
 		if (summary.length > 500) {
 			toast.error("Summary must be 500 characters or less");
-			return;
+			return false;
 		}
+
+		return true;
+	};
+
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+
+		if (!validateFields()) return;
 
 		updateMutation.mutate(
 			{
@@ -89,6 +112,56 @@ export default function EditNotebookPage({
 		);
 	};
 
+	const saveDraft = async (): Promise<boolean> => {
+		if (!validateFields()) return false;
+
+		try {
+			await updateMutation.mutateAsync({
+				searchSpaceId: searchSpaceIdNum,
+				notebookId: notebookIdNum,
+				data: {
+					title: title.trim(),
+					content,
+					excerpt: summary.trim() || undefined,
+				},
+			});
+			await queryClient.invalidateQueries({
+				queryKey: [NOTEBOOK, searchSpaceIdNum, notebookIdNum],
+			});
+			return true;
+		} catch {
+			toast.error("Failed to save notebook before publishing");
+			return false;
+		}
+	};
+
+	const handlePublish = async () => {
+		setPublishDialogOpen(false);
+
+		const saved = await saveDraft();
+		if (!saved) return;
+
+		try {
+			await publishMutation.mutateAsync(
+				{
+					searchSpaceId: searchSpaceIdNum,
+					notebookId: notebookIdNum,
+				},
+				{
+					onSuccess: () => {
+						router.push(`/dashboard/${search_space_id}/notebooks/${notebook_id}`);
+					},
+				},
+			);
+		} catch {
+			// Error already handled by hook's onError
+		}
+	};
+
+	const isSaving = updateMutation.isPending;
+	const isPublishing = publishMutation.isPending;
+	const isBusy = isSaving || isPublishing;
+
 	if (isLoading) {
 		return (
 			<div className="h-screen flex items-center justify-center">
@@ -100,12 +173,43 @@ export default function EditNotebookPage({
 	return (
 		<div className="h-screen flex flex-col">
 			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-				<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
-					<ArrowLeft className="h-5 w-5" />
-				</Button>
-				<div className="flex gap-3">
-					<Button type="submit" form="edit-notebook-form" disabled={updateMutation.isPending}>
-						{updateMutation.isPending && (
+				<div className="flex items-center gap-2">
+					<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
+						<ArrowLeft className="h-5 w-5" />
+					</Button>
+					{notebook?.is_published && (
+						<Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+							<Globe className="h-3 w-3" />
+							Published
+						</Badge>
+					)}
+				</div>
+				<div className="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={() => setPreviewOpen(true)}
+						disabled={isBusy}
+					>
+						<Eye className="h-4 w-4 mr-1" />
+						Preview
+					</Button>
+					{!notebook?.is_published && (
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => setPublishDialogOpen(true)}
+							disabled={isBusy}
+						>
+							{isPublishing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+							<Globe className="h-4 w-4 mr-1" />
+							Publish
+						</Button>
+					)}
+					<Button type="submit" form="edit-notebook-form" disabled={isBusy}>
+						{isSaving && !isPublishing && (
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 						)}
 						Save Changes
@@ -159,6 +263,36 @@ export default function EditNotebookPage({
 					</div>
 				</form>
 			</motion.div>
+
+			<NotebookPreviewModal
+				open={previewOpen}
+				onOpenChange={setPreviewOpen}
+				title={title}
+				excerpt={summary}
+				content={content}
+				createdAt={notebook?.published_at || notebook?.created_at || new Date().toISOString()}
+				authorName={notebook?.author_name}
+				authorPicture={notebook?.author_picture}
+				publishedAt={notebook?.published_at}
+			/>
+
+			<AlertDialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Publish Notebook</AlertDialogTitle>
+						<AlertDialogDescription>
+							Your changes will be saved and this notebook will be made publicly available. Are you sure you want to publish?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handlePublish} disabled={isPublishing}>
+							{isPublishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							Publish
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

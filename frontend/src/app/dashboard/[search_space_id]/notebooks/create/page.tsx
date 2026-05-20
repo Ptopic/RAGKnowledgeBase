@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import useCreateNotebook from "@/api/notebooks/hooks/useCreateNotebook";
 import { NotebookEditor } from "@/components/notebook/NotebookEditor";
+import { NotebookPreviewModal } from "@/components/notebook/NotebookPreviewModal";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -20,13 +21,14 @@ export default function CreateNotebookPage({
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
 
-	if (isNaN(searchSpaceIdNum)) {
+	if (Number.isNaN(searchSpaceIdNum)) {
 		throw new Error("Invalid search space ID");
 	}
 
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [summary, setSummary] = useState("");
+	const [previewOpen, setPreviewOpen] = useState(false);
 
 	const createMutation = useCreateNotebook();
 
@@ -58,9 +60,9 @@ export default function CreateNotebookPage({
 				},
 			},
 			{
-				onSuccess: () => {
+				onSuccess: (notebook) => {
 					toast.success("Notebook created successfully");
-					router.push(`/dashboard/${search_space_id}/notebooks`);
+					router.push(`/dashboard/${search_space_id}/notebooks/${notebook.id}/edit`);
 				},
 			},
 		);
@@ -72,7 +74,17 @@ export default function CreateNotebookPage({
 				<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
 					<ArrowLeft className="h-5 w-5" />
 				</Button>
-				<div className="flex gap-3">
+				<div className="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={() => setPreviewOpen(true)}
+						disabled={createMutation.isPending}
+					>
+						<Eye className="h-4 w-4 mr-1" />
+						Preview
+					</Button>
 					<Button type="submit" form="create-notebook-form" disabled={createMutation.isPending}>
 						{createMutation.isPending && (
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -128,6 +140,17 @@ export default function CreateNotebookPage({
 					</div>
 				</form>
 			</motion.div>
+
+			<NotebookPreviewModal
+				open={previewOpen}
+				onOpenChange={setPreviewOpen}
+				title={title}
+				excerpt={summary}
+				content={content}
+				createdAt={new Date().toISOString()}
+				authorName={null}
+				authorPicture={null}
+			/>
 		</div>
 	);
 }

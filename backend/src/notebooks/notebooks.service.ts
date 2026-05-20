@@ -21,6 +21,8 @@ import {
 	CreateNotebookDto,
 	NotebookDto,
 	NotebookListItemDto,
+	PublicNotebookDto,
+	PublicNotebookListItemDto,
 	UpdateNotebookDto,
 } from "./dtos/notebook.dto";
 
@@ -137,6 +139,8 @@ export class NotebooksService {
 					title: true,
 					slug: true,
 					excerpt: true,
+					isPublished: true,
+					publishedAt: true,
 					authorId: true,
 					searchSpaceId: true,
 					createdAt: true,
@@ -179,6 +183,7 @@ export class NotebooksService {
 					searchSpaceId,
 					searchSpace: { userId },
 				},
+				include: { author: { select: { fullName: true, picture: true } } },
 			});
 
 			if (!notebook) {
@@ -226,6 +231,7 @@ export class NotebooksService {
 					content: updateDto.content,
 					excerpt: updateDto.excerpt,
 				},
+				include: { author: { select: { fullName: true, picture: true } } },
 			});
 
 			await this.indexNotebook(updated).catch((err) =>
@@ -285,6 +291,153 @@ export class NotebooksService {
 		}
 	}
 
+	async publish(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+		try {
+			const notebook = await this.prisma.notebook.findFirst({
+				where: {
+					id: notebookId,
+					searchSpaceId,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!notebook) {
+				throw new NotFoundException(
+					"Notebook not found or you do not have permission to access it",
+				);
+			}
+
+			if (notebook.isPublished) {
+				throw new BadRequestException("Notebook is already published");
+			}
+
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
+				data: {
+					isPublished: true,
+					publishedAt: new Date(),
+				},
+				include: { author: { select: { fullName: true, picture: true } } },
+			});
+
+			return this.toDto(updated);
+		} catch (error) {
+			if (error instanceof NotFoundException || error instanceof BadRequestException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to publish notebook: ${error.message}`,
+			);
+		}
+	}
+
+	async unpublish(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+		try {
+			const notebook = await this.prisma.notebook.findFirst({
+				where: {
+					id: notebookId,
+					searchSpaceId,
+					searchSpace: { userId },
+				},
+			});
+
+			if (!notebook) {
+				throw new NotFoundException(
+					"Notebook not found or you do not have permission to access it",
+				);
+			}
+
+			if (!notebook.isPublished) {
+				throw new BadRequestException("Notebook is not published");
+			}
+
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
+				data: {
+					isPublished: false,
+					publishedAt: null,
+				},
+				include: { author: { select: { fullName: true, picture: true } } },
+			});
+
+			return this.toDto(updated);
+		} catch (error) {
+			if (error instanceof NotFoundException || error instanceof BadRequestException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to unpublish notebook: ${error.message}`,
+			);
+		}
+	}
+
+	// Public methods (no auth)
+	async findPublishedNotebooks(
+		searchSpaceId?: number,
+		skip: number = 0,
+		limit: number = 100,
+	): Promise<{ items: PublicNotebookListItemDto[]; total: number }> {
+		try {
+			const where: any = { isPublished: true };
+			if (searchSpaceId) {
+				where.searchSpaceId = searchSpaceId;
+			}
+
+			const [notebooks, total] = await Promise.all([
+				this.prisma.notebook.findMany({
+					where,
+					orderBy: { publishedAt: "desc" },
+					skip,
+					take: limit,
+					select: {
+						id: true,
+						title: true,
+						slug: true,
+						excerpt: true,
+						publishedAt: true,
+						authorId: true,
+						searchSpaceId: true,
+						createdAt: true,
+						updatedAt: true,
+						author: { select: { fullName: true, picture: true } },
+					},
+				}),
+				this.prisma.notebook.count({ where }),
+			]);
+
+			return {
+				items: notebooks.map((n) => this.toPublicListItemDto(n)),
+				total,
+			};
+		} catch (error) {
+			throw new InternalServerErrorException(
+				`Failed to fetch published notebooks: ${error.message}`,
+			);
+		}
+	}
+
+	async findPublishedBySlug(slug: string): Promise<PublicNotebookDto> {
+		try {
+			const notebook = await this.prisma.notebook.findUnique({
+				where: { slug },
+				include: { author: { select: { fullName: true, picture: true } } },
+			});
+
+			if (!notebook || !notebook.isPublished) {
+				throw new NotFoundException("Published notebook not found");
+			}
+
+			return this.toPublicDto(notebook);
+		} catch (error) {
+			if (error instanceof NotFoundException) {
+				throw error;
+			}
+			throw new InternalServerErrorException(
+				`Failed to fetch published notebook: ${error.message}`,
+			);
+		}
+	}
+
 	/**
 	 * Index a notebook for RAG search.
 	 *
@@ -332,7 +485,6 @@ export class NotebooksService {
 				return;
 			}
 
-			// Generate content hash from the raw content (not converted, so re-index triggers on any change)
 			const contentHash = crypto
 				.createHash("sha256")
 				.update(`${notebook.content}-${notebook.searchSpaceId}`)
@@ -383,7 +535,6 @@ export class NotebooksService {
 				})),
 			);
 
-			// Generate document summary embedding (using title + excerpt as summary)
 			const summaryText = notebook.excerpt
 				? `${notebook.title}\n\n${notebook.excerpt}`
 				: notebook.title;
@@ -392,7 +543,6 @@ export class NotebooksService {
 			let documentId: number;
 
 			if (existingDocument) {
-				// Delete old chunks first
 				await this.prisma.chunk.deleteMany({
 					where: { documentId: existingDocument.id },
 				});
@@ -448,7 +598,6 @@ export class NotebooksService {
 				);
 			}
 
-			// Enqueue image analysis for extracted images using Gemini vision
 			await this.enqueueImageAnalysis(
 				documentId,
 				notebook.searchSpaceId,
@@ -463,16 +612,6 @@ export class NotebooksService {
 		}
 	}
 
-	/**
-	 * Enqueue image analysis for notebook images using the same Gemini vision
-	 * pipeline that URL/webpage documents use.
-	 *
-	 * Converts ImagePlaceholder[] to ImageCandidate[] format expected by
-	 * ImageAnalysisService, then delegates to analyzeDocumentImages which:
-	 * - Fetches each image from its URL (S3 public URL)
-	 * - Sends to Gemini vision model for description
-	 * - Creates <image_chunk> entries with embeddings alongside text chunks
-	 */
 	private async enqueueImageAnalysis(
 		documentId: number,
 		searchSpaceId: number,
@@ -531,36 +670,66 @@ export class NotebooksService {
 		);
 	}
 
-	private toDto(notebook: PrismaNotebook): NotebookDto {
+	private toDto(notebook: PrismaNotebook & { author?: { fullName: string | null; picture: string | null } | null }): NotebookDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,
 			slug: notebook.slug,
 			content: notebook.content,
 			excerpt: notebook.excerpt,
+			is_published: notebook.isPublished,
+			published_at: notebook.publishedAt,
 			search_space_id: notebook.searchSpaceId,
 			author_id: notebook.authorId,
+			author_name: notebook.author?.fullName ?? null,
+			author_picture: notebook.author?.picture ?? null,
 			created_at: notebook.createdAt,
 			updated_at: notebook.updatedAt,
 		};
 	}
 
-	private toListItemDto(notebook: {
-		id: number;
-		title: string;
-		slug: string;
-		excerpt: string | null;
-		authorId: string;
-		searchSpaceId: number;
-		createdAt: Date;
-		updatedAt: Date;
-	}): NotebookListItemDto {
+	private toListItemDto(notebook: any): NotebookListItemDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,
 			slug: notebook.slug,
 			excerpt: notebook.excerpt,
+			is_published: notebook.isPublished,
+			published_at: notebook.publishedAt,
 			author_id: notebook.authorId,
+			search_space_id: notebook.searchSpaceId,
+			created_at: notebook.createdAt,
+			updated_at: notebook.updatedAt,
+		};
+	}
+
+	private toPublicListItemDto(notebook: any): PublicNotebookListItemDto {
+		return {
+			id: notebook.id,
+			title: notebook.title,
+			slug: notebook.slug,
+			excerpt: notebook.excerpt,
+			published_at: notebook.publishedAt,
+			author_id: notebook.authorId,
+			author_name: notebook.author?.fullName ?? null,
+			author_picture: notebook.author?.picture ?? null,
+			search_space_id: notebook.searchSpaceId,
+			created_at: notebook.createdAt,
+			updated_at: notebook.updatedAt,
+		};
+	}
+
+	private toPublicDto(notebook: any): PublicNotebookDto {
+		return {
+			id: notebook.id,
+			title: notebook.title,
+			slug: notebook.slug,
+			content: notebook.content,
+			excerpt: notebook.excerpt,
+			published_at: notebook.publishedAt,
+			author_id: notebook.authorId,
+			author_name: notebook.author?.fullName ?? null,
+			author_picture: notebook.author?.picture ?? null,
 			search_space_id: notebook.searchSpaceId,
 			created_at: notebook.createdAt,
 			updated_at: notebook.updatedAt,

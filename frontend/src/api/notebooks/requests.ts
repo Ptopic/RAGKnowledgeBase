@@ -4,6 +4,8 @@ import config from "@shared/config";
 import type {
 	Notebook,
 	NotebookListItem,
+	PublicNotebook,
+	PaginatedPublicNotebooksResponse,
 	CreateNotebookRequest,
 	GetNotebooksParams,
 	UpdateNotebookRequest,
@@ -89,6 +91,28 @@ export const deleteNotebook =
 			}),
 		);
 
+export const publishNotebook =
+	(request: ICallableRequestBuilder<Notebook>) =>
+	async (searchSpaceId: number, notebookId: number) =>
+		request.call(
+			`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/${notebookId}/publish`,
+			(init) => ({
+				...init,
+				method: "POST",
+			}),
+		);
+
+export const unpublishNotebook =
+	(request: ICallableRequestBuilder<Notebook>) =>
+	async (searchSpaceId: number, notebookId: number) =>
+		request.call(
+			`${config.apiUrl}/searchspaces/${searchSpaceId}/notebooks/${notebookId}/unpublish`,
+			(init) => ({
+				...init,
+				method: "POST",
+			}),
+		);
+
 export const uploadNotebookImage =
 	(request: ICallableRequestBuilder<UploadNotebookImageResponse>) =>
 	async (data: UploadNotebookImageRequest) => {
@@ -126,5 +150,33 @@ export const deleteNotebookImage =
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({ url: data.url }),
+			}),
+		);
+
+// Public endpoints (no auth required)
+export const getPublicNotebooks =
+	(request: ICallableRequestBuilder<PaginatedPublicNotebooksResponse>) =>
+	async (searchSpaceId?: number, skip?: number, limit?: number) => {
+		const url = new URL(`${config.apiUrl}/public/notebooks`);
+		if (searchSpaceId !== undefined)
+			url.searchParams.append("search_space_id", searchSpaceId.toString());
+		if (skip !== undefined)
+			url.searchParams.append("skip", skip.toString());
+		if (limit !== undefined)
+			url.searchParams.append("limit", limit.toString());
+		return request.call(url.toString(), (init) => ({
+			...init,
+			method: "GET",
+		}));
+	};
+
+export const getPublicNotebookBySlug =
+	(request: ICallableRequestBuilder<PublicNotebook>) =>
+	async (slug: string) =>
+		request.call(
+			`${config.apiUrl}/public/notebooks/${slug}`,
+			(init) => ({
+				...init,
+				method: "GET",
 			}),
 		);

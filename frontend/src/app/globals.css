@@ -304,37 +304,37 @@ button {
 }
 
 [data-content-type=heading][data-level="1"] {
-	font-size: 2.25rem;
+	font-size: 38px;
 	font-weight: 800;
 	letter-spacing: -0.025em;
 	line-height: 1.1;
 }
 
 [data-content-type=heading][data-level="2"] {
-	font-size: 1.875rem;
+	font-size: 30px;
 	font-weight: 600;
 	letter-spacing: -0.025em;
 	line-height: 1.25;
 }
 
 [data-content-type=heading][data-level="3"] {
-	font-size: 1.3rem;
+	font-size: 26px;
 	font-weight: 600;
 	letter-spacing: -0.025em;
 }
 
 [data-content-type=heading][data-level="4"] {
-	font-size: 1.125rem;
+	font-size: 21px;
 	font-weight: 600;
 }
 
 [data-content-type=heading][data-level="5"] {
-	font-size: 0.9rem;
+	font-size: 15px;
 	font-weight: 600;
 }
 
 [data-content-type=heading][data-level="6"] {
-	font-size: 0.8rem;
+	font-size: 12px;
 	font-weight: 600;
 }
 

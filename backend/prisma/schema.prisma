@@ -419,6 +419,9 @@ model Notebook {
   content     String @db.Text
   excerpt     String? @db.VarChar(500)
 
+  isPublished Boolean @default(false) @map("is_published")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz
+
   searchSpaceId Int    @map("search_space_id")
   authorId      String @map("author_id")
 
@@ -430,6 +433,7 @@ model Notebook {
   @@index([searchSpaceId])
   @@index([slug])
   @@index([authorId])
+  @@index([isPublished])
   @@map("notebooks")
 }
 
