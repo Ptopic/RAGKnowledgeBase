@@ -8,6 +8,8 @@ export interface Notebook {
 	published_at: string | null;
 	search_space_id: number;
 	author_id: string;
+	author_name: string | null;
+	author_picture: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -32,6 +34,8 @@ export interface PublicNotebookListItem {
 	excerpt: string | null;
 	published_at: string | null;
 	author_id: string;
+	author_name: string | null;
+	author_picture: string | null;
 	search_space_id: number;
 	created_at: string;
 	updated_at: string;
@@ -45,6 +49,8 @@ export interface PublicNotebook {
 	excerpt: string | null;
 	published_at: string | null;
 	author_id: string;
+	author_name: string | null;
+	author_picture: string | null;
 	search_space_id: number;
 	created_at: string;
 	updated_at: string;

@@ -1,22 +1,13 @@
 "use client";
 
-import { AlertCircle, BookOpen, Globe, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Globe, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import useGetPublicNotebookBySlug from "@/api/notebooks/hooks/useGetPublicNotebookBySlug";
+import { estimateReadTime } from "@/components/notebook/estimateReadTime";
+import { NotebookMetadataHeader } from "@/components/notebook/NotebookMetadataHeader";
 import { NotebookViewer } from "@/components/notebook/NotebookViewer";
 import { Button } from "@/components/ui/button";
-
-function formatDate(dateStr: string): string {
-	try {
-		return new Date(dateStr).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		});
-	} catch {
-		return dateStr;
-	}
-}
 
 interface PublicNotebookDetailClientProps {
 	slug: string;
@@ -52,46 +43,62 @@ export default function PublicNotebookDetailClient({ slug }: PublicNotebookDetai
 					<p className="text-muted-foreground">
 						This notebook doesn&apos;t exist or is not publicly available.
 					</p>
-					<Button variant="outline" onClick={() => window.location.href = "/public/notebooks"}>
-						Browse Notebooks
+					<Button variant="outline" asChild>
+						<Link href="/public/notebooks">Browse Notebooks</Link>
 					</Button>
 				</div>
 			</div>
 		);
 	}
 
+	const readTime = estimateReadTime(notebook.content);
+
 	return (
 		<div className="min-h-screen bg-background">
-			<div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+			<div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
 				<div className="container mx-auto flex h-14 items-center px-4">
 					<div className="flex items-center gap-2">
+						<Button variant="ghost" size="icon" asChild>
+							<Link href="/public/notebooks">
+								<ArrowLeft className="h-5 w-5" />
+								<span className="sr-only">Back to all notebooks</span>
+							</Link>
+						</Button>
 						<Globe className="h-5 w-5 text-muted-foreground" />
 						<h1 className="text-lg font-semibold">{notebook.title}</h1>
-					</div>
-					<div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-						<BookOpen className="h-4 w-4" />
-						<span>Published notebook</span>
 					</div>
 				</div>
 			</div>
 
 			<div className="flex-1 flex flex-col overflow-y-auto">
 				<div className="max-w-3xl mx-auto w-full px-6 py-12">
+					<Link
+						href="/public/notebooks"
+						className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+					>
+						<ArrowLeft className="h-4 w-4" />
+						Back to all notebooks
+					</Link>
+
 					<h1 className="text-4xl font-bold tracking-tight mb-2">
 						{notebook.title}
 					</h1>
 
 					{notebook.excerpt && (
-						<p className="text-lg text-muted-foreground italic mb-8">
+						<p className="text-lg text-muted-foreground italic mb-6">
 							{notebook.excerpt}
 						</p>
 					)}
 
-					<div className="text-xs text-muted-foreground mb-8">
-						{notebook.published_at
-							? `Published ${formatDate(notebook.published_at)}`
-							: formatDate(notebook.created_at)}
-					</div>
+					<NotebookMetadataHeader
+						authorName={notebook.author_name}
+						authorPicture={notebook.author_picture}
+						publishedAt={notebook.published_at}
+						createdAt={notebook.created_at}
+						readTime={readTime}
+					/>
+
+					<div className="border-t mb-2" />
 
 					<NotebookViewer content={notebook.content} />
 				</div>

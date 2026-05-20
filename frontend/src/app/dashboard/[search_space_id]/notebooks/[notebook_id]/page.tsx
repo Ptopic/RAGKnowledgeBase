@@ -9,6 +9,8 @@ import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
 import useUnpublishNotebook from "@/api/notebooks/hooks/useUnpublishNotebook";
+import { estimateReadTime } from "@/components/notebook/estimateReadTime";
+import { NotebookMetadataHeader } from "@/components/notebook/NotebookMetadataHeader";
 import { NotebookViewer } from "@/components/notebook/NotebookViewer";
 import {
 	AlertDialog,
@@ -29,20 +31,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-function formatDate(dateStr: string): string {
-	try {
-		return new Date(dateStr).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
-	} catch {
-		return dateStr;
-	}
-}
 
 export default function NotebookDetailPage({
 	params,
@@ -91,7 +79,8 @@ export default function NotebookDetailPage({
 		});
 	};
 
-	const isTogglingPublish = publishMutation.isPending || unpublishMutation.isPending;
+	const isTogglingPublish =
+		publishMutation.isPending || unpublishMutation.isPending;
 
 	if (isLoading) {
 		return (
@@ -121,11 +110,21 @@ export default function NotebookDetailPage({
 		<div className="h-screen flex flex-col">
 			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
 				<div className="flex items-center gap-2">
-					<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() =>
+							router.push(`/dashboard/${search_space_id}/notebooks`)
+						}
+						aria-label="Back to notebooks"
+					>
 						<ArrowLeft className="h-5 w-5" />
 					</Button>
 					{notebook.is_published && (
-						<Badge variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+						<Badge
+							variant="secondary"
+							className="gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+						>
 							<Globe className="h-3 w-3" />
 							Published
 						</Badge>
@@ -155,18 +154,26 @@ export default function NotebookDetailPage({
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="outline" size="sm" disabled={isTogglingPublish}>
-								{isTogglingPublish && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+								{isTogglingPublish && (
+									<Loader2 className="h-4 w-4 mr-1 animate-spin" />
+								)}
 								{notebook.is_published ? "Unpublish" : "Publish"}
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
 							{notebook.is_published ? (
-								<DropdownMenuItem onClick={handleUnpublish} disabled={unpublishMutation.isPending}>
+								<DropdownMenuItem
+									onClick={handleUnpublish}
+									disabled={unpublishMutation.isPending}
+								>
 									<Globe className="h-4 w-4 mr-2" />
 									Unpublish Notebook
 								</DropdownMenuItem>
 							) : (
-								<DropdownMenuItem onClick={handlePublish} disabled={publishMutation.isPending}>
+								<DropdownMenuItem
+									onClick={handlePublish}
+									disabled={publishMutation.isPending}
+								>
 									<Globe className="h-4 w-4 mr-2" />
 									Publish Notebook
 								</DropdownMenuItem>
@@ -222,18 +229,20 @@ export default function NotebookDetailPage({
 					</h1>
 
 					{notebook.excerpt && (
-						<p className="text-lg text-muted-foreground italic mb-8">
+						<p className="text-lg text-muted-foreground italic mb-6">
 							{notebook.excerpt}
 						</p>
 					)}
 
-					<div className="text-xs text-muted-foreground mb-8">
-						Created {formatDate(notebook.created_at)}
-						{notebook.updated_at !== notebook.created_at &&
-							` · Updated ${formatDate(notebook.updated_at)}`}
-						{notebook.is_published && notebook.published_at &&
-							` · Published ${formatDate(notebook.published_at)}`}
-					</div>
+					<NotebookMetadataHeader
+						authorName={notebook.author_name ?? null}
+						authorPicture={notebook.author_picture ?? null}
+						publishedAt={notebook.published_at ?? null}
+						createdAt={notebook.created_at}
+						readTime={estimateReadTime(notebook.content)}
+					/>
+
+					<div className="border-t mb-2" />
 
 					<NotebookViewer content={notebook.content} />
 				</div>

@@ -147,6 +147,7 @@ export class NotebooksService {
 					searchSpaceId,
 					searchSpace: { userId },
 				},
+				include: { author: { select: { fullName: true, picture: true } } },
 			});
 
 			if (!notebook) {
@@ -338,6 +339,7 @@ export class NotebooksService {
 					searchSpaceId: true,
 					createdAt: true,
 					updatedAt: true,
+					author: { select: { fullName: true, picture: true } },
 				},
 			});
 
@@ -353,6 +355,7 @@ export class NotebooksService {
 		try {
 			const notebook = await this.prisma.notebook.findUnique({
 				where: { slug },
+				include: { author: { select: { fullName: true, picture: true } } },
 			});
 
 			if (!notebook || !notebook.isPublished) {
@@ -370,7 +373,7 @@ export class NotebooksService {
 		}
 	}
 
-	private toDto(notebook: PrismaNotebook): NotebookDto {
+	private toDto(notebook: PrismaNotebook & { author?: { fullName: string | null; picture: string | null } | null }): NotebookDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,
@@ -381,6 +384,8 @@ export class NotebooksService {
 			published_at: notebook.publishedAt,
 			search_space_id: notebook.searchSpaceId,
 			author_id: notebook.authorId,
+			author_name: notebook.author?.fullName ?? null,
+			author_picture: notebook.author?.picture ?? null,
 			created_at: notebook.createdAt,
 			updated_at: notebook.updatedAt,
 		};
@@ -409,13 +414,15 @@ export class NotebooksService {
 			excerpt: notebook.excerpt,
 			published_at: notebook.publishedAt,
 			author_id: notebook.authorId,
+			author_name: notebook.author?.fullName ?? null,
+			author_picture: notebook.author?.picture ?? null,
 			search_space_id: notebook.searchSpaceId,
 			created_at: notebook.createdAt,
 			updated_at: notebook.updatedAt,
 		};
 	}
 
-	private toPublicDto(notebook: PrismaNotebook): PublicNotebookDto {
+	private toPublicDto(notebook: any): PublicNotebookDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,
@@ -424,6 +431,8 @@ export class NotebooksService {
 			excerpt: notebook.excerpt,
 			published_at: notebook.publishedAt,
 			author_id: notebook.authorId,
+			author_name: notebook.author?.fullName ?? null,
+			author_picture: notebook.author?.picture ?? null,
 			search_space_id: notebook.searchSpaceId,
 			created_at: notebook.createdAt,
 			updated_at: notebook.updatedAt,

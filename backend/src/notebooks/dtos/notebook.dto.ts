@@ -51,6 +51,8 @@ export interface NotebookDto {
 	published_at: Date | null;
 	search_space_id: number;
 	author_id: string;
+	author_name: string | null;
+	author_picture: string | null;
 	created_at: Date;
 	updated_at: Date;
 }
@@ -75,6 +77,8 @@ export interface PublicNotebookListItemDto {
 	excerpt: string | null;
 	published_at: Date | null;
 	author_id: string;
+	author_name: string | null;
+	author_picture: string | null;
 	search_space_id: number;
 	created_at: Date;
 	updated_at: Date;
@@ -88,6 +92,8 @@ export interface PublicNotebookDto {
 	excerpt: string | null;
 	published_at: Date | null;
 	author_id: string;
+	author_name: string | null;
+	author_picture: string | null;
 	search_space_id: number;
 	created_at: Date;
 	updated_at: Date;
