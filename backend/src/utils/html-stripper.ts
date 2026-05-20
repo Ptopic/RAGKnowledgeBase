@@ -100,8 +100,8 @@ export function stripHtml(html: string): string {
 				return String.fromCharCode(charCode);
 			})
 
-			// Collapse excessive newlines
-			.replace(/\n{3,}/g, "\n\n")
+			// Collapse excessive newlines (preserve triple newlines for blank-paragraph detection)
+			.replace(/\n{4,}/g, "\n\n\n")
 
 			// Trim each line
 			.split("\n")

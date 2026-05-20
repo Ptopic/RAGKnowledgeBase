@@ -8,6 +8,7 @@ import documentsClientRequests from "@/api/documents/authClientRequests";
 import type { DocumentWithChunks } from "@/api/documents/types";
 import { DocumentViewer } from "@/components/document-viewer";
 import { ImageChunkCard, isImageChunk } from "@/components/image-chunk-card";
+import { ChunkContentViewer } from "@/components/chat/SourceDetailSheet";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -585,7 +586,7 @@ export function DocumentsTableShell({
 												className="max-w-none"
 											/>
 										) : (
-											<MarkdownViewer
+											<ChunkContentViewer
 												content={chunk.content}
 												className="max-w-none break-words [&_*]:break-words [&_pre]:overflow-x-auto [&_code]:break-words"
 											/>

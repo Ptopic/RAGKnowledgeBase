@@ -362,7 +362,7 @@ export class NotebooksService {
 			const chunks = await chunkMarkdownContent(
 				markdown,
 				this.textSplitter,
-				"web",
+				"notebook",
 			);
 
 			const avgChunkChars =

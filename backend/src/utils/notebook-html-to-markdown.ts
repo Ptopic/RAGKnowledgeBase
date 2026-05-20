@@ -15,6 +15,7 @@
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import { stripHtmlAndExtractImages } from "./html-stripper";
+import { PARAGRAPH_BREAK_TOKEN } from "./markdown-normalizer";
 
 export interface NotebookToMarkdownResult {
 	markdown: string;
@@ -88,11 +89,32 @@ function stripBlockNoteUiArtifacts(html: string): string {
 
 	clean = clean.replace(/\s+class="bn-[^"]*"/gi, "");
 	clean = clean.replace(
-		/<span\s+class="ProseMirror-trailing-break"[^>]*><\/span>/gi,
+		/<span\s+class="ProseMirror-trailing-?[Bb]reak"[^>]*><\/span>/gi,
 		"",
 	);
 
 	return clean;
+}
+
+/**
+ * Inject `<br>` markers into empty paragraph blocks so Turndown produces
+ * visible blank lines instead of silently absorbing them.
+ *
+ * BlockNote represents blank paragraphs (user-inserted blank lines) as
+ * `<p>` elements containing only a `ProseMirror-trailingBreak` span or
+ * no content at all.  Turndown silently drops these empty `<p>` blocks,
+ * producing the same `\n\n` output as adjacent text paragraphs — the
+ * user's explicit blank line intent is lost.
+ *
+ * By replacing empty `<p>` blocks with `<p><br></p>`, Turndown's `br`
+ * rule fires and produces `  \n` (markdown hard-line-break), which
+ * renders as a visible blank line in markdown viewers.
+ */
+function injectBlankParagraphMarkers(html: string): string {
+	return html.replace(
+		/<p>(\s*)<\/p>/gi,
+		"<p><br></p>",
+	);
 }
 
 const LIST_CONTENT_TYPES = [
@@ -227,7 +249,8 @@ function convertWithTurndown(html: string): string {
 	turndown.use(gfm);
 
 	turndown.addRule("blocknote-heading", {
-		filter: '[data-content-type="heading"]',
+		filter: (node: HTMLElement) =>
+			node.getAttribute?.("data-content-type") === "heading",
 		replacement(_content, node) {
 			const el = node as HTMLElement;
 			const level = Number.parseInt(
@@ -278,17 +301,41 @@ function convertWithTurndown(html: string): string {
 		},
 	});
 
+	turndown.addRule("lineBreak", {
+		filter: "br",
+		replacement() {
+			return "  \n";
+		},
+	});
+
 	const strippedHtml = stripBlockNoteUiArtifacts(html);
-	const listRewrittenHtml = rewriteBlockNoteListItems(strippedHtml);
+	const withBreakMarkers = injectBlankParagraphMarkers(strippedHtml);
+	const listRewrittenHtml = rewriteBlockNoteListItems(withBreakMarkers);
 	const markdown = turndown.turndown(listRewrittenHtml);
 
 	return cleanupMarkdown(markdown);
 }
 
+/**
+ * Strip trailing whitespace from each line while preserving markdown line
+ * breaks (two trailing spaces before a newline, i.e. `  \n`).
+ *
+ * Turndown converts `<br>` tags to `  \n` (two trailing spaces + newline),
+ * which is standard markdown hard-line-break syntax.  Naively stripping
+ * all trailing whitespace destroys those markers, causing soft line breaks
+ * inside paragraphs to collapse into spaces when the markdown is later
+ * rendered.
+ */
+function stripTrailingWhitespacePreserveBreaks(text: string): string {
+	return text.replace(/[ \t]+$/gm, (trailing) =>
+		trailing.length >= 2 ? "  " : "",
+	);
+}
+
 function cleanupMarkdown(markdown: string): string {
-	return markdown
+	return stripTrailingWhitespacePreserveBreaks(markdown)
 		.replace(/\r\n?/g, "\n")
-		.replace(/[ \t]+$/gm, "")
-		.replace(/\n{3,}/g, "\n\n")
+		.replace(/\n\n[ \t]+\n\n/g, "\n\n" + PARAGRAPH_BREAK_TOKEN)
+		.replace(/\n{3,}/g, "\n\n" + PARAGRAPH_BREAK_TOKEN)
 		.trim();
 }

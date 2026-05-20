@@ -57,6 +57,7 @@ function SourceCard({ source }: { source: Source }) {
 	// Clean up the description for better display
 	const cleanDescription = source.description
 		.replace(/## Metadata\n\n/g, "")
+		.replace(/\{PB\}/g, " ")
 		.replace(/\n+/g, " ")
 		.trim();
 
