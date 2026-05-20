@@ -7,29 +7,9 @@ import useGetPublicNotebooks from "@/api/notebooks/hooks/useGetPublicNotebooks";
 import type { PublicNotebookListItem } from "@/api/notebooks/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { getInitials, formatDate } from "@/components/notebook/utils";
 
 const PAGE_SIZE = 5;
-
-function formatDate(dateStr: string): string {
-	try {
-		return new Date(dateStr).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		});
-	} catch {
-		return dateStr;
-	}
-}
-
-function getInitials(name: string | null | undefined): string {
-	if (!name) return "?";
-	const parts = name.trim().split(/\s+/);
-	if (parts.length >= 2) {
-		return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-	}
-	return name.charAt(0).toUpperCase();
-}
 
 function NotebookCard({ notebook }: { notebook: PublicNotebookListItem }) {
 	const displayDate = notebook.published_at
@@ -98,7 +78,7 @@ export default function PublicNotebooksClient() {
 			setIsLoadingMore(false);
 			loadingRef.current = false;
 		}
-	}, [data, skip]);
+	}, [data]);
 
 	const handleShowMore = useCallback(() => {
 		if (loadingRef.current) return;

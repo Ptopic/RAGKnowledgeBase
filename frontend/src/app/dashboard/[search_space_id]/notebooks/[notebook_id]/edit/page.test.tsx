@@ -52,6 +52,7 @@ vi.mock("@/api/notebooks/hooks/useUpdateNotebook", () => ({
 vi.mock("@/api/notebooks/hooks/usePublishNotebook", () => ({
 	default: () => ({
 		mutate: mockMutate,
+		mutateAsync: mockMutateAsync,
 		isPending: false,
 	}),
 }));

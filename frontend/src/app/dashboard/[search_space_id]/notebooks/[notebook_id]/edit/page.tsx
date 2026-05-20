@@ -25,7 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { NOTEBOOK, NOTEBOOKS } from "@/shared/queryKeys";
+import { NOTEBOOK } from "@/shared/queryKeys";
 
 export default function EditNotebookPage({
 	params,
@@ -141,22 +141,21 @@ export default function EditNotebookPage({
 		const saved = await saveDraft();
 		if (!saved) return;
 
-		publishMutation.mutate(
-			{
-				searchSpaceId: searchSpaceIdNum,
-				notebookId: notebookIdNum,
-			},
-			{
-				onSuccess: async () => {
-					await queryClient.invalidateQueries({ queryKey: [NOTEBOOKS] });
-					await queryClient.invalidateQueries({
-						queryKey: [NOTEBOOK, searchSpaceIdNum, notebookIdNum],
-					});
-					toast.success("Notebook published successfully");
-					router.push(`/dashboard/${search_space_id}/notebooks/${notebook_id}`);
+		try {
+			await publishMutation.mutateAsync(
+				{
+					searchSpaceId: searchSpaceIdNum,
+					notebookId: notebookIdNum,
 				},
-			},
-		);
+				{
+					onSuccess: () => {
+						router.push(`/dashboard/${search_space_id}/notebooks/${notebook_id}`);
+					},
+				},
+			);
+		} catch {
+			// Error already handled by hook's onError
+		}
 	};
 
 	const isSaving = updateMutation.isPending;

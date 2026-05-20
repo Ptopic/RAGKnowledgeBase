@@ -188,16 +188,17 @@ export class NotebooksService {
 				);
 			}
 
-			const updated = await this.prisma.notebook.update({
-				where: { id: notebookId },
-				data: {
-					title: updateDto.title,
-					content: updateDto.content,
-					excerpt: updateDto.excerpt,
-				},
-			});
+		const updated = await this.prisma.notebook.update({
+			where: { id: notebookId },
+			data: {
+				title: updateDto.title,
+				content: updateDto.content,
+				excerpt: updateDto.excerpt,
+			},
+			include: { author: { select: { fullName: true, picture: true } } },
+		});
 
-			return this.toDto(updated);
+		return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException) {
 				throw error;
@@ -260,15 +261,16 @@ export class NotebooksService {
 				throw new BadRequestException("Notebook is already published");
 			}
 
-			const updated = await this.prisma.notebook.update({
-				where: { id: notebookId },
-				data: {
-					isPublished: true,
-					publishedAt: new Date(),
-				},
-			});
+		const updated = await this.prisma.notebook.update({
+			where: { id: notebookId },
+			data: {
+				isPublished: true,
+				publishedAt: new Date(),
+			},
+			include: { author: { select: { fullName: true, picture: true } } },
+		});
 
-			return this.toDto(updated);
+		return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof BadRequestException) {
 				throw error;
@@ -299,15 +301,16 @@ export class NotebooksService {
 				throw new BadRequestException("Notebook is not published");
 			}
 
-			const updated = await this.prisma.notebook.update({
-				where: { id: notebookId },
-				data: {
-					isPublished: false,
-					publishedAt: null,
-				},
-			});
+		const updated = await this.prisma.notebook.update({
+			where: { id: notebookId },
+			data: {
+				isPublished: false,
+				publishedAt: null,
+			},
+			include: { author: { select: { fullName: true, picture: true } } },
+		});
 
-			return this.toDto(updated);
+		return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof BadRequestException) {
 				throw error;
