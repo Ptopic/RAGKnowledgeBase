@@ -1,7 +1,12 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { normalizeMarkdownForChunking } from "./markdown-normalizer";
+import {
+	normalizeMarkdownForChunking,
+	normalizeChunkAfterSplit,
+	injectParagraphBreakTokens,
+	PARAGRAPH_BREAK_TOKEN,
+} from "./markdown-normalizer";
 
-export type ChunkingSourceType = "generic" | "web" | "youtube";
+export type ChunkingSourceType = "generic" | "web" | "youtube" | "notebook";
 
 interface MarkdownSplitterOptions {
 	chunkSize?: number;
@@ -45,13 +50,15 @@ function preprocessMarkdownBySource(
 	let text = normalizeMarkdownForChunking(content);
 
 	if (source === "youtube") {
-		// Keep timestamp and sentence on same line where possible.
 		text = text.replace(/(\d{1,2}:\d{2}(?::\d{2})?)\n+/g, "$1 ");
 	}
 
+	if (source === "notebook") {
+		text = injectParagraphBreakTokens(text);
+	}
+
 	if (source === "web") {
-		// Remove excessive nav/footer-like spacing noise.
-		text = text.replace(/\n{3,}/g, "\n\n");
+		text = text.replace(/\n{4,}/g, "\n\n\n");
 	}
 
 	return text;
@@ -66,6 +73,6 @@ export async function chunkMarkdownContent(
 	const chunks = await splitter.splitText(preprocessed);
 
 	return chunks
-		.map((chunk) => normalizeMarkdownForChunking(chunk))
+		.map((chunk) => normalizeChunkAfterSplit(chunk))
 		.filter((chunk) => chunk.length >= DEFAULT_MIN_CHARS);
 }

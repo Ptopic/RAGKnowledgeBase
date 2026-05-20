@@ -1,26 +1,41 @@
+import * as crypto from "node:crypto";
 import {
 	BadRequestException,
 	Injectable,
 	InternalServerErrorException,
+	Logger,
 	NotFoundException,
 } from "@nestjs/common";
-import { Notebook as PrismaNotebook } from "@prisma/client";
+import { DocumentType, Notebook as PrismaNotebook } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { EmbeddingService } from "../retriever/embedding.service";
+import { ImageAnalysisService } from "../services/image-analysis.service";
 import { UploadService } from "../upload";
 import {
+	chunkMarkdownContent,
+	createMarkdownAwareSplitter,
+} from "../utils/chunking";
+import { ImageCandidate } from "../utils/image-markdown";
+import { notebookHtmlToMarkdown } from "../utils/notebook-html-to-markdown";
+import {
+	CreateNotebookDto,
 	NotebookDto,
 	NotebookListItemDto,
 	PublicNotebookDto,
 	PublicNotebookListItemDto,
-	CreateNotebookDto,
 	UpdateNotebookDto,
 } from "./dtos/notebook.dto";
 
 @Injectable()
 export class NotebooksService {
+	private readonly logger = new Logger(NotebooksService.name);
+	private readonly textSplitter = createMarkdownAwareSplitter();
+
 	constructor(
 		private prisma: PrismaService,
 		private uploadService: UploadService,
+		private embeddingService: EmbeddingService,
+		private imageAnalysisService: ImageAnalysisService,
 	) {}
 
 	async checkSearchSpaceOwnership(
@@ -39,13 +54,15 @@ export class NotebooksService {
 	}
 
 	private async generateSlug(title: string, attempt = 0): Promise<string> {
-		if (attempt > 10) throw new InternalServerErrorException("Failed to generate unique slug");
+		if (attempt > 10)
+			throw new InternalServerErrorException("Failed to generate unique slug");
 
-		const base = title
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/^-|-$/g, "")
-			.slice(0, 80) || "notebook";
+		const base =
+			title
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, "-")
+				.replace(/^-|-$/g, "")
+				.slice(0, 80) || "notebook";
 		const suffix = Math.random().toString(36).slice(2, 8);
 		const slug = `${base}-${suffix}`;
 		const existing = await this.prisma.notebook.findUnique({ where: { slug } });
@@ -72,6 +89,12 @@ export class NotebooksService {
 					authorId: userId,
 				},
 			});
+
+			await this.indexNotebook(notebook).catch((err) =>
+				this.logger.warn(
+					`Failed to index notebook ${notebook.id}: ${err.message}`,
+				),
+			);
 
 			return this.toDto(notebook);
 		} catch (error) {
@@ -125,7 +148,16 @@ export class NotebooksService {
 				},
 			});
 
-			return notebooks.map((notebook) => this.toListItemDto(notebook));
+			return notebooks.map((notebook) => ({
+				id: notebook.id,
+				title: notebook.title,
+				slug: notebook.slug,
+				excerpt: notebook.excerpt,
+				author_id: notebook.authorId,
+				search_space_id: notebook.searchSpaceId,
+				created_at: notebook.createdAt,
+				updated_at: notebook.updatedAt,
+			}));
 		} catch (error) {
 			if (
 				error instanceof BadRequestException ||
@@ -139,7 +171,11 @@ export class NotebooksService {
 		}
 	}
 
-	async findOne(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+	async findOne(
+		notebookId: number,
+		searchSpaceId: number,
+		userId: string,
+	): Promise<NotebookDto> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
@@ -188,17 +224,23 @@ export class NotebooksService {
 				);
 			}
 
-		const updated = await this.prisma.notebook.update({
-			where: { id: notebookId },
-			data: {
-				title: updateDto.title,
-				content: updateDto.content,
-				excerpt: updateDto.excerpt,
-			},
-			include: { author: { select: { fullName: true, picture: true } } },
-		});
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
+				data: {
+					title: updateDto.title,
+					content: updateDto.content,
+					excerpt: updateDto.excerpt,
+				},
+				include: { author: { select: { fullName: true, picture: true } } },
+			});
 
-		return this.toDto(updated);
+			await this.indexNotebook(updated).catch((err) =>
+				this.logger.warn(
+					`Failed to re-index notebook ${updated.id}: ${err.message}`,
+				),
+			);
+
+			return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException) {
 				throw error;
@@ -209,7 +251,11 @@ export class NotebooksService {
 		}
 	}
 
-	async remove(notebookId: number, searchSpaceId: number, userId: string): Promise<{ message: string }> {
+	async remove(
+		notebookId: number,
+		searchSpaceId: number,
+		userId: string,
+	): Promise<{ message: string }> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
@@ -224,6 +270,10 @@ export class NotebooksService {
 					"Notebook not found or you do not have permission to access it",
 				);
 			}
+
+			await this.prisma.document.deleteMany({
+				where: { notebookId: notebook.id },
+			});
 
 			await this.uploadService.deleteAllFromContent(notebook.content);
 			await this.prisma.notebook.delete({
@@ -261,16 +311,16 @@ export class NotebooksService {
 				throw new BadRequestException("Notebook is already published");
 			}
 
-		const updated = await this.prisma.notebook.update({
-			where: { id: notebookId },
-			data: {
-				isPublished: true,
-				publishedAt: new Date(),
-			},
-			include: { author: { select: { fullName: true, picture: true } } },
-		});
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
+				data: {
+					isPublished: true,
+					publishedAt: new Date(),
+				},
+				include: { author: { select: { fullName: true, picture: true } } },
+			});
 
-		return this.toDto(updated);
+			return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof BadRequestException) {
 				throw error;
@@ -301,16 +351,16 @@ export class NotebooksService {
 				throw new BadRequestException("Notebook is not published");
 			}
 
-		const updated = await this.prisma.notebook.update({
-			where: { id: notebookId },
-			data: {
-				isPublished: false,
-				publishedAt: null,
-			},
-			include: { author: { select: { fullName: true, picture: true } } },
-		});
+			const updated = await this.prisma.notebook.update({
+				where: { id: notebookId },
+				data: {
+					isPublished: false,
+					publishedAt: null,
+				},
+				include: { author: { select: { fullName: true, picture: true } } },
+			});
 
-		return this.toDto(updated);
+			return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof BadRequestException) {
 				throw error;
@@ -386,6 +436,238 @@ export class NotebooksService {
 				`Failed to fetch published notebook: ${error.message}`,
 			);
 		}
+	}
+
+	/**
+	 * Index a notebook for RAG search.
+	 *
+	 * 1. Converts notebook HTML to clean markdown using notebookHtmlToMarkdown,
+	 *    which strips BlockNote editor UI artifacts and uses Turndown + GFM.
+	 *    Falls back to stripHtmlAndExtractImages if Turndown fails.
+	 * 2. Chunks the markdown text (with inline image references) and generates embeddings
+	 * 3. Upserts a Document of type NOTEBOOK linked to this notebook
+	 * 4. Enqueues image analysis for extracted images via Gemini vision model
+	 *    (Image descriptions are embedded as separate <image_chunk> entries)
+	 */
+	private async indexNotebook(notebook: {
+		id: number;
+		title: string;
+		content: string;
+		excerpt: string | null;
+		searchSpaceId: number;
+	}): Promise<void> {
+		this.logger.log(`Indexing notebook ${notebook.id} for RAG search`);
+
+		try {
+			let markdown: string;
+			let images: { index: number; url: string; altText?: string }[];
+
+			try {
+				const result = notebookHtmlToMarkdown(notebook.content);
+				markdown = result.markdown;
+				images = result.images;
+			} catch (err) {
+				const fallback = err as Error & {
+					fallbackMarkdown?: string;
+					images?: { index: number; url: string; altText?: string }[];
+				};
+				this.logger.warn(
+					`Notebook ${notebook.id}: ${err instanceof Error ? err.message : String(err)}`,
+				);
+				markdown = fallback.fallbackMarkdown || "";
+				images = fallback.images || [];
+			}
+
+			if (!markdown || markdown.trim().length === 0) {
+				this.logger.warn(
+					`Notebook ${notebook.id} has no text content after conversion, skipping indexing`,
+				);
+				return;
+			}
+
+			const contentHash = crypto
+				.createHash("sha256")
+				.update(`${notebook.content}-${notebook.searchSpaceId}`)
+				.digest("hex");
+
+			const uniqueIdentifierHash = crypto
+				.createHash("sha256")
+				.update(`NOTEBOOK-${notebook.id}-${notebook.searchSpaceId}`)
+				.digest("hex");
+
+			const existingDocument = await this.prisma.document.findFirst({
+				where: { notebookId: notebook.id },
+				include: { chunks: true },
+			});
+
+			if (existingDocument && existingDocument.contentHash === contentHash) {
+				this.logger.log(
+					`Notebook ${notebook.id} content unchanged, skipping re-indexing`,
+				);
+				return;
+			}
+
+			this.logger.log(
+				`Notebook ${notebook.id}: extracted ${images.length} image(s), ${markdown.length} chars markdown`,
+			);
+
+			const chunks = await chunkMarkdownContent(
+				markdown,
+				this.textSplitter,
+				"notebook",
+			);
+
+			const avgChunkChars =
+				chunks.length > 0
+					? Math.round(
+							chunks.reduce((acc, chunk) => acc + chunk.length, 0) /
+								chunks.length,
+						)
+					: 0;
+			this.logger.debug(
+				`Chunking stats[notebook]: raw=${markdown.length} chunks=${chunks.length} avg=${avgChunkChars}`,
+			);
+
+			const chunksWithEmbeddings = await Promise.all(
+				chunks.map(async (chunkText) => ({
+					content: chunkText,
+					embedding: await this.embeddingService.embed(chunkText),
+				})),
+			);
+
+			const summaryText = notebook.excerpt
+				? `${notebook.title}\n\n${notebook.excerpt}`
+				: notebook.title;
+			const summaryEmbedding = await this.embeddingService.embed(summaryText);
+
+			let documentId: number;
+
+			if (existingDocument) {
+				await this.prisma.chunk.deleteMany({
+					where: { documentId: existingDocument.id },
+				});
+
+				await this.prisma.document.update({
+					where: { id: existingDocument.id },
+					data: {
+						title: notebook.title,
+						content: summaryText,
+						contentHash,
+						documentMetadata: {
+							NOTEBOOK_ID: notebook.id,
+						},
+					},
+				});
+
+				await this.updateDocumentEmbedding(
+					existingDocument.id,
+					summaryEmbedding,
+				);
+				await this.insertChunksWithEmbeddings(
+					existingDocument.id,
+					chunksWithEmbeddings,
+				);
+
+				documentId = existingDocument.id;
+				this.logger.log(
+					`Re-indexed notebook ${notebook.id}: ${chunksWithEmbeddings.length} chunks`,
+				);
+			} else {
+				const document = await this.prisma.document.create({
+					data: {
+						searchSpaceId: notebook.searchSpaceId,
+						title: notebook.title,
+						documentType: DocumentType.NOTEBOOK,
+						documentMetadata: { NOTEBOOK_ID: notebook.id },
+						content: summaryText,
+						contentHash,
+						uniqueIdentifierHash,
+						notebookId: notebook.id,
+					},
+				});
+
+				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
+				await this.insertChunksWithEmbeddings(
+					document.id,
+					chunksWithEmbeddings,
+				);
+
+				documentId = document.id;
+				this.logger.log(
+					`Indexed notebook ${notebook.id}: document ${document.id}, ${chunksWithEmbeddings.length} chunks`,
+				);
+			}
+
+			await this.enqueueImageAnalysis(
+				documentId,
+				notebook.searchSpaceId,
+				images,
+			);
+		} catch (error) {
+			this.logger.error(
+				`Failed to index notebook ${notebook.id}: ${error.message}`,
+				error.stack,
+			);
+			throw error;
+		}
+	}
+
+	private async enqueueImageAnalysis(
+		documentId: number,
+		searchSpaceId: number,
+		images: { index: number; url: string; altText?: string }[],
+	): Promise<void> {
+		if (images.length === 0) return;
+
+		try {
+			const imageCandidates: ImageCandidate[] = images.map((img, idx) => ({
+				imageId: `img_${String(idx + 1).padStart(3, "0")}`,
+				url: img.url,
+				altText: img.altText,
+			}));
+
+			await this.imageAnalysisService.analyzeDocumentImages({
+				documentId,
+				searchSpaceId,
+				sourceType: "markdown",
+				images: imageCandidates,
+			});
+
+			this.logger.log(
+				`Enqueued image analysis for notebook document ${documentId}: ${imageCandidates.length} images`,
+			);
+		} catch (error) {
+			this.logger.warn(
+				`Failed to enqueue image analysis for document ${documentId}: ${error.message}`,
+			);
+		}
+	}
+
+	private async insertChunksWithEmbeddings(
+		documentId: number,
+		chunks: { content: string; embedding: number[] }[],
+	): Promise<void> {
+		for (const chunk of chunks) {
+			const vectorString = `[${chunk.embedding.join(",")}]`;
+			await this.prisma.$executeRawUnsafe(
+				`INSERT INTO chunks (content, embedding, document_id, created_at) VALUES ($1, $2::vector, $3, NOW())`,
+				chunk.content,
+				vectorString,
+				documentId,
+			);
+		}
+	}
+
+	private async updateDocumentEmbedding(
+		documentId: number,
+		embedding: number[],
+	): Promise<void> {
+		const vectorString = `[${embedding.join(",")}]`;
+		await this.prisma.$executeRawUnsafe(
+			`UPDATE documents SET embedding = $1::vector WHERE id = $2`,
+			vectorString,
+			documentId,
+		);
 	}
 
 	private toDto(notebook: PrismaNotebook & { author?: { fullName: string | null; picture: string | null } | null }): NotebookDto {

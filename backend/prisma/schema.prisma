@@ -23,6 +23,7 @@ enum DocumentType {
   GITHUB_CONNECTOR
   GOOGLE_CALENDAR_CONNECTOR
   GOOGLE_GMAIL_CONNECTOR
+  NOTEBOOK
 }
 
 enum SearchSourceConnectorType {
@@ -189,17 +190,20 @@ model Document {
   // Will be handled via raw queries or pgvector extension
   embedding Unsupported("vector")?
 
-  searchSpaceId Int @map("search_space_id")
+  searchSpaceId Int  @map("search_space_id")
+  notebookId    Int? @unique @map("notebook_id")
 
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
   chunks      Chunk[]
   favoritedBy UserDocumentFavorite[]
+  notebook    Notebook?  @relation(fields: [notebookId], references: [id], onDelete: Cascade)
 
   @@index([title])
   @@index([contentHash])
   @@index([uniqueIdentifierHash])
   @@index([searchSpaceId])
+  @@index([notebookId])
   @@map("documents")
 }
 
@@ -424,6 +428,7 @@ model Notebook {
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
   author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  documents   Document[]
 
   @@index([searchSpaceId])
   @@index([slug])

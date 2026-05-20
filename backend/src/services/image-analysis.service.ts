@@ -14,7 +14,7 @@ interface AnalyzeImagesJobData {
 	images: ImageCandidate[];
 }
 
-interface VisionResult {
+export interface VisionResult {
 	short_caption?: string;
 	detailed_description?: string;
 	ocr_text?: string;
@@ -25,6 +25,11 @@ interface VisionResult {
 	confidence?: number;
 }
 
+export interface ImageDescriptionResult {
+	url: string;
+	description: string;
+}
+
 @Injectable()
 export class ImageAnalysisService {
 	private readonly logger = new Logger(ImageAnalysisService.name);
@@ -33,6 +38,69 @@ export class ImageAnalysisService {
 		private prisma: PrismaService,
 		private embeddingService: EmbeddingService,
 	) {}
+
+	/**
+	 * Fetch and describe images via vision model, returning short descriptions
+	 * suitable for inline insertion into text before chunking.
+	 */
+	async describeImages(
+		imageUrls: { url: string; altText?: string }[],
+	): Promise<ImageDescriptionResult[]> {
+		const enabled = (process.env.IMAGE_ENABLE_ANALYSIS || "TRUE").toUpperCase() === "TRUE";
+		if (!enabled || imageUrls.length === 0) return [];
+
+		const apiKey = process.env.OPENROUTER_API_KEY;
+		if (!apiKey) return [];
+
+		const model = process.env.IMAGE_VISION_MODEL || "google/gemini-3-flash-preview";
+		const maxBytes = parseInt(process.env.IMAGE_MAX_BYTES || "5242880", 10);
+		const maxImages = parseInt(process.env.IMAGE_MAX_PER_DOCUMENT || "20", 10);
+		const timeoutMs = parseInt(process.env.IMAGE_ANALYSIS_TIMEOUT_MS || "20000", 10);
+
+		const results: ImageDescriptionResult[] = [];
+		const images = imageUrls.slice(0, maxImages);
+
+		for (const image of images) {
+			try {
+				const fetched = await this.fetchImageAsDataUrl(image.url, maxBytes, timeoutMs);
+				if (!fetched) {
+					results.push({ url: image.url, description: "" });
+					continue;
+				}
+
+				const vision = await this.callVisionModel({
+					apiKey,
+					model,
+					dataUrl: fetched.dataUrl,
+					altText: image.altText,
+					timeoutMs,
+				});
+
+				if (!vision) {
+					results.push({ url: image.url, description: "" });
+					continue;
+				}
+
+				const parts = [
+					vision.short_caption,
+					vision.detailed_description,
+					vision.ocr_text,
+					vision.chart_or_table_summary,
+				].filter(Boolean);
+
+				const description = parts.length > 0
+					? parts.join(". ")
+					: "";
+
+				results.push({ url: image.url, description });
+			} catch (error) {
+				this.logger.warn(`Inline image description failed for ${image.url}: ${error.message}`);
+				results.push({ url: image.url, description: "" });
+			}
+		}
+
+		return results;
+	}
 
 	async analyzeDocumentImages(job: AnalyzeImagesJobData): Promise<void> {
 		const enabled = (process.env.IMAGE_ENABLE_ANALYSIS || "TRUE").toUpperCase() === "TRUE";
@@ -153,7 +221,7 @@ export class ImageAnalysisService {
 		});
 		const bytes = Buffer.from(res.data);
 		if (bytes.length > maxBytes) return null;
-		const mimeType = (res.headers["content-type"] || "image/jpeg").split(";")[0];
+		const mimeType = (String(res.headers["content-type"] || "image/jpeg")).split(";")[0];
 		const dataUrl = `data:${mimeType};base64,${bytes.toString("base64")}`;
 		return { dataUrl, bytes, mimeType };
 	}

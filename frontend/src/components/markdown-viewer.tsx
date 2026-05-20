@@ -1,15 +1,53 @@
 import { Check, Copy } from "lucide-react";
 import { useTheme } from "next-themes";
-import Image from "next/image";
-import { type ComponentPropsWithoutRef, useEffect, useMemo, useState } from "react";
+import {
+	type ComponentPropsWithoutRef,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import {
+	oneDark,
+	oneLight,
+} from "react-syntax-highlighter/dist/cjs/styles/prism";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/**
+ * Escape stray HTML tags in markdown content so react-markdown does not
+ * treat them as raw-HTML blocks (which are silently skipped in v9+ when
+ * rehype-raw is not used).
+ *
+ * Background: the backend `stripHtml` utility decodes &lt;/&gt; entities
+ * to literal `<`/`>` characters.  When those characters spell out what
+ * looks like an HTML tag (e.g. `<div>`), react-markdown classifies the
+ * surrounding paragraph as an HTML block and **silently drops** it —
+ * including any `![alt](url)` image references inside the block.
+ *
+ * By re-encoding those stray tags back to entities we prevent the
+ * mis-classification while keeping genuine markdown syntax intact
+ * (headings, lists, images, code fences, etc. are never affected
+ * because they don't start with `<letter`).
+ */
+function escapeStrayHtmlTags(content: string): string {
+	// Quote-aware regex that handles > inside quoted attribute values,
+	// matching the same pattern used by the backend stripHtml utility.
+	// Matches opening tags: <tag ...>, closing tags: </tag ...>, and
+	// self-closing tags: <tag .../>  — but NOT markdown-safe patterns
+	// like autolink <url> or HTML comments <!-- -->.
+	return content.replace(
+		/<(\/?[a-zA-Z]\w*)(?:\s+(?:"[^"]*"|'[^']*'|[^\s"'<>\/])+)*\s*\/?>/g,
+		(match) =>
+			match
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;"),
+	);
+}
 
 type PProps = ComponentPropsWithoutRef<"p">;
 type AProps = ComponentPropsWithoutRef<"a">;
@@ -34,64 +72,103 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 	const components = useMemo(
 		() => ({
 			p: ({ children, ...props }: PProps) => (
-				<p className="py-[3px]" {...props}>{children}</p>
+				<p className="my-1.5" {...props}>
+					{children}
+				</p>
 			),
 			a: ({ children, ...props }: AProps) => (
-				<a className="text-primary hover:underline" {...props}>{children}</a>
+				<a className="text-primary hover:underline" {...props}>
+					{children}
+				</a>
 			),
 			li: ({ children, ...props }: LiProps) => (
-				<li className="py-[3px] pl-1" {...props}>{children}</li>
+				<li className="py-[3px] pl-1" {...props}>
+					{children}
+				</li>
 			),
 			ul: ({ children, ...props }: UlProps) => (
-				<ul className="list-disc pl-6" {...props}>{children}</ul>
+				<ul className="list-disc pl-6" {...props}>
+					{children}
+				</ul>
 			),
 			ol: ({ children, ...props }: OlProps) => (
-				<ol className="list-decimal pl-6" {...props}>{children}</ol>
+				<ol className="list-decimal pl-6" {...props}>
+					{children}
+				</ol>
 			),
 			h1: ({ children, ...props }: HProps) => (
-				<h1 className="text-3em font-bold pt-[18px]" {...props}>{children}</h1>
+				<h1 className="text-3em font-bold pt-[18px]" {...props}>
+					{children}
+				</h1>
 			),
 			h2: ({ children, ...props }: HProps) => (
-				<h2 className="text-2em font-bold pt-[18px]" {...props}>{children}</h2>
+				<h2 className="text-2em font-bold pt-[18px]" {...props}>
+					{children}
+				</h2>
 			),
 			h3: ({ children, ...props }: HProps) => (
-				<h3 className="text-1_3em font-bold pt-[18px]" {...props}>{children}</h3>
+				<h3 className="text-1_3em font-bold pt-[18px]" {...props}>
+					{children}
+				</h3>
 			),
 			h4: ({ children, ...props }: HProps) => (
-				<h4 className="text-1em font-bold pt-[18px]" {...props}>{children}</h4>
+				<h4 className="text-1em font-bold pt-[18px]" {...props}>
+					{children}
+				</h4>
 			),
 			h5: ({ children, ...props }: HProps) => (
-				<h5 className="text-0_9em font-bold pt-[18px]" {...props}>{children}</h5>
+				<h5 className="text-0_9em font-bold pt-[18px]" {...props}>
+					{children}
+				</h5>
 			),
 			h6: ({ children, ...props }: HProps) => (
-				<h6 className="text-0_8em font-bold pt-[18px]" {...props}>{children}</h6>
+				<h6 className="text-0_8em font-bold pt-[18px]" {...props}>
+					{children}
+				</h6>
 			),
 			blockquote: ({ children, ...props }: BlockquoteProps) => (
-				<blockquote className="border-l-2 border-muted-foreground text-muted-foreground pl-4 italic" {...props}>{children}</blockquote>
+				<blockquote
+					className="border-l-2 border-muted-foreground text-muted-foreground pl-4 italic"
+					{...props}
+				>
+					{children}
+				</blockquote>
 			),
 			hr: ({ ...props }: HrProps) => (
-				<hr className="border-none border-t border-muted-foreground my-2" {...props} />
+				<hr
+					className="border-none border-t border-muted-foreground my-2"
+					{...props}
+				/>
 			),
-			img: ({ alt, src, width, height, className, ...rest }: ImgProps) => (
-				<Image
+			img: ({ alt, src, className, ...rest }: ImgProps) => (
+				// biome-ignore lint/performance/noImgElement: native <img> needed for markdown image rendering compatibility
+				<img
 					className={className || "max-w-full h-auto my-4 rounded"}
 					alt={alt || ""}
-					src={src || ""}
-					width={Number(width) || 800}
-					height={Number(height) || 400}
-					unoptimized
+					src={typeof src === "string" ? src : ""}
+					loading="lazy"
+					{...rest}
 				/>
 			),
 			table: ({ children, ...props }: TableProps) => (
 				<div className="overflow-x-auto my-4">
-					<table className="min-w-full border-collapse" {...props}>{children}</table>
+					<table className="min-w-full border-collapse" {...props}>
+						{children}
+					</table>
 				</div>
 			),
 			th: ({ children, ...props }: ThProps) => (
-				<th className="px-2.5 py-1.5 text-left font-bold border border-border" {...props}>{children}</th>
+				<th
+					className="px-2.5 py-1.5 text-left font-bold border border-border"
+					{...props}
+				>
+					{children}
+				</th>
 			),
 			td: ({ children, ...props }: TdProps) => (
-				<td className="px-2.5 py-1.5 border border-border" {...props}>{children}</td>
+				<td className="px-2.5 py-1.5 border border-border" {...props}>
+					{children}
+				</td>
 			),
 			code: ({ className, children, ...props }: CodeProps) => {
 				const match = /language-(\w+)/.exec(className || "");
@@ -100,7 +177,9 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 
 				if (isInline) {
 					return (
-						<code className="font-mono" {...props}>{children}</code>
+						<code className="font-mono" {...props}>
+							{children}
+						</code>
 					);
 				}
 
@@ -114,6 +193,10 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 		[],
 	);
 
+	// Escape stray HTML tags that would cause react-markdown to
+	// mis-classify sections as raw-HTML blocks (silently dropped).
+	const safeContent = useMemo(() => escapeStrayHtmlTags(content), [content]);
+
 	return (
 		<div
 			className={cn(
@@ -126,13 +209,19 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 				remarkPlugins={[remarkGfm]}
 				components={components}
 			>
-				{content}
+				{safeContent}
 			</ReactMarkdown>
 		</div>
 	);
 }
 
-const CodeBlock = ({ children, language }: { children: string; language: string }) => {
+const CodeBlock = ({
+	children,
+	language,
+}: {
+	children: string;
+	language: string;
+}) => {
 	const [copied, setCopied] = useState(false);
 	const { resolvedTheme, theme } = useTheme();
 	const [mounted, setMounted] = useState(false);

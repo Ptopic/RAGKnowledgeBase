@@ -2,10 +2,13 @@
 
 import { ChevronDown, ChevronUp, FileX, Star } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import React from "react";
 import documentsClientRequests from "@/api/documents/authClientRequests";
 import type { DocumentWithChunks } from "@/api/documents/types";
 import { DocumentViewer } from "@/components/document-viewer";
+import { ImageChunkCard, isImageChunk } from "@/components/image-chunk-card";
+import { ChunkContentViewer } from "@/components/chat/SourceDetailSheet";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -287,6 +290,12 @@ export function DocumentsTableShell({
 									const title = doc.title;
 									const truncatedTitle =
 										title.length > 30 ? `${title.slice(0, 30)}...` : title;
+									const notebookId = doc.document_type === "NOTEBOOK" && doc.document_metadata && typeof doc.document_metadata === "object"
+										? (doc.document_metadata as Record<string, unknown>).notebook_id
+										: undefined;
+									const notebookHref = notebookId && typeof notebookId === "number"
+										? `/dashboard/${doc.search_space_id}/notebooks/${notebookId}`
+										: undefined;
 									return (
 										<motion.tr
 											key={doc.id}
@@ -321,12 +330,21 @@ export function DocumentsTableShell({
 													>
 														<Tooltip>
 															<TooltipTrigger asChild>
-																<span className="flex items-center gap-2">
-																	<span className="text-muted-foreground shrink-0">
-																		{icon}
+																{notebookHref ? (
+																	<Link href={notebookHref} className="flex items-center gap-2 hover:underline">
+																		<span className="text-muted-foreground shrink-0">
+																			{icon}
+																		</span>
+																		<span>{truncatedTitle}</span>
+																	</Link>
+																) : (
+																	<span className="flex items-center gap-2">
+																		<span className="text-muted-foreground shrink-0">
+																			{icon}
+																		</span>
+																		<span>{truncatedTitle}</span>
 																	</span>
-																	<span>{truncatedTitle}</span>
-																</span>
+																)}
 															</TooltipTrigger>
 															<TooltipContent>
 																<p>{title}</p>
@@ -559,12 +577,20 @@ export function DocumentsTableShell({
 								{activeChunksDocument.chunks.map((chunk, idx) => (
 									<div key={chunk.id} className="rounded-md border p-3 overflow-hidden">
 										<div className="mb-2 text-xs text-muted-foreground">
-											Chunk {idx + 1} • #{chunk.id}
+											{isImageChunk(chunk.content) ? "Image Analysis" : `Chunk ${idx + 1}`}
+											{" • "}#{chunk.id}
 										</div>
-										<MarkdownViewer
-											content={chunk.content}
-											className="max-w-none break-words [&_*]:break-words [&_pre]:overflow-x-auto [&_code]:break-words"
-										/>
+										{isImageChunk(chunk.content) ? (
+											<ImageChunkCard
+												content={chunk.content}
+												className="max-w-none"
+											/>
+										) : (
+											<ChunkContentViewer
+												content={chunk.content}
+												className="max-w-none break-words [&_*]:break-words [&_pre]:overflow-x-auto [&_code]:break-words"
+											/>
+										)}
 									</div>
 								))}
 							</div>

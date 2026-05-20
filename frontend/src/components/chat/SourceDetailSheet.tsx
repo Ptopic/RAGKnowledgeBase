@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
-import type React from "react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import React, { type ReactNode, useEffect, useRef, useState } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { ImageChunkCard, isImageChunk } from "@/components/image-chunk-card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +17,36 @@ import {
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useDocumentByChunk } from "@/hooks/use-document-by-chunk";
 import { cn } from "@/lib/utils";
+
+/** Must match backend PARAGRAPH_BREAK_TOKEN in markdown-normalizer.ts. Using `{PB}` instead of `\n` to avoid collision with escape sequences in code/math content. */
+const PARAGRAPH_BREAK_TOKEN = "{PB}";
+
+const PARAGRAPH_BREAK_PATTERN = new RegExp(
+	`\\n{2,}${PARAGRAPH_BREAK_TOKEN.replace(/[{}]/g, (c) => `\\${c}`)}`,
+	"g",
+);
+
+export function ChunkContentViewer({ content, className }: { content: string; className?: string }) {
+	const parts = content.split(PARAGRAPH_BREAK_PATTERN);
+
+	if (parts.length <= 1) {
+		return <MarkdownViewer content={content} className={className} />;
+	}
+
+	return (
+		<div className="space-y-0">
+			{parts.map((part, idx) => (
+				<React.Fragment key={idx}>
+					{idx > 0 && <div className="h-3" aria-hidden="true" />}
+					<MarkdownViewer
+						content={part.replace(/^\n+/, "")}
+						className={className}
+					/>
+				</React.Fragment>
+			))}
+		</div>
+	);
+}
 
 interface SourceDetailSheetProps {
 	open: boolean;
@@ -221,7 +251,9 @@ export function SourceDetailSheet({
 									>
 										<div className="mb-4 flex items-center justify-between">
 											<span className="text-sm font-medium text-muted-foreground">
-												Chunk {idx + 1} of {document.chunks.length}
+												{isImageChunk(chunk.content)
+													? "Image Analysis"
+													: `Chunk ${idx + 1} of ${document.chunks.length}`}
 											</span>
 											{chunk.id === chunkId && (
 												<span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
@@ -229,9 +261,13 @@ export function SourceDetailSheet({
 												</span>
 											)}
 										</div>
-										<div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-											<MarkdownViewer content={chunk.content} className="max-w-fit" />
-										</div>
+										{isImageChunk(chunk.content) ? (
+											<ImageChunkCard content={chunk.content} />
+										) : (
+											<div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+												<ChunkContentViewer content={chunk.content} className="max-w-fit" />
+											</div>
+										)}
 									</div>
 								))}
 							</div>
