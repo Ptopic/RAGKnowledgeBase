@@ -6,6 +6,7 @@ import type {
 	NotebookListItem,
 	PublicNotebook,
 	PaginatedPublicNotebooksResponse,
+	PaginatedNotebooksResponse,
 	CreateNotebookRequest,
 	GetNotebooksParams,
 	UpdateNotebookRequest,
@@ -15,7 +16,7 @@ import type {
 } from "./types";
 
 export const getNotebooks =
-	(request: ICallableRequestBuilder<NotebookListItem[]>) =>
+	(request: ICallableRequestBuilder<PaginatedNotebooksResponse>) =>
 	async (params: GetNotebooksParams) => {
 		const url = new URL(
 			`${config.apiUrl}/searchspaces/${params.search_space_id}/notebooks`,
@@ -24,6 +25,10 @@ export const getNotebooks =
 			url.searchParams.append("skip", params.skip.toString());
 		if (params.limit !== undefined)
 			url.searchParams.append("limit", params.limit.toString());
+		if (params.search !== undefined && params.search.trim())
+			url.searchParams.append("search", params.search.trim());
+		if (params.status !== undefined && params.status !== "all")
+			url.searchParams.append("status", params.status);
 		return request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",

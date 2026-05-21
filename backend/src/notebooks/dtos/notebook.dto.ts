@@ -103,3 +103,8 @@ export interface PaginatedPublicNotebooksResponseDto {
 	items: PublicNotebookListItemDto[];
 	total: number;
 }
+
+export interface PaginatedNotebooksResponseDto {
+	items: NotebookListItemDto[];
+	total: number;
+}

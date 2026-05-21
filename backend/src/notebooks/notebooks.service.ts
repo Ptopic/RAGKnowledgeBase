@@ -21,6 +21,7 @@ import {
 	CreateNotebookDto,
 	NotebookDto,
 	NotebookListItemDto,
+	PaginatedNotebooksResponseDto,
 	PublicNotebookDto,
 	PublicNotebookListItemDto,
 	UpdateNotebookDto,
@@ -114,8 +115,10 @@ export class NotebooksService {
 		userId: string,
 		searchSpaceId: number,
 		skip: number = 0,
-		limit: number = 100,
-	): Promise<NotebookListItemDto[]> {
+		limit: number = 50,
+		search?: string,
+		status?: "all" | "published" | "unpublished",
+	): Promise<PaginatedNotebooksResponseDto> {
 		try {
 			if (skip < 0) {
 				throw new BadRequestException("skip must be a non-negative integer");
@@ -126,38 +129,52 @@ export class NotebooksService {
 
 			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
 
-			const notebooks = await this.prisma.notebook.findMany({
-				where: {
-					searchSpaceId,
-					searchSpace: { userId },
-				},
-				skip,
-				take: limit,
-				orderBy: { createdAt: "desc" },
-				select: {
-					id: true,
-					title: true,
-					slug: true,
-					excerpt: true,
-					isPublished: true,
-					publishedAt: true,
-					authorId: true,
-					searchSpaceId: true,
-					createdAt: true,
-					updatedAt: true,
-				},
-			});
+			const where: any = {
+				searchSpaceId,
+				searchSpace: { userId },
+			};
 
-			return notebooks.map((notebook) => ({
-				id: notebook.id,
-				title: notebook.title,
-				slug: notebook.slug,
-				excerpt: notebook.excerpt,
-				author_id: notebook.authorId,
-				search_space_id: notebook.searchSpaceId,
-				created_at: notebook.createdAt,
-				updated_at: notebook.updatedAt,
-			}));
+			if (search && search.trim()) {
+				const q = search.trim();
+				where.OR = [
+					{ title: { contains: q, mode: "insensitive" } },
+					{ slug: { contains: q, mode: "insensitive" } },
+					{ excerpt: { contains: q, mode: "insensitive" } },
+				];
+			}
+
+			if (status === "published") {
+				where.isPublished = true;
+			} else if (status === "unpublished") {
+				where.isPublished = false;
+			}
+
+			const [notebooks, total] = await Promise.all([
+				this.prisma.notebook.findMany({
+					where,
+					skip,
+					take: limit,
+					orderBy: { createdAt: "desc" },
+					select: {
+						id: true,
+						title: true,
+						slug: true,
+						excerpt: true,
+						isPublished: true,
+						publishedAt: true,
+						authorId: true,
+						searchSpaceId: true,
+						createdAt: true,
+						updatedAt: true,
+					},
+				}),
+				this.prisma.notebook.count({ where }),
+			]);
+
+			return {
+				items: notebooks.map((notebook) => this.toListItemDto(notebook)),
+				total,
+			};
 		} catch (error) {
 			if (
 				error instanceof BadRequestException ||

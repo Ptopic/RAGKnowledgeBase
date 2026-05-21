@@ -1,9 +1,11 @@
 "use client";
 
 import { Edit, Trash2 } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useState } from "react";
 
+import type { NotebookListItem } from "@/api/notebooks/types";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -14,6 +16,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -24,7 +27,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import type { NotebookListItem } from "@/api/notebooks/types";
 
 interface NotebooksTableProps {
 	notebooks: NotebookListItem[];
@@ -57,13 +59,14 @@ export function NotebooksTable({
 
 	if (isLoading) {
 		return (
-			<div className="rounded-md border">
+			<div className="rounded-md border overflow-hidden">
 				<Table>
 					<TableHeader>
 						<TableRow>
 							<TableHead>Title</TableHead>
 							<TableHead>Slug</TableHead>
 							<TableHead>Summary</TableHead>
+							<TableHead>Status</TableHead>
 							<TableHead>Created</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
@@ -74,6 +77,7 @@ export function NotebooksTable({
 								<TableCell><Skeleton className="h-4 w-40" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-28" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-48" /></TableCell>
+								<TableCell><Skeleton className="h-4 w-20" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-24" /></TableCell>
 								<TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
 							</TableRow>
@@ -87,9 +91,9 @@ export function NotebooksTable({
 	if (notebooks.length === 0) {
 		return (
 			<div className="text-center py-12">
-				<h3 className="text-lg font-medium mb-2">No notebooks yet</h3>
+				<h3 className="text-lg font-medium mb-2">No notebooks found</h3>
 				<p className="text-muted-foreground mb-6">
-					Get started by creating your first notebook
+					No notebooks match your current search and filter criteria.
 				</p>
 				<Button asChild>
 					<Link href={`/dashboard/${searchSpaceId}/notebooks/create`}>
@@ -102,20 +106,35 @@ export function NotebooksTable({
 
 	return (
 		<>
-			<div className="rounded-md border">
+			<div className="rounded-md border overflow-hidden">
 				<Table>
 					<TableHeader>
 						<TableRow>
 							<TableHead>Title</TableHead>
 							<TableHead>Slug</TableHead>
 							<TableHead>Summary</TableHead>
+							<TableHead>Status</TableHead>
 							<TableHead>Created</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{notebooks.map((notebook) => (
-							<TableRow key={notebook.id}>
+						{notebooks.map((notebook, index) => (
+							<motion.tr
+								key={notebook.id}
+								initial={{ opacity: 0, y: 10 }}
+								animate={{
+									opacity: 1,
+									y: 0,
+									transition: {
+										type: "spring",
+										stiffness: 300,
+										damping: 30,
+										delay: index * 0.03,
+									},
+								}}
+								className="border-b transition-colors hover:bg-muted/50"
+							>
 								<TableCell className="font-medium">
 									<Link
 										href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}`}
@@ -128,7 +147,16 @@ export function NotebooksTable({
 									{notebook.slug}
 								</TableCell>
 								<TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-									{notebook.excerpt || "—"}
+									{notebook.excerpt || "--"}
+								</TableCell>
+								<TableCell>
+									{notebook.is_published ? (
+										<Badge className="bg-green-500 hover:bg-green-600 text-white">
+											Published
+										</Badge>
+									) : (
+										<span className="text-muted-foreground text-sm" />
+									)}
 								</TableCell>
 								<TableCell className="text-sm text-muted-foreground">
 									{formatDate(notebook.created_at)}
@@ -152,7 +180,7 @@ export function NotebooksTable({
 										</Button>
 									</div>
 								</TableCell>
-							</TableRow>
+							</motion.tr>
 						))}
 					</TableBody>
 				</Table>

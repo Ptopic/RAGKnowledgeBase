@@ -19,9 +19,9 @@ import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { UploadService } from "../upload";
 import { NotebooksService } from "./notebooks.service";
 import {
-	NotebookDto,
-	NotebookListItemDto,
 	CreateNotebookDto,
+	NotebookDto,
+	PaginatedNotebooksResponseDto,
 	UpdateNotebookDto,
 } from "./dtos/notebook.dto";
 
@@ -87,16 +87,23 @@ export class NotebooksController {
 		@Req() req: AuthenticatedRequest,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
-	): Promise<NotebookListItemDto[]> {
+		@Query("search") search?: string,
+		@Query("status") status?: string,
+	): Promise<PaginatedNotebooksResponseDto> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
-		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
+		const limitNum = limit !== undefined ? parseInt(limit, 10) : 50;
 		if (isNaN(skipNum)) throw new BadRequestException("skip must be an integer");
 		if (isNaN(limitNum)) throw new BadRequestException("limit must be an integer");
+
+		const validStatus = status === "published" || status === "unpublished" ? status : "all";
+
 		return this.notebooksService.findAll(
 			req.user.id,
 			searchSpaceId,
 			skipNum,
 			limitNum,
+			search,
+			validStatus,
 		);
 	}
 
