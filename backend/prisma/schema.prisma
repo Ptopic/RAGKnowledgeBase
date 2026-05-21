@@ -101,8 +101,8 @@ model User {
   picture        String?
 
   // Account lockout
-  failedLoginAttempts Int @default(0) @map("failed_login_attempts")
-  lockedUntil DateTime? @map("locked_until")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
 
   // Password reset
   resetToken        String?   @unique @map("reset_token")
@@ -157,7 +157,7 @@ model SearchSpace {
   userId      String  @map("user_id")
 
   // Relationships
-  user                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                   User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents              Document[]
   chats                  Chat[]
   notebooks              Notebook[]
@@ -194,10 +194,10 @@ model Document {
   notebookId    Int? @unique @map("notebook_id")
 
   // Relationships
-  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  searchSpace SearchSpace            @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
   chunks      Chunk[]
   favoritedBy UserDocumentFavorite[]
-  notebook    Notebook?  @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  notebook    Notebook?              @relation(fields: [notebookId], references: [id], onDelete: Cascade)
 
   @@index([title])
   @@index([contentHash])
@@ -253,8 +253,8 @@ model Chat {
   searchSpaceId Int @map("search_space_id")
 
   // Relationships
-  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
-  shareLinks   ChatShareLink[]
+  searchSpace SearchSpace        @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  shareLinks  ChatShareLink[]
   favorites   UserChatFavorite[]
 
   @@index([title])
@@ -264,12 +264,12 @@ model Chat {
 
 // Chat Share Link Model
 model ChatShareLink {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  chatId    Int      @map("chat_id")
-  slug      String   @unique @db.VarChar(50)
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now()) @map("created_at")
+  chatId    Int       @map("chat_id")
+  slug      String    @unique @db.VarChar(50)
   expiresAt DateTime? @map("expires_at") @db.Timestamptz
-  isActive  Boolean  @default(true) @map("is_active")
+  isActive  Boolean   @default(true) @map("is_active")
 
   // Relationships
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
@@ -348,7 +348,7 @@ model LLMConfig {
   userProviderKeyId String? @map("user_provider_key_id")
 
   // Relationships
-  searchSpace    SearchSpace         @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  searchSpace     SearchSpace         @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
   userProviderKey UserProviderApiKey? @relation(fields: [userProviderKeyId], references: [id], onDelete: SetNull)
 
   // Reverse relationships for user preferences
@@ -373,8 +373,8 @@ model UserProviderApiKey {
   apiKey   String          @map("api_key") @db.Text // AES-256 encrypted
 
   // Relations
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  llmConfigs   LLMConfig[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  llmConfigs LLMConfig[]
 
   @@unique([userId, provider], name: "uq_user_provider")
   @@index([userId])
@@ -410,32 +410,32 @@ model UserSearchSpacePreference {
 
 // Notebook Model
 model Notebook {
-	id        Int      @id @default(autoincrement())
-	createdAt DateTime @default(now()) @map("created_at")
-	updatedAt DateTime @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-	title       String @db.VarChar(255)
-	slug        String @unique @db.VarChar(300)
-	content     String @db.Text
-  excerpt     String? @db.VarChar(500)
-  headlineImageUrl String? @db.VarChar(500) @map("headline_image_url")
+  title            String  @db.VarChar(255)
+  slug             String  @unique @db.VarChar(300)
+  content          String  @db.Text
+  excerpt          String? @db.VarChar(500)
+  headlineImageUrl String? @map("headline_image_url") @db.VarChar(500)
 
-  isPublished Boolean @default(false) @map("is_published")
-	publishedAt DateTime? @map("published_at") @db.Timestamptz
+  isPublished Boolean   @default(false) @map("is_published")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz
 
-	searchSpaceId Int    @map("search_space_id")
-	authorId      String @map("author_id")
+  searchSpaceId Int    @map("search_space_id")
+  authorId      String @map("author_id")
 
-	// Relationships
-	searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
-	author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-	documents   Document[]
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  documents   Document[]
 
-	@@index([searchSpaceId])
-	@@index([slug])
-	@@index([authorId])
-	@@index([isPublished])
-	@@map("notebooks")
+  @@index([searchSpaceId])
+  @@index([slug])
+  @@index([authorId])
+  @@index([isPublished])
+  @@map("notebooks")
 }
 
 // Log Model
@@ -473,12 +473,12 @@ model QueryTemplate {
   icon        String? @db.VarChar(100)
   isGlobal    Boolean @default(false) @map("is_global")
 
-  searchSpaceId Int?    @map("search_space_id")
-  createdById   String  @map("created_by_id")
+  searchSpaceId Int?   @map("search_space_id")
+  createdById   String @map("created_by_id")
 
   // Relationships
-  searchSpace        SearchSpace?                   @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
-  createdBy          User                           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  searchSpace          SearchSpace?                     @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  createdBy            User                             @relation(fields: [createdById], references: [id], onDelete: Cascade)
   pinnedBySearchSpaces SearchSpacePinnedQueryTemplate[]
 
   @@index([searchSpaceId])
@@ -492,11 +492,11 @@ model SearchSpacePinnedQueryTemplate {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
 
-  searchSpaceId  Int @map("search_space_id")
+  searchSpaceId   Int @map("search_space_id")
   queryTemplateId Int @map("query_template_id")
 
   // Relationships
-  searchSpace  SearchSpace  @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  searchSpace   SearchSpace   @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
   queryTemplate QueryTemplate @relation(fields: [queryTemplateId], references: [id], onDelete: Cascade)
 
   @@unique([searchSpaceId, queryTemplateId], name: "uq_searchspace_pinned_template")

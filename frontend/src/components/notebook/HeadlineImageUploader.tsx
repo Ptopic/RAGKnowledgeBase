@@ -1,6 +1,7 @@
 "use client";
 
 import { Upload, X, ImageIcon, Loader2 } from "lucide-react";
+import NextImage from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +15,24 @@ interface HeadlineImageUploaderProps {
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MIN_DIMENSION = 200;
+const MAX_DIMENSION = 4096;
+
+function checkImageDimensions(file: File): Promise<{ width: number; height: number }> {
+	return new Promise((resolve, reject) => {
+		const url = URL.createObjectURL(file);
+		const img = new Image();
+		img.onload = () => {
+			URL.revokeObjectURL(url);
+			resolve({ width: img.naturalWidth, height: img.naturalHeight });
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error("Failed to load image for dimension check"));
+		};
+		img.src = url;
+	});
+}
 
 export function HeadlineImageUploader({
 	searchSpaceId,
@@ -39,14 +58,25 @@ export function HeadlineImageUploader({
 
 		setUploading(true);
 		try {
+			const dims = await checkImageDimensions(file);
+			if (dims.width < MIN_DIMENSION || dims.height < MIN_DIMENSION) {
+				toast.error(`Image is too small (${dims.width}x${dims.height}). Minimum ${MIN_DIMENSION}px on each side.`);
+				setUploading(false);
+				return;
+			}
+			if (dims.width > MAX_DIMENSION || dims.height > MAX_DIMENSION) {
+				toast.warning(`Image is very large (${dims.width}x${dims.height}). Consider resizing for faster loading.`);
+			}
+
 			const result = await notebooksClientRequests.uploadNotebookImage({
 				searchSpaceId,
 				file,
 			});
 			onChange(result.url);
 			toast.success("Image uploaded");
-		} catch (err: any) {
-			toast.error(err.message || "Failed to upload image");
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Failed to upload image";
+			toast.error(message);
 		} finally {
 			setUploading(false);
 			if (inputRef.current) {
@@ -62,13 +92,14 @@ export function HeadlineImageUploader({
 	if (value) {
 		return (
 			<div className="relative group">
-				<div className="aspect-video w-full max-w-md rounded-lg border bg-muted/50 overflow-hidden">
-					<img
-						src={value}
-						alt="Headline"
-						className="w-full h-full object-cover"
-					/>
-				</div>
+				<NextImage
+					src={value}
+					alt="Headline preview"
+					width={800}
+					height={450}
+					className="w-full h-auto rounded-lg border"
+					sizes="(max-width: 448px) 100vw, 448px"
+				/>
 				<div className="flex gap-2 mt-2">
 					<Button
 						type="button"

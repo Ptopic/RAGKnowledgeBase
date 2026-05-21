@@ -77,6 +77,15 @@ export class NotebooksService {
 		try {
 			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
 
+			if (
+				createDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(createDto.headline_image_url)
+			) {
+				throw new BadRequestException(
+					"headline_image_url must point to application-managed storage",
+				);
+			}
+
 			const slug = await this.generateSlug(createDto.title);
 
 			const notebook = await this.prisma.notebook.create({
@@ -215,6 +224,15 @@ export class NotebooksService {
 		userId: string,
 	): Promise<NotebookDto> {
 		try {
+			if (
+				updateDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(updateDto.headline_image_url)
+			) {
+				throw new BadRequestException(
+					"headline_image_url must point to application-managed storage",
+				);
+			}
+
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
 					id: notebookId,
@@ -226,6 +244,16 @@ export class NotebooksService {
 			if (!notebook) {
 				throw new NotFoundException(
 					"Notebook not found or you do not have permission to access it",
+				);
+			}
+
+			if (
+				updateDto.headline_image_url !== undefined &&
+				notebook.headlineImageUrl &&
+				notebook.headlineImageUrl !== updateDto.headline_image_url
+			) {
+				await this.uploadService.delete(notebook.headlineImageUrl).catch((err) =>
+					this.logger.warn(`Failed to delete old headline image: ${err.message}`),
 				);
 			}
 
@@ -280,6 +308,12 @@ export class NotebooksService {
 			await this.prisma.document.deleteMany({
 				where: { notebookId: notebook.id },
 			});
+
+			if (notebook.headlineImageUrl) {
+				await this.uploadService.delete(notebook.headlineImageUrl).catch((err) =>
+					this.logger.warn(`Failed to delete headline image: ${err.message}`),
+				);
+			}
 
 			await this.uploadService.deleteAllFromContent(notebook.content);
 			await this.prisma.notebook.delete({

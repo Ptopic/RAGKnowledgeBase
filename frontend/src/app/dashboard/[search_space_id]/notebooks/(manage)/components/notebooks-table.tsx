@@ -1,6 +1,7 @@
 "use client";
 
 import { Edit, ImageIcon, Trash2 } from "lucide-react";
+import NextImage from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -121,11 +122,13 @@ export function NotebooksTable({
 							<TableRow key={notebook.id}>
 								<TableCell>
 									{notebook.headline_image_url ? (
-										<div className="h-8 w-8 rounded-md bg-muted/50 overflow-hidden border">
-											<img
+										<div className="h-8 w-8 rounded-md bg-muted/50 overflow-hidden border relative">
+											<NextImage
 												src={notebook.headline_image_url}
-												alt=""
-												className="h-full w-full object-cover"
+												alt={`Cover for ${notebook.title}`}
+												fill
+												className="object-cover"
+												sizes="32px"
 											/>
 										</div>
 									) : (

@@ -2,6 +2,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowLeft, Globe, X } from "lucide-react";
+import NextImage from "next/image";
 import { useCallback, useEffect, useRef } from "react";
 
 import { estimateReadTime } from "@/components/notebook/estimateReadTime";
@@ -94,13 +95,14 @@ export function NotebookPreviewModal({
 							</button>
 
 							{headlineImageUrl && (
-								<div className="w-full mb-8 aspect-video rounded-lg border bg-muted/50 overflow-hidden">
-									<img
-										src={headlineImageUrl}
-										alt=""
-										className="w-full h-full object-cover"
-									/>
-								</div>
+								<NextImage
+									src={headlineImageUrl}
+									alt={`Cover for ${title || "Untitled"}`}
+									width={1200}
+									height={630}
+									className="w-full h-auto rounded-lg mb-8"
+									sizes="(max-width: 768px) 100vw, 768px"
+								/>
 							)}
 
 							<h1 className="text-4xl font-bold tracking-tight mb-2">

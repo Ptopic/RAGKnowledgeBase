@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, ArrowLeft, Globe, Loader2 } from "lucide-react";
+import NextImage from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import useGetPublicNotebookBySlug from "@/api/notebooks/hooks/useGetPublicNotebookBySlug";
@@ -81,13 +82,15 @@ export default function PublicNotebookDetailClient({ slug }: PublicNotebookDetai
 					</Link>
 
 					{notebook.headline_image_url && (
-						<div className="w-full mb-8 aspect-video rounded-lg border bg-muted/50 overflow-hidden">
-							<img
-								src={notebook.headline_image_url}
-								alt=""
-								className="w-full h-full object-cover"
-							/>
-						</div>
+						<NextImage
+							src={notebook.headline_image_url}
+							alt={`Cover for ${notebook.title}`}
+							width={1200}
+							height={630}
+							className="w-full h-auto rounded-lg mb-8"
+							sizes="(max-width: 768px) 100vw, 768px"
+							priority
+						/>
 					)}
 
 					<h1 className="text-4xl font-bold tracking-tight mb-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, Globe, Loader2 } from "lucide-react";
+import NextImage from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useGetPublicNotebooks from "@/api/notebooks/hooks/useGetPublicNotebooks";
@@ -47,12 +48,14 @@ function NotebookCard({ notebook }: { notebook: PublicNotebookListItem }) {
 				</div>
 			</div>
 
-			<div className="hidden sm:flex shrink-0 w-32 md:w-48 items-center justify-center rounded-md bg-muted/50 border border-border/50 overflow-hidden">
+			<div className="hidden sm:flex shrink-0 w-32 md:w-48 items-center justify-center rounded-md bg-muted/50 border border-border/50 overflow-hidden relative aspect-video">
 				{notebook.headline_image_url ? (
-					<img
+					<NextImage
 						src={notebook.headline_image_url}
-						alt=""
-						className="w-full h-full object-cover"
+						alt={`Cover for ${notebook.title}`}
+						fill
+						className="object-cover"
+						sizes="(max-width: 768px) 128px, 192px"
 					/>
 				) : (
 					<BookOpen className="h-8 w-8 text-muted-foreground/30" />
