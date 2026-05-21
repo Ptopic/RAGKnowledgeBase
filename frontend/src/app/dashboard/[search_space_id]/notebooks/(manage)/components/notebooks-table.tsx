@@ -28,6 +28,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface NotebooksTableProps {
 	notebooks: NotebookListItem[];
@@ -156,15 +161,22 @@ export function NotebooksTable({
 										</div>
 									)}
 								</TableCell>
-								<TableCell className="font-medium">
-									<Link
-										href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}`}
-										className="hover:underline"
-									>
-										{notebook.title}
-									</Link>
+								<TableCell className="font-medium max-w-[250px]">
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Link
+												href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}`}
+												className="hover:underline line-clamp-2"
+											>
+												{notebook.title}
+											</Link>
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>{notebook.title}</p>
+										</TooltipContent>
+									</Tooltip>
 								</TableCell>
-								<TableCell className="text-muted-foreground text-sm">
+								<TableCell className="text-muted-foreground text-sm max-w-[180px] truncate" title={notebook.slug}>
 									{notebook.slug}
 								</TableCell>
 								<TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
