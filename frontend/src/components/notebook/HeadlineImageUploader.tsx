@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import notebooksClientRequests from "@/api/notebooks/authClientRequests";
+import useDeleteNotebookImage from "@/api/notebooks/hooks/useDeleteNotebookImage";
 import { Button } from "@/components/ui/button";
 
 interface HeadlineImageUploaderProps {
@@ -41,6 +42,11 @@ export function HeadlineImageUploader({
 }: HeadlineImageUploaderProps) {
 	const [uploading, setUploading] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const deleteNotebookImage = useDeleteNotebookImage();
+
+	const deleteImageFromStorage = (url: string) => {
+		deleteNotebookImage.mutate({ searchSpaceId, url });
+	};
 
 	const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -72,6 +78,11 @@ export function HeadlineImageUploader({
 				searchSpaceId,
 				file,
 			});
+
+			if (value) {
+				deleteImageFromStorage(value);
+			}
+
 			onChange(result.url);
 			toast.success("Image uploaded");
 		} catch (err) {
@@ -86,6 +97,9 @@ export function HeadlineImageUploader({
 	};
 
 	const handleRemove = () => {
+		if (value) {
+			deleteImageFromStorage(value);
+		}
 		onChange(null);
 	};
 
