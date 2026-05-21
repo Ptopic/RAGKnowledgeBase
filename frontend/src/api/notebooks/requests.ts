@@ -2,20 +2,20 @@ import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {
-	Notebook,
-	NotebookListItem,
-	PublicNotebook,
-	PaginatedPublicNotebooksResponse,
 	CreateNotebookRequest,
+	DeleteNotebookImageRequest,
 	GetNotebooksParams,
+	Notebook,
+	PaginatedNotebooksResponse,
+	PaginatedPublicNotebooksResponse,
+	PublicNotebook,
 	UpdateNotebookRequest,
 	UploadNotebookImageRequest,
 	UploadNotebookImageResponse,
-	DeleteNotebookImageRequest,
 } from "./types";
 
 export const getNotebooks =
-	(request: ICallableRequestBuilder<NotebookListItem[]>) =>
+	(request: ICallableRequestBuilder<PaginatedNotebooksResponse>) =>
 	async (params: GetNotebooksParams) => {
 		const url = new URL(
 			`${config.apiUrl}/searchspaces/${params.search_space_id}/notebooks`,
@@ -24,6 +24,12 @@ export const getNotebooks =
 			url.searchParams.append("skip", params.skip.toString());
 		if (params.limit !== undefined)
 			url.searchParams.append("limit", params.limit.toString());
+		if (params.search !== undefined && params.search.trim())
+			url.searchParams.append("search", params.search.trim());
+		if (params.status !== undefined && params.status !== "all")
+			url.searchParams.append("status", params.status);
+		if (params.sort) url.searchParams.append("sort", params.sort);
+		if (params.sortDir) url.searchParams.append("sort_dir", params.sortDir);
 		return request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",
@@ -160,10 +166,8 @@ export const getPublicNotebooks =
 		const url = new URL(`${config.apiUrl}/public/notebooks`);
 		if (searchSpaceId !== undefined)
 			url.searchParams.append("search_space_id", searchSpaceId.toString());
-		if (skip !== undefined)
-			url.searchParams.append("skip", skip.toString());
-		if (limit !== undefined)
-			url.searchParams.append("limit", limit.toString());
+		if (skip !== undefined) url.searchParams.append("skip", skip.toString());
+		if (limit !== undefined) url.searchParams.append("limit", limit.toString());
 		return request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",
@@ -171,12 +175,8 @@ export const getPublicNotebooks =
 	};
 
 export const getPublicNotebookBySlug =
-	(request: ICallableRequestBuilder<PublicNotebook>) =>
-	async (slug: string) =>
-		request.call(
-			`${config.apiUrl}/public/notebooks/${slug}`,
-			(init) => ({
-				...init,
-				method: "GET",
-			}),
-		);
+	(request: ICallableRequestBuilder<PublicNotebook>) => async (slug: string) =>
+		request.call(`${config.apiUrl}/public/notebooks/${slug}`, (init) => ({
+			...init,
+			method: "GET",
+		}));

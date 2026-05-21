@@ -2,21 +2,18 @@
 
 import { Plus } from "lucide-react";
 import { motion } from "motion/react";
-import { use } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-
-import useGetNotebooks from "@/api/notebooks/hooks/useGetNotebooks";
+import { useRouter } from "next/navigation";
+import { use, useId, useState } from "react";
 import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
+import useGetNotebooks from "@/api/notebooks/hooks/useGetNotebooks";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { NotebooksTable } from "./components/notebooks-table";
+import { useDebounce } from "@/hooks/use-debounce";
+import { PaginationControls } from "../../documents/(manage)/components/PaginationControls";
+import { NotebooksFilters } from "./components/notebooks-filters";
+import { NotebooksTable, type SortKey } from "./components/notebooks-table";
+
+const DEBOUNCE_MS = 400;
 
 export default function NotebooksManagePage({
 	params,
@@ -26,27 +23,49 @@ export default function NotebooksManagePage({
 	const { search_space_id } = use(params);
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
+	const id = useId();
 
-	const { data: notebooks = [], isLoading } = useGetNotebooks({
+	const [search, setSearch] = useState("");
+	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
+	const [status, setStatus] = useState<"all" | "published" | "unpublished">(
+		"all",
+	);
+	const [pageIndex, setPageIndex] = useState(0);
+	const [pageSize, setPageSize] = useState(25);
+	const [sortKey, setSortKey] = useState<SortKey>("created");
+	const [sortDesc, setSortDesc] = useState(true);
+
+	const { data, isLoading } = useGetNotebooks({
 		search_space_id: searchSpaceIdNum,
+		search: debouncedSearch,
+		status,
+		sort: sortKey,
+		sortDir: sortDesc ? "desc" : "asc",
+		skip: pageIndex * pageSize,
+		limit: pageSize,
 	});
+
+	const notebooks = data?.items ?? [];
+	const total = data?.total ?? 0;
 
 	const deleteMutation = useDeleteNotebook();
 
 	const handleDelete = (notebookId: number) => {
-		deleteMutation.mutate(
-			{ searchSpaceId: searchSpaceIdNum, notebookId },
-		);
+		deleteMutation.mutate({ searchSpaceId: searchSpaceIdNum, notebookId });
 	};
 
+	const pageEnd = Math.min((pageIndex + 1) * pageSize, total);
+	const canPrev = pageIndex > 0;
+	const canNext = pageEnd < total;
+
 	return (
-		<div className="container mx-auto py-8 max-w-6xl">
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5 }}
-				className="mb-8 flex items-center justify-between"
-			>
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.3 }}
+			className="w-full px-6 py-4"
+		>
+			<div className="flex items-center justify-between">
 				<div>
 					<div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
 						<Link
@@ -56,7 +75,9 @@ export default function NotebooksManagePage({
 							Notebooks
 						</Link>
 					</div>
-					<h1 className="text-3xl font-bold tracking-tight">Manage Notebooks</h1>
+					<h1 className="text-3xl font-bold tracking-tight">
+						Manage Notebooks
+					</h1>
 					<p className="text-muted-foreground mt-2">
 						Create, edit, and manage your notebooks
 					</p>
@@ -69,25 +90,56 @@ export default function NotebooksManagePage({
 					<Plus className="mr-2 h-4 w-4" />
 					Create Notebook
 				</Button>
-			</motion.div>
+			</div>
 
-			<Card>
-				<CardHeader className="pb-3">
-					<CardTitle>Your Notebooks</CardTitle>
-					<CardDescription>
-						View and manage your notebooks
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<NotebooksTable
-						notebooks={notebooks}
-						searchSpaceId={search_space_id}
-						isLoading={isLoading}
-						onDelete={handleDelete}
-						isDeleting={deleteMutation.isPending}
-					/>
-				</CardContent>
-			</Card>
-		</div>
+			<div className="mt-6 space-y-6">
+				<NotebooksFilters
+					searchValue={search}
+					onSearch={(v) => {
+						setSearch(v);
+						setPageIndex(0);
+					}}
+					status={status}
+					onStatusChange={(s) => {
+						setStatus(s);
+						setPageIndex(0);
+					}}
+				/>
+				<NotebooksTable
+					notebooks={notebooks}
+					searchSpaceId={search_space_id}
+					isLoading={isLoading}
+					onDelete={handleDelete}
+					isDeleting={deleteMutation.isPending}
+					sortKey={sortKey}
+					sortDesc={sortDesc}
+					onSortChange={(key) => {
+						if (sortKey === key) setSortDesc((v) => !v);
+						else {
+							setSortKey(key);
+							setSortDesc(key === "created");
+						}
+					}}
+				/>
+				<PaginationControls
+					pageIndex={pageIndex}
+					pageSize={pageSize}
+					total={total}
+					onPageSizeChange={(s) => {
+						setPageSize(s);
+						setPageIndex(0);
+					}}
+					onFirst={() => setPageIndex(0)}
+					onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
+					onNext={() => setPageIndex((i) => (pageEnd < total ? i + 1 : i))}
+					onLast={() =>
+						setPageIndex(Math.max(0, Math.ceil(total / pageSize) - 1))
+					}
+					canPrev={canPrev}
+					canNext={canNext}
+					id={id}
+				/>
+			</div>
+		</motion.div>
 	);
 }

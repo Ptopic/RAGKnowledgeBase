@@ -49,6 +49,11 @@ export interface PaginatedPublicNotebooksResponse {
 	total: number;
 }
 
+export interface PaginatedNotebooksResponse {
+	items: NotebookListItem[];
+	total: number;
+}
+
 export interface PublicNotebook {
 	id: number;
 	title: string;
@@ -67,6 +72,10 @@ export interface PublicNotebook {
 
 export interface GetNotebooksParams {
 	search_space_id: number;
+	search?: string;
+	status?: "all" | "published" | "unpublished";
+	sort?: string;
+	sortDir?: string;
 	skip?: number;
 	limit?: number;
 }
