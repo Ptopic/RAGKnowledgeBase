@@ -80,6 +80,16 @@ export default function PublicNotebookDetailClient({ slug }: PublicNotebookDetai
 						Back to all notebooks
 					</Link>
 
+					{notebook.headline_image_url && (
+						<div className="w-full mb-8 aspect-video rounded-lg border bg-muted/50 overflow-hidden">
+							<img
+								src={notebook.headline_image_url}
+								alt=""
+								className="w-full h-full object-cover"
+							/>
+						</div>
+					)}
+
 					<h1 className="text-4xl font-bold tracking-tight mb-2">
 						{notebook.title}
 					</h1>

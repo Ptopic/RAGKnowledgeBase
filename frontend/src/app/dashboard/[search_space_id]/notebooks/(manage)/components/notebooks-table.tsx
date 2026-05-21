@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, ImageIcon, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -61,6 +61,7 @@ export function NotebooksTable({
 				<Table>
 					<TableHeader>
 						<TableRow>
+							<TableHead className="w-12">Image</TableHead>
 							<TableHead>Title</TableHead>
 							<TableHead>Slug</TableHead>
 							<TableHead>Summary</TableHead>
@@ -71,6 +72,7 @@ export function NotebooksTable({
 					<TableBody>
 						{["a", "b", "c", "d", "e"].map((key) => (
 							<TableRow key={key}>
+								<TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-40" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-28" /></TableCell>
 								<TableCell><Skeleton className="h-4 w-48" /></TableCell>
@@ -106,6 +108,7 @@ export function NotebooksTable({
 				<Table>
 					<TableHeader>
 						<TableRow>
+							<TableHead className="w-12">Image</TableHead>
 							<TableHead>Title</TableHead>
 							<TableHead>Slug</TableHead>
 							<TableHead>Summary</TableHead>
@@ -116,6 +119,21 @@ export function NotebooksTable({
 					<TableBody>
 						{notebooks.map((notebook) => (
 							<TableRow key={notebook.id}>
+								<TableCell>
+									{notebook.headline_image_url ? (
+										<div className="h-8 w-8 rounded-md bg-muted/50 overflow-hidden border">
+											<img
+												src={notebook.headline_image_url}
+												alt=""
+												className="h-full w-full object-cover"
+											/>
+										</div>
+									) : (
+										<div className="h-8 w-8 rounded-md bg-muted/50 flex items-center justify-center border">
+											<ImageIcon className="h-4 w-4 text-muted-foreground/40" />
+										</div>
+									)}
+								</TableCell>
 								<TableCell className="font-medium">
 									<Link
 										href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}`}

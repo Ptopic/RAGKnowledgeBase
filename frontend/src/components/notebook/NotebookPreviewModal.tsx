@@ -26,6 +26,7 @@ interface NotebookPreviewModalProps {
 	authorName?: string | null;
 	authorPicture?: string | null;
 	publishedAt?: string | null;
+	headlineImageUrl?: string | null;
 }
 
 export function NotebookPreviewModal({
@@ -38,6 +39,7 @@ export function NotebookPreviewModal({
 	authorName,
 	authorPicture,
 	publishedAt,
+	headlineImageUrl,
 }: NotebookPreviewModalProps) {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const readTime = estimateReadTime(content);
@@ -90,6 +92,16 @@ export function NotebookPreviewModal({
 								<ArrowLeft className="h-4 w-4" />
 								Back to all articles
 							</button>
+
+							{headlineImageUrl && (
+								<div className="w-full mb-8 aspect-video rounded-lg border bg-muted/50 overflow-hidden">
+									<img
+										src={headlineImageUrl}
+										alt=""
+										className="w-full h-full object-cover"
+									/>
+								</div>
+							)}
 
 							<h1 className="text-4xl font-bold tracking-tight mb-2">
 								{title || "Untitled"}

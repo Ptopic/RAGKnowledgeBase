@@ -410,31 +410,32 @@ model UserSearchSpacePreference {
 
 // Notebook Model
 model Notebook {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+	id        Int      @id @default(autoincrement())
+	createdAt DateTime @default(now()) @map("created_at")
+	updatedAt DateTime @updatedAt @map("updated_at")
 
-  title       String @db.VarChar(255)
-  slug        String @unique @db.VarChar(300)
-  content     String @db.Text
+	title       String @db.VarChar(255)
+	slug        String @unique @db.VarChar(300)
+	content     String @db.Text
   excerpt     String? @db.VarChar(500)
+  headlineImageUrl String? @db.VarChar(500) @map("headline_image_url")
 
   isPublished Boolean @default(false) @map("is_published")
-  publishedAt DateTime? @map("published_at") @db.Timestamptz
+	publishedAt DateTime? @map("published_at") @db.Timestamptz
 
-  searchSpaceId Int    @map("search_space_id")
-  authorId      String @map("author_id")
+	searchSpaceId Int    @map("search_space_id")
+	authorId      String @map("author_id")
 
-  // Relationships
-  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
-  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  documents   Document[]
+	// Relationships
+	searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+	author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+	documents   Document[]
 
-  @@index([searchSpaceId])
-  @@index([slug])
-  @@index([authorId])
-  @@index([isPublished])
-  @@map("notebooks")
+	@@index([searchSpaceId])
+	@@index([slug])
+	@@index([authorId])
+	@@index([isPublished])
+	@@map("notebooks")
 }
 
 // Log Model

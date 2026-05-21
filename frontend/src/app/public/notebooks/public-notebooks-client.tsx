@@ -47,8 +47,16 @@ function NotebookCard({ notebook }: { notebook: PublicNotebookListItem }) {
 				</div>
 			</div>
 
-			<div className="hidden sm:flex shrink-0 w-32 md:w-48 items-center justify-center rounded-md bg-muted/50 border border-border/50">
-				<BookOpen className="h-8 w-8 text-muted-foreground/30" />
+			<div className="hidden sm:flex shrink-0 w-32 md:w-48 items-center justify-center rounded-md bg-muted/50 border border-border/50 overflow-hidden">
+				{notebook.headline_image_url ? (
+					<img
+						src={notebook.headline_image_url}
+						alt=""
+						className="w-full h-full object-cover"
+					/>
+				) : (
+					<BookOpen className="h-8 w-8 text-muted-foreground/30" />
+				)}
 			</div>
 		</Link>
 	);
