@@ -12,6 +12,7 @@ import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
 import useUpdateNotebook from "@/api/notebooks/hooks/useUpdateNotebook";
 import { NotebookEditor } from "@/components/notebook/NotebookEditor";
 import { NotebookPreviewModal } from "@/components/notebook/NotebookPreviewModal";
+import { HeadlineImageUploader } from "@/components/notebook/HeadlineImageUploader";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -52,6 +53,7 @@ export default function EditNotebookPage({
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [summary, setSummary] = useState("");
+	const [headlineImageUrl, setHeadlineImageUrl] = useState<string | null>(null);
 	const initialized = useRef(false);
 
 	const [previewOpen, setPreviewOpen] = useState(false);
@@ -63,6 +65,7 @@ export default function EditNotebookPage({
 			setTitle(notebook.title);
 			setContent(notebook.content);
 			setSummary(notebook.excerpt || "");
+			setHeadlineImageUrl(notebook.headline_image_url || null);
 		}
 	}, [notebook]);
 
@@ -98,6 +101,7 @@ export default function EditNotebookPage({
 					title: title.trim(),
 					content,
 					excerpt: summary.trim() || undefined,
+					headline_image_url: headlineImageUrl ?? null,
 				},
 			},
 			{
@@ -123,6 +127,7 @@ export default function EditNotebookPage({
 					title: title.trim(),
 					content,
 					excerpt: summary.trim() || undefined,
+					headline_image_url: headlineImageUrl ?? null,
 				},
 			});
 			await queryClient.invalidateQueries({
@@ -225,41 +230,47 @@ export default function EditNotebookPage({
 			>
 				<form id="edit-notebook-form" onSubmit={handleSubmit} className="flex-1 flex flex-col">
 					<div className="max-w-3xl mx-auto w-full px-6 py-12 pb-[50dvh]">
-						<div className="space-y-4">
-							<input
-								type="text"
-								placeholder="Title"
-								value={title}
-								onChange={(e) => setTitle(e.target.value)}
-								required
-								className="w-full text-4xl font-bold tracking-tight bg-transparent border-0 outline-none placeholder:text-muted-foreground/50 focus:ring-0 focus:outline-none px-0 py-0"
-							/>
-
-							<div>
-								<Textarea
-									placeholder="Add a summary..."
-									value={summary}
-									onChange={(e) => {
-										if (e.target.value.length <= 500) {
-											setSummary(e.target.value);
-										}
-									}}
-									onKeyDown={(e) => {
-										if (e.key === "Enter") e.preventDefault();
-									}}
-									rows={1}
-									className="text-lg text-muted-foreground italic bg-transparent border-0 shadow-none focus-visible:ring-0 px-0 min-h-0 placeholder:text-muted-foreground/40"
+							<div className="space-y-4">
+								<input
+									type="text"
+									placeholder="Title"
+									value={title}
+									onChange={(e) => setTitle(e.target.value)}
+									required
+									className="w-full text-4xl font-bold tracking-tight bg-transparent border-0 outline-none placeholder:text-muted-foreground/50 focus:ring-0 focus:outline-none px-0 py-0"
 								/>
 
-								<div className="text-xs text-muted-foreground text-right">
-									{summary.length}/500
+								<div>
+									<Textarea
+										placeholder="Add a summary..."
+										value={summary}
+										onChange={(e) => {
+											if (e.target.value.length <= 500) {
+												setSummary(e.target.value);
+											}
+										}}
+										onKeyDown={(e) => {
+											if (e.key === "Enter") e.preventDefault();
+										}}
+										rows={1}
+										className="text-lg text-muted-foreground italic bg-transparent border-0 shadow-none focus-visible:ring-0 px-0 min-h-0 placeholder:text-muted-foreground/40"
+									/>
+
+									<div className="text-xs text-muted-foreground text-right">
+										{summary.length}/500
+									</div>
+								</div>
+
+								<HeadlineImageUploader
+									searchSpaceId={searchSpaceIdNum}
+									value={headlineImageUrl}
+									onChange={setHeadlineImageUrl}
+								/>
+
+								<div className="flex-1 min-h-[334px] -ml-[54px]">
+									<NotebookEditor initialContent={content} onChange={setContent} searchSpaceId={searchSpaceIdNum} />
 								</div>
 							</div>
-
-							<div className="flex-1 min-h-[334px] -ml-[54px]">
-								<NotebookEditor initialContent={content} onChange={setContent} searchSpaceId={searchSpaceIdNum} />
-							</div>
-						</div>
 					</div>
 				</form>
 			</motion.div>
@@ -274,6 +285,7 @@ export default function EditNotebookPage({
 				authorName={notebook?.author_name}
 				authorPicture={notebook?.author_picture}
 				publishedAt={notebook?.published_at}
+				headlineImageUrl={headlineImageUrl}
 			/>
 
 			<AlertDialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>

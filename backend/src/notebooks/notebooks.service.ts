@@ -78,6 +78,15 @@ export class NotebooksService {
 		try {
 			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
 
+			if (
+				createDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(createDto.headline_image_url)
+			) {
+				throw new BadRequestException(
+					"headline_image_url must point to application-managed storage",
+				);
+			}
+
 			const slug = await this.generateSlug(createDto.title);
 
 			const notebook = await this.prisma.notebook.create({
@@ -86,6 +95,7 @@ export class NotebooksService {
 					slug,
 					content: createDto.content,
 					excerpt: createDto.excerpt,
+					headlineImageUrl: createDto.headline_image_url,
 					searchSpaceId: createDto.search_space_id,
 					authorId: userId,
 				},
@@ -160,6 +170,7 @@ export class NotebooksService {
 						title: true,
 						slug: true,
 						excerpt: true,
+						headlineImageUrl: true,
 						isPublished: true,
 						publishedAt: true,
 						authorId: true,
@@ -227,6 +238,15 @@ export class NotebooksService {
 		userId: string,
 	): Promise<NotebookDto> {
 		try {
+			if (
+				updateDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(updateDto.headline_image_url)
+			) {
+				throw new BadRequestException(
+					"headline_image_url must point to application-managed storage",
+				);
+			}
+
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
 					id: notebookId,
@@ -241,12 +261,23 @@ export class NotebooksService {
 				);
 			}
 
+			if (
+				updateDto.headline_image_url !== undefined &&
+				notebook.headlineImageUrl &&
+				notebook.headlineImageUrl !== updateDto.headline_image_url
+			) {
+				await this.uploadService.delete(notebook.headlineImageUrl).catch((err) =>
+					this.logger.warn(`Failed to delete old headline image: ${err.message}`),
+				);
+			}
+
 			const updated = await this.prisma.notebook.update({
 				where: { id: notebookId },
 				data: {
 					title: updateDto.title,
 					content: updateDto.content,
 					excerpt: updateDto.excerpt,
+					headlineImageUrl: updateDto.headline_image_url,
 				},
 				include: { author: { select: { fullName: true, picture: true } } },
 			});
@@ -291,6 +322,12 @@ export class NotebooksService {
 			await this.prisma.document.deleteMany({
 				where: { notebookId: notebook.id },
 			});
+
+			if (notebook.headlineImageUrl) {
+				await this.uploadService.delete(notebook.headlineImageUrl).catch((err) =>
+					this.logger.warn(`Failed to delete headline image: ${err.message}`),
+				);
+			}
 
 			await this.uploadService.deleteAllFromContent(notebook.content);
 			await this.prisma.notebook.delete({
@@ -411,6 +448,7 @@ export class NotebooksService {
 						title: true,
 						slug: true,
 						excerpt: true,
+						headlineImageUrl: true,
 						publishedAt: true,
 						authorId: true,
 						searchSpaceId: true,
@@ -694,6 +732,7 @@ export class NotebooksService {
 			slug: notebook.slug,
 			content: notebook.content,
 			excerpt: notebook.excerpt,
+			headline_image_url: notebook.headlineImageUrl,
 			is_published: notebook.isPublished,
 			published_at: notebook.publishedAt,
 			search_space_id: notebook.searchSpaceId,
@@ -711,6 +750,7 @@ export class NotebooksService {
 			title: notebook.title,
 			slug: notebook.slug,
 			excerpt: notebook.excerpt,
+			headline_image_url: notebook.headlineImageUrl,
 			is_published: notebook.isPublished,
 			published_at: notebook.publishedAt,
 			author_id: notebook.authorId,
@@ -726,6 +766,7 @@ export class NotebooksService {
 			title: notebook.title,
 			slug: notebook.slug,
 			excerpt: notebook.excerpt,
+			headline_image_url: notebook.headlineImageUrl,
 			published_at: notebook.publishedAt,
 			author_id: notebook.authorId,
 			author_name: notebook.author?.fullName ?? null,
@@ -743,6 +784,7 @@ export class NotebooksService {
 			slug: notebook.slug,
 			content: notebook.content,
 			excerpt: notebook.excerpt,
+			headline_image_url: notebook.headlineImageUrl,
 			published_at: notebook.publishedAt,
 			author_id: notebook.authorId,
 			author_name: notebook.author?.fullName ?? null,

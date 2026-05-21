@@ -94,4 +94,9 @@ export class UploadService {
 		}
 		await Promise.all(urls.map((url) => this.delete(url)));
 	}
+
+	isOwnedUrl(url: string): boolean {
+		const prefix = this.publicUrlPrefix.replace(/\/$/, "");
+		return url.startsWith(prefix);
+	}
 }

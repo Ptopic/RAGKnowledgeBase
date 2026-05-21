@@ -4,6 +4,7 @@ export interface Notebook {
 	slug: string;
 	content: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	is_published: boolean;
 	published_at: string | null;
 	search_space_id: number;
@@ -19,6 +20,7 @@ export interface NotebookListItem {
 	title: string;
 	slug: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	is_published: boolean;
 	published_at: string | null;
 	search_space_id: number;
@@ -32,6 +34,7 @@ export interface PublicNotebookListItem {
 	title: string;
 	slug: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	published_at: string | null;
 	author_id: string;
 	author_name: string | null;
@@ -57,6 +60,7 @@ export interface PublicNotebook {
 	slug: string;
 	content: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	published_at: string | null;
 	author_id: string;
 	author_name: string | null;
@@ -79,12 +83,14 @@ export interface CreateNotebookRequest {
 	content: string;
 	excerpt?: string;
 	search_space_id: number;
+	headline_image_url?: string | null;
 }
 
 export interface UpdateNotebookRequest {
 	title?: string;
 	content?: string;
 	excerpt?: string;
+	headline_image_url?: string | null;
 }
 
 export interface UploadNotebookImageRequest {

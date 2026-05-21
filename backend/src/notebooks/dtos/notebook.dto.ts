@@ -3,6 +3,7 @@ import {
 	IsNotEmpty,
 	IsOptional,
 	IsString,
+	IsUrl,
 	MaxLength,
 } from "class-validator";
 
@@ -20,6 +21,11 @@ export class CreateNotebookDto {
 	@IsOptional()
 	@MaxLength(500)
 	excerpt?: string;
+
+	@IsUrl()
+	@IsOptional()
+	@MaxLength(500)
+	headline_image_url?: string | null;
 
 	@IsInt()
 	search_space_id: number;
@@ -39,6 +45,11 @@ export class UpdateNotebookDto {
 	@IsOptional()
 	@MaxLength(500)
 	excerpt?: string;
+
+	@IsUrl()
+	@IsOptional()
+	@MaxLength(500)
+	headline_image_url?: string | null;
 }
 
 export interface NotebookDto {
@@ -47,6 +58,7 @@ export interface NotebookDto {
 	slug: string;
 	content: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	is_published: boolean;
 	published_at: Date | null;
 	search_space_id: number;
@@ -62,6 +74,7 @@ export interface NotebookListItemDto {
 	title: string;
 	slug: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	is_published: boolean;
 	published_at: Date | null;
 	author_id: string;
@@ -75,6 +88,7 @@ export interface PublicNotebookListItemDto {
 	title: string;
 	slug: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	published_at: Date | null;
 	author_id: string;
 	author_name: string | null;
@@ -90,6 +104,7 @@ export interface PublicNotebookDto {
 	slug: string;
 	content: string;
 	excerpt: string | null;
+	headline_image_url: string | null;
 	published_at: Date | null;
 	author_id: string;
 	author_name: string | null;
