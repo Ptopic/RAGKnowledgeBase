@@ -2,6 +2,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ArrowLeft, Globe, X } from "lucide-react";
+import NextImage from "next/image";
 import { useCallback, useEffect, useRef } from "react";
 
 import { estimateReadTime } from "@/components/notebook/estimateReadTime";
@@ -26,6 +27,7 @@ interface NotebookPreviewModalProps {
 	authorName?: string | null;
 	authorPicture?: string | null;
 	publishedAt?: string | null;
+	headlineImageUrl?: string | null;
 }
 
 export function NotebookPreviewModal({
@@ -38,6 +40,7 @@ export function NotebookPreviewModal({
 	authorName,
 	authorPicture,
 	publishedAt,
+	headlineImageUrl,
 }: NotebookPreviewModalProps) {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const readTime = estimateReadTime(content);
@@ -90,6 +93,17 @@ export function NotebookPreviewModal({
 								<ArrowLeft className="h-4 w-4" />
 								Back to all articles
 							</button>
+
+							{headlineImageUrl && (
+								<NextImage
+									src={headlineImageUrl}
+									alt={`Cover for ${title || "Untitled"}`}
+									width={1200}
+									height={630}
+									className="w-full h-auto rounded-lg mb-8"
+									sizes="(max-width: 768px) 100vw, 768px"
+								/>
+							)}
 
 							<h1 className="text-4xl font-bold tracking-tight mb-2">
 								{title || "Untitled"}
