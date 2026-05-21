@@ -128,6 +128,8 @@ export class NotebooksService {
 		limit: number = 50,
 		search?: string,
 		status?: "all" | "published" | "unpublished",
+		sort: string = "created",
+		sortDir: string = "desc",
 	): Promise<PaginatedNotebooksResponseDto> {
 		try {
 			if (skip < 0) {
@@ -159,25 +161,37 @@ export class NotebooksService {
 				where.isPublished = false;
 			}
 
+			// Sort field mapping: API key → Prisma field
+			const sortFieldMap: Record<string, string> = {
+				title: "title",
+				status: "isPublished",
+				created: "createdAt",
+			};
+			const prismaField = sortFieldMap[sort] || "createdAt";
+			const prismaDir = sortDir === "asc" ? "asc" : "desc";
+			const orderBy = { [prismaField]: prismaDir };
+
+			const select = {
+				id: true,
+				title: true,
+				slug: true,
+				excerpt: true,
+				headlineImageUrl: true,
+				isPublished: true,
+				publishedAt: true,
+				authorId: true,
+				searchSpaceId: true,
+				createdAt: true,
+				updatedAt: true,
+			};
+
 			const [notebooks, total] = await Promise.all([
 				this.prisma.notebook.findMany({
 					where,
 					skip,
 					take: limit,
-					orderBy: { createdAt: "desc" },
-					select: {
-						id: true,
-						title: true,
-						slug: true,
-						excerpt: true,
-						headlineImageUrl: true,
-						isPublished: true,
-						publishedAt: true,
-						authorId: true,
-						searchSpaceId: true,
-						createdAt: true,
-						updatedAt: true,
-					},
+					orderBy,
+					select,
 				}),
 				this.prisma.notebook.count({ where }),
 			]);
@@ -266,9 +280,13 @@ export class NotebooksService {
 				notebook.headlineImageUrl &&
 				notebook.headlineImageUrl !== updateDto.headline_image_url
 			) {
-				await this.uploadService.delete(notebook.headlineImageUrl).catch((err) =>
-					this.logger.warn(`Failed to delete old headline image: ${err.message}`),
-				);
+				await this.uploadService
+					.delete(notebook.headlineImageUrl)
+					.catch((err) =>
+						this.logger.warn(
+							`Failed to delete old headline image: ${err.message}`,
+						),
+					);
 			}
 
 			const updated = await this.prisma.notebook.update({
@@ -324,9 +342,11 @@ export class NotebooksService {
 			});
 
 			if (notebook.headlineImageUrl) {
-				await this.uploadService.delete(notebook.headlineImageUrl).catch((err) =>
-					this.logger.warn(`Failed to delete headline image: ${err.message}`),
-				);
+				await this.uploadService
+					.delete(notebook.headlineImageUrl)
+					.catch((err) =>
+						this.logger.warn(`Failed to delete headline image: ${err.message}`),
+					);
 			}
 
 			await this.uploadService.deleteAllFromContent(notebook.content);
@@ -345,7 +365,11 @@ export class NotebooksService {
 		}
 	}
 
-	async publish(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+	async publish(
+		notebookId: number,
+		searchSpaceId: number,
+		userId: string,
+	): Promise<NotebookDto> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
@@ -376,7 +400,10 @@ export class NotebooksService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof BadRequestException) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof BadRequestException
+			) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -385,7 +412,11 @@ export class NotebooksService {
 		}
 	}
 
-	async unpublish(notebookId: number, searchSpaceId: number, userId: string): Promise<NotebookDto> {
+	async unpublish(
+		notebookId: number,
+		searchSpaceId: number,
+		userId: string,
+	): Promise<NotebookDto> {
 		try {
 			const notebook = await this.prisma.notebook.findFirst({
 				where: {
@@ -416,7 +447,10 @@ export class NotebooksService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof BadRequestException) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof BadRequestException
+			) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -725,7 +759,11 @@ export class NotebooksService {
 		);
 	}
 
-	private toDto(notebook: PrismaNotebook & { author?: { fullName: string | null; picture: string | null } | null }): NotebookDto {
+	private toDto(
+		notebook: PrismaNotebook & {
+			author?: { fullName: string | null; picture: string | null } | null;
+		},
+	): NotebookDto {
 		return {
 			id: notebook.id,
 			title: notebook.title,

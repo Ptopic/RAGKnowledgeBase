@@ -74,6 +74,8 @@ export interface GetNotebooksParams {
 	search_space_id: number;
 	search?: string;
 	status?: "all" | "published" | "unpublished";
+	sort?: string;
+	sortDir?: string;
 	skip?: number;
 	limit?: number;
 }

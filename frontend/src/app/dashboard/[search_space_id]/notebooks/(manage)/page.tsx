@@ -2,18 +2,16 @@
 
 import { Plus } from "lucide-react";
 import { motion } from "motion/react";
-import { use } from "react";
-import { useId, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-
-import useGetNotebooks from "@/api/notebooks/hooks/useGetNotebooks";
+import { useRouter } from "next/navigation";
+import { use, useId, useState } from "react";
 import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
-import { useDebounce } from "@/hooks/use-debounce";
+import useGetNotebooks from "@/api/notebooks/hooks/useGetNotebooks";
 import { Button } from "@/components/ui/button";
-import { NotebooksTable } from "./components/notebooks-table";
-import { NotebooksFilters } from "./components/notebooks-filters";
+import { useDebounce } from "@/hooks/use-debounce";
 import { PaginationControls } from "../../documents/(manage)/components/PaginationControls";
+import { NotebooksFilters } from "./components/notebooks-filters";
+import { NotebooksTable, type SortKey } from "./components/notebooks-table";
 
 const DEBOUNCE_MS = 400;
 
@@ -29,14 +27,20 @@ export default function NotebooksManagePage({
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
-	const [status, setStatus] = useState<"all" | "published" | "unpublished">("all");
+	const [status, setStatus] = useState<"all" | "published" | "unpublished">(
+		"all",
+	);
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(25);
+	const [sortKey, setSortKey] = useState<SortKey>("created");
+	const [sortDesc, setSortDesc] = useState(true);
 
 	const { data, isLoading } = useGetNotebooks({
 		search_space_id: searchSpaceIdNum,
 		search: debouncedSearch,
 		status,
+		sort: sortKey,
+		sortDir: sortDesc ? "desc" : "asc",
 		skip: pageIndex * pageSize,
 		limit: pageSize,
 	});
@@ -71,7 +75,9 @@ export default function NotebooksManagePage({
 							Notebooks
 						</Link>
 					</div>
-					<h1 className="text-3xl font-bold tracking-tight">Manage Notebooks</h1>
+					<h1 className="text-3xl font-bold tracking-tight">
+						Manage Notebooks
+					</h1>
 					<p className="text-muted-foreground mt-2">
 						Create, edit, and manage your notebooks
 					</p>
@@ -105,6 +111,15 @@ export default function NotebooksManagePage({
 					isLoading={isLoading}
 					onDelete={handleDelete}
 					isDeleting={deleteMutation.isPending}
+					sortKey={sortKey}
+					sortDesc={sortDesc}
+					onSortChange={(key) => {
+						if (sortKey === key) setSortDesc((v) => !v);
+						else {
+							setSortKey(key);
+							setSortDesc(key === "created");
+						}
+					}}
 				/>
 				<PaginationControls
 					pageIndex={pageIndex}

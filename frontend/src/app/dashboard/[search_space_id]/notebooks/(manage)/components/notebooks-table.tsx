@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, ImageIcon, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit, ImageIcon, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import NextImage from "next/image";
 import Link from "next/link";
@@ -34,12 +34,17 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+export type SortKey = "title" | "status" | "created";
+
 interface NotebooksTableProps {
 	notebooks: NotebookListItem[];
 	searchSpaceId: string;
 	isLoading: boolean;
 	onDelete: (notebookId: number) => void;
 	isDeleting: boolean;
+	sortKey: SortKey;
+	sortDesc: boolean;
+	onSortChange: (key: SortKey) => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -54,14 +59,49 @@ function formatDate(dateStr: string): string {
 	}
 }
 
+function SortableHeader({
+	label,
+	sortKeyVal,
+	currentSortKey,
+	sortDesc,
+	onSortChange,
+}: {
+	label: string;
+	sortKeyVal: SortKey;
+	currentSortKey: SortKey;
+	sortDesc: boolean;
+	onSortChange: (key: SortKey) => void;
+}) {
+	return (
+		<Button
+			variant="ghost"
+			className="flex h-full w-full cursor-pointer select-none items-center justify-between gap-2"
+			onClick={() => onSortChange(sortKeyVal)}
+		>
+			{label}
+			{currentSortKey === sortKeyVal ? (
+				sortDesc ? (
+					<ChevronDown className="shrink-0 opacity-60" size={16} />
+				) : (
+					<ChevronUp className="shrink-0 opacity-60" size={16} />
+				)
+			) : null}
+		</Button>
+	);
+}
+
 export function NotebooksTable({
 	notebooks,
 	searchSpaceId,
 	isLoading,
 	onDelete,
 	isDeleting,
+	sortKey,
+	sortDesc,
+	onSortChange,
 }: NotebooksTableProps) {
-	const [notebookToDelete, setNotebookToDelete] = useState<NotebookListItem | null>(null);
+	const [notebookToDelete, setNotebookToDelete] =
+		useState<NotebookListItem | null>(null);
 
 	if (isLoading) {
 		return (
@@ -81,13 +121,27 @@ export function NotebooksTable({
 					<TableBody>
 						{["a", "b", "c", "d", "e"].map((key) => (
 							<TableRow key={key}>
-								<TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
-								<TableCell><Skeleton className="h-4 w-40" /></TableCell>
-								<TableCell><Skeleton className="h-4 w-28" /></TableCell>
-								<TableCell><Skeleton className="h-4 w-48" /></TableCell>
-								<TableCell><Skeleton className="h-4 w-20" /></TableCell>
-								<TableCell><Skeleton className="h-4 w-24" /></TableCell>
-								<TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+								<TableCell>
+									<Skeleton className="h-8 w-8 rounded-md" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-4 w-40" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-4 w-28" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-4 w-48" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-4 w-20" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-4 w-24" />
+								</TableCell>
+								<TableCell>
+									<Skeleton className="h-8 w-20 ml-auto" />
+								</TableCell>
 							</TableRow>
 						))}
 					</TableBody>
@@ -117,13 +171,37 @@ export function NotebooksTable({
 			<div className="rounded-md border overflow-hidden">
 				<Table>
 					<TableHeader>
-						<TableRow>
+						<TableRow className="hover:bg-transparent">
 							<TableHead className="w-12">Image</TableHead>
-							<TableHead>Title</TableHead>
+							<TableHead>
+								<SortableHeader
+									label="Title"
+									sortKeyVal="title"
+									currentSortKey={sortKey}
+									sortDesc={sortDesc}
+									onSortChange={onSortChange}
+								/>
+							</TableHead>
 							<TableHead>Slug</TableHead>
 							<TableHead>Summary</TableHead>
-							<TableHead>Status</TableHead>
-							<TableHead>Created</TableHead>
+							<TableHead>
+								<SortableHeader
+									label="Status"
+									sortKeyVal="status"
+									currentSortKey={sortKey}
+									sortDesc={sortDesc}
+									onSortChange={onSortChange}
+								/>
+							</TableHead>
+							<TableHead>
+								<SortableHeader
+									label="Created"
+									sortKeyVal="created"
+									currentSortKey={sortKey}
+									sortDesc={sortDesc}
+									onSortChange={onSortChange}
+								/>
+							</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -176,7 +254,10 @@ export function NotebooksTable({
 										</TooltipContent>
 									</Tooltip>
 								</TableCell>
-								<TableCell className="text-muted-foreground text-sm max-w-[180px] truncate" title={notebook.slug}>
+								<TableCell
+									className="text-muted-foreground text-sm max-w-[180px] truncate"
+									title={notebook.slug}
+								>
 									{notebook.slug}
 								</TableCell>
 								<TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
@@ -197,7 +278,9 @@ export function NotebooksTable({
 								<TableCell className="text-right">
 									<div className="flex justify-end gap-2">
 										<Button variant="outline" size="sm" asChild>
-											<Link href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}/edit`}>
+											<Link
+												href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}/edit`}
+											>
 												<Edit className="h-4 w-4" />
 												<span className="sr-only">Edit</span>
 											</Link>
@@ -227,8 +310,8 @@ export function NotebooksTable({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete Notebook</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete &quot;{notebookToDelete?.title}&quot;? This
-							action cannot be undone.
+							Are you sure you want to delete &quot;{notebookToDelete?.title}
+							&quot;? This action cannot be undone.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

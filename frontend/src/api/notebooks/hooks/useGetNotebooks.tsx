@@ -1,12 +1,17 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
-import notebooksClientRequests from "../authClientRequests";
-import type { PaginatedNotebooksResponse, GetNotebooksParams } from "../types";
 import { NOTEBOOKS } from "@/shared/queryKeys";
+import notebooksClientRequests from "../authClientRequests";
+import type { GetNotebooksParams, PaginatedNotebooksResponse } from "../types";
 
 const useGetNotebooks = (
 	params: GetNotebooksParams,
 	options?: Omit<
-		UseQueryOptions<PaginatedNotebooksResponse, Error, PaginatedNotebooksResponse, readonly unknown[]>,
+		UseQueryOptions<
+			PaginatedNotebooksResponse,
+			Error,
+			PaginatedNotebooksResponse,
+			readonly unknown[]
+		>,
 		"queryKey" | "queryFn"
 	>,
 ) => {
@@ -16,6 +21,8 @@ const useGetNotebooks = (
 			params.search_space_id,
 			params.search,
 			params.status,
+			params.sort,
+			params.sortDir,
 			params.skip,
 			params.limit,
 		],

@@ -17,13 +17,13 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { UploadService } from "../upload";
-import { NotebooksService } from "./notebooks.service";
 import {
 	CreateNotebookDto,
 	NotebookDto,
 	PaginatedNotebooksResponseDto,
 	UpdateNotebookDto,
 } from "./dtos/notebook.dto";
+import { NotebooksService } from "./notebooks.service";
 
 interface AuthenticatedRequest extends Request {
 	user: { id: string };
@@ -43,13 +43,18 @@ export class NotebooksController {
 		@Body() createDto: CreateNotebookDto,
 		@Req() req: AuthenticatedRequest,
 	): Promise<NotebookDto> {
-		return this.notebooksService.create({ ...createDto, search_space_id: searchSpaceId }, req.user.id);
+		return this.notebooksService.create(
+			{ ...createDto, search_space_id: searchSpaceId },
+			req.user.id,
+		);
 	}
 
 	@Post(":searchSpaceId/notebooks/upload-image")
-	@UseInterceptors(FileInterceptor("file", {
-		limits: { fileSize: 5 * 1024 * 1024 },
-	}))
+	@UseInterceptors(
+		FileInterceptor("file", {
+			limits: { fileSize: 5 * 1024 * 1024 },
+		}),
+	)
 	async uploadImage(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@UploadedFile() file: Express.Multer.File,
@@ -61,12 +66,20 @@ export class NotebooksController {
 		if (!file.mimetype.startsWith("image/")) {
 			throw new BadRequestException("Only image files are allowed");
 		}
-		await this.notebooksService.checkSearchSpaceOwnership(searchSpaceId, req.user.id);
+		await this.notebooksService.checkSearchSpaceOwnership(
+			searchSpaceId,
+			req.user.id,
+		);
 
 		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 		const ext = file.originalname.split(".").pop() || "png";
 		const filename = `notebook-${uniqueSuffix}.${ext}`;
-		const result = await this.uploadService.upload(file.buffer, filename, "notebooks", file.mimetype);
+		const result = await this.uploadService.upload(
+			file.buffer,
+			filename,
+			"notebooks",
+			file.mimetype,
+		);
 		return { url: result.url };
 	}
 
@@ -76,7 +89,10 @@ export class NotebooksController {
 		@Body() body: { url: string },
 		@Req() req: AuthenticatedRequest,
 	): Promise<{ message: string }> {
-		await this.notebooksService.checkSearchSpaceOwnership(searchSpaceId, req.user.id);
+		await this.notebooksService.checkSearchSpaceOwnership(
+			searchSpaceId,
+			req.user.id,
+		);
 		await this.uploadService.delete(body.url);
 		return { message: "Image deleted" };
 	}
@@ -89,13 +105,23 @@ export class NotebooksController {
 		@Query("limit") limit?: string,
 		@Query("search") search?: string,
 		@Query("status") status?: string,
+		@Query("sort") sort?: string,
+		@Query("sort_dir") sortDir?: string,
 	): Promise<PaginatedNotebooksResponseDto> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 50;
-		if (isNaN(skipNum)) throw new BadRequestException("skip must be an integer");
-		if (isNaN(limitNum)) throw new BadRequestException("limit must be an integer");
+		if (isNaN(skipNum))
+			throw new BadRequestException("skip must be an integer");
+		if (isNaN(limitNum))
+			throw new BadRequestException("limit must be an integer");
 
-		const validStatus = status === "published" || status === "unpublished" ? status : "all";
+		const validStatus =
+			status === "published" || status === "unpublished" ? status : "all";
+
+		const allowedSort = ["title", "status", "created"];
+		const validSort = sort && allowedSort.includes(sort) ? sort : "created";
+		const validSortDir =
+			sortDir === "asc" || sortDir === "desc" ? sortDir : "desc";
 
 		return this.notebooksService.findAll(
 			req.user.id,
@@ -104,6 +130,8 @@ export class NotebooksController {
 			limitNum,
 			search,
 			validStatus,
+			validSort,
+			validSortDir,
 		);
 	}
 
@@ -113,7 +141,11 @@ export class NotebooksController {
 		@Param("notebookId", ParseIntPipe) notebookId: number,
 		@Req() req: AuthenticatedRequest,
 	): Promise<NotebookDto> {
-		return this.notebooksService.findOne(notebookId, searchSpaceId, req.user.id);
+		return this.notebooksService.findOne(
+			notebookId,
+			searchSpaceId,
+			req.user.id,
+		);
 	}
 
 	@Put(":searchSpaceId/notebooks/:notebookId")
@@ -123,7 +155,12 @@ export class NotebooksController {
 		@Body() updateDto: UpdateNotebookDto,
 		@Req() req: AuthenticatedRequest,
 	): Promise<NotebookDto> {
-		return this.notebooksService.update(notebookId, searchSpaceId, updateDto, req.user.id);
+		return this.notebooksService.update(
+			notebookId,
+			searchSpaceId,
+			updateDto,
+			req.user.id,
+		);
 	}
 
 	@Delete(":searchSpaceId/notebooks/:notebookId")
@@ -141,7 +178,11 @@ export class NotebooksController {
 		@Param("notebookId", ParseIntPipe) notebookId: number,
 		@Req() req: AuthenticatedRequest,
 	): Promise<NotebookDto> {
-		return this.notebooksService.publish(notebookId, searchSpaceId, req.user.id);
+		return this.notebooksService.publish(
+			notebookId,
+			searchSpaceId,
+			req.user.id,
+		);
 	}
 
 	@Post(":searchSpaceId/notebooks/:notebookId/unpublish")
@@ -150,6 +191,10 @@ export class NotebooksController {
 		@Param("notebookId", ParseIntPipe) notebookId: number,
 		@Req() req: AuthenticatedRequest,
 	): Promise<NotebookDto> {
-		return this.notebooksService.unpublish(notebookId, searchSpaceId, req.user.id);
+		return this.notebooksService.unpublish(
+			notebookId,
+			searchSpaceId,
+			req.user.id,
+		);
 	}
 }
