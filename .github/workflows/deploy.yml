@@ -8,6 +8,7 @@ env:
   REGISTRY: ghcr.io
   FRONTEND_IMAGE: ghcr.io/ptopic/ragknowledgebase/frontend
   BACKEND_IMAGE: ghcr.io/ptopic/ragknowledgebase/backend
+  COOLIFY_APP_NAME: rag-knowledge-base
 
 jobs:
   build-and-deploy:
@@ -55,12 +56,35 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             NEXT_PUBLIC_WEBSITE_URL=${{ secrets.NEXT_PUBLIC_WEBSITE_URL }}
 
+      # ─── Resolve Coolify App UUID ────────────────────────────
+      - name: Resolve Coolify app UUID
+        id: coolify
+        run: |
+          APP_UUID=$(curl -s \
+            "https://coolify.petartopic.com/api/v1/applications" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
+            | python3 -c "
+          import sys, json
+          apps = json.loads(sys.stdin.read())
+          match = [a['uuid'] for a in apps if a.get('name') == '${{ env.COOLIFY_APP_NAME }}']
+          if match:
+              print(match[0])
+          else:
+              print(''); sys.exit(1)
+          ")
+          if [ -z "$APP_UUID" ]; then
+            echo "❌ App '${{ env.COOLIFY_APP_NAME }}' not found in Coolify"
+            exit 1
+          fi
+          echo "uuid=$APP_UUID" >> "$GITHUB_OUTPUT"
+          echo "✅ Resolved Coolify app UUID: $APP_UUID"
+
       # ─── Trigger Coolify Deploy ────────────────────────────
       - name: Trigger Coolify deployment
         run: |
           curl -X POST \
-            "${{ secrets.COOLIFY_DEPLOY_URL }}" \
+            "https://coolify.petartopic.com/api/v1/deploy" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"uuid": "${{ secrets.COOLIFY_APP_UUID }}"}' \
+            -d '{"uuid": "${{ steps.coolify.outputs.uuid }}"}' \
             --fail --silent --show-error
