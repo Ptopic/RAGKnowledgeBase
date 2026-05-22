@@ -5,8 +5,8 @@ WORKDIR /app
 # NODE_ENV must NOT be production during install (skips devDeps)
 ENV NODE_ENV=development
 
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile --network-timeout 120000
+COPY package.json package-lock.json ./
+RUN npm install --legacy-peer-deps
 
 # ─── Stage 2: Build ──────────────────────────────────────────
 FROM node:20-alpine AS build
@@ -26,7 +26,7 @@ ENV NEXT_PUBLIC_WEBSITE_URL=$NEXT_PUBLIC_WEBSITE_URL
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
-RUN yarn build
+RUN npm run build
 
 # ─── Stage 3: Production runtime ─────────────────────────────
 FROM node:20-alpine AS runtime

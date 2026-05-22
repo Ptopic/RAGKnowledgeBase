@@ -5,13 +5,8 @@ WORKDIR /app
 # NODE_ENV must NOT be production during install (skips devDeps)
 ENV NODE_ENV=development
 
-COPY package.json package-lock.json* ./
-# If package-lock.json exists, use ci; otherwise install
-RUN if [ -f package-lock.json ]; then \
-      npm ci --legacy-peer-deps; \
-    else \
-      npm install --legacy-peer-deps; \
-    fi
+COPY package.json package-lock.json ./
+RUN npm install --legacy-peer-deps
 
 # ─── Stage 2: Build ──────────────────────────────────────────
 FROM node:20-alpine AS build
@@ -26,21 +21,16 @@ RUN npx prisma generate
 # Build NestJS
 RUN npm run build
 
+# Prune devDependencies from node_modules for production
+RUN rm -rf node_modules && npm install --legacy-peer-deps --omit=dev
+
 # ─── Stage 3: Production runtime ─────────────────────────────
 FROM node:20-alpine AS runtime
 RUN apk add --no-cache dumb-init openssl
 WORKDIR /app
 
-# Install only production dependencies
-COPY package.json package-lock.json* ./
-ENV NODE_ENV=production
-RUN if [ -f package-lock.json ]; then \
-      npm ci --legacy-peer-deps --omit=dev; \
-    else \
-      npm install --legacy-peer-deps --omit=dev; \
-    fi
-
-# Copy built app and Prisma assets
+# Copy production node_modules from build stage
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
