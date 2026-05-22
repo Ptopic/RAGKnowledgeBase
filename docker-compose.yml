@@ -53,6 +53,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rag-backend.rule=Host(`rag-api.petartopic.com`)
+      - traefik.http.routers.rag-backend.entrypoints=http,https
+      - traefik.http.routers.rag-backend.tls=true
+      - traefik.http.services.rag-backend.loadbalancer.server.port=3002
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
       interval: 15s
@@ -67,6 +73,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rag-frontend.rule=Host(`rag.petartopic.com`)
+      - traefik.http.routers.rag-frontend.entrypoints=http,https
+      - traefik.http.routers.rag-frontend.tls=true
+      - traefik.http.services.rag-frontend.loadbalancer.server.port=3000
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 15s
