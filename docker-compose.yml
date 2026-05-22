@@ -1,18 +1,16 @@
 # ─── RAGKnowledgeBase — Coolify Docker Compose ─────────────────
 # Services: PostgreSQL (pgvector) + Redis + Backend (NestJS) + Frontend (Next.js)
-# Only secrets and NEXT_PUBLIC_* vars use ${VAR} interpolation (Coolify env vars).
-# All other config is hardcoded to minimize Coolify ARG injection into Dockerfiles.
+#
+# IMPORTANT: No ${VAR} interpolation! Coolify auto-injects env vars set in the
+# Coolify UI at container runtime. Using ${VAR} causes Coolify to inject them
+# as ARG declarations into Dockerfiles, breaking multi-stage builds.
+# All env vars are set directly in the Coolify application environment.
 
 services:
-  # ─── PostgreSQL with pgvector ──────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rag-kb-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: rag_knowledge_base
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/01-enable-pgvector.sql
@@ -23,7 +21,6 @@ services:
       retries: 10
       start_period: 10s
 
-  # ─── Redis ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: rag-kb-redis
@@ -37,7 +34,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─── Backend (NestJS + Prisma + BullMQ) ───────────────────
   backend:
     build:
       context: ./backend
@@ -49,32 +45,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      DATABASE_URL: 'postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/rag_knowledge_base?schema=public'
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      NEXT_FRONTEND_URL: 'https://rag.petartopic.com'
-      BACKEND_URL: 'https://rag-api.petartopic.com'
-      AUTH_TYPE: email
-      SECRET_KEY: '${SECRET_KEY}'
-      JWT_SECRET: '${JWT_SECRET}'
-      API_ENCRYPTION_KEY: '${API_ENCRYPTION_KEY}'
-      REGISTRATION_ENABLED: TRUE
-      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
-      EMBEDDING_MAX_SEQ_LENGTH: 512
-      CHUNK_SIZE: 512
-      CHUNK_STRATEGY: markdown_aware
-      CHUNK_OVERLAP: 120
-      CHUNK_MIN_CHARS: 40
-      IMAGE_ENABLE_ANALYSIS: true
-      IMAGE_VISION_MODEL: google/gemini-3-flash-preview
-      RERANKER_ENABLED: TRUE
-      RERANKER_NAME: jina-reranker-v1-base-en
-      RERANKER_TYPE: jina
-      JINA_READER_ENABLED: TRUE
-      ETL_SERVICE: DOCLING
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3002/ || exit 1"]
       interval: 15s
@@ -82,7 +52,6 @@ services:
       retries: 5
       start_period: 30s
 
-  # ─── Frontend (Next.js standalone) ─────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -92,9 +61,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    environment:
-      NEXT_PUBLIC_API_URL: '${NEXT_PUBLIC_API_URL}'
-      NEXT_PUBLIC_WEBSITE_URL: '${NEXT_PUBLIC_WEBSITE_URL}'
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 15s
