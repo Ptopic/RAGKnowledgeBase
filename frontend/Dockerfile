@@ -1,18 +1,20 @@
-FROM node:20-bullseye-slim AS base
+FROM node:20-bullseye-slim AS deps
 WORKDIR /app
-
-# Install dependencies first for better layer caching
-COPY package*.json ./
+COPY package.json ./
 RUN npm install --legacy-peer-deps
 
-# Copy source
+FROM deps AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Build frontend
 RUN npm run build
 
+FROM node:20-bullseye-slim AS runtime
+WORKDIR /app
 ENV NODE_ENV=production
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
 EXPOSE 3000
-
-# Start Next.js app
-CMD ["npm", "run", "start"]
+ENV PORT=3000
+CMD ["node", "server.js"]

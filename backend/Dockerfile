@@ -1,21 +1,21 @@
-FROM node:20-bullseye-slim AS base
+FROM node:20-bullseye-slim AS deps
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
 
-# Install dependencies first for better layer caching
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-
-# Copy source (including prisma schema)
+FROM deps AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Regenerate Prisma client after schema is present (required for enums like ChatType)
 RUN npx prisma generate
-
-# Build backend
 RUN npm run build
 
+FROM node:20-bullseye-slim AS runtime
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/prisma ./prisma
 ENV NODE_ENV=production
 EXPOSE 3002
-
-# Start compiled NestJS app
 CMD ["node", "dist/main"]

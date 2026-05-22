@@ -1,3 +1,6 @@
-/node_modules
-.env.template
-Dockerfile*
+node_modules
+.next
+.git
+*.md
+.env
+.env.*

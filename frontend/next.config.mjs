@@ -3,6 +3,7 @@
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig = {
+	output: "standalone",
 	images: {
 		remotePatterns: [
 			{
