@@ -81,21 +81,8 @@ jobs:
             "https://coolify.petartopic.com/api/v1/applications" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}")
 
-          BACKEND_UUID=$(echo "$APPS_JSON" | python3 -c "
-import sys, json
-apps = json.loads(sys.stdin.read())
-name='${{ env.COOLIFY_BACKEND_APP_NAME }}'
-match=[a['uuid'] for a in apps if a.get('name')==name]
-print(match[0] if match else '')
-")
-
-          FRONTEND_UUID=$(echo "$APPS_JSON" | python3 -c "
-import sys, json
-apps = json.loads(sys.stdin.read())
-name='${{ env.COOLIFY_FRONTEND_APP_NAME }}'
-match=[a['uuid'] for a in apps if a.get('name')==name]
-print(match[0] if match else '')
-")
+          BACKEND_UUID=$(echo "$APPS_JSON" | jq -r '.[] | select(.name=="${{ env.COOLIFY_BACKEND_APP_NAME }}") | .uuid' | head -n1)
+          FRONTEND_UUID=$(echo "$APPS_JSON" | jq -r '.[] | select(.name=="${{ env.COOLIFY_FRONTEND_APP_NAME }}") | .uuid' | head -n1)
 
           if [ -z "$BACKEND_UUID" ] || [ -z "$FRONTEND_UUID" ]; then
             echo "Could not resolve Coolify app UUIDs. backend='$BACKEND_UUID' frontend='$FRONTEND_UUID'"
