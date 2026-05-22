@@ -1,35 +1,21 @@
-services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: rag-kb-backend
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_DB: ${REDIS_DB:-0}
-    depends_on:
-      - postgres
-      - redis
-    ports:
-      - "3002:3002"
+# Legacy standalone compose — use root docker-compose.yml instead.
+# This file is kept for local backend-only development.
+#
+# Usage: docker compose up postgres redis
+# Then run backend with: pnpm start:dev
 
+services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: rag-kb-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ragkb}
       POSTGRES_USER: ${POSTGRES_USER:-ragkb}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragkb}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/01-enable-pgvector.sql
     ports:
       - "5432:5432"
 
