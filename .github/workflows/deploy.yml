@@ -56,6 +56,21 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             NEXT_PUBLIC_WEBSITE_URL=${{ secrets.NEXT_PUBLIC_WEBSITE_URL }}
 
+      # ─── Make GHCR Packages Public ─────────────────────────
+      # Coolify can't pull private images without auth.
+      # Since the repo is public, make the container packages public too.
+      - name: Set GHCR packages visibility to public
+        run: |
+          for pkg in ragknowledgebase/backend ragknowledgebase/frontend; do
+            echo "Setting $pkg to public..."
+            curl -s -X PATCH \
+              "https://api.github.com/repos/${{ github.repository }}/packages/container/${pkg}" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d '{"visibility":"public"}' \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  → {d.get(\"visibility\",\"error\")}')" || true
+          done
+
       # ─── Resolve Coolify App UUID ────────────────────────────
       - name: Resolve Coolify app UUID
         id: coolify
@@ -73,11 +88,11 @@ jobs:
               print(''); sys.exit(1)
           ")
           if [ -z "$APP_UUID" ]; then
-            echo "❌ App '${{ env.COOLIFY_APP_NAME }}' not found in Coolify"
+            echo "App '${{ env.COOLIFY_APP_NAME }}' not found in Coolify"
             exit 1
           fi
           echo "uuid=$APP_UUID" >> "$GITHUB_OUTPUT"
-          echo "✅ Resolved Coolify app UUID: $APP_UUID"
+          echo "Resolved Coolify app UUID: $APP_UUID"
 
       # ─── Trigger Coolify Deploy ────────────────────────────
       - name: Trigger Coolify deployment
