@@ -1,14 +1,12 @@
 # ─── Stage 1: Install dependencies ───────────────────────────
 FROM node:20-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
 
 # ─── Stage 2: Build ──────────────────────────────────────────
 FROM node:20-alpine AS build
-RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -25,7 +23,7 @@ ENV NEXT_PUBLIC_WEBSITE_URL=$NEXT_PUBLIC_WEBSITE_URL
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
-RUN pnpm run build
+RUN npm run build
 
 # ─── Stage 3: Production runtime ─────────────────────────────
 FROM node:20-alpine AS runtime
