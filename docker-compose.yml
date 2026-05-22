@@ -1,10 +1,9 @@
 # ─── RAGKnowledgeBase — Coolify Docker Compose ─────────────────
 # Services: PostgreSQL (pgvector) + Redis + Backend (NestJS) + Frontend (Next.js)
 #
-# IMPORTANT: No ${VAR} interpolation! Coolify auto-injects env vars set in the
-# Coolify UI at container runtime. Using ${VAR} causes Coolify to inject them
-# as ARG declarations into Dockerfiles, breaking multi-stage builds.
-# All env vars are set directly in the Coolify application environment.
+# Only NEXT_PUBLIC_* vars use ${VAR} — these must be available at build time
+# for Next.js to bake them into the client bundle. All other env vars are
+# injected at runtime by Coolify (no ${VAR} interpolation needed).
 
 services:
   postgres:
@@ -56,11 +55,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: '${NEXT_PUBLIC_API_URL:-http://localhost:3002}'
+        NEXT_PUBLIC_WEBSITE_URL: '${NEXT_PUBLIC_WEBSITE_URL:-http://localhost:3000}'
     container_name: rag-kb-frontend
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: '${NEXT_PUBLIC_API_URL:-http://localhost:3002}'
+      NEXT_PUBLIC_WEBSITE_URL: '${NEXT_PUBLIC_WEBSITE_URL:-http://localhost:3000}'
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 15s
