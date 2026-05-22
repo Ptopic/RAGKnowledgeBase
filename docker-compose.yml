@@ -18,6 +18,10 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rag_knowledge_base
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/01-enable-pgvector.sql
