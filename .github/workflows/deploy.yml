@@ -8,7 +8,8 @@ env:
   REGISTRY: ghcr.io
   FRONTEND_IMAGE: ghcr.io/ptopic/ragknowledgebase/frontend
   BACKEND_IMAGE: ghcr.io/ptopic/ragknowledgebase/backend
-  COOLIFY_APP_NAME: rag-knowledge-base
+  COOLIFY_BACKEND_APP_UUID: f5dmweh3a29h55j0437yqd35
+  COOLIFY_FRONTEND_APP_UUID: j11u556cq6iskpa8ihc27xay
 
 jobs:
   build-backend:
@@ -70,33 +71,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
     steps:
-      - name: Resolve Coolify app UUID
-        id: coolify
-        run: |
-          APP_UUID=$(curl -s \
-            "https://coolify.petartopic.com/api/v1/applications" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
-            | python3 -c "
-          import sys, json
-          apps = json.loads(sys.stdin.read())
-          match = [a['uuid'] for a in apps if a.get('name') == '${{ env.COOLIFY_APP_NAME }}']
-          if match:
-              print(match[0])
-          else:
-              print(''); sys.exit(1)
-          ")
-          if [ -z "$APP_UUID" ]; then
-            echo "App '${{ env.COOLIFY_APP_NAME }}' not found in Coolify"
-            exit 1
-          fi
-          echo "uuid=$APP_UUID" >> "$GITHUB_OUTPUT"
-          echo "Resolved Coolify app UUID: $APP_UUID"
-
-      - name: Trigger Coolify deployment
+      - name: Trigger Coolify backend deployment
         run: |
           curl -X POST \
             "https://coolify.petartopic.com/api/v1/deploy" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"uuid": "${{ steps.coolify.outputs.uuid }}"}' \
+            -d '{"uuid": "${{ env.COOLIFY_BACKEND_APP_UUID }}"}' \
+            --fail --silent --show-error
+
+      - name: Trigger Coolify frontend deployment
+        run: |
+          curl -X POST \
+            "https://coolify.petartopic.com/api/v1/deploy" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"uuid": "${{ env.COOLIFY_FRONTEND_APP_UUID }}"}' \
             --fail --silent --show-error
