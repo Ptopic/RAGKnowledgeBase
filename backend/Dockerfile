@@ -2,6 +2,9 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
+# Bust cache when needed (pass CACHEBUST=sha via build-arg)
+ARG CACHEBUST=1
+
 # NODE_ENV must NOT be production during install (skips devDeps)
 ENV NODE_ENV=development
 
@@ -28,6 +31,7 @@ WORKDIR /app
 
 # Install only production dependencies
 COPY package.json package-lock.json ./
+ARG CACHEBUST=1
 ENV NODE_ENV=production
 RUN npm ci --legacy-peer-deps --omit=dev
 

@@ -41,6 +41,8 @@ jobs:
           tags: ${{ env.BACKEND_IMAGE }}:latest,${{ env.BACKEND_IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            CACHEBUST=${{ github.sha }}
 
       # ─── Build & Push Frontend ─────────────────────────────
       - name: Build & push frontend
@@ -64,7 +66,7 @@ jobs:
           for pkg in ragknowledgebase/backend ragknowledgebase/frontend; do
             echo "Setting $pkg to public..."
             curl -s -X PATCH \
-              "https://api.github.com/repos/${{ github.repository }}/packages/container/${pkg}" \
+              "https://api.github.com/user/packages/container/${pkg}" \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Content-Type: application/json" \
               -d '{"visibility":"public"}' \
