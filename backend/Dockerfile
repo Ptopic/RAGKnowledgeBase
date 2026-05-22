@@ -5,12 +5,8 @@ WORKDIR /app
 # NODE_ENV must NOT be production during install (skips devDeps)
 ENV NODE_ENV=development
 
-COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then \
-      npm ci --legacy-peer-deps; \
-    else \
-      npm install --legacy-peer-deps; \
-    fi
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
 
 # ─── Stage 2: Build ──────────────────────────────────────────
 FROM node:20-alpine AS build
@@ -31,13 +27,9 @@ RUN apk add --no-cache dumb-init openssl
 WORKDIR /app
 
 # Install only production dependencies
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 ENV NODE_ENV=production
-RUN if [ -f package-lock.json ]; then \
-      npm ci --legacy-peer-deps --omit=dev; \
-    else \
-      npm install --legacy-peer-deps --omit=dev; \
-    fi
+RUN npm ci --legacy-peer-deps --omit=dev
 
 # Copy built app and Prisma assets
 COPY --from=build /app/dist ./dist
