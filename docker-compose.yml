@@ -3,12 +3,20 @@
 #
 # Backend and Frontend images are pre-built by GitHub Actions and pushed
 # to ghcr.io. Coolify just pulls and runs them — no on-server building.
-# All env vars are injected at runtime by Coolify.
+#
+# ALL runtime env vars are injected by Coolify at container startup.
+# No ${VAR} interpolation in this file — Coolify will NOT rewrite Dockerfiles.
+#
+# Required Coolify env vars (set in App → Environment):
+#   DATABASE_URL, REDIS_URL, JWT_SECRET, OPENAI_API_KEY, etc.
+#   (see .env.example for full list)
+#
+# Build-time vars (NEXT_PUBLIC_*) are baked into the frontend image
+# by GitHub Actions via build-args — never appear here.
 
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: rag-kb-postgres
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -22,7 +30,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: rag-kb-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
@@ -35,7 +42,6 @@ services:
 
   backend:
     image: ghcr.io/ptopic/ragknowledgebase/backend:latest
-    container_name: rag-kb-backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -51,7 +57,6 @@ services:
 
   frontend:
     image: ghcr.io/ptopic/ragknowledgebase/frontend:latest
-    container_name: rag-kb-frontend
     restart: unless-stopped
     depends_on:
       backend:
