@@ -5,8 +5,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copy source
+# Copy source (including prisma schema)
 COPY . .
+
+# Regenerate Prisma client after schema is present (required for enums like ChatType)
+RUN npx prisma generate
 
 # Build backend
 RUN npm run build
