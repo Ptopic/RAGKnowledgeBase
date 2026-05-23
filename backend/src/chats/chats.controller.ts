@@ -11,7 +11,10 @@ import {
 	Req,
 	UseGuards,
 } from "@nestjs/common";
+import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
 import { ChatsService } from "./chats.service";
 import {
 	ChatDto,
@@ -23,38 +26,41 @@ import {
 } from "./dtos/chat.dto";
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class ChatsController {
 	constructor(private readonly chatsService: ChatsService) {}
 
 	@Post("chats")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async create(
 		@Body() createDto: CreateChatDto,
 		@Req() req: any,
 	): Promise<ChatDto> {
-		return this.chatsService.create(createDto, req.user.id);
+		return this.chatsService.create(
+			createDto,
+			req.user.id,
+		);
 	}
 
 	@Get("chats")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findAll(
 		@Req() req: any,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
-		@Query("search_space_id") searchSpaceId?: string,
 	): Promise<ChatWithoutMessagesDto[]> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
-		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
 		return this.chatsService.findAll(
 			req.user.id,
 			skipNum,
 			limitNum,
-			searchSpaceIdNum,
+			req.searchSpaceContext.searchSpaceId,
 		);
 	}
 
 	@Get("chats/:id")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findOne(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -63,6 +69,7 @@ export class ChatsController {
 	}
 
 	@Put("chats/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateChatDto,
@@ -72,6 +79,7 @@ export class ChatsController {
 	}
 
 	@Delete("chats/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async remove(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -80,6 +88,7 @@ export class ChatsController {
 	}
 
 	@Post("chats/:id/favorite")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async addFavorite(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() _toggleDto: ToggleFavoriteDto,
@@ -89,6 +98,7 @@ export class ChatsController {
 	}
 
 	@Delete("chats/:id/favorite")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async removeFavorite(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -97,21 +107,19 @@ export class ChatsController {
 	}
 
 	@Get("chats/favorites")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findFavorites(
 		@Req() req: any,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
-		@Query("search_space_id") searchSpaceId?: string,
 	): Promise<ChatDto[]> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
-		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
 		return this.chatsService.findFavorites(
 			req.user.id,
 			skipNum,
 			limitNum,
-			searchSpaceIdNum,
+			req.searchSpaceContext.searchSpaceId,
 		);
 	}
 }

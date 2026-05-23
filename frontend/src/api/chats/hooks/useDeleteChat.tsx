@@ -7,13 +7,19 @@ import { toast } from "sonner";
 import { CHATS } from "@/shared/queryKeys";
 import chatsClientRequests from "../authClientRequests";
 
+interface DeleteChatParams {
+	id: number;
+	searchSpaceId: number;
+}
+
 const useDeleteChat = (
-	options?: UseMutationOptions<void, Error, number, unknown>,
+	options?: UseMutationOptions<void, Error, DeleteChatParams, unknown>,
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: number) => chatsClientRequests.deleteChat(id),
+		mutationFn: ({ id, searchSpaceId }: DeleteChatParams) =>
+			chatsClientRequests.deleteChat(id, searchSpaceId),
 		onSuccess: () => {
 			toast.success("Chat deleted successfully");
 		},

@@ -7,13 +7,19 @@ import { toast } from "sonner";
 import { LLM_CONFIGS } from "@/shared/queryKeys";
 import llmConfigsClientRequests from "../authClientRequests";
 
+interface DeleteLLMConfigParams {
+	id: number;
+	searchSpaceId: number;
+}
+
 const useDeleteLLMConfig = (
-	options?: UseMutationOptions<void, Error, number, unknown>,
+	options?: UseMutationOptions<void, Error, DeleteLLMConfigParams, unknown>,
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: number) => llmConfigsClientRequests.deleteLLMConfig(id),
+		mutationFn: ({ id, searchSpaceId }: DeleteLLMConfigParams) =>
+			llmConfigsClientRequests.deleteLLMConfig(id, searchSpaceId),
 		onSuccess: () => {
 			toast.success("LLM configuration deleted successfully");
 		},

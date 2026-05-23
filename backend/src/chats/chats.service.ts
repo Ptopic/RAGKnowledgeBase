@@ -6,8 +6,10 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
+import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
 import {
 	ChatDto,
 	ChatWithoutMessagesDto,
@@ -22,16 +24,24 @@ export class ChatsService {
 		private permissionsService: PermissionsService,
 	) {}
 
-	async create(createDto: CreateChatDto, userId: string): Promise<ChatDto> {
+	async create(
+		createDto: CreateChatDto,
+		userId: string,
+		membership?: SearchSpaceMembershipAttachment,
+	): Promise<ChatDto> {
 		try {
-			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
+			// Authorization: guard-provided membership skips DB lookup for HTTP callers;
+			// non-HTTP callers (AgentService, DeepAgentService) omit membership, requiring explicit check
+			if (!membership) {
+				await this.permissionsService.requireWrite(createDto.search_space_id, userId);
+			}
 
 			const chat = await this.prisma.chat.create({
 				data: {
 					type: createDto.type,
 					title: createDto.title,
 					initialConnectors: createDto.initial_connectors || [],
-					messages: createDto.messages,
+					messages: createDto.messages as unknown as Prisma.InputJsonValue,
 					searchSpaceId: createDto.search_space_id,
 				},
 			});
@@ -51,7 +61,7 @@ export class ChatsService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 100,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 	): Promise<ChatWithoutMessagesDto[]> {
 		try {
 			if (skip < 0) {
@@ -60,24 +70,9 @@ export class ChatsService {
 			if (limit <= 0 || limit > 1000) {
 				throw new BadRequestException("limit must be between 1 and 1000");
 			}
-			if (searchSpaceId !== undefined && searchSpaceId <= 0) {
-				throw new BadRequestException(
-					"search_space_id must be a positive integer",
-				);
-			}
-
-			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
-
-			const where: any = {
-				searchSpaceId: { in: accessibleSpaceIds },
-			};
-
-			if (searchSpaceId !== undefined) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			const chats = await this.prisma.chat.findMany({
-				where,
+				where: { searchSpaceId },
 				skip,
 				take: limit,
 				orderBy: { createdAt: "desc" },
@@ -113,8 +108,6 @@ export class ChatsService {
 				);
 			}
 
-			await this.permissionsService.requireRead(chat.searchSpaceId, userId);
-
 			return this.toDto(chat);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -142,15 +135,13 @@ export class ChatsService {
 				);
 			}
 
-			await this.permissionsService.requireWrite(chat.searchSpaceId, userId);
-
 			const updated = await this.prisma.chat.update({
 				where: { id },
 				data: {
 					type: updateDto.type,
 					title: updateDto.title,
 					initialConnectors: updateDto.initial_connectors,
-					messages: updateDto.messages,
+					messages: updateDto.messages as unknown as Prisma.InputJsonValue,
 				},
 			});
 
@@ -176,8 +167,6 @@ export class ChatsService {
 					"Chat not found or you do not have permission to access it",
 				);
 			}
-
-			await this.permissionsService.requireWrite(chat.searchSpaceId, userId);
 
 			await this.prisma.chat.delete({
 				where: { id },
@@ -205,8 +194,6 @@ export class ChatsService {
 					"Chat not found or you do not have permission to access it",
 				);
 			}
-
-			await this.permissionsService.requireRead(chat.searchSpaceId, userId);
 
 			await this.prisma.userChatFavorite.create({
 				data: {
@@ -244,8 +231,6 @@ export class ChatsService {
 				);
 			}
 
-			await this.permissionsService.requireRead(chat.searchSpaceId, userId);
-
 			await this.prisma.userChatFavorite.deleteMany({
 				where: {
 					userId,
@@ -268,7 +253,7 @@ export class ChatsService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 100,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 	): Promise<ChatDto[]> {
 		try {
 			if (skip < 0) {
@@ -277,27 +262,12 @@ export class ChatsService {
 			if (limit <= 0 || limit > 1000) {
 				throw new BadRequestException("limit must be between 1 and 1000");
 			}
-			if (searchSpaceId !== undefined && searchSpaceId <= 0) {
-				throw new BadRequestException(
-					"search_space_id must be a positive integer",
-				);
-			}
-
-			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
-
-			const where: any = {
-				userId,
-				chat: { searchSpaceId: { in: accessibleSpaceIds } },
-			};
-
-			if (searchSpaceId !== undefined) {
-				where.chat = {
-					searchSpaceId,
-				};
-			}
 
 			const favorites = await this.prisma.userChatFavorite.findMany({
-				where,
+				where: {
+					userId,
+					chat: { searchSpaceId },
+				},
 				skip,
 				take: limit,
 				orderBy: { createdAt: "desc" },

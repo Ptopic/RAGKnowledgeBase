@@ -9,6 +9,7 @@ import type { UpdateChatRequest } from "../types";
 
 interface UpdateChatParams {
 	id: number;
+	searchSpaceId: number;
 	data: UpdateChatRequest;
 }
 
@@ -18,8 +19,8 @@ const useUpdateChat = (
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, data }: UpdateChatParams) =>
-			chatsClientRequests.updateChat(id, data),
+		mutationFn: ({ id, searchSpaceId, data }: UpdateChatParams) =>
+			chatsClientRequests.updateChat(id, searchSpaceId, data),
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: [CHATS] });
 			queryClient.invalidateQueries({

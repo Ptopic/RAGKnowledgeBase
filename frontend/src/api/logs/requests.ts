@@ -49,8 +49,9 @@ export const getLogs =
 	};
 
 export const getLog =
-	(request: ICallableRequestBuilder<Log>) => async (id: number) =>
-		request.call(`${config.apiUrl}/logs/${id}`, (init) => ({
+	(request: ICallableRequestBuilder<Log>) =>
+	async (id: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/logs/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -70,8 +71,8 @@ export const createLog =
 
 export const updateLog =
 	(request: ICallableRequestBuilder<Log>) =>
-	async (id: number, data: UpdateLogRequest) =>
-		request.call(`${config.apiUrl}/logs/${id}`, (init) => ({
+	async (id: number, searchSpaceId: number, data: UpdateLogRequest) =>
+		request.call(`${config.apiUrl}/logs/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "PUT",
 			headers: {
@@ -82,8 +83,9 @@ export const updateLog =
 		}));
 
 export const deleteLog =
-	(request: ICallableRequestBuilder<void>) => async (id: number) =>
-		request.call(`${config.apiUrl}/logs/${id}`, (init) => ({
+	(request: ICallableRequestBuilder<void>) =>
+	async (id: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/logs/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));

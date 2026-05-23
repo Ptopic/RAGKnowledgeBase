@@ -25,7 +25,9 @@ describe("SearchSpacesService — inviteMember (non-enumeration)", () => {
 		};
 
 		permissionsService = {
-			requireOwner: jest.fn(),
+			getMembership: jest.fn(),
+			getSearchSpacesForUser: jest.fn(),
+			getAccessibleSearchSpaceIds: jest.fn(),
 		};
 
 		const module: TestingModule = await Test.createTestingModule({
@@ -43,7 +45,6 @@ describe("SearchSpacesService — inviteMember (non-enumeration)", () => {
 	const searchSpaceId = 1;
 
 	it("should return identical response shape when user exists and is invited", async () => {
-		permissionsService.requireOwner.mockResolvedValue({ role: MemberRole.OWNER });
 		prisma.user.findUnique.mockResolvedValue({
 			id: "invitee-id",
 			email: "invitee@example.com",
@@ -70,7 +71,6 @@ describe("SearchSpacesService — inviteMember (non-enumeration)", () => {
 	});
 
 	it("should return identical response shape when user does NOT exist", async () => {
-		permissionsService.requireOwner.mockResolvedValue({ role: MemberRole.OWNER });
 		prisma.user.findUnique.mockResolvedValue(null);
 
 		const result = await service.inviteMember(
@@ -85,7 +85,6 @@ describe("SearchSpacesService — inviteMember (non-enumeration)", () => {
 	});
 
 	it("should return identical response shape when user is already a member", async () => {
-		permissionsService.requireOwner.mockResolvedValue({ role: MemberRole.OWNER });
 		prisma.user.findUnique.mockResolvedValue({
 			id: "existing-member-id",
 			email: "existing@example.com",
@@ -109,37 +108,7 @@ describe("SearchSpacesService — inviteMember (non-enumeration)", () => {
 		expect(prisma.searchSpaceMember.create).not.toHaveBeenCalled();
 	});
 
-	it("should throw ForbiddenException when caller is not owner", async () => {
-		permissionsService.requireOwner.mockRejectedValue(
-			new ForbiddenException("You need at least OWNER role"),
-		);
-
-		await expect(
-			service.inviteMember(
-				searchSpaceId,
-				{ email: "any@example.com", role: MemberRole.VIEWER },
-				ownerId,
-			),
-		).rejects.toThrow(ForbiddenException);
-	});
-
-	it("should throw NotFoundException when search space does not exist", async () => {
-		permissionsService.requireOwner.mockRejectedValue(
-			new NotFoundException("Search space not found"),
-		);
-
-		await expect(
-			service.inviteMember(
-				99999,
-				{ email: "any@example.com", role: MemberRole.VIEWER },
-				ownerId,
-			),
-		).rejects.toThrow(NotFoundException);
-	});
-
 	it("should never leak user existence through status codes", async () => {
-		permissionsService.requireOwner.mockResolvedValue({ role: MemberRole.OWNER });
-
 		const existingUser = {
 			id: "user-1",
 			email: "exists@example.com",

@@ -40,8 +40,8 @@ export const createLLMConfig =
 
 export const updateLLMConfig =
 	(request: ICallableRequestBuilder<LLMConfig>) =>
-	async (id: number, data: UpdateLLMConfig): Promise<LLMConfig> =>
-		request.call(`${config.apiUrl}/llm-configs/${id}`, (init) => ({
+	async (id: number, searchSpaceId: number, data: UpdateLLMConfig): Promise<LLMConfig> =>
+		request.call(`${config.apiUrl}/llm-configs/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "PUT",
 			headers: {
@@ -53,8 +53,8 @@ export const updateLLMConfig =
 
 export const deleteLLMConfig =
 	(request: ICallableRequestBuilder<void>) =>
-	async (id: number): Promise<void> =>
-		request.call(`${config.apiUrl}/llm-configs/${id}`, (init) => ({
+	async (id: number, searchSpaceId: number): Promise<void> =>
+		request.call(`${config.apiUrl}/llm-configs/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));

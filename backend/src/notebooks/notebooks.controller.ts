@@ -15,8 +15,10 @@ import {
 	UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
-import { PermissionsService } from "../permissions/permissions.service";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
 import { UploadService } from "../upload";
 import {
 	CreateNotebookDto,
@@ -28,18 +30,19 @@ import { NotebooksService } from "./notebooks.service";
 
 interface AuthenticatedRequest extends Request {
 	user: { id: string };
+	searchSpaceContext?: import("../permissions/guards/search-space-access.guard").SearchSpaceContext;
 }
 
 @Controller("searchspaces")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class NotebooksController {
 	constructor(
 		private readonly notebooksService: NotebooksService,
 		private readonly uploadService: UploadService,
-		private readonly permissionsService: PermissionsService,
 	) {}
 
 	@Post(":searchSpaceId/notebooks")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async create(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Body() createDto: CreateNotebookDto,
@@ -57,6 +60,7 @@ export class NotebooksController {
 			limits: { fileSize: 5 * 1024 * 1024 },
 		}),
 	)
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async uploadImage(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@UploadedFile() file: Express.Multer.File,
@@ -68,10 +72,6 @@ export class NotebooksController {
 		if (!file.mimetype.startsWith("image/")) {
 			throw new BadRequestException("Only image files are allowed");
 		}
-		await this.permissionsService.requireWrite(
-			searchSpaceId,
-			req.user.id,
-		);
 
 		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 		const ext = file.originalname.split(".").pop() || "png";
@@ -86,20 +86,18 @@ export class NotebooksController {
 	}
 
 	@Delete(":searchSpaceId/notebooks/delete-image")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async deleteImage(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Body() body: { url: string },
 		@Req() req: AuthenticatedRequest,
 	): Promise<{ message: string }> {
-		await this.permissionsService.requireWrite(
-			searchSpaceId,
-			req.user.id,
-		);
 		await this.uploadService.delete(body.url);
 		return { message: "Image deleted" };
 	}
 
 	@Get(":searchSpaceId/notebooks")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findAll(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Req() req: AuthenticatedRequest,
@@ -138,6 +136,7 @@ export class NotebooksController {
 	}
 
 	@Get(":searchSpaceId/notebooks/:notebookId")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findOne(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("notebookId", ParseIntPipe) notebookId: number,
@@ -151,6 +150,7 @@ export class NotebooksController {
 	}
 
 	@Put(":searchSpaceId/notebooks/:notebookId")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async update(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("notebookId", ParseIntPipe) notebookId: number,
@@ -166,6 +166,7 @@ export class NotebooksController {
 	}
 
 	@Delete(":searchSpaceId/notebooks/:notebookId")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async remove(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("notebookId", ParseIntPipe) notebookId: number,
@@ -175,6 +176,7 @@ export class NotebooksController {
 	}
 
 	@Post(":searchSpaceId/notebooks/:notebookId/publish")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async publish(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("notebookId", ParseIntPipe) notebookId: number,
@@ -188,6 +190,7 @@ export class NotebooksController {
 	}
 
 	@Post(":searchSpaceId/notebooks/:notebookId/unpublish")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async unpublish(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("notebookId", ParseIntPipe) notebookId: number,

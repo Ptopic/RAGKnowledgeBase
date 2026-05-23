@@ -1,5 +1,4 @@
 import {
-	BadRequestException,
 	Body,
 	Controller,
 	Delete,
@@ -12,7 +11,10 @@ import {
 	Req,
 	UseGuards,
 } from "@nestjs/common";
+import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
 import {
 	CreateLLMConfigDto,
 	LLMConfigDto,
@@ -23,11 +25,12 @@ import {
 import { LLMConfigsService } from "./llm-configs.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class LLMConfigsController {
 	constructor(private readonly llmConfigsService: LLMConfigsService) {}
 
 	@Post("llm-configs")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async create(
 		@Body() createDto: CreateLLMConfigDto,
 		@Req() req: any,
@@ -36,18 +39,13 @@ export class LLMConfigsController {
 	}
 
 	@Get("llm-configs")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findAll(
 		@Req() req: any,
-		@Query("search_space_id") searchSpaceId: string,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
 	): Promise<LLMConfigDto[]> {
-		if (!searchSpaceId) {
-			throw new BadRequestException(
-				"search_space_id query parameter is required",
-			);
-		}
-		const searchSpaceIdNum = parseInt(searchSpaceId, 10);
+		const searchSpaceIdNum = req.searchSpaceContext.searchSpaceId;
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 200;
 		return this.llmConfigsService.findAll(
@@ -59,6 +57,7 @@ export class LLMConfigsController {
 	}
 
 	@Get("llm-configs/:id")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findOne(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -67,6 +66,7 @@ export class LLMConfigsController {
 	}
 
 	@Put("llm-configs/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateLLMConfigDto,
@@ -76,6 +76,7 @@ export class LLMConfigsController {
 	}
 
 	@Delete("llm-configs/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async remove(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -84,6 +85,7 @@ export class LLMConfigsController {
 	}
 
 	@Get("search-spaces/:searchSpaceId/llm-preferences")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async getUserLLMPreferences(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Req() req: any,
@@ -95,6 +97,7 @@ export class LLMConfigsController {
 	}
 
 	@Put("search-spaces/:searchSpaceId/llm-preferences")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async updateUserLLMPreferences(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Body() preferencesDto: LLMPreferencesUpdateDto,

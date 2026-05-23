@@ -5,17 +5,21 @@ import { CHAT_DETAILS } from "@/shared/queryKeys";
 
 const useGetChatDetails = (
 	id: number | null | undefined,
+	searchSpaceId: number | null | undefined,
 	options?: UseQueryOptions<ChatDetails, Error>,
 ) => {
 	return useQuery<ChatDetails, Error>({
-		queryKey: [CHAT_DETAILS, id],
+		queryKey: [CHAT_DETAILS, id, searchSpaceId],
 		queryFn: () => {
 			if (!id) {
 				throw new Error("Chat ID is required");
 			}
-			return chatsClientRequests.getChatDetails(id);
+			if (!searchSpaceId) {
+				throw new Error("Search Space ID is required");
+			}
+			return chatsClientRequests.getChatDetails(id, searchSpaceId);
 		},
-		enabled: !!id,
+		enabled: !!id && !!searchSpaceId,
 		...options,
 	});
 };

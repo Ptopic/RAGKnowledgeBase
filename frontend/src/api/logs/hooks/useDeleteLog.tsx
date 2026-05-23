@@ -7,13 +7,19 @@ import { toast } from "sonner";
 import { LOGS, LOGS_SUMMARY } from "@/shared/queryKeys";
 import logsClientRequests from "../authClientRequests";
 
+interface DeleteLogParams {
+	id: number;
+	searchSpaceId: number;
+}
+
 const useDeleteLog = (
-	options?: UseMutationOptions<void, Error, number, unknown>,
+	options?: UseMutationOptions<void, Error, DeleteLogParams, unknown>,
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: number) => logsClientRequests.deleteLog(id),
+		mutationFn: ({ id, searchSpaceId }: DeleteLogParams) =>
+			logsClientRequests.deleteLog(id, searchSpaceId),
 		onSuccess: () => {
 			toast.success("Log deleted successfully");
 		},

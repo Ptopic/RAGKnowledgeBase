@@ -11,17 +11,20 @@ import {
 	Req,
 	UseGuards,
 } from "@nestjs/common";
-import { LogLevel, LogStatus } from "@prisma/client";
+import { LogLevel, LogStatus, MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
 import { CreateLogDto, LogDto, UpdateLogDto } from "./dtos/log.dto";
 import { LogsService } from "./logs.service";
 
 @Controller("logs")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class LogsController {
 	constructor(private readonly logsService: LogsService) {}
 
 	@Post()
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async create(
 		@Body() createDto: CreateLogDto,
 		@Req() req: any,
@@ -30,11 +33,11 @@ export class LogsController {
 	}
 
 	@Get()
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findAll(
 		@Req() req: any,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
-		@Query("search_space_id") searchSpaceId?: string,
 		@Query("level") level?: LogLevel,
 		@Query("status") status?: LogStatus,
 		@Query("source") source?: string,
@@ -43,8 +46,6 @@ export class LogsController {
 	): Promise<LogDto[]> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
-		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
 		const startDateObj = startDate ? new Date(startDate) : undefined;
 		const endDateObj = endDate ? new Date(endDate) : undefined;
 
@@ -52,7 +53,7 @@ export class LogsController {
 			req.user.id,
 			skipNum,
 			limitNum,
-			searchSpaceIdNum,
+			req.searchSpaceContext.searchSpaceId,
 			level,
 			status,
 			source,
@@ -62,6 +63,7 @@ export class LogsController {
 	}
 
 	@Get("search-space/:searchSpaceId/summary")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async getLogsSummary(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Req() req: any,
@@ -76,6 +78,7 @@ export class LogsController {
 	}
 
 	@Get(":id")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findOne(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -84,6 +87,7 @@ export class LogsController {
 	}
 
 	@Put(":id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateLogDto,
@@ -93,6 +97,7 @@ export class LogsController {
 	}
 
 	@Delete(":id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async remove(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,

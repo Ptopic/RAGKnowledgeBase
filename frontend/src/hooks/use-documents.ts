@@ -39,11 +39,11 @@ export function useDocuments(
 	const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
 	const { mutate: deleteDocumentMutation } = useDeleteDocument({
-		onSuccess: (_, documentId) => {
-			setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+		onSuccess: (_, params) => {
+			setDocuments((prev) => prev.filter((doc) => doc.id !== params.id));
 			setFavoriteIds((prev) => {
 				const next = new Set(prev);
-				next.delete(documentId);
+				next.delete(params.id);
 				return next;
 			});
 		},
@@ -195,9 +195,9 @@ export function useDocuments(
 	// Function to delete a document
 	const deleteDocument = useCallback(
 		async (documentId: number) => {
-			await deleteDocumentMutation(documentId);
+			await deleteDocumentMutation({ id: documentId, searchSpaceId });
 		},
-		[deleteDocumentMutation],
+		[deleteDocumentMutation, searchSpaceId],
 	);
 
 	// Function to get document type counts
@@ -227,7 +227,7 @@ export function useDocuments(
 		async (documentId: number, currentIsFavorite: boolean) => {
 			const prevFavoriteIds = new Set(favoriteIds);
 			toggleFavoriteMutation(
-				{ documentId, isFavorite: currentIsFavorite },
+				{ documentId, searchSpaceId, isFavorite: currentIsFavorite },
 				{
 					onSuccess: () => {
 						setFavoriteIds((prev) => {

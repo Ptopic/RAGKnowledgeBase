@@ -82,8 +82,8 @@ export const getDocumentByChunk =
 
 export const getDocumentWithChunks =
 	(request: ICallableRequestBuilder<DocumentWithChunks>) =>
-	async (documentId: number) =>
-		request.call(`${config.apiUrl}/documents/${documentId}/chunks`, (init) => ({
+	async (documentId: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/chunks?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -150,8 +150,9 @@ export const searchDocuments =
 	};
 
 export const deleteDocument =
-	(request: ICallableRequestBuilder<void>) => async (id: number) =>
-		request.call(`${config.apiUrl}/documents/${id}`, (init) => ({
+	(request: ICallableRequestBuilder<void>) =>
+	async (id: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/documents/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));
@@ -174,16 +175,16 @@ export const getDocumentTypeCounts =
 
 export const addFavorite =
 	(request: ICallableRequestBuilder<{ message: string }>) =>
-	async (documentId: number) =>
-		request.call(`${config.apiUrl}/documents/${documentId}/favorite`, (init) => ({
+	async (documentId: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/favorite?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "POST",
 		}));
 
 export const removeFavorite =
 	(request: ICallableRequestBuilder<{ message: string }>) =>
-	async (documentId: number) =>
-		request.call(`${config.apiUrl}/documents/${documentId}/favorite`, (init) => ({
+	async (documentId: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/documents/${documentId}/favorite?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));

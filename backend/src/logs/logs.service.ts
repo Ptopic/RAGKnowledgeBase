@@ -7,6 +7,7 @@ import {
 import { LogLevel, LogStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
+import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
 import { CreateLogDto, LogDto, UpdateLogDto } from "./dtos/log.dto";
 
 @Injectable()
@@ -18,8 +19,6 @@ export class LogsService {
 
 	async create(createDto: CreateLogDto, userId: string): Promise<LogDto> {
 		try {
-			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
-
 			const log = await this.prisma.log.create({
 				data: {
 					level: createDto.level,
@@ -46,7 +45,7 @@ export class LogsService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 100,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 		level?: LogLevel,
 		status?: LogStatus,
 		source?: string,
@@ -54,16 +53,9 @@ export class LogsService {
 		endDate?: Date,
 	): Promise<LogDto[]> {
 		try {
-			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
-
 			const where: any = {
-				searchSpaceId: { in: accessibleSpaceIds },
+				searchSpaceId,
 			};
-
-			if (searchSpaceId !== undefined) {
-				await this.permissionsService.requireRead(searchSpaceId, userId);
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			if (level !== undefined) {
 				where.level = level;
@@ -109,8 +101,6 @@ export class LogsService {
 		hours: number = 24,
 	): Promise<any> {
 		try {
-			await this.permissionsService.requireRead(searchSpaceId, userId);
-
 			const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
 			const logs = await this.prisma.log.findMany({
@@ -189,8 +179,6 @@ export class LogsService {
 				throw new NotFoundException("Log not found");
 			}
 
-			await this.permissionsService.requireRead(log.searchSpaceId, userId);
-
 			return this.toDto(log);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -215,8 +203,6 @@ export class LogsService {
 			if (!log) {
 				throw new NotFoundException("Log not found");
 			}
-
-			await this.permissionsService.requireWrite(log.searchSpaceId, userId);
 
 			const updated = await this.prisma.log.update({
 				where: { id },
@@ -249,8 +235,6 @@ export class LogsService {
 			if (!log) {
 				throw new NotFoundException("Log not found");
 			}
-
-			await this.permissionsService.requireWrite(log.searchSpaceId, userId);
 
 			await this.prisma.log.delete({
 				where: { id },

@@ -24,8 +24,9 @@ export const getChats =
 		);
 
 export const getChatDetails =
-	(request: ICallableRequestBuilder<ChatDetails>) => async (id: number) =>
-		request.call(`${config.apiUrl}/chats/${id}`, (init) => ({
+	(request: ICallableRequestBuilder<ChatDetails>) =>
+	async (id: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/chats/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -45,8 +46,8 @@ export const createChat =
 
 export const updateChat =
 	(request: ICallableRequestBuilder<void>) =>
-	async (id: number, data: UpdateChatRequest) =>
-		request.call(`${config.apiUrl}/chats/${id}`, (init) => ({
+	async (id: number, searchSpaceId: number, data: UpdateChatRequest) =>
+		request.call(`${config.apiUrl}/chats/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "PUT",
 			headers: {
@@ -57,24 +58,25 @@ export const updateChat =
 		}));
 
 export const deleteChat =
-	(request: ICallableRequestBuilder<void>) => async (id: number) =>
-		request.call(`${config.apiUrl}/chats/${id}`, (init) => ({
+	(request: ICallableRequestBuilder<void>) =>
+	async (id: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/chats/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));
 
 export const addFavoriteChat =
 	(request: ICallableRequestBuilder<ToggleFavoriteResponse>) =>
-	async (id: number) =>
-		request.call(`${config.apiUrl}/chats/${id}/favorite`, (init) => ({
+	async (id: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/chats/${id}/favorite?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "POST",
 		}));
 
 export const removeFavoriteChat =
 	(request: ICallableRequestBuilder<ToggleFavoriteResponse>) =>
-	async (id: number) =>
-		request.call(`${config.apiUrl}/chats/${id}/favorite`, (init) => ({
+	async (id: number, searchSpaceId: number) =>
+		request.call(`${config.apiUrl}/chats/${id}/favorite?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));

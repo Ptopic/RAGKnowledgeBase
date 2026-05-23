@@ -8,6 +8,7 @@ import {
 import { MemberRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
+import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
 import {
 	CreateSearchSpaceDto,
 	SearchSpaceDto,
@@ -83,10 +84,11 @@ export class SearchSpacesService {
 		}
 	}
 
-	async findOne(id: number, userId: string): Promise<SearchSpaceDto> {
+	async findOne(
+		id: number,
+		membership: SearchSpaceMembershipAttachment,
+	): Promise<SearchSpaceDto> {
 		try {
-			const membership = await this.permissionsService.requireMembership(id, userId);
-
 			const searchSpace = await this.prisma.searchSpace.findFirst({
 				where: { id },
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
@@ -110,11 +112,9 @@ export class SearchSpacesService {
 	async update(
 		id: number,
 		updateDto: UpdateSearchSpaceDto,
-		userId: string,
+		membership: SearchSpaceMembershipAttachment,
 	): Promise<SearchSpaceDto> {
 		try {
-			const membership = await this.permissionsService.requireWrite(id, userId);
-
 			const updated = await this.prisma.searchSpace.update({
 				where: { id },
 				data: {
@@ -137,8 +137,6 @@ export class SearchSpacesService {
 
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
-			await this.permissionsService.requireOwner(id, userId);
-
 			await this.prisma.searchSpace.delete({
 				where: { id },
 			});
@@ -159,8 +157,6 @@ export class SearchSpacesService {
 		inviteDto: InviteMemberDto,
 		userId: string,
 	): Promise<InviteResponseDto> {
-		await this.permissionsService.requireOwner(searchSpaceId, userId);
-
 		const INVITE_SUCCESS: InviteResponseDto = {
 			message: "If the user exists, they will be added to this search space.",
 		};
@@ -221,11 +217,8 @@ export class SearchSpacesService {
 
 	async listMembers(
 		searchSpaceId: number,
-		userId: string,
 	): Promise<MemberDto[]> {
 		try {
-			await this.permissionsService.requireMembership(searchSpaceId, userId);
-
 			const members = await this.prisma.searchSpaceMember.findMany({
 				where: { searchSpaceId },
 				include: { user: true },
@@ -247,11 +240,8 @@ export class SearchSpacesService {
 		searchSpaceId: number,
 		memberId: string,
 		updateDto: UpdateMemberRoleDto,
-		userId: string,
 	): Promise<MemberDto> {
 		try {
-			await this.permissionsService.requireOwner(searchSpaceId, userId);
-
 			const member = await this.prisma.searchSpaceMember.findUnique({
 				where: { id: memberId },
 			});
@@ -287,11 +277,8 @@ export class SearchSpacesService {
 	async removeMember(
 		searchSpaceId: number,
 		memberId: string,
-		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.permissionsService.requireOwner(searchSpaceId, userId);
-
 			const member = await this.prisma.searchSpaceMember.findUnique({
 				where: { id: memberId },
 			});
@@ -324,11 +311,9 @@ export class SearchSpacesService {
 
 	async leaveSearchSpace(
 		searchSpaceId: number,
-		userId: string,
+		membership: SearchSpaceMembershipAttachment,
 	): Promise<{ message: string }> {
 		try {
-			const membership = await this.permissionsService.requireMembership(searchSpaceId, userId);
-
 			if (membership.role === MemberRole.OWNER) {
 				throw new ForbiddenException(
 					"Owner cannot leave the search space. Transfer ownership first or delete the space.",

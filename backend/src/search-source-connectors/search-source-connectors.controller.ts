@@ -1,5 +1,4 @@
 import {
-	BadRequestException,
 	Body,
 	Controller,
 	Delete,
@@ -12,7 +11,10 @@ import {
 	Req,
 	UseGuards,
 } from "@nestjs/common";
+import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
 import {
 	CreateSearchSourceConnectorDto,
 	GitHubPATRequestDto,
@@ -22,7 +24,7 @@ import {
 import { SearchSourceConnectorsService } from "./search-source-connectors.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class SearchSourceConnectorsController {
 	constructor(
 		private readonly connectorsService: SearchSourceConnectorsService,
@@ -37,39 +39,33 @@ export class SearchSourceConnectorsController {
 	}
 
 	@Post("search-source-connectors")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async create(
 		@Body() createDto: CreateSearchSourceConnectorDto,
-		@Query("search_space_id", ParseIntPipe) searchSpaceId: number,
 		@Req() req: any,
 	): Promise<SearchSourceConnectorDto> {
-		if (!searchSpaceId) {
-			throw new BadRequestException(
-				"search_space_id query parameter is required",
-			);
-		}
-		return this.connectorsService.create(createDto, searchSpaceId, req.user.id);
+		return this.connectorsService.create(createDto, req.searchSpaceContext.searchSpaceId, req.user.id);
 	}
 
 	@Get("search-source-connectors")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findAll(
 		@Req() req: any,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
-		@Query("search_space_id") searchSpaceId?: string,
 	): Promise<SearchSourceConnectorDto[]> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
-		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
 		return this.connectorsService.findAll(
 			req.user.id,
 			skipNum,
 			limitNum,
-			searchSpaceIdNum,
+			req.searchSpaceContext.searchSpaceId,
 		);
 	}
 
 	@Get("search-source-connectors/:id")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findOne(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -78,6 +74,7 @@ export class SearchSourceConnectorsController {
 	}
 
 	@Put("search-source-connectors/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateSearchSourceConnectorDto,
@@ -87,6 +84,7 @@ export class SearchSourceConnectorsController {
 	}
 
 	@Delete("search-source-connectors/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async remove(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -95,6 +93,7 @@ export class SearchSourceConnectorsController {
 	}
 
 	@Post("search-source-connectors/:id/index")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async indexConnectorContent(
 		@Param("id", ParseIntPipe) id: number,
 		@Query("search_space_id", ParseIntPipe) searchSpaceId: number,
@@ -102,11 +101,6 @@ export class SearchSourceConnectorsController {
 		@Query("end_date") endDate?: string,
 		@Req() req?: any,
 	): Promise<any> {
-		if (!searchSpaceId) {
-			throw new BadRequestException(
-				"search_space_id query parameter is required",
-			);
-		}
 		return this.connectorsService.indexConnectorContent(
 			id,
 			searchSpaceId,

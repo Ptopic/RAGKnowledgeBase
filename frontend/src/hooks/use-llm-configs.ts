@@ -37,8 +37,9 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 		id: number,
 		config: import("@/api/llm-configs/types").UpdateLLMConfig
 	) => {
+		if (!searchSpaceId) return null;
 		try {
-			const result = await updateMutation.mutateAsync({ id, data: config });
+			const result = await updateMutation.mutateAsync({ id, searchSpaceId, data: config });
 			return result;
 		} catch {
 			return null;
@@ -46,8 +47,9 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 	};
 
 	const deleteLLMConfig = async (id: number): Promise<boolean> => {
+		if (!searchSpaceId) return false;
 		try {
-			await deleteMutation.mutateAsync(id);
+			await deleteMutation.mutateAsync({ id, searchSpaceId });
 			return true;
 		} catch {
 			return false;

@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { DocumentType, Notebook as PrismaNotebook } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
-import { PermissionsService } from "../permissions/permissions.service";
+
 import { EmbeddingService } from "../retriever/embedding.service";
 import { ImageAnalysisService } from "../services/image-analysis.service";
 import { UploadService } from "../upload";
@@ -39,7 +39,6 @@ export class NotebooksService {
 		private uploadService: UploadService,
 		private embeddingService: EmbeddingService,
 		private imageAnalysisService: ImageAnalysisService,
-		private permissionsService: PermissionsService,
 	) {}
 
 	private async generateSlug(title: string, attempt = 0): Promise<string> {
@@ -64,8 +63,6 @@ export class NotebooksService {
 		userId: string,
 	): Promise<NotebookDto> {
 		try {
-			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
-
 			if (
 				createDto.headline_image_url &&
 				!this.uploadService.isOwnedUrl(createDto.headline_image_url)
@@ -127,8 +124,6 @@ export class NotebooksService {
 			if (limit <= 0 || limit > 1000) {
 				throw new BadRequestException("limit must be between 1 and 1000");
 			}
-
-			await this.permissionsService.requireRead(searchSpaceId, userId);
 
 			const where: any = {
 				searchSpaceId,
@@ -221,8 +216,6 @@ export class NotebooksService {
 				);
 			}
 
-			await this.permissionsService.requireRead(notebook.searchSpaceId, userId);
-
 			return this.toDto(notebook);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -262,8 +255,6 @@ export class NotebooksService {
 					"Notebook not found or you do not have permission to access it",
 				);
 			}
-
-			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
 
 			if (
 				updateDto.headline_image_url !== undefined &&
@@ -326,8 +317,6 @@ export class NotebooksService {
 				);
 			}
 
-			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
-
 			await this.prisma.document.deleteMany({
 				where: { notebookId: notebook.id },
 			});
@@ -375,8 +364,6 @@ export class NotebooksService {
 				);
 			}
 
-			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
-
 			if (notebook.isPublished) {
 				throw new BadRequestException("Notebook is already published");
 			}
@@ -423,8 +410,6 @@ export class NotebooksService {
 					"Notebook not found or you do not have permission to access it",
 				);
 			}
-
-			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
 
 			if (!notebook.isPublished) {
 				throw new BadRequestException("Notebook is not published");

@@ -52,8 +52,6 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<QueryTemplateDto> {
 		try {
-			await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 			const template = await this.prisma.queryTemplate.create({
 				data: {
 					title: createDto.title,
@@ -125,8 +123,6 @@ export class QueryTemplatesService {
 		limit: number = 100,
 	): Promise<PaginatedQueryTemplatesResponseDto> {
 		try {
-			await this.permissionsService.requireRead(searchSpaceId, userId);
-
 			const searchSpace = await this.prisma.searchSpace.findFirst({
 				where: { id: searchSpaceId },
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
@@ -278,8 +274,6 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<QueryTemplateDto> {
 		try {
-			await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 			const template = await this.prisma.queryTemplate.findUnique({
 				where: { id },
 			});
@@ -375,8 +369,6 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 			const template = await this.prisma.queryTemplate.findUnique({
 				where: { id },
 			});
@@ -416,8 +408,6 @@ export class QueryTemplatesService {
 	): Promise<{ pinned_query_template_ids: number[] }> {
 		try {
 			return await this.prisma.$transaction(async (tx) => {
-				await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 				const searchSpace = await tx.searchSpace.findFirst({
 					where: { id: searchSpaceId },
 					include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
@@ -490,8 +480,6 @@ export class QueryTemplatesService {
 	): Promise<{ pinned_query_template_ids: number[] }> {
 		try {
 			return await this.prisma.$transaction(async (tx) => {
-				await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 				const searchSpace = await tx.searchSpace.findFirst({
 					where: { id: searchSpaceId },
 				});

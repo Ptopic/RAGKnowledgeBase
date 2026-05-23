@@ -9,7 +9,6 @@ import {
 import { SearchSourceConnectorType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
-import { PermissionsService } from "../permissions/permissions.service";
 import {
 	CreateSearchSourceConnectorDto,
 	SearchSourceConnectorDto,
@@ -21,7 +20,6 @@ export class SearchSourceConnectorsService {
 	constructor(
 		private prisma: PrismaService,
 		private queueService: QueueService,
-		private permissionsService: PermissionsService,
 	) {}
 
 	async create(
@@ -30,8 +28,6 @@ export class SearchSourceConnectorsService {
 		userId: string,
 	): Promise<SearchSourceConnectorDto> {
 		try {
-			await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 			const existing = await this.prisma.searchSourceConnector.findFirst({
 				where: {
 					searchSpaceId,
@@ -91,22 +87,11 @@ export class SearchSourceConnectorsService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 100,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 	): Promise<SearchSourceConnectorDto[]> {
 		try {
-			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
-
-			const where: any = {
-				searchSpaceId: { in: accessibleSpaceIds },
-			};
-
-			if (searchSpaceId !== undefined) {
-				await this.permissionsService.requireRead(searchSpaceId, userId);
-				where.searchSpaceId = searchSpaceId;
-			}
-
 			const connectors = await this.prisma.searchSourceConnector.findMany({
-				where,
+				where: { searchSpaceId },
 				skip,
 				take: limit,
 			});
@@ -132,8 +117,6 @@ export class SearchSourceConnectorsService {
 				throw new NotFoundException("Search source connector not found");
 			}
 
-			await this.permissionsService.requireRead(connector.searchSpaceId, userId);
-
 			return this.toDto(connector);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -158,8 +141,6 @@ export class SearchSourceConnectorsService {
 			if (!connector) {
 				throw new NotFoundException("Search source connector not found");
 			}
-
-			await this.permissionsService.requireWrite(connector.searchSpaceId, userId);
 
 			if (
 				updateDto.connector_type &&
@@ -259,8 +240,6 @@ export class SearchSourceConnectorsService {
 				throw new NotFoundException("Search source connector not found");
 			}
 
-			await this.permissionsService.requireWrite(connector.searchSpaceId, userId);
-
 			await this.prisma.searchSourceConnector.delete({
 				where: { id },
 			});
@@ -291,8 +270,6 @@ export class SearchSourceConnectorsService {
 			if (!connector) {
 				throw new NotFoundException("Search source connector not found");
 			}
-
-			await this.permissionsService.requireWrite(searchSpaceId, userId);
 
 			const today = new Date().toISOString().split("T")[0];
 			let indexingFrom = startDate;

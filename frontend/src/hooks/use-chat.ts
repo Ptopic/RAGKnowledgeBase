@@ -75,8 +75,8 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 
 			try {
 				const data = await queryClient.fetchQuery({
-					queryKey: ["chatDetails", Number(chatId)],
-					queryFn: () => chatsClientRequests.getChatDetails(Number(chatId)),
+					queryKey: ["chatDetails", Number(chatId), Number(search_space_id)],
+					queryFn: () => chatsClientRequests.getChatDetails(Number(chatId), Number(search_space_id)),
 				});
 				return data || null;
 			} catch (err) {
@@ -164,6 +164,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 
 				await updateChatMutation({
 					id: Number(chatId),
+					searchSpaceId: Number(search_space_id),
 					data: request,
 				});
 			} catch (err) {

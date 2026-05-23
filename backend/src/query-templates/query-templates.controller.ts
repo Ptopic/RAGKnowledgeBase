@@ -11,8 +11,11 @@ import {
 	Req,
 	UseGuards,
 } from "@nestjs/common";
+import { MemberRole } from "@prisma/client";
 import { Request } from "express";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
 import {
 	CreateQueryTemplateDto,
 	PaginatedQueryTemplatesResponseDto,
@@ -26,7 +29,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class QueryTemplatesController {
 	constructor(private readonly queryTemplatesService: QueryTemplatesService) {}
 
@@ -67,6 +70,7 @@ export class QueryTemplatesController {
 	}
 
 	@Post("searchspaces/:searchSpaceId/query-templates")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async createForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Body() createDto: CreateQueryTemplateDto,
@@ -80,6 +84,7 @@ export class QueryTemplatesController {
 	}
 
 	@Get("searchspaces/:searchSpaceId/query-templates")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findAllForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Req() req: AuthenticatedRequest,
@@ -99,6 +104,7 @@ export class QueryTemplatesController {
 	}
 
 	@Delete("searchspaces/:searchSpaceId/query-templates/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async removeForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,
@@ -112,6 +118,7 @@ export class QueryTemplatesController {
 	}
 
 	@Put("searchspaces/:searchSpaceId/query-templates/:id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async updateForSearchSpace(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,
@@ -127,6 +134,7 @@ export class QueryTemplatesController {
 	}
 
 	@Post("searchspaces/:searchSpaceId/query-templates/:id/pin")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async pinQueryTemplate(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,
@@ -140,6 +148,7 @@ export class QueryTemplatesController {
 	}
 
 	@Post("searchspaces/:searchSpaceId/query-templates/:id/unpin")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async unpinQueryTemplate(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("id", ParseIntPipe) id: number,

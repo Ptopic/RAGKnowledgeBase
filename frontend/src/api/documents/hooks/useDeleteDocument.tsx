@@ -7,13 +7,19 @@ import { toast } from "sonner";
 import { DOCUMENTS, SEARCH_DOCUMENTS } from "@/shared/queryKeys";
 import documentsClientRequests from "../authClientRequests";
 
+interface DeleteDocumentParams {
+	id: number;
+	searchSpaceId: number;
+}
+
 const useDeleteDocument = (
-	options?: UseMutationOptions<void, Error, number, unknown>,
+	options?: UseMutationOptions<void, Error, DeleteDocumentParams, unknown>,
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: number) => documentsClientRequests.deleteDocument(id),
+		mutationFn: ({ id, searchSpaceId }: DeleteDocumentParams) =>
+			documentsClientRequests.deleteDocument(id, searchSpaceId),
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: [DOCUMENTS] });
 			queryClient.invalidateQueries({ queryKey: [SEARCH_DOCUMENTS] });

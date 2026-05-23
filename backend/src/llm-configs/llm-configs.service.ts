@@ -15,7 +15,6 @@ import {
 } from "./dtos/llm-config.dto";
 import { PrismaService } from "../prisma/prisma.service";
 import { ApiKeysService } from "../api-keys/api-keys.service";
-import { PermissionsService } from "../permissions/permissions.service";
 import { encrypt } from "../utils/encryption";
 
 function maskApiKey(key: string): string {
@@ -28,7 +27,6 @@ export class LLMConfigsService {
 	constructor(
 		private prisma: PrismaService,
 		private apiKeysService: ApiKeysService,
-		private permissionsService: PermissionsService,
 	) {}
 
 	async create(
@@ -36,8 +34,6 @@ export class LLMConfigsService {
 		userId: string,
 	): Promise<LLMConfigDto> {
 		try {
-			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
-
 			if (!createDto.api_key && !createDto.user_provider_key_id) {
 				throw new BadRequestException(
 					'Either api_key or user_provider_key_id must be provided',
@@ -93,8 +89,6 @@ export class LLMConfigsService {
 		limit: number = 200,
 	): Promise<LLMConfigDto[]> {
 		try {
-			await this.permissionsService.requireRead(searchSpaceId, userId);
-
 			const llmConfigs = await this.prisma.lLMConfig.findMany({
 				where: { searchSpaceId },
 				skip,
@@ -122,8 +116,6 @@ export class LLMConfigsService {
 				throw new NotFoundException("LLM configuration not found");
 			}
 
-			await this.permissionsService.requireRead(llmConfig.searchSpaceId, userId);
-
 			return this.toDto(llmConfig);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -148,8 +140,6 @@ export class LLMConfigsService {
 			if (!llmConfig) {
 				throw new NotFoundException("LLM configuration not found");
 			}
-
-			await this.permissionsService.requireWrite(llmConfig.searchSpaceId, userId);
 
 			const selectiveData: {
 				name?: string;
@@ -214,8 +204,6 @@ export class LLMConfigsService {
 				throw new NotFoundException("LLM configuration not found");
 			}
 
-			await this.permissionsService.requireWrite(llmConfig.searchSpaceId, userId);
-
 			this.apiKeysService.invalidateConfigCache(id);
 
 			await this.prisma.lLMConfig.delete({
@@ -238,8 +226,6 @@ export class LLMConfigsService {
 		userId: string,
 	): Promise<LLMPreferencesDto> {
 		try {
-			await this.permissionsService.requireRead(searchSpaceId, userId);
-
 			let preference = await this.prisma.userSearchSpacePreference.findFirst({
 				where: { userId, searchSpaceId },
 				include: {
@@ -290,8 +276,6 @@ export class LLMConfigsService {
 		userId: string,
 	): Promise<LLMPreferencesDto> {
 		try {
-			await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 			let preference = await this.prisma.userSearchSpacePreference.findFirst({
 				where: { userId, searchSpaceId },
 			});

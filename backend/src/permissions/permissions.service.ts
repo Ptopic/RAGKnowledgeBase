@@ -35,7 +35,7 @@ export class PermissionsService {
 		const membership = await this.requireMembership(searchSpaceId, userId);
 		if (ROLE_RANK[membership.role] < ROLE_RANK[minimumRole]) {
 			throw new ForbiddenException(
-				`You need at least ${minimumRole} role to perform this action`,
+				"You do not have permission to perform this action",
 			);
 		}
 		return membership;

@@ -1,6 +1,5 @@
 import {
 	BadRequestException,
-	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	Logger,
@@ -9,7 +8,6 @@ import {
 import { DocumentType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
-import { PermissionsService } from "../permissions/permissions.service";
 import {
 	CreateDocumentsDto,
 	DocumentDto,
@@ -26,7 +24,6 @@ export class DocumentsService {
 	constructor(
 		private prisma: PrismaService,
 		private queueService: QueueService,
-		private permissionsService: PermissionsService,
 	) {}
 
 	async create(
@@ -34,8 +31,6 @@ export class DocumentsService {
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
-
 			if (!createDto.content || createDto.content.length === 0) {
 				throw new BadRequestException("Content array cannot be empty");
 			}
@@ -84,8 +79,7 @@ export class DocumentsService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException ||
-				error instanceof ForbiddenException
+				error instanceof BadRequestException
 			) {
 				throw error;
 			}
@@ -105,8 +99,6 @@ export class DocumentsService {
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.permissionsService.requireWrite(searchSpaceId, userId);
-
 			if (!files || files.length === 0) {
 				throw new BadRequestException("No files provided");
 			}
@@ -137,8 +129,7 @@ export class DocumentsService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException ||
-				error instanceof ForbiddenException
+				error instanceof BadRequestException
 			) {
 				throw error;
 			}
@@ -154,10 +145,10 @@ export class DocumentsService {
 
 	async findAll(
 		userId: string,
+		searchSpaceId: number,
 		skip?: number,
 		page?: number,
 		pageSize: number = 50,
-		searchSpaceId?: number,
 		documentTypes?: string,
 		favoriteStatus?: FavoriteStatus,
 	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
@@ -169,15 +160,9 @@ export class DocumentsService {
 				offset = page * pageSize;
 			}
 
-			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
-
 			const where: any = {
-				searchSpaceId: { in: accessibleSpaceIds },
+				searchSpaceId,
 			};
-
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			if (documentTypes) {
 				const types = documentTypes.split(",").map((t) => t.trim());
@@ -215,9 +200,7 @@ export class DocumentsService {
 			}
 
 			const favoriteWhere: any = { userId };
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				favoriteWhere.document = { searchSpaceId };
-			}
+			favoriteWhere.document = { searchSpaceId };
 			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
 				where: favoriteWhere,
 				select: { documentId: true },
@@ -237,11 +220,11 @@ export class DocumentsService {
 
 	async search(
 		userId: string,
+		searchSpaceId: number,
 		title: string,
 		skip?: number,
 		page?: number,
 		pageSize: number = 50,
-		searchSpaceId?: number,
 		documentTypes?: string,
 		favoriteStatus?: FavoriteStatus,
 	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
@@ -253,16 +236,10 @@ export class DocumentsService {
 				offset = page * pageSize;
 			}
 
-			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
-
 			const where: any = {
-				searchSpaceId: { in: accessibleSpaceIds },
+				searchSpaceId,
 				title: { contains: title, mode: "insensitive" },
 			};
-
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			if (documentTypes) {
 				const types = documentTypes.split(",").map((t) => t.trim());
@@ -300,9 +277,7 @@ export class DocumentsService {
 			}
 
 			const favoriteWhere: any = { userId };
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				favoriteWhere.document = { searchSpaceId };
-			}
+			favoriteWhere.document = { searchSpaceId };
 			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
 				where: favoriteWhere,
 				select: { documentId: true },
@@ -322,18 +297,12 @@ export class DocumentsService {
 
 	async getTypeCounts(
 		userId: string,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 	): Promise<Record<string, number>> {
 		try {
-			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
-
 			const where: any = {
-				searchSpaceId: { in: accessibleSpaceIds },
+				searchSpaceId,
 			};
-
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			const documents = await this.prisma.document.groupBy({
 				by: ["documentType"],
@@ -386,11 +355,9 @@ export class DocumentsService {
 				);
 			}
 
-			await this.permissionsService.requireRead(document.searchSpaceId, userId);
-
 			return this.toWithChunksDto(document);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -409,11 +376,9 @@ export class DocumentsService {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
 
-			await this.permissionsService.requireRead(document.searchSpaceId, userId);
-
 			return this.toDto(document);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -440,11 +405,9 @@ export class DocumentsService {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
 
-			await this.permissionsService.requireRead(document.searchSpaceId, userId);
-
 			return this.toWithChunksDto(document);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -467,8 +430,6 @@ export class DocumentsService {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
 
-			await this.permissionsService.requireWrite(document.searchSpaceId, userId);
-
 			const updated = await this.prisma.document.update({
 				where: { id },
 				data: {
@@ -480,7 +441,7 @@ export class DocumentsService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -499,15 +460,13 @@ export class DocumentsService {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
 
-			await this.permissionsService.requireWrite(document.searchSpaceId, userId);
-
 			await this.prisma.document.delete({
 				where: { id },
 			});
 
 			return { message: "Document deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -560,8 +519,6 @@ export class DocumentsService {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
 
-			await this.permissionsService.requireRead(document.searchSpaceId, userId);
-
 			await this.prisma.userDocumentFavorite.upsert({
 				where: {
 					userId_documentId: {
@@ -578,7 +535,7 @@ export class DocumentsService {
 
 			return { message: "Document added to favorites" };
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -602,8 +559,6 @@ export class DocumentsService {
 				);
 			}
 
-			await this.permissionsService.requireRead(document.searchSpaceId, userId);
-
 			await this.prisma.userDocumentFavorite.delete({
 				where: {
 					userId_documentId: {
@@ -615,7 +570,7 @@ export class DocumentsService {
 
 			return { message: "Document removed from favorites" };
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException) {
 				throw error;
 			}
 			if (error.code === "P2025") {

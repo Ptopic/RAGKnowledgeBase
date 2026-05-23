@@ -135,9 +135,9 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 									<DropdownMenuItem
 										onClick={() => {
 											if (chat.is_favorite) {
-												removeFavoriteChat(chat.id!);
+												removeFavoriteChat({ id: chat.id!, searchSpaceId: chat.search_space_id! });
 											} else {
-												addFavoriteChat(chat.id!);
+												addFavoriteChat({ id: chat.id!, searchSpaceId: chat.search_space_id! });
 											}
 										}}
 									>
