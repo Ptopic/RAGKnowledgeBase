@@ -17,6 +17,7 @@ export const SEARCH_SPACE_CONNECTORS = "searchSpaceConnectors";
 export const QUERY_TEMPLATES = "queryTemplates";
 export const SEARCH_SPACES = "searchSpaces";
 export const SEARCH_SPACE = "searchSpace";
+export const SEARCH_SPACE_MEMBERS = "searchSpaceMembers";
 export const NOTEBOOKS = "notebooks";
 export const NOTEBOOK = "notebook";
 export const PUBLIC_NOTEBOOKS = "publicNotebooks";

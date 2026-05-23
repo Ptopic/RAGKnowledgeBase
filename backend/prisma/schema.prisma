@@ -84,6 +84,12 @@ enum LogStatus {
   FAILED
 }
 
+enum MemberRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
 // ==================== Models ====================
 
 // User Model
@@ -122,6 +128,8 @@ model User {
   queryTemplates         QueryTemplate[]
   favoriteDocuments      UserDocumentFavorite[]
   favorites              UserChatFavorite[]
+  searchSpaceMemberships SearchSpaceMember[]
+  invitedMemberships     SearchSpaceMember[] @relation("InvitedBy")
 
   @@map("user")
 }
@@ -167,6 +175,7 @@ model SearchSpace {
   userPreferences        UserSearchSpacePreference[]
   queryTemplates         QueryTemplate[]
   pinnedQueryTemplates   SearchSpacePinnedQueryTemplate[]
+  members                SearchSpaceMember[]
 
   @@index([name])
   @@index([userId])
@@ -503,4 +512,26 @@ model SearchSpacePinnedQueryTemplate {
   @@index([searchSpaceId])
   @@index([queryTemplateId])
   @@map("search_space_pinned_query_templates")
+}
+
+// Search Space Member Model
+model SearchSpaceMember {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  searchSpaceId Int                          @map("search_space_id")
+  userId        String                       @map("user_id")
+  role          MemberRole                   @default(VIEWER)
+  invitedById   String                       @map("invited_by_id")
+
+  // Relationships
+  searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy   User        @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([searchSpaceId, userId])
+  @@index([searchSpaceId])
+  @@index([userId])
+  @@index([invitedById])
+  @@map("search_space_members")
 }

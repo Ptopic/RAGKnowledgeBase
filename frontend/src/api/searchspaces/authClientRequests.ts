@@ -2,8 +2,13 @@ import { withAuthenticatedClientRequest } from "@api/requestBuilder/client/withC
 import {
 	createSearchSpace,
 	deleteSearchSpace,
+	getMembers,
 	getSearchSpace,
 	getSearchSpaces,
+	inviteMember,
+	leaveSearchSpace,
+	removeMember,
+	updateMemberRole,
 } from "./requests";
 
 const searchSpacesClientRequests = {
@@ -11,6 +16,11 @@ const searchSpacesClientRequests = {
 	getSearchSpace: withAuthenticatedClientRequest(getSearchSpace),
 	createSearchSpace: withAuthenticatedClientRequest(createSearchSpace),
 	deleteSearchSpace: withAuthenticatedClientRequest(deleteSearchSpace),
+	getMembers: withAuthenticatedClientRequest(getMembers),
+	inviteMember: withAuthenticatedClientRequest(inviteMember),
+	updateMemberRole: withAuthenticatedClientRequest(updateMemberRole),
+	removeMember: withAuthenticatedClientRequest(removeMember),
+	leaveSearchSpace: withAuthenticatedClientRequest(leaveSearchSpace),
 };
 
 export default searchSpacesClientRequests;

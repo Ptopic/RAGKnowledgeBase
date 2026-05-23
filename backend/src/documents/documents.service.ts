@@ -1,5 +1,6 @@
 import {
 	BadRequestException,
+	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	Logger,
@@ -8,6 +9,7 @@ import {
 import { DocumentType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
+import { PermissionsService } from "../permissions/permissions.service";
 import {
 	CreateDocumentsDto,
 	DocumentDto,
@@ -24,36 +26,21 @@ export class DocumentsService {
 	constructor(
 		private prisma: PrismaService,
 		private queueService: QueueService,
+		private permissionsService: PermissionsService,
 	) {}
-
-	async checkSearchSpaceOwnership(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
 
 	async create(
 		createDto: CreateDocumentsDto,
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
+			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
 
 			if (!createDto.content || createDto.content.length === 0) {
 				throw new BadRequestException("Content array cannot be empty");
 			}
 
 			if (createDto.document_type === DocumentType.CRAWLED_URL) {
-				// Process crawled URLs
 				const queuedJobs = [];
 				for (const url of createDto.content) {
 					this.logger.log(`Queuing URL for crawling: ${url}`);
@@ -74,7 +61,6 @@ export class DocumentsService {
 				};
 			}
 			if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
-				// Process YouTube videos
 				const queuedJobs = [];
 				for (const videoUrl of createDto.content) {
 					this.logger.log(`Queuing YouTube video for processing: ${videoUrl}`);
@@ -98,7 +84,8 @@ export class DocumentsService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -118,13 +105,12 @@ export class DocumentsService {
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+			await this.permissionsService.requireWrite(searchSpaceId, userId);
 
 			if (!files || files.length === 0) {
 				throw new BadRequestException("No files provided");
 			}
 
-			// Queue each file for background processing
 			const queuedJobs = [];
 			for (const file of files) {
 				this.logger.log(
@@ -151,7 +137,8 @@ export class DocumentsService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -182,8 +169,10 @@ export class DocumentsService {
 				offset = page * pageSize;
 			}
 
+			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
+
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId: { in: accessibleSpaceIds },
 			};
 
 			if (searchSpaceId !== undefined && searchSpaceId !== null) {
@@ -264,8 +253,10 @@ export class DocumentsService {
 				offset = page * pageSize;
 			}
 
+			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
+
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId: { in: accessibleSpaceIds },
 				title: { contains: title, mode: "insensitive" },
 			};
 
@@ -334,8 +325,10 @@ export class DocumentsService {
 		searchSpaceId?: number,
 	): Promise<Record<string, number>> {
 		try {
+			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
+
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId: { in: accessibleSpaceIds },
 			};
 
 			if (searchSpaceId !== undefined && searchSpaceId !== null) {
@@ -379,7 +372,6 @@ export class DocumentsService {
 			const document = await this.prisma.document.findFirst({
 				where: {
 					id: chunk.documentId,
-					searchSpace: { userId },
 				},
 				include: {
 					chunks: {
@@ -394,9 +386,11 @@ export class DocumentsService {
 				);
 			}
 
+			await this.permissionsService.requireRead(document.searchSpaceId, userId);
+
 			return this.toWithChunksDto(document);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -408,19 +402,18 @@ export class DocumentsService {
 	async findOne(id: number, userId: string): Promise<DocumentDto> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
 
+			await this.permissionsService.requireRead(document.searchSpaceId, userId);
+
 			return this.toDto(document);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -435,10 +428,7 @@ export class DocumentsService {
 	): Promise<DocumentWithChunksDto> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 				include: {
 					chunks: {
 						orderBy: { createdAt: "asc" },
@@ -450,9 +440,11 @@ export class DocumentsService {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
 
+			await this.permissionsService.requireRead(document.searchSpaceId, userId);
+
 			return this.toWithChunksDto(document);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -468,15 +460,14 @@ export class DocumentsService {
 	): Promise<DocumentDto> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
+
+			await this.permissionsService.requireWrite(document.searchSpaceId, userId);
 
 			const updated = await this.prisma.document.update({
 				where: { id },
@@ -489,7 +480,7 @@ export class DocumentsService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -501,15 +492,14 @@ export class DocumentsService {
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
+
+			await this.permissionsService.requireWrite(document.searchSpaceId, userId);
 
 			await this.prisma.document.delete({
 				where: { id },
@@ -517,7 +507,7 @@ export class DocumentsService {
 
 			return { message: "Document deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -563,15 +553,14 @@ export class DocumentsService {
 	): Promise<{ message: string }> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
 				throw new NotFoundException(`Document with id ${id} not found`);
 			}
+
+			await this.permissionsService.requireRead(document.searchSpaceId, userId);
 
 			await this.prisma.userDocumentFavorite.upsert({
 				where: {
@@ -589,7 +578,7 @@ export class DocumentsService {
 
 			return { message: "Document added to favorites" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -604,10 +593,7 @@ export class DocumentsService {
 	): Promise<{ message: string }> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
@@ -615,6 +601,8 @@ export class DocumentsService {
 					`Document with id ${id} not found or you do not have access to it`,
 				);
 			}
+
+			await this.permissionsService.requireRead(document.searchSpaceId, userId);
 
 			await this.prisma.userDocumentFavorite.delete({
 				where: {
@@ -627,7 +615,7 @@ export class DocumentsService {
 
 			return { message: "Document removed from favorites" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			if (error.code === "P2025") {

@@ -16,6 +16,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { PermissionsService } from "../permissions/permissions.service";
 import { UploadService } from "../upload";
 import {
 	CreateNotebookDto,
@@ -35,6 +36,7 @@ export class NotebooksController {
 	constructor(
 		private readonly notebooksService: NotebooksService,
 		private readonly uploadService: UploadService,
+		private readonly permissionsService: PermissionsService,
 	) {}
 
 	@Post(":searchSpaceId/notebooks")
@@ -66,7 +68,7 @@ export class NotebooksController {
 		if (!file.mimetype.startsWith("image/")) {
 			throw new BadRequestException("Only image files are allowed");
 		}
-		await this.notebooksService.checkSearchSpaceOwnership(
+		await this.permissionsService.requireWrite(
 			searchSpaceId,
 			req.user.id,
 		);
@@ -89,7 +91,7 @@ export class NotebooksController {
 		@Body() body: { url: string },
 		@Req() req: AuthenticatedRequest,
 	): Promise<{ message: string }> {
-		await this.notebooksService.checkSearchSpaceOwnership(
+		await this.permissionsService.requireWrite(
 			searchSpaceId,
 			req.user.id,
 		);

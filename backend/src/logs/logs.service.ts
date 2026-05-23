@@ -1,34 +1,24 @@
 import {
+	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
 import { LogLevel, LogStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { PermissionsService } from "../permissions/permissions.service";
 import { CreateLogDto, LogDto, UpdateLogDto } from "./dtos/log.dto";
 
 @Injectable()
 export class LogsService {
-	constructor(private prisma: PrismaService) {}
-
-	async checkSearchSpaceOwnership(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
+	constructor(
+		private prisma: PrismaService,
+		private permissionsService: PermissionsService,
+	) {}
 
 	async create(createDto: CreateLogDto, userId: string): Promise<LogDto> {
 		try {
-			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
+			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
 
 			const log = await this.prisma.log.create({
 				data: {
@@ -43,7 +33,7 @@ export class LogsService {
 
 			return this.toDto(log);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -64,12 +54,14 @@ export class LogsService {
 		endDate?: Date,
 	): Promise<LogDto[]> {
 		try {
+			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
+
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId: { in: accessibleSpaceIds },
 			};
 
 			if (searchSpaceId !== undefined) {
-				await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+				await this.permissionsService.requireRead(searchSpaceId, userId);
 				where.searchSpaceId = searchSpaceId;
 			}
 
@@ -102,7 +94,7 @@ export class LogsService {
 
 			return logs.map((log) => this.toDto(log));
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -117,7 +109,7 @@ export class LogsService {
 		hours: number = 24,
 	): Promise<any> {
 		try {
-			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+			await this.permissionsService.requireRead(searchSpaceId, userId);
 
 			const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
@@ -178,7 +170,7 @@ export class LogsService {
 
 			return summary;
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -190,19 +182,18 @@ export class LogsService {
 	async findOne(id: number, userId: string): Promise<LogDto> {
 		try {
 			const log = await this.prisma.log.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!log) {
 				throw new NotFoundException("Log not found");
 			}
 
+			await this.permissionsService.requireRead(log.searchSpaceId, userId);
+
 			return this.toDto(log);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -218,15 +209,14 @@ export class LogsService {
 	): Promise<LogDto> {
 		try {
 			const log = await this.prisma.log.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!log) {
 				throw new NotFoundException("Log not found");
 			}
+
+			await this.permissionsService.requireWrite(log.searchSpaceId, userId);
 
 			const updated = await this.prisma.log.update({
 				where: { id },
@@ -241,7 +231,7 @@ export class LogsService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -253,15 +243,14 @@ export class LogsService {
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const log = await this.prisma.log.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!log) {
 				throw new NotFoundException("Log not found");
 			}
+
+			await this.permissionsService.requireWrite(log.searchSpaceId, userId);
 
 			await this.prisma.log.delete({
 				where: { id },
@@ -269,7 +258,7 @@ export class LogsService {
 
 			return { message: "Log deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(

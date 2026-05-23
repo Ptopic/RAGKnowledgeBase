@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
+import { NoAccessPage } from "@/components/no-access-page";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import {
@@ -21,6 +22,7 @@ import {
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 
 interface NavItem {
 	title: string;
@@ -46,6 +48,10 @@ export function DashboardClientLayout({
 
 	const { loading, error, isOnboardingComplete } =
 		useLLMPreferences(searchSpaceIdNum);
+	const {
+		isLoading: isLoadingSearchSpace,
+		error: searchSpaceError,
+	} = useGetSearchSpace(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
 	const settingsPath = `/dashboard/${searchSpaceId}/settings`;
@@ -99,6 +105,10 @@ export function DashboardClientLayout({
 		searchSpaceId,
 		hasCheckedOnboarding,
 	]);
+
+	if (searchSpaceError && !isLoadingSearchSpace) {
+		return <NoAccessPage />;
+	}
 
 	// Show loading screen while checking onboarding status (only on first load)
 	if (!hasCheckedOnboarding && loading && !isOnboardingPage && !isSettingsPage) {

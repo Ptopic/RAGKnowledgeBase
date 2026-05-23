@@ -1,11 +1,13 @@
 "use client";
-import { AlertCircle, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { AlertCircle, Loader2, LogOut, Plus, Search, Trash2 } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useDeleteSearchSpace from "@/api/searchspaces/hooks/useDeleteSearchSpace";
 import useGetSearchSpaces from "@/api/searchspaces/hooks/useGetSearchSpaces";
+import useLeaveSearchSpace from "@/api/searchspaces/hooks/useLeaveSearchSpace";
+import type { MemberRole } from "@/api/searchspaces/types";
 import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
@@ -22,6 +24,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -35,9 +38,17 @@ import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
 import { formatDateString } from "@/shared/utils/date";
 
-/**
- * Loading screen component with animation
- */
+const roleBadgeVariant = (role: MemberRole) => {
+	switch (role) {
+		case "OWNER":
+			return "default" as const;
+		case "EDITOR":
+			return "secondary" as const;
+		case "VIEWER":
+			return "outline" as const;
+	}
+};
+
 const LoadingScreen = () => {
 	return (
 		<div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
@@ -68,9 +79,6 @@ const LoadingScreen = () => {
 	);
 };
 
-/**
- * Error screen component with animation
- */
 const ErrorScreen = ({ message }: { message: string }) => {
 	const router = useRouter();
 
@@ -112,7 +120,6 @@ const ErrorScreen = ({ message }: { message: string }) => {
 };
 
 const DashboardPage = () => {
-	// Animation variants
 	const containerVariants: Variants = {
 		hidden: { opacity: 0 },
 		visible: {
@@ -145,22 +152,26 @@ const DashboardPage = () => {
 		refetch: refreshSearchSpaces,
 	} = useGetSearchSpaces();
 
-	const { mutate: deleteSearchSpace, isPending: isDeletingSearchSpace } =
+	const { mutate: deleteSearchSpace } =
 		useDeleteSearchSpace({
 			onSuccess: () => {
-				// Refresh the search spaces list after successful deletion
 				refreshSearchSpaces();
 			},
 		});
 
-	// Fetch user details using React Query
+	const { mutate: leaveSearchSpace } =
+		useLeaveSearchSpace({
+			onSuccess: () => {
+				refreshSearchSpaces();
+			},
+		});
+
 	const {
 		data: user,
 		isLoading: isLoadingUser,
 		error: userError,
 	} = useGetCurrentUser();
 
-	// Create user object for UserDropdown
 	const customUser = {
 		name: user?.email ? user.email.split("@")[0] : "User",
 		email:
@@ -170,7 +181,7 @@ const DashboardPage = () => {
 				: userError
 					? "Error loading user"
 					: "Unknown User"),
-		avatar: "/icon-128.png", // Default avatar
+		avatar: "/icon-128.png",
 	};
 
 	if (loading || fetching || refetching) return <LoadingScreen />;
@@ -179,6 +190,163 @@ const DashboardPage = () => {
 	const handleDeleteSearchSpace = (id: number) => {
 		deleteSearchSpace(id);
 	};
+
+	const handleLeaveSearchSpace = (id: number) => {
+		leaveSearchSpace(id);
+	};
+
+	const ownedSpaces = searchSpaces?.filter((space) => space.is_owner) ?? [];
+	const sharedSpaces = searchSpaces?.filter((space) => !space.is_owner) ?? [];
+
+	const renderSpaceCard = (space: (typeof searchSpaces)[0], isShared: boolean) => (
+		<motion.div
+			key={space.id}
+			variants={itemVariants}
+			className="aspect-[4/3]"
+		>
+			<Tilt
+				rotationFactor={6}
+				isRevese
+				springOptions={{
+					stiffness: 26.7,
+					damping: 4.1,
+					mass: 0.2,
+				}}
+				className="group relative rounded-lg h-full"
+			>
+				<Spotlight
+					className="z-10 from-blue-500/20 via-blue-300/10 to-blue-200/5 blur-2xl"
+					size={248}
+					springOptions={{
+						stiffness: 26.7,
+						damping: 4.1,
+						mass: 0.2,
+					}}
+				/>
+				<div className="flex flex-col h-full justify-between overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
+					<div className="relative h-32 w-full overflow-hidden">
+						<Link
+							href={`/dashboard/${space.id}/documents`}
+							key={space.id}
+						>
+							<Image
+								src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
+								alt={space.name}
+								className="h-full w-full object-cover grayscale duration-700 group-hover:grayscale-0"
+								width={248}
+								height={248}
+							/>
+							<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+						</Link>
+						<div className="absolute top-2 right-2 flex items-center gap-1">
+							{isShared && space.role && (
+								<Badge variant={roleBadgeVariant(space.role)}>
+									{space.role}
+								</Badge>
+							)}
+							{!isShared && (
+								<div>
+									<AlertDialog>
+										<AlertDialogTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-destructive/90 cursor-pointer"
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>
+													{"Delete search space"}
+												</AlertDialogTitle>
+												<AlertDialogDescription>
+													{"Delete space confirm"} {space.name}
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>
+													{"Cancel"}
+												</AlertDialogCancel>
+												<AlertDialogAction
+													onClick={() =>
+														handleDeleteSearchSpace(space.id)
+													}
+													className="bg-destructive hover:bg-destructive/90"
+												>
+													{"Delete"}
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
+								</div>
+							)}
+							{isShared && (
+								<div>
+									<AlertDialog>
+										<AlertDialogTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-destructive/90 cursor-pointer"
+											>
+												<LogOut className="h-4 w-4" />
+											</Button>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>
+													{"Leave search space"}
+												</AlertDialogTitle>
+												<AlertDialogDescription>
+													{"Are you sure you want to leave"} {space.name}? {"You will lose access to this search space."}
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>
+													{"Cancel"}
+												</AlertDialogCancel>
+												<AlertDialogAction
+													onClick={() =>
+														handleLeaveSearchSpace(space.id)
+													}
+													className="bg-destructive hover:bg-destructive/90"
+												>
+													{"Leave"}
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
+								</div>
+							)}
+						</div>
+					</div>
+					<Link
+						className="flex flex-1 flex-col p-4 cursor-pointer"
+						href={`/dashboard/${space.id}/documents`}
+						key={space.id}
+					>
+						<div className="flex flex-1 flex-col justify-between p-1">
+							<div>
+								<h3 className="font-medium text-lg">
+									{space.name}
+								</h3>
+								<p className="mt-1 text-sm text-muted-foreground">
+									{space.description}
+								</p>
+							</div>
+							<div className="mt-4  text-xs text-muted-foreground">
+								<span>
+									{"Created"} {formatDateString(space.created_at)}
+								</span>
+							</div>
+						</div>
+					</Link>
+				</div>
+			</Tilt>
+		</motion.div>
+	);
 
 	return (
 		<motion.div
@@ -216,115 +384,9 @@ const DashboardPage = () => {
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{searchSpaces &&
-							searchSpaces.length > 0 &&
-							searchSpaces.map((space) => (
-								<motion.div
-									key={space.id}
-									variants={itemVariants}
-									className="aspect-[4/3]"
-								>
-									<Tilt
-										rotationFactor={6}
-										isRevese
-										springOptions={{
-											stiffness: 26.7,
-											damping: 4.1,
-											mass: 0.2,
-										}}
-										className="group relative rounded-lg h-full"
-									>
-										<Spotlight
-											className="z-10 from-blue-500/20 via-blue-300/10 to-blue-200/5 blur-2xl"
-											size={248}
-											springOptions={{
-												stiffness: 26.7,
-												damping: 4.1,
-												mass: 0.2,
-											}}
-										/>
-										<div className="flex flex-col h-full justify-between overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
-											<div className="relative h-32 w-full overflow-hidden">
-												<Link
-													href={`/dashboard/${space.id}/documents`}
-													key={space.id}
-												>
-													<Image
-														src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
-														alt={space.name}
-														className="h-full w-full object-cover grayscale duration-700 group-hover:grayscale-0"
-														width={248}
-														height={248}
-													/>
-													<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-												</Link>
-												<div className="absolute top-2 right-2">
-													<div>
-														<AlertDialog>
-															<AlertDialogTrigger asChild>
-																<Button
-																	variant="ghost"
-																	size="icon"
-																	className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-destructive/90 cursor-pointer"
-																>
-																	<Trash2 className="h-4 w-4" />
-																</Button>
-															</AlertDialogTrigger>
-															<AlertDialogContent>
-																<AlertDialogHeader>
-																	<AlertDialogTitle>
-																		{"Delete search space"}
-																	</AlertDialogTitle>
-																	<AlertDialogDescription>
-																		{"Delete space confirm"} {space.name}
-																	</AlertDialogDescription>
-																</AlertDialogHeader>
-																<AlertDialogFooter>
-																	<AlertDialogCancel>
-																		{"Cancel"}
-																	</AlertDialogCancel>
-																	<AlertDialogAction
-																		onClick={() =>
-																			handleDeleteSearchSpace(space.id)
-																		}
-																		className="bg-destructive hover:bg-destructive/90"
-																	>
-																		{"Delete"}
-																	</AlertDialogAction>
-																</AlertDialogFooter>
-															</AlertDialogContent>
-														</AlertDialog>
-													</div>
-												</div>
-											</div>
-											<Link
-												className="flex flex-1 flex-col p-4 cursor-pointer"
-												href={`/dashboard/${space.id}/documents`}
-												key={space.id}
-											>
-												<div className="flex flex-1 flex-col justify-between p-1">
-													<div>
-														<h3 className="font-medium text-lg">
-															{space.name}
-														</h3>
-														<p className="mt-1 text-sm text-muted-foreground">
-															{space.description}
-														</p>
-													</div>
-													<div className="mt-4  text-xs text-muted-foreground">
-														{/* <span>{space.title}</span> */}
-														<span>
-															{"Created"} {formatDateString(space.created_at)}
-														</span>
-													</div>
-												</div>
-											</Link>
-										</div>
-									</Tilt>
-								</motion.div>
-							))}
+						{ownedSpaces.map((space) => renderSpaceCard(space, false))}
 
-						{searchSpaces && searchSpaces.length === 0 && (
+						{ownedSpaces.length === 0 && sharedSpaces.length === 0 && (
 							<motion.div
 								variants={itemVariants}
 								className="col-span-full flex flex-col items-center justify-center p-12 text-center"
@@ -347,7 +409,7 @@ const DashboardPage = () => {
 							</motion.div>
 						)}
 
-						{searchSpaces && searchSpaces.length > 0 && (
+						{ownedSpaces.length > 0 && (
 							<motion.div variants={itemVariants} className="aspect-[4/3]">
 								<Tilt
 									rotationFactor={6}
@@ -371,6 +433,18 @@ const DashboardPage = () => {
 							</motion.div>
 						)}
 					</div>
+
+					{sharedSpaces.length > 0 && (
+						<>
+							<div className="flex justify-between items-center mt-8">
+								<h2 className="text-2xl font-semibold">{"Shared with me"}</h2>
+							</div>
+
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+								{sharedSpaces.map((space) => renderSpaceCard(space, true))}
+							</div>
+						</>
+					)}
 				</div>
 			</motion.div>
 		</motion.div>

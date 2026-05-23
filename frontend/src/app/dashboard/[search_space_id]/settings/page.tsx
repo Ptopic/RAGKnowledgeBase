@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, Bot, Brain, Edit3, Key, Settings } from "lucide-react";
+import { ArrowLeft, Bot, Brain, Edit3, Key, Settings, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiKeysManager } from "@/components/settings/api-keys-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
+import { MembersManager } from "@/components/settings/members-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { QueryTemplateManager } from "@/components/settings/query-template-manager";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +67,11 @@ export default function SettingsPage() {
 								<span className="hidden sm:inline">Query Templates</span>
 								<span className="sm:hidden">Templates</span>
 							</TabsTrigger>
+							<TabsTrigger value="members" className="flex items-center gap-2 text-sm">
+								<Users className="h-4 w-4" />
+								<span className="hidden sm:inline">Members</span>
+								<span className="sm:hidden">Members</span>
+							</TabsTrigger>
 						</TabsList>
 
 						<TabsContent value="models" className="space-y-6">
@@ -82,6 +88,10 @@ export default function SettingsPage() {
 
 						<TabsContent value="templates" className="space-y-6">
 							<QueryTemplateManager searchSpaceId={searchSpaceId} />
+						</TabsContent>
+
+						<TabsContent value="members" className="space-y-6">
+							<MembersManager searchSpaceId={searchSpaceId} />
 						</TabsContent>
 					</Tabs>
 				</div>

@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import {
 	BadRequestException,
+	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	Logger,
@@ -8,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { DocumentType, Notebook as PrismaNotebook } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { PermissionsService } from "../permissions/permissions.service";
 import { EmbeddingService } from "../retriever/embedding.service";
 import { ImageAnalysisService } from "../services/image-analysis.service";
 import { UploadService } from "../upload";
@@ -37,22 +39,8 @@ export class NotebooksService {
 		private uploadService: UploadService,
 		private embeddingService: EmbeddingService,
 		private imageAnalysisService: ImageAnalysisService,
+		private permissionsService: PermissionsService,
 	) {}
-
-	async checkSearchSpaceOwnership(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
 
 	private async generateSlug(title: string, attempt = 0): Promise<string> {
 		if (attempt > 10)
@@ -76,7 +64,7 @@ export class NotebooksService {
 		userId: string,
 	): Promise<NotebookDto> {
 		try {
-			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
+			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
 
 			if (
 				createDto.headline_image_url &&
@@ -111,7 +99,8 @@ export class NotebooksService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -139,11 +128,10 @@ export class NotebooksService {
 				throw new BadRequestException("limit must be between 1 and 1000");
 			}
 
-			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+			await this.permissionsService.requireRead(searchSpaceId, userId);
 
 			const where: any = {
 				searchSpaceId,
-				searchSpace: { userId },
 			};
 
 			if (search && search.trim()) {
@@ -161,7 +149,6 @@ export class NotebooksService {
 				where.isPublished = false;
 			}
 
-			// Sort field mapping: API key → Prisma field
 			const sortFieldMap: Record<string, string> = {
 				title: "title",
 				status: "isPublished",
@@ -203,7 +190,8 @@ export class NotebooksService {
 		} catch (error) {
 			if (
 				error instanceof BadRequestException ||
-				error instanceof NotFoundException
+				error instanceof NotFoundException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -223,7 +211,6 @@ export class NotebooksService {
 				where: {
 					id: notebookId,
 					searchSpaceId,
-					searchSpace: { userId },
 				},
 				include: { author: { select: { fullName: true, picture: true } } },
 			});
@@ -234,9 +221,11 @@ export class NotebooksService {
 				);
 			}
 
+			await this.permissionsService.requireRead(notebook.searchSpaceId, userId);
+
 			return this.toDto(notebook);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -265,7 +254,6 @@ export class NotebooksService {
 				where: {
 					id: notebookId,
 					searchSpaceId,
-					searchSpace: { userId },
 				},
 			});
 
@@ -274,6 +262,8 @@ export class NotebooksService {
 					"Notebook not found or you do not have permission to access it",
 				);
 			}
+
+			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
 
 			if (
 				updateDto.headline_image_url !== undefined &&
@@ -308,7 +298,7 @@ export class NotebooksService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -327,7 +317,6 @@ export class NotebooksService {
 				where: {
 					id: notebookId,
 					searchSpaceId,
-					searchSpace: { userId },
 				},
 			});
 
@@ -336,6 +325,8 @@ export class NotebooksService {
 					"Notebook not found or you do not have permission to access it",
 				);
 			}
+
+			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
 
 			await this.prisma.document.deleteMany({
 				where: { notebookId: notebook.id },
@@ -356,7 +347,7 @@ export class NotebooksService {
 
 			return { message: "Notebook deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -375,7 +366,6 @@ export class NotebooksService {
 				where: {
 					id: notebookId,
 					searchSpaceId,
-					searchSpace: { userId },
 				},
 			});
 
@@ -384,6 +374,8 @@ export class NotebooksService {
 					"Notebook not found or you do not have permission to access it",
 				);
 			}
+
+			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
 
 			if (notebook.isPublished) {
 				throw new BadRequestException("Notebook is already published");
@@ -402,7 +394,8 @@ export class NotebooksService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -422,7 +415,6 @@ export class NotebooksService {
 				where: {
 					id: notebookId,
 					searchSpaceId,
-					searchSpace: { userId },
 				},
 			});
 
@@ -431,6 +423,8 @@ export class NotebooksService {
 					"Notebook not found or you do not have permission to access it",
 				);
 			}
+
+			await this.permissionsService.requireWrite(notebook.searchSpaceId, userId);
 
 			if (!notebook.isPublished) {
 				throw new BadRequestException("Notebook is not published");
@@ -449,7 +443,8 @@ export class NotebooksService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -459,7 +454,6 @@ export class NotebooksService {
 		}
 	}
 
-	// Public methods (no auth)
 	async findPublishedNotebooks(
 		searchSpaceId?: number,
 		skip: number = 0,
@@ -527,17 +521,6 @@ export class NotebooksService {
 		}
 	}
 
-	/**
-	 * Index a notebook for RAG search.
-	 *
-	 * 1. Converts notebook HTML to clean markdown using notebookHtmlToMarkdown,
-	 *    which strips BlockNote editor UI artifacts and uses Turndown + GFM.
-	 *    Falls back to stripHtmlAndExtractImages if Turndown fails.
-	 * 2. Chunks the markdown text (with inline image references) and generates embeddings
-	 * 3. Upserts a Document of type NOTEBOOK linked to this notebook
-	 * 4. Enqueues image analysis for extracted images via Gemini vision model
-	 *    (Image descriptions are embedded as separate <image_chunk> entries)
-	 */
 	private async indexNotebook(notebook: {
 		id: number;
 		title: string;

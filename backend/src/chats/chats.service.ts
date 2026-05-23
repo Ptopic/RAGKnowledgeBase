@@ -1,11 +1,13 @@
 import {
 	BadRequestException,
 	ConflictException,
+	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { PermissionsService } from "../permissions/permissions.service";
 import {
 	ChatDto,
 	ChatWithoutMessagesDto,
@@ -15,26 +17,14 @@ import {
 
 @Injectable()
 export class ChatsService {
-	constructor(private prisma: PrismaService) {}
-
-	async checkSearchSpaceOwnership(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
+	constructor(
+		private prisma: PrismaService,
+		private permissionsService: PermissionsService,
+	) {}
 
 	async create(createDto: CreateChatDto, userId: string): Promise<ChatDto> {
 		try {
-			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
+			await this.permissionsService.requireWrite(createDto.search_space_id, userId);
 
 			const chat = await this.prisma.chat.create({
 				data: {
@@ -48,7 +38,7 @@ export class ChatsService {
 
 			return this.toDto(chat);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -76,8 +66,10 @@ export class ChatsService {
 				);
 			}
 
+			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
+
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId: { in: accessibleSpaceIds },
 			};
 
 			if (searchSpaceId !== undefined) {
@@ -112,10 +104,7 @@ export class ChatsService {
 	async findOne(id: number, userId: string): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!chat) {
@@ -124,9 +113,11 @@ export class ChatsService {
 				);
 			}
 
+			await this.permissionsService.requireRead(chat.searchSpaceId, userId);
+
 			return this.toDto(chat);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -142,10 +133,7 @@ export class ChatsService {
 	): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!chat) {
@@ -153,6 +141,8 @@ export class ChatsService {
 					"Chat not found or you do not have permission to access it",
 				);
 			}
+
+			await this.permissionsService.requireWrite(chat.searchSpaceId, userId);
 
 			const updated = await this.prisma.chat.update({
 				where: { id },
@@ -166,7 +156,7 @@ export class ChatsService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -178,10 +168,7 @@ export class ChatsService {
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!chat) {
@@ -190,13 +177,15 @@ export class ChatsService {
 				);
 			}
 
+			await this.permissionsService.requireWrite(chat.searchSpaceId, userId);
+
 			await this.prisma.chat.delete({
 				where: { id },
 			});
 
 			return { message: "Chat deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -208,10 +197,7 @@ export class ChatsService {
 	async addFavorite(chatId: number, userId: string): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id: chatId,
-					searchSpace: { userId },
-				},
+				where: { id: chatId },
 			});
 
 			if (!chat) {
@@ -219,6 +205,8 @@ export class ChatsService {
 					"Chat not found or you do not have permission to access it",
 				);
 			}
+
+			await this.permissionsService.requireRead(chat.searchSpaceId, userId);
 
 			await this.prisma.userChatFavorite.create({
 				data: {
@@ -229,7 +217,7 @@ export class ChatsService {
 
 			return this.toDto(chat);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			if (error.code === "P2002") {
@@ -247,10 +235,7 @@ export class ChatsService {
 	): Promise<{ message: string }> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id: chatId,
-					searchSpace: { userId },
-				},
+				where: { id: chatId },
 			});
 
 			if (!chat) {
@@ -258,6 +243,8 @@ export class ChatsService {
 					"Chat not found or you do not have permission to access it",
 				);
 			}
+
+			await this.permissionsService.requireRead(chat.searchSpaceId, userId);
 
 			await this.prisma.userChatFavorite.deleteMany({
 				where: {
@@ -268,7 +255,7 @@ export class ChatsService {
 
 			return { message: "Favorite removed successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -296,8 +283,11 @@ export class ChatsService {
 				);
 			}
 
+			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
+
 			const where: any = {
 				userId,
+				chat: { searchSpaceId: { in: accessibleSpaceIds } },
 			};
 
 			if (searchSpaceId !== undefined) {

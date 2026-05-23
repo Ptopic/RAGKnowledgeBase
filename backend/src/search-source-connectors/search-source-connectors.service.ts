@@ -1,6 +1,7 @@
 import {
 	BadRequestException,
 	ConflictException,
+	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	NotFoundException,
@@ -8,6 +9,7 @@ import {
 import { SearchSourceConnectorType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
+import { PermissionsService } from "../permissions/permissions.service";
 import {
 	CreateSearchSourceConnectorDto,
 	SearchSourceConnectorDto,
@@ -19,22 +21,8 @@ export class SearchSourceConnectorsService {
 	constructor(
 		private prisma: PrismaService,
 		private queueService: QueueService,
+		private permissionsService: PermissionsService,
 	) {}
-
-	async checkSearchSpaceOwnership(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
 
 	async create(
 		createDto: CreateSearchSourceConnectorDto,
@@ -42,7 +30,7 @@ export class SearchSourceConnectorsService {
 		userId: string,
 	): Promise<SearchSourceConnectorDto> {
 		try {
-			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+			await this.permissionsService.requireWrite(searchSpaceId, userId);
 
 			const existing = await this.prisma.searchSourceConnector.findFirst({
 				where: {
@@ -88,7 +76,8 @@ export class SearchSourceConnectorsService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof ConflictException
+				error instanceof ConflictException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -105,10 +94,14 @@ export class SearchSourceConnectorsService {
 		searchSpaceId?: number,
 	): Promise<SearchSourceConnectorDto[]> {
 		try {
-			const where: any = { userId };
+			const accessibleSpaceIds = await this.permissionsService.getAccessibleSearchSpaceIds(userId);
+
+			const where: any = {
+				searchSpaceId: { in: accessibleSpaceIds },
+			};
 
 			if (searchSpaceId !== undefined) {
-				await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+				await this.permissionsService.requireRead(searchSpaceId, userId);
 				where.searchSpaceId = searchSpaceId;
 			}
 
@@ -120,7 +113,7 @@ export class SearchSourceConnectorsService {
 
 			return connectors.map((c) => this.toDto(c));
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -132,16 +125,18 @@ export class SearchSourceConnectorsService {
 	async findOne(id: number, userId: string): Promise<SearchSourceConnectorDto> {
 		try {
 			const connector = await this.prisma.searchSourceConnector.findFirst({
-				where: { id, userId },
+				where: { id },
 			});
 
 			if (!connector) {
 				throw new NotFoundException("Search source connector not found");
 			}
 
+			await this.permissionsService.requireRead(connector.searchSpaceId, userId);
+
 			return this.toDto(connector);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -157,12 +152,14 @@ export class SearchSourceConnectorsService {
 	): Promise<SearchSourceConnectorDto> {
 		try {
 			const connector = await this.prisma.searchSourceConnector.findFirst({
-				where: { id, userId },
+				where: { id },
 			});
 
 			if (!connector) {
 				throw new NotFoundException("Search source connector not found");
 			}
+
+			await this.permissionsService.requireWrite(connector.searchSpaceId, userId);
 
 			if (
 				updateDto.connector_type &&
@@ -241,7 +238,8 @@ export class SearchSourceConnectorsService {
 			if (
 				error instanceof NotFoundException ||
 				error instanceof ConflictException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}
@@ -254,12 +252,14 @@ export class SearchSourceConnectorsService {
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const connector = await this.prisma.searchSourceConnector.findFirst({
-				where: { id, userId },
+				where: { id },
 			});
 
 			if (!connector) {
 				throw new NotFoundException("Search source connector not found");
 			}
+
+			await this.permissionsService.requireWrite(connector.searchSpaceId, userId);
 
 			await this.prisma.searchSourceConnector.delete({
 				where: { id },
@@ -267,7 +267,7 @@ export class SearchSourceConnectorsService {
 
 			return { message: "Search source connector deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -285,14 +285,14 @@ export class SearchSourceConnectorsService {
 	): Promise<any> {
 		try {
 			const connector = await this.prisma.searchSourceConnector.findFirst({
-				where: { id: connectorId, userId },
+				where: { id: connectorId },
 			});
 
 			if (!connector) {
 				throw new NotFoundException("Search source connector not found");
 			}
 
-			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
+			await this.permissionsService.requireWrite(searchSpaceId, userId);
 
 			const today = new Date().toISOString().split("T")[0];
 			let indexingFrom = startDate;
@@ -316,11 +316,9 @@ export class SearchSourceConnectorsService {
 
 			const indexingTo = endDate || today;
 
-			// Convert string dates to Date objects for queue
 			const startDateObj = indexingFrom ? new Date(indexingFrom) : undefined;
 			const endDateObj = indexingTo ? new Date(indexingTo) : undefined;
 
-			// Trigger the appropriate indexing job based on connector type
 			switch (connector.connectorType) {
 				case SearchSourceConnectorType.SLACK_CONNECTOR:
 					await this.queueService.indexSlackMessages(
@@ -388,7 +386,8 @@ export class SearchSourceConnectorsService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ type AuthMode = "signin" | "signup";
 
 const AuthPage = () => {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [mode, setMode] = useState<AuthMode>("signin");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,7 @@ const AuthPage = () => {
 	const googleLoginMutation = useGoogleLogin({
 		onSuccess: (data) => {
 			setAuthToken(data);
+			queryClient.invalidateQueries();
 			setIsLoading(false);
 			router.push("/dashboard");
 			router.refresh();
@@ -72,6 +75,7 @@ const AuthPage = () => {
 	const loginMutation = useLogin({
 		onSuccess: (data) => {
 			setAuthTokens(data);
+			queryClient.invalidateQueries();
 			setIsLoading(false);
 			router.push("/dashboard");
 			router.refresh();
@@ -85,6 +89,7 @@ const AuthPage = () => {
 	const signupMutation = useSignup({
 		onSuccess: (data) => {
 			setAuthTokens(data);
+			queryClient.invalidateQueries();
 			setIsLoading(false);
 			router.push("/dashboard");
 			router.refresh();
