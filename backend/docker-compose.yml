@@ -1,0 +1,34 @@
+# Legacy standalone compose — use root docker-compose.yml instead.
+# This file is kept for local backend-only development.
+#
+# Usage: docker compose up postgres redis
+# Then run backend with: pnpm start:dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag-kb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ragkb}
+      POSTGRES_USER: ${POSTGRES_USER:-ragkb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragkb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/01-enable-pgvector.sql
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: rag-kb-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+  redis_data:

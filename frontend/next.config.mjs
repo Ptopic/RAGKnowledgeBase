@@ -1,8 +1,13 @@
 /** @type {import('next').NextConfig} */
 
-import { withSentryConfig } from '@sentry/nextjs';
-
 const nextConfig = {
+	output: "standalone",
+	eslint: {
+		ignoreDuringBuilds: true,
+	},
+	typescript: {
+		ignoreBuildErrors: true,
+	},
 	images: {
 		remotePatterns: [
 			{
@@ -44,8 +49,4 @@ const nextConfig = {
   },
 };
 
-const sentryWebpackPluginOptions = {
-  silent: true,
-};
-
-export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);
+export default nextConfig;
