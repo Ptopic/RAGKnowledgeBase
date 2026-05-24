@@ -29,7 +29,7 @@ export class SearchSpaceInvitationsController {
 	@Throttle({ default: { limit: 5, ttl: 900000 } })
 	@Post(":id/invitations")
 	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async createInvite(
 		@Param("id", ParseIntPipe) searchSpaceId: number,
 		@Body() dto: CreateInvitationDto,
@@ -45,7 +45,7 @@ export class SearchSpaceInvitationsController {
 	@Throttle({ default: { limit: 10, ttl: 900000 } })
 	@Get(":id/invitations/pending")
 	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async getPendingInvitations(
 		@Param("id", ParseIntPipe) searchSpaceId: number,
 	): Promise<InvitationResponseDto[]> {
@@ -55,7 +55,7 @@ export class SearchSpaceInvitationsController {
 	@Throttle({ default: { limit: 10, ttl: 900000 } })
 	@Delete(":id/invitations/:invitationId")
 	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async cancelInvitation(
 		@Param("id", ParseIntPipe) searchSpaceId: number,
 		@Param("invitationId", ParseIntPipe) invitationId: number,

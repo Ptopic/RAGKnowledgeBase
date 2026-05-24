@@ -113,7 +113,6 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 	const [leavingSpace, setLeavingSpace] = useState(false);
 
 	const isOwner = searchSpace?.is_owner ?? false;
-	const isEditorOrAbove = isOwner || searchSpace?.role === "EDITOR";
 	const currentUserId = currentUser?.id;
 
 	const handleInvite = () => {
@@ -247,7 +246,7 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 				</Card>
 			)}
 
-			{!isLoading && isEditorOrAbove && (pendingInvites.length > 0 || loadingPending) && (
+			{!isLoading && isOwner && (pendingInvites.length > 0 || loadingPending) && (
 				<Card className="border-l-4 border-l-amber-500">
 					<CardContent className="p-6">
 						<div className="space-y-4">
