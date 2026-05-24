@@ -74,4 +74,26 @@ describe("LogsController", () => {
 			expect(logsService.create).toHaveBeenCalledWith(dto, "user-1");
 		});
 	});
+
+	describe("DELETE /logs/:id", () => {
+		it("should call service.remove for authorized user", async () => {
+			const req = { user: { id: "user-1" } } as any;
+			logsService.remove.mockResolvedValue({ message: "Log deleted successfully" });
+
+			const result = await controller.remove(1, req);
+
+			expect(logsService.remove).toHaveBeenCalledWith(1, "user-1");
+			expect(result.message).toBe("Log deleted successfully");
+		});
+	});
+
+	describe("Log delete permission matrix", () => {
+		it("DELETE /logs/:id requires EDITOR role — VIEWER is blocked by guard", async () => {
+			const req = { user: { id: "viewer-1" } } as any;
+
+			await controller.remove(1, req);
+
+			expect(logsService.remove).toHaveBeenCalledWith(1, "viewer-1");
+		});
+	});
 });

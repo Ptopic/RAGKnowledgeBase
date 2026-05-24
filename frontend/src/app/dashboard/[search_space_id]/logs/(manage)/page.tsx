@@ -103,6 +103,7 @@ import {
 	useLogs,
 	useLogsSummary,
 } from "@/hooks/use-logs";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { cn } from "@/lib/utils";
 
 // Define animation variants for reuse
@@ -360,12 +361,16 @@ const columns: ColumnDef<Log>[] = createColumns();
 const LogsContext = React.createContext<{
 	deleteLog: (id: number) => Promise<boolean>;
 	refreshLogs: () => Promise<void>;
+	canDelete: boolean;
 } | null>(null);
 
 export default function LogsManagePage() {
 	const id = useId();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
+
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceId);
+	const canDelete = searchSpace ? searchSpace.is_owner || searchSpace.role === "EDITOR" : false;
 
 	const {
 		logs,
@@ -479,6 +484,7 @@ export default function LogsManagePage() {
 			value={{
 				deleteLog: deleteLog || (() => Promise.resolve(false)),
 				refreshLogs: refreshLogs || (() => Promise.resolve()),
+				canDelete,
 			}}
 		>
 			<motion.div
@@ -523,8 +529,8 @@ export default function LogsManagePage() {
 					setMessageFilter={setMessageFilter}
 				/>
 
-				{/* Delete Button */}
-				{table.getSelectedRowModel().rows.length > 0 && (
+			{/* Delete Button */}
+			{canDelete && table.getSelectedRowModel().rows.length > 0 && (
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -1208,7 +1214,7 @@ function LogsPagination({ table, id }: { table: any; id: string }) {
 function LogRowActions({ row }: { row: Row<Log> }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const { deleteLog, refreshLogs } = useContext(LogsContext)!;
+	const { deleteLog, refreshLogs, canDelete } = useContext(LogsContext)!;
 	const log = row.original;
 
 	const handleDelete = async () => {
@@ -1244,7 +1250,8 @@ function LogRowActions({ row }: { row: Row<Log> }) {
 							</DropdownMenuItem>
 						}
 					/>
-					<DropdownMenuSeparator />
+					{canDelete && <DropdownMenuSeparator />}
+					{canDelete && (
 					<AlertDialog open={isOpen} onOpenChange={setIsOpen}>
 						<AlertDialogTrigger asChild>
 							<DropdownMenuItem
@@ -1273,6 +1280,7 @@ function LogRowActions({ row }: { row: Row<Log> }) {
 							</AlertDialogFooter>
 						</AlertDialogContent>
 					</AlertDialog>
+					)}
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>
