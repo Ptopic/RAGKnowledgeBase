@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 
 import InviteAcceptPage from "./InviteAcceptPage";
 
@@ -27,13 +28,21 @@ vi.mock("@/api/searchspaces/hooks/useDeclineInvitation", () => ({
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => ({ push: vi.fn() }),
-	useSearchParams: () => new URLSearchParams("token=test-token"),
+	useSearchParams: vi.fn(),
 }));
 
 describe("InviteAcceptPage", () => {
 	it("renders invalid state when no token", () => {
-		vi.mocked(vi.fn()).mockReturnValue(new URLSearchParams());
+		vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as unknown as ReadonlyURLSearchParams);
 		render(<InviteAcceptPage />);
-		expect(screen.getByText(/invalid/i)).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: /invalid/i })).toBeInTheDocument();
+	});
+
+	it("renders invitation not found when token present but invitation missing", () => {
+		vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams("token=test-token") as unknown as ReadonlyURLSearchParams);
+		render(<InviteAcceptPage />);
+		expect(screen.getByText(/not found/i)).toBeInTheDocument();
 	});
 });
+
+import { useSearchParams } from "next/navigation";

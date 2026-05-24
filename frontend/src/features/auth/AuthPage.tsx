@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -18,6 +18,7 @@ import useGoogleLogin from "@api/auth/hooks/useGoogleLogin";
 import useLogin from "@api/auth/hooks/useLogin";
 import useSignup from "@api/auth/hooks/useSignup";
 import { setAuthToken, setAuthTokens } from "@shared/utils/authClient";
+import { resolveRedirectPath } from "./AuthPage.utils";
 
 declare global {
 	interface Window {
@@ -43,6 +44,8 @@ type AuthMode = "signin" | "signup";
 const AuthPage = () => {
 	const router = useRouter();
 	const queryClient = useQueryClient();
+	const searchParams = useSearchParams();
+	const redirectPath = resolveRedirectPath(searchParams);
 	const [mode, setMode] = useState<AuthMode>("signin");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -63,7 +66,7 @@ const AuthPage = () => {
 			setAuthToken(data);
 			queryClient.invalidateQueries();
 			setIsLoading(false);
-			router.push("/dashboard");
+			router.push(redirectPath);
 			router.refresh();
 		},
 		onError: (err) => {
@@ -77,7 +80,7 @@ const AuthPage = () => {
 			setAuthTokens(data);
 			queryClient.invalidateQueries();
 			setIsLoading(false);
-			router.push("/dashboard");
+			router.push(redirectPath);
 			router.refresh();
 		},
 		onError: (err: Error) => {
@@ -91,7 +94,7 @@ const AuthPage = () => {
 			setAuthTokens(data);
 			queryClient.invalidateQueries();
 			setIsLoading(false);
-			router.push("/dashboard");
+			router.push(redirectPath);
 			router.refresh();
 		},
 		onError: (err: Error) => {
