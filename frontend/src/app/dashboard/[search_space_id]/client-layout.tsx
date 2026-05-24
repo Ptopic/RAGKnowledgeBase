@@ -49,6 +49,7 @@ export function DashboardClientLayout({
 	const { loading, error, isOnboardingComplete } =
 		useLLMPreferences(searchSpaceIdNum);
 	const {
+		data: searchSpaceData,
 		isLoading: isLoadingSearchSpace,
 		error: searchSpaceError,
 	} = useGetSearchSpace(searchSpaceIdNum);
@@ -80,6 +81,13 @@ export function DashboardClientLayout({
 		return true;
 	});
 
+	// Non-owners skip onboarding entirely — they use the owner's predefined configs
+	useEffect(() => {
+		if (!hasCheckedOnboarding && !isLoadingSearchSpace && searchSpaceData && !searchSpaceData.is_owner) {
+			setHasCheckedOnboarding(true);
+		}
+	}, [hasCheckedOnboarding, isLoadingSearchSpace, searchSpaceData]);
+
 	useEffect(() => {
 		if (isOnboardingPage || isSettingsPage) {
 			setHasCheckedOnboarding(true);
@@ -89,8 +97,10 @@ export function DashboardClientLayout({
 		// Only check once after preferences have loaded
 		if (!loading && !hasCheckedOnboarding) {
 			const onboardingComplete = isOnboardingComplete();
+			const isOwner = searchSpaceData?.is_owner ?? false;
 
-			if (!onboardingComplete) {
+			// Only force onboarding for owners; non-owners use predefined configs
+			if (!onboardingComplete && isOwner) {
 				router.push(`/dashboard/${searchSpaceId}/onboard`);
 			}
 
@@ -104,14 +114,15 @@ export function DashboardClientLayout({
 		router,
 		searchSpaceId,
 		hasCheckedOnboarding,
+		searchSpaceData?.is_owner,
 	]);
 
 	if (searchSpaceError && !isLoadingSearchSpace) {
 		return <NoAccessPage />;
 	}
 
-	// Show loading screen while checking onboarding status (only on first load)
-	if (!hasCheckedOnboarding && loading && !isOnboardingPage && !isSettingsPage) {
+	// Show loading screen while checking onboarding status (only for owners on first load)
+	if (!hasCheckedOnboarding && loading && !isOnboardingPage && !isSettingsPage && (searchSpaceData?.is_owner ?? true)) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
@@ -129,8 +140,8 @@ export function DashboardClientLayout({
 		);
 	}
 
-	// Show error screen if there's an error loading preferences (but not on onboarding page)
-	if (error && !hasCheckedOnboarding && !isOnboardingPage && !isSettingsPage) {
+	// Show error screen if there's an error loading preferences (only blocks owners)
+	if (error && !hasCheckedOnboarding && !isOnboardingPage && !isSettingsPage && (searchSpaceData?.is_owner ?? true)) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">

@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { LiteLLMProvider } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { encrypt, decrypt } from '../utils/encryption';
 import { CreateApiKeyDto, UpdateApiKeyDto, ApiKeyDto } from './dtos/api-key.dto';

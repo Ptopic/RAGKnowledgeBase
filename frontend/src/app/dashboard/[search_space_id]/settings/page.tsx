@@ -9,11 +9,14 @@ import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { QueryTemplateManager } from "@/components/settings/query-template-manager";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 
 export default function SettingsPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceId);
+	const isOwner = searchSpace?.is_owner ?? false;
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -45,23 +48,29 @@ export default function SettingsPage() {
 					</div>
 
 					{/* Settings Content */}
-					<Tabs defaultValue="models" className="space-y-8">
+					<Tabs defaultValue={isOwner ? "models" : "templates"} className="space-y-8">
 						<TabsList className="inline-flex h-auto flex-wrap gap-1">
-							<TabsTrigger value="models" className="flex items-center gap-2 text-sm">
-								<Bot className="h-4 w-4" />
-								<span className="hidden sm:inline">Model Configs</span>
-								<span className="sm:hidden">Models</span>
-							</TabsTrigger>
-							<TabsTrigger value="roles" className="flex items-center gap-2 text-sm">
-								<Brain className="h-4 w-4" />
-								<span className="hidden sm:inline">LLM Roles</span>
-								<span className="sm:hidden">Roles</span>
-							</TabsTrigger>
-							<TabsTrigger value="api-keys" className="flex items-center gap-2 text-sm">
-								<Key className="h-4 w-4" />
-								<span className="hidden sm:inline">API Keys</span>
-								<span className="sm:hidden">Keys</span>
-							</TabsTrigger>
+							{isOwner && (
+								<TabsTrigger value="models" className="flex items-center gap-2 text-sm">
+									<Bot className="h-4 w-4" />
+									<span className="hidden sm:inline">Model Configs</span>
+									<span className="sm:hidden">Models</span>
+								</TabsTrigger>
+							)}
+							{isOwner && (
+								<TabsTrigger value="roles" className="flex items-center gap-2 text-sm">
+									<Brain className="h-4 w-4" />
+									<span className="hidden sm:inline">LLM Roles</span>
+									<span className="sm:hidden">Roles</span>
+								</TabsTrigger>
+							)}
+							{isOwner && (
+								<TabsTrigger value="api-keys" className="flex items-center gap-2 text-sm">
+									<Key className="h-4 w-4" />
+									<span className="hidden sm:inline">API Keys</span>
+									<span className="sm:hidden">Keys</span>
+								</TabsTrigger>
+							)}
 							<TabsTrigger value="templates" className="flex items-center gap-2 text-sm">
 								<Edit3 className="h-4 w-4" />
 								<span className="hidden sm:inline">Query Templates</span>
@@ -74,17 +83,23 @@ export default function SettingsPage() {
 							</TabsTrigger>
 						</TabsList>
 
-						<TabsContent value="models" className="space-y-6">
-							<ModelConfigManager searchSpaceId={searchSpaceId} />
-						</TabsContent>
+						{isOwner && (
+							<TabsContent value="models" className="space-y-6">
+								<ModelConfigManager searchSpaceId={searchSpaceId} />
+							</TabsContent>
+						)}
 
-						<TabsContent value="roles" className="space-y-6">
-							<LLMRoleManager searchSpaceId={searchSpaceId} />
-						</TabsContent>
+						{isOwner && (
+							<TabsContent value="roles" className="space-y-6">
+								<LLMRoleManager searchSpaceId={searchSpaceId} />
+							</TabsContent>
+						)}
 
-						<TabsContent value="api-keys" className="space-y-6">
-							<ApiKeysManager />
-						</TabsContent>
+						{isOwner && (
+							<TabsContent value="api-keys" className="space-y-6">
+								<ApiKeysManager />
+							</TabsContent>
+						)}
 
 						<TabsContent value="templates" className="space-y-6">
 							<QueryTemplateManager searchSpaceId={searchSpaceId} />

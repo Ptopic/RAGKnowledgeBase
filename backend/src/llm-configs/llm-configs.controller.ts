@@ -30,7 +30,7 @@ export class LLMConfigsController {
 	constructor(private readonly llmConfigsService: LLMConfigsService) {}
 
 	@Post("llm-configs")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async create(
 		@Body() createDto: CreateLLMConfigDto,
 		@Req() req: any,
@@ -66,7 +66,7 @@ export class LLMConfigsController {
 	}
 
 	@Put("llm-configs/:id")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateLLMConfigDto,
@@ -76,7 +76,7 @@ export class LLMConfigsController {
 	}
 
 	@Delete("llm-configs/:id")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async remove(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -97,7 +97,7 @@ export class LLMConfigsController {
 	}
 
 	@Put("search-spaces/:searchSpaceId/llm-preferences")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async updateUserLLMPreferences(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Body() preferencesDto: LLMPreferencesUpdateDto,

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -12,17 +13,22 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { ApiKeysService } from './api-keys.service';
 import { CreateApiKeyDto, UpdateApiKeyDto, ApiKeyDto } from './dtos/api-key.dto';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @Controller('settings/api-keys')
 @UseGuards(JwtAuthGuard)
 export class ApiKeysController {
-  constructor(private readonly apiKeysService: ApiKeysService) {}
+  constructor(
+    private readonly apiKeysService: ApiKeysService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   @Post()
   async upsert(
     @Body() createDto: CreateApiKeyDto,
     @Req() req: { user: { id: string } },
   ): Promise<ApiKeyDto> {
+    await this.requireOwnerRole(req.user.id);
     return this.apiKeysService.upsert(req.user.id, createDto);
   }
 
@@ -45,6 +51,7 @@ export class ApiKeysController {
     @Body() updateDto: UpdateApiKeyDto,
     @Req() req: { user: { id: string } },
   ): Promise<ApiKeyDto> {
+    await this.requireOwnerRole(req.user.id);
     return this.apiKeysService.update(id, req.user.id, updateDto);
   }
 
@@ -53,6 +60,15 @@ export class ApiKeysController {
     @Param('id') id: string,
     @Req() req: { user: { id: string } },
   ): Promise<{ message: string }> {
+    await this.requireOwnerRole(req.user.id);
     return this.apiKeysService.remove(id, req.user.id);
+  }
+
+  private async requireOwnerRole(userId: string): Promise<void> {
+    const spaces = await this.permissionsService.getSearchSpacesForUser(userId);
+    const isOwner = spaces.some(space => space.is_owner);
+    if (!isOwner) {
+      throw new ForbiddenException('Only search space owners can manage API keys');
+    }
   }
 }
