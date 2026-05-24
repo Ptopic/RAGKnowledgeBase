@@ -18,6 +18,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    ports:
+      - "5646:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
