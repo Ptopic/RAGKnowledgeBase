@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Edit, Eye, Globe, Loader2, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
+import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { use } from "react";
 
@@ -231,6 +232,18 @@ export default function NotebookDetailPage({
 				className="flex-1 flex flex-col overflow-y-auto"
 			>
 				<div className="max-w-3xl mx-auto w-full px-6 py-12">
+					{notebook.headline_image_url && (
+						<NextImage
+							src={notebook.headline_image_url}
+							alt={`Cover for ${notebook.title}`}
+							width={1200}
+							height={630}
+							className="w-full h-auto rounded-lg mb-8"
+							sizes="(max-width: 768px) 100vw, 768px"
+							priority
+						/>
+					)}
+
 					<h1 className="text-4xl font-bold tracking-tight mb-2">
 						{notebook.title}
 					</h1>
