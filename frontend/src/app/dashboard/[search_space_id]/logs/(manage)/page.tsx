@@ -194,8 +194,8 @@ function MessageDetails({
 	);
 }
 
-const createColumns = (): ColumnDef<Log>[] => [
-	{
+const createColumns = (canDelete: boolean): ColumnDef<Log>[] => {
+	const selectColumn: ColumnDef<Log> = {
 		id: "select",
 		header: ({ table }) => (
 			<Checkbox
@@ -217,7 +217,9 @@ const createColumns = (): ColumnDef<Log>[] => [
 		size: 28,
 		enableSorting: false,
 		enableHiding: false,
-	},
+	};
+
+	const dataColumns: ColumnDef<Log>[] = [
 	{
 		header: "Level",
 		accessorKey: "level",
@@ -352,10 +354,13 @@ const createColumns = (): ColumnDef<Log>[] => [
 		size: 60,
 		enableHiding: false,
 	},
-];
+	];
+
+	return canDelete ? [selectColumn, ...dataColumns] : dataColumns;
+};
 
 // Default columns for backward compatibility
-const columns: ColumnDef<Log>[] = createColumns();
+const columns: ColumnDef<Log>[] = createColumns(true);
 
 // Create a context to share functions
 const LogsContext = React.createContext<{
@@ -404,7 +409,7 @@ export default function LogsManagePage() {
 	const debouncedMessageFilter = useDebounce(messageFilter, 400);
 
 	// Create columns
-	const tableColumns = useMemo(() => createColumns(), []);
+	const tableColumns = useMemo(() => createColumns(canDelete), [canDelete]);
 
 	const table = useReactTable({
 		data: logs,
