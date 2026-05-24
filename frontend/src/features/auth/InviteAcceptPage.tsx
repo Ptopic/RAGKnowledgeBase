@@ -68,7 +68,7 @@ const InviteAcceptPage = () => {
 						<CardDescription>This invitation link is invalid or missing.</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center">
-						<Button onClick={() => router.push("/auth")}>Go to Sign In</Button>
+						<Button onClick={() => router.push("/dashboard")}>Go to dashboard</Button>
 					</CardContent>
 				</Card>
 			</div>
@@ -102,7 +102,7 @@ const InviteAcceptPage = () => {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center">
-						<Button onClick={() => router.push("/auth")}>Go to Sign In</Button>
+						<Button onClick={() => router.push("/dashboard")}>Go to dashboard</Button>
 					</CardContent>
 				</Card>
 			</div>
@@ -139,7 +139,7 @@ const InviteAcceptPage = () => {
 						<CardDescription>This invitation has been {statusText.toLowerCase()}.</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center">
-						<Button onClick={() => router.push("/auth")}>Go to Sign In</Button>
+						<Button onClick={() => router.push("/dashboard")}>Go to dashboard</Button>
 					</CardContent>
 				</Card>
 			</div>
