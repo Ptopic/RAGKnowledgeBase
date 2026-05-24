@@ -36,9 +36,8 @@ export function AccessDeniedPage() {
 				</CardHeader>
 				<CardContent className="pt-4">
 					<p className="text-sm text-muted-foreground">
-						VIEWER role cannot upload documents, add webpages, add YouTube
-						videos, or create notebooks. Contact your space owner to request
-						EDITOR access.
+						You don&apos;t have access to this page. Contact your
+						space owner to request access.
 					</p>
 				</CardContent>
 				<CardFooter className="border-t pt-4">
