@@ -1,8 +1,12 @@
-name: Build & Deploy to Coolify
+name: Build & Deploy to Coolify (main)
 
 on:
   push:
     branches: [main]
+
+concurrency:
+  group: coolify-prod-deploy
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
@@ -91,8 +95,6 @@ jobs:
 
           echo "backend_uuid=$BACKEND_UUID" >> "$GITHUB_OUTPUT"
           echo "frontend_uuid=$FRONTEND_UUID" >> "$GITHUB_OUTPUT"
-          echo "Resolved backend UUID: $BACKEND_UUID"
-          echo "Resolved frontend UUID: $FRONTEND_UUID"
 
       - name: Trigger Coolify backend deployment
         run: |
