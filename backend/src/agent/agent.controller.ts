@@ -9,8 +9,11 @@ import {
 	Res,
 	UseGuards,
 } from "@nestjs/common";
+import { MemberRole } from "@prisma/client";
 import { Response as ExpressResponse } from "express";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
+import { SearchSpaceAccessGuard } from "src/permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "src/permissions/decorators/require-search-space-role.decorator";
 import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
 import { AgentService } from "./agent.service";
 import { ChatActionsService } from "./services/chat-actions.service";
@@ -33,7 +36,8 @@ export class AgentController {
 	) {}
 
 	@Post("chatWithDeepAgent")
-	@UseGuards(JwtAuthGuard)
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async chatWithDeepAgent(
 		@Body() request: AgentChatRequestDto,
 		@Req() req: any,
@@ -115,7 +119,8 @@ export class AgentController {
 	}
 
 	@Post("chat")
-	@UseGuards(JwtAuthGuard)
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async handleChatData(
 		@Body() request: AgentChatRequestDto,
 		@Req() req: any,

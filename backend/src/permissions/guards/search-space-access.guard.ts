@@ -127,13 +127,24 @@ export class SearchSpaceAccessGuard implements CanActivate {
 			}
 		}
 
-		const bodyCandidate = (request.body as Record<string, unknown>)
-			?.search_space_id;
+		const body = request.body as Record<string, unknown> | undefined;
+
+		const bodyCandidate = body?.search_space_id;
 		if (
 			bodyCandidate !== undefined &&
 			bodyCandidate !== null
 		) {
 			const parsed = parseInt(bodyCandidate as string, 10);
+			if (!isNaN(parsed)) return parsed;
+		}
+
+		const nestedDataCandidate = (body?.data as Record<string, unknown>)
+			?.search_space_id;
+		if (
+			nestedDataCandidate !== undefined &&
+			nestedDataCandidate !== null
+		) {
+			const parsed = parseInt(nestedDataCandidate as string, 10);
 			if (!isNaN(parsed)) return parsed;
 		}
 

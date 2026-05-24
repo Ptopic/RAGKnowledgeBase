@@ -676,4 +676,111 @@ describe("SearchSpaceAccessGuard", () => {
 			await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
 		});
 	});
+
+	describe("nested body.data.search_space_id extraction (agent controller format)", () => {
+		it("should extract searchSpaceId from body.data.search_space_id for context", async () => {
+			const context = createMockContext(
+				{},
+				{},
+				{ data: { search_space_id: 42 } },
+				"user-1",
+				undefined,
+				true,
+			);
+
+			const result = await guard.canActivate(context);
+
+			expect(result).toBe(true);
+			const request = context.switchToHttp().getRequest();
+			expect(request.searchSpaceContext?.searchSpaceId).toBe(42);
+		});
+
+		it("should extract searchSpaceId from body.data.search_space_id for role check", async () => {
+			const membership = {
+				id: "mem-1",
+				role: MemberRole.VIEWER,
+				searchSpaceId: 42,
+				userId: "user-1",
+				invitedById: "user-1",
+				createdAt: new Date(),
+			};
+			permissionsService.getMembership.mockResolvedValue(membership);
+
+			const context = createMockContext(
+				{},
+				{},
+				{ data: { search_space_id: 42 } },
+				"user-1",
+				[MemberRole.VIEWER],
+			);
+
+			const result = await guard.canActivate(context);
+
+			expect(result).toBe(true);
+			expect(permissionsService.getMembership).toHaveBeenCalledWith(42, "user-1");
+		});
+
+		it("should prefer body.search_space_id over body.data.search_space_id", async () => {
+			const membership = {
+				id: "mem-1",
+				role: MemberRole.EDITOR,
+				searchSpaceId: 10,
+				userId: "user-1",
+				invitedById: "user-1",
+				createdAt: new Date(),
+			};
+			permissionsService.getMembership.mockResolvedValue(membership);
+
+			const context = createMockContext(
+				{},
+				{},
+				{ search_space_id: 10, data: { search_space_id: 99 } },
+				"user-1",
+				[MemberRole.EDITOR],
+			);
+
+			const result = await guard.canActivate(context);
+
+			expect(result).toBe(true);
+			expect(permissionsService.getMembership).toHaveBeenCalledWith(10, "user-1");
+		});
+
+		it("should fall back to body.data.search_space_id when body.search_space_id is absent", async () => {
+			const membership = {
+				id: "mem-1",
+				role: MemberRole.VIEWER,
+				searchSpaceId: 55,
+				userId: "user-1",
+				invitedById: "user-1",
+				createdAt: new Date(),
+			};
+			permissionsService.getMembership.mockResolvedValue(membership);
+
+			const context = createMockContext(
+				{},
+				{},
+				{ data: { search_space_id: 55 } },
+				"user-1",
+				[MemberRole.VIEWER],
+			);
+
+			const result = await guard.canActivate(context);
+
+			expect(result).toBe(true);
+			expect(permissionsService.getMembership).toHaveBeenCalledWith(55, "user-1");
+		});
+
+		it("should throw BadRequestException when body.data exists but has no search_space_id", async () => {
+			const context = createMockContext(
+				{},
+				{},
+				{ data: { other_field: "value" } },
+				"user-1",
+				[MemberRole.VIEWER],
+			);
+
+			await expect(guard.canActivate(context)).rejects.toThrow(BadRequestException);
+			await expect(guard.canActivate(context)).rejects.toThrow("search_space_id is required");
+		});
+	});
 });
