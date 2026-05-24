@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
 import useUpdateNotebook from "@/api/notebooks/hooks/useUpdateNotebook";
-import { useGetSearchSpace } from "@/api/searchspaces/hooks/useGetSearchSpace";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { AccessDeniedPage } from "@/components/access-denied-page";
 import { NotebookEditor } from "@/components/notebook/NotebookEditor";
 import { NotebookPreviewModal } from "@/components/notebook/NotebookPreviewModal";

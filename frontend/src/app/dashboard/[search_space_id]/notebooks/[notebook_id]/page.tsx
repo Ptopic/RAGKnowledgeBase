@@ -9,7 +9,7 @@ import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
 import useUnpublishNotebook from "@/api/notebooks/hooks/useUnpublishNotebook";
-import { useGetSearchSpace } from "@/api/searchspaces/hooks/useGetSearchSpace";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { estimateReadTime } from "@/components/notebook/estimateReadTime";
 import { NotebookMetadataHeader } from "@/components/notebook/NotebookMetadataHeader";
 import { NotebookViewer } from "@/components/notebook/NotebookViewer";

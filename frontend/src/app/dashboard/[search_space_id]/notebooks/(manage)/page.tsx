@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { use, useId, useState } from "react";
 import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import useGetNotebooks from "@/api/notebooks/hooks/useGetNotebooks";
-import { useGetSearchSpace } from "@/api/searchspaces/hooks/useGetSearchSpace";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PaginationControls } from "../../documents/(manage)/components/PaginationControls";
