@@ -31,7 +31,7 @@ export class ChatsController {
 	constructor(private readonly chatsService: ChatsService) {}
 
 	@Post("chats")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async create(
 		@Body() createDto: CreateChatDto,
 		@Req() req: any,
@@ -69,7 +69,7 @@ export class ChatsController {
 	}
 
 	@Put("chats/:id")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateChatDto,

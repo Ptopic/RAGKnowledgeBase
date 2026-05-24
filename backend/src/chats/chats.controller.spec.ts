@@ -12,7 +12,8 @@ describe("ChatsController", () => {
 	let controller: ChatsController;
 	let chatsService: any;
 
-	const mockMembership = {
+	// OWNER/EDITOR membership — used for delete tests (requires EDITOR+)
+	const editorMembership = {
 		id: "mem-1",
 		role: MemberRole.EDITOR,
 		searchSpaceId: 1,
@@ -21,6 +22,7 @@ describe("ChatsController", () => {
 		createdAt: new Date(),
 	};
 
+	// VIEWER membership — used for create/update/read/favorite tests (requires VIEWER+)
 	const viewerMembership = {
 		id: "mem-2",
 		role: MemberRole.VIEWER,
@@ -69,7 +71,7 @@ describe("ChatsController", () => {
 	});
 
 	describe("POST /chats", () => {
-		it("should call service.create without membership (guard handles auth)", async () => {
+		it("should call service.create with VIEWER membership (create requires VIEWER+)", async () => {
 			const dto: CreateChatDto = {
 				type: "QNA" as any,
 				title: "Test Chat",
@@ -78,7 +80,7 @@ describe("ChatsController", () => {
 			};
 			const req = {
 				user: { id: "user-1" },
-				searchSpaceContext: { searchSpaceId: 1, membership: mockMembership },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
 			} as any;
 
 			const expected = { id: 1, ...dto };
@@ -157,11 +159,11 @@ describe("ChatsController", () => {
 	});
 
 	describe("PUT /chats/:id", () => {
-		it("should call service.update with id, dto and userId", async () => {
+		it("should call service.update with VIEWER membership (update requires VIEWER+)", async () => {
 			const dto: UpdateChatDto = { title: "Updated" };
 			const req = {
 				user: { id: "user-1" },
-				searchSpaceContext: { searchSpaceId: 1, membership: mockMembership },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
 			} as any;
 			chatsService.update.mockResolvedValue({ id: 1 });
 
@@ -172,10 +174,10 @@ describe("ChatsController", () => {
 	});
 
 	describe("DELETE /chats/:id", () => {
-		it("should call service.remove with id and userId", async () => {
+		it("should call service.remove with EDITOR membership (delete requires EDITOR+)", async () => {
 			const req = {
 				user: { id: "user-1" },
-				searchSpaceContext: { searchSpaceId: 1, membership: mockMembership },
+				searchSpaceContext: { searchSpaceId: 1, membership: editorMembership },
 			} as any;
 			chatsService.remove.mockResolvedValue({ message: "Chat deleted successfully" });
 
