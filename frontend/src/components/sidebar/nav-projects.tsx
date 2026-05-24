@@ -119,6 +119,7 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 						)}
 					</SidebarMenuButton>
 
+					{chat.id ? (
 					<span className="ml-auto peer-hover/menu-button:text-sidebar-accent-foreground group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 md:opacity-0 group-data-[collapsible=icon]:hidden transition-opacity">
 						<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -178,6 +179,7 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 								</DropdownMenuContent>
 							</DropdownMenu>
 						</span>
+					) : null}
 				</SidebarMenuItem>
 			);
 		},
