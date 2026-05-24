@@ -39,6 +39,7 @@ export class ChatsController {
 		return this.chatsService.create(
 			createDto,
 			req.user.id,
+			req.searchSpaceMembership,
 		);
 	}
 

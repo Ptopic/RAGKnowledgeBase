@@ -21,6 +21,15 @@ describe("ChatsService", () => {
 		createdAt: new Date(),
 	};
 
+	const viewerMembership: SearchSpaceMembershipAttachment = {
+		id: "mem-viewer",
+		role: MemberRole.VIEWER,
+		searchSpaceId: 1,
+		userId: "user-viewer",
+		invitedById: "admin-1",
+		createdAt: new Date(),
+	};
+
 	beforeEach(async () => {
 		prisma = {
 			chat: {
@@ -38,8 +47,8 @@ describe("ChatsService", () => {
 		};
 
 		permissionsService = {
-			requireWrite: jest.fn().mockResolvedValue(undefined),
 			requireRead: jest.fn().mockResolvedValue(undefined),
+			requireWrite: jest.fn().mockResolvedValue(undefined),
 		};
 
 		const module: TestingModule = await Test.createTestingModule({
@@ -74,7 +83,7 @@ describe("ChatsService", () => {
 			expect(prisma.chat.create).toHaveBeenCalled();
 		});
 
-		it("should call permissionsService.requireWrite when membership is absent (internal/non-HTTP path)", async () => {
+		it("should call permissionsService.requireRead when membership is absent (internal/non-HTTP path)", async () => {
 			const dto: CreateChatDto = {
 				type: "QNA" as any,
 				title: "Test",
@@ -89,7 +98,47 @@ describe("ChatsService", () => {
 
 			await service.create(dto, "user-1");
 
-			expect(permissionsService.requireWrite).toHaveBeenCalledWith(1, "user-1");
+			expect(permissionsService.requireRead).toHaveBeenCalledWith(1, "user-1");
+			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
+		});
+
+		it("should allow VIEWER to create chat when guard provides VIEWER membership", async () => {
+			const dto: CreateChatDto = {
+				type: "QNA" as any,
+				title: "Viewer Chat",
+				messages: [],
+				search_space_id: 1,
+			};
+			prisma.chat.create.mockResolvedValue({
+				id: 2,
+				...dto,
+				searchSpaceId: 1,
+			});
+
+			await service.create(dto, "user-viewer", viewerMembership);
+
+			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
+			expect(permissionsService.requireRead).not.toHaveBeenCalled();
+			expect(prisma.chat.create).toHaveBeenCalled();
+		});
+
+		it("should allow VIEWER to create chat via internal path (requireRead, not requireWrite)", async () => {
+			const dto: CreateChatDto = {
+				type: "QNA" as any,
+				title: "Viewer Internal Chat",
+				messages: [],
+				search_space_id: 1,
+			};
+			prisma.chat.create.mockResolvedValue({
+				id: 3,
+				...dto,
+				searchSpaceId: 1,
+			});
+
+			await service.create(dto, "user-viewer");
+
+			expect(permissionsService.requireRead).toHaveBeenCalledWith(1, "user-viewer");
+			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
 		});
 	});
 

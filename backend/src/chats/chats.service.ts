@@ -30,11 +30,11 @@ export class ChatsService {
 		membership?: SearchSpaceMembershipAttachment,
 	): Promise<ChatDto> {
 		try {
-			// Authorization: guard-provided membership skips DB lookup for HTTP callers;
-			// non-HTTP callers (AgentService, DeepAgentService) omit membership, requiring explicit check
-			if (!membership) {
-				await this.permissionsService.requireWrite(createDto.search_space_id, userId);
-			}
+		// Authorization: guard-provided membership skips DB lookup for HTTP callers;
+		// non-HTTP callers (AgentService, DeepAgentService) omit membership, requiring explicit check
+		if (!membership) {
+			await this.permissionsService.requireRead(createDto.search_space_id, userId);
+		}
 
 			const chat = await this.prisma.chat.create({
 				data: {

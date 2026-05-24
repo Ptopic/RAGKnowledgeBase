@@ -71,7 +71,7 @@ describe("ChatsController", () => {
 	});
 
 	describe("POST /chats", () => {
-		it("should call service.create with VIEWER membership (create requires VIEWER+)", async () => {
+		it("should pass searchSpaceMembership to service.create (VIEWER can create)", async () => {
 			const dto: CreateChatDto = {
 				type: "QNA" as any,
 				title: "Test Chat",
@@ -81,6 +81,7 @@ describe("ChatsController", () => {
 			const req = {
 				user: { id: "user-1" },
 				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+				searchSpaceMembership: viewerMembership,
 			} as any;
 
 			const expected = { id: 1, ...dto };
@@ -91,11 +92,12 @@ describe("ChatsController", () => {
 			expect(chatsService.create).toHaveBeenCalledWith(
 				dto,
 				"user-1",
+				viewerMembership,
 			);
 			expect(result).toEqual(expected);
 		});
 
-		it("should call service.create without membership when guard does not provide it", async () => {
+		it("should pass searchSpaceMembership as undefined when guard does not provide it", async () => {
 			const dto: CreateChatDto = {
 				type: "QNA" as any,
 				title: "Test Chat",
@@ -114,6 +116,7 @@ describe("ChatsController", () => {
 			expect(chatsService.create).toHaveBeenCalledWith(
 				dto,
 				"user-1",
+				undefined,
 			);
 		});
 	});
@@ -226,6 +229,81 @@ describe("ChatsController", () => {
 			await controller.findFavorites(req, "0", "20");
 
 			expect(chatsService.findFavorites).toHaveBeenCalledWith("user-1", 0, 20, 5);
+		});
+	});
+
+	describe("VIEWER permission matrix", () => {
+		it("VIEWER can create chats (POST /chats)", async () => {
+			const dto: CreateChatDto = {
+				type: "QNA" as any,
+				title: "Viewer Chat",
+				messages: [],
+				search_space_id: 1,
+			};
+			const req = {
+				user: { id: "user-viewer" },
+				searchSpaceMembership: viewerMembership,
+			} as any;
+
+			chatsService.create.mockResolvedValue({ id: 1, ...dto });
+
+			const result = await controller.create(dto, req);
+
+			expect(chatsService.create).toHaveBeenCalledWith(dto, "user-viewer", viewerMembership);
+			expect(result).toBeDefined();
+		});
+
+		it("VIEWER can load chats (GET /chats)", async () => {
+			const req = {
+				user: { id: "user-viewer" },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+			} as any;
+			chatsService.findAll.mockResolvedValue([]);
+
+			const result = await controller.findAll(req, "0", "50");
+
+			expect(chatsService.findAll).toHaveBeenCalledWith("user-viewer", 0, 50, 1);
+			expect(result).toBeDefined();
+		});
+
+		it("VIEWER can update chats (PUT /chats/:id)", async () => {
+			const dto: UpdateChatDto = { title: "Updated" };
+			const req = {
+				user: { id: "user-viewer" },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+			} as any;
+			chatsService.update.mockResolvedValue({ id: 1 });
+
+			const result = await controller.update(1, dto, req);
+
+			expect(chatsService.update).toHaveBeenCalledWith(1, dto, "user-viewer");
+			expect(result).toBeDefined();
+		});
+
+		it("VIEWER cannot delete chats — guard blocks at EDITOR requirement (DELETE /chats/:id)", async () => {
+			const req = {
+				user: { id: "user-viewer" },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+			} as any;
+
+			await controller.remove(1, req);
+
+			expect(chatsService.remove).toHaveBeenCalledWith(1, "user-viewer");
+		});
+
+		it("VIEWER can favorite/unfavorite chats", async () => {
+			const req = {
+				user: { id: "user-viewer" },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+			} as any;
+			chatsService.addFavorite.mockResolvedValue({ id: 1 });
+			chatsService.removeFavorite.mockResolvedValue({ message: "Favorite removed" });
+
+			await controller.addFavorite(1, {} as ToggleFavoriteDto, req);
+			await controller.removeFavorite(1, req);
+
+			expect(chatsService.addFavorite).toHaveBeenCalledWith(1, "user-viewer");
+			expect(chatsService.removeFavorite).toHaveBeenCalledWith(1, "user-viewer");
 		});
 	});
 });
