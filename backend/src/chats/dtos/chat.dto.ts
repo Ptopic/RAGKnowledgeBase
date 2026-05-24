@@ -57,6 +57,9 @@ export class ChatDto extends ChatBaseDto {
 	@IsInt()
 	id: number;
 
+	@IsString()
+	user_id: string;
+
 	@IsOptional()
 	is_favorite?: boolean;
 
@@ -80,6 +83,9 @@ export class ChatWithoutMessagesDto {
 
 	@IsInt()
 	search_space_id: number;
+
+	@IsString()
+	user_id: string;
 
 	@IsOptional()
 	is_favorite?: boolean;

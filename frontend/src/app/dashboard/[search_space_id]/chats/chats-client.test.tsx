@@ -84,7 +84,7 @@ describe("ChatsPageClient", () => {
 		expect(screen.getByText("Delete Chat")).toBeInTheDocument();
 	});
 
-	it("should hide Delete Chat option for VIEWER", async () => {
+	it("should show Delete Chat option for VIEWER (users can delete their own chats)", async () => {
 		mockSearchSpaceData = { id: 1, name: "Test", is_owner: false, role: "VIEWER" };
 		mockChatsData = [mockChat];
 
@@ -93,6 +93,6 @@ describe("ChatsPageClient", () => {
 		const moreButtons = screen.getAllByRole("button", { name: /open menu/i });
 		await userEvent.setup().click(moreButtons[0]);
 
-		expect(screen.queryByText("Delete Chat")).not.toBeInTheDocument();
+		expect(screen.getByText("Delete Chat")).toBeInTheDocument();
 	});
 });

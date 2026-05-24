@@ -80,7 +80,7 @@ export class ChatsController {
 	}
 
 	@Delete("chats/:id")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async remove(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,

@@ -75,12 +75,17 @@ describe("ChatsService", () => {
 				id: 1,
 				...dto,
 				searchSpaceId: 1,
+				userId: "user-1",
 			});
 
 			await service.create(dto, "user-1", mockMembership);
 
 			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
-			expect(prisma.chat.create).toHaveBeenCalled();
+			expect(prisma.chat.create).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({ userId: "user-1" }),
+				}),
+			);
 		});
 
 		it("should call permissionsService.requireRead when membership is absent (internal/non-HTTP path)", async () => {
@@ -94,6 +99,7 @@ describe("ChatsService", () => {
 				id: 1,
 				...dto,
 				searchSpaceId: 1,
+				userId: "user-1",
 			});
 
 			await service.create(dto, "user-1");
@@ -113,13 +119,18 @@ describe("ChatsService", () => {
 				id: 2,
 				...dto,
 				searchSpaceId: 1,
+				userId: "user-viewer",
 			});
 
 			await service.create(dto, "user-viewer", viewerMembership);
 
 			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
 			expect(permissionsService.requireRead).not.toHaveBeenCalled();
-			expect(prisma.chat.create).toHaveBeenCalled();
+			expect(prisma.chat.create).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({ userId: "user-viewer" }),
+				}),
+			);
 		});
 
 		it("should allow VIEWER to create chat via internal path (requireRead, not requireWrite)", async () => {
@@ -133,6 +144,7 @@ describe("ChatsService", () => {
 				id: 3,
 				...dto,
 				searchSpaceId: 1,
+				userId: "user-viewer",
 			});
 
 			await service.create(dto, "user-viewer");
@@ -143,7 +155,7 @@ describe("ChatsService", () => {
 	});
 
 	describe("findOne", () => {
-		it("should return chat without calling permissionsService (guard enforces access)", async () => {
+		it("should return chat scoped by userId", async () => {
 			prisma.chat.findFirst.mockResolvedValue({
 				id: 1,
 				type: "QNA",
@@ -151,13 +163,17 @@ describe("ChatsService", () => {
 				initialConnectors: [],
 				messages: [],
 				searchSpaceId: 1,
+				userId: "user-1",
 				createdAt: new Date(),
 			});
 
 			const result = await service.findOne(1, "user-1");
 
-			expect(permissionsService.requireRead).not.toHaveBeenCalled();
-			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
+			expect(prisma.chat.findFirst).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 1, userId: "user-1" },
+				}),
+			);
 			expect(result.id).toBe(1);
 		});
 
@@ -169,7 +185,7 @@ describe("ChatsService", () => {
 	});
 
 	describe("update", () => {
-		it("should update chat without calling permissionsService (guard enforces access)", async () => {
+		it("should update chat scoped by userId", async () => {
 			prisma.chat.findFirst.mockResolvedValue({
 				id: 1,
 				type: "QNA",
@@ -177,6 +193,7 @@ describe("ChatsService", () => {
 				initialConnectors: [],
 				messages: [],
 				searchSpaceId: 1,
+				userId: "user-1",
 				createdAt: new Date(),
 			});
 			prisma.chat.update.mockResolvedValue({
@@ -186,13 +203,17 @@ describe("ChatsService", () => {
 				initialConnectors: [],
 				messages: [],
 				searchSpaceId: 1,
+				userId: "user-1",
 				createdAt: new Date(),
 			});
 
 			const result = await service.update(1, { title: "New" } as UpdateChatDto, "user-1");
 
-			expect(permissionsService.requireRead).not.toHaveBeenCalled();
-			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
+			expect(prisma.chat.findFirst).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 1, userId: "user-1" },
+				}),
+			);
 			expect(result.title).toBe("New");
 		});
 
@@ -204,7 +225,7 @@ describe("ChatsService", () => {
 	});
 
 	describe("remove", () => {
-		it("should delete chat without calling permissionsService (guard enforces access)", async () => {
+		it("should delete chat scoped by userId", async () => {
 			prisma.chat.findFirst.mockResolvedValue({
 				id: 1,
 				type: "QNA",
@@ -212,14 +233,18 @@ describe("ChatsService", () => {
 				initialConnectors: [],
 				messages: [],
 				searchSpaceId: 1,
+				userId: "user-1",
 				createdAt: new Date(),
 			});
 			prisma.chat.delete.mockResolvedValue({});
 
 			const result = await service.remove(1, "user-1");
 
-			expect(permissionsService.requireRead).not.toHaveBeenCalled();
-			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
+			expect(prisma.chat.findFirst).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 1, userId: "user-1" },
+				}),
+			);
 			expect(result.message).toBe("Chat deleted successfully");
 		});
 
@@ -228,10 +253,36 @@ describe("ChatsService", () => {
 
 			await expect(service.remove(999, "user-1")).rejects.toThrow(NotFoundException);
 		});
+
+		it("should allow user to delete their own chat", async () => {
+			prisma.chat.findFirst.mockResolvedValue({
+				id: 1,
+				type: "QNA",
+				title: "My Chat",
+				initialConnectors: [],
+				messages: [],
+				searchSpaceId: 1,
+				userId: "user-1",
+				createdAt: new Date(),
+			});
+			prisma.chat.delete.mockResolvedValue({});
+
+			const result = await service.remove(1, "user-1");
+
+			expect(result.message).toBe("Chat deleted successfully");
+			expect(prisma.chat.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+		});
+
+		it("should throw NotFoundException when user tries to delete another user's chat", async () => {
+			prisma.chat.findFirst.mockResolvedValue(null);
+
+			await expect(service.remove(1, "user-2")).rejects.toThrow(NotFoundException);
+			expect(prisma.chat.delete).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("addFavorite", () => {
-		it("should add favorite without calling permissionsService (guard enforces access)", async () => {
+		it("should add favorite scoped by userId", async () => {
 			prisma.chat.findFirst.mockResolvedValue({
 				id: 1,
 				type: "QNA",
@@ -239,14 +290,18 @@ describe("ChatsService", () => {
 				initialConnectors: [],
 				messages: [],
 				searchSpaceId: 1,
+				userId: "user-1",
 				createdAt: new Date(),
 			});
 			prisma.userChatFavorite.create.mockResolvedValue({});
 
 			const result = await service.addFavorite(1, "user-1");
 
-			expect(permissionsService.requireRead).not.toHaveBeenCalled();
-			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
+			expect(prisma.chat.findFirst).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 1, userId: "user-1" },
+				}),
+			);
 			expect(result.id).toBe(1);
 		});
 
@@ -258,7 +313,7 @@ describe("ChatsService", () => {
 	});
 
 	describe("removeFavorite", () => {
-		it("should remove favorite without calling permissionsService (guard enforces access)", async () => {
+		it("should remove favorite scoped by userId", async () => {
 			prisma.chat.findFirst.mockResolvedValue({
 				id: 1,
 				type: "QNA",
@@ -266,14 +321,18 @@ describe("ChatsService", () => {
 				initialConnectors: [],
 				messages: [],
 				searchSpaceId: 1,
+				userId: "user-1",
 				createdAt: new Date(),
 			});
 			prisma.userChatFavorite.deleteMany.mockResolvedValue({ count: 1 });
 
 			const result = await service.removeFavorite(1, "user-1");
 
-			expect(permissionsService.requireRead).not.toHaveBeenCalled();
-			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
+			expect(prisma.chat.findFirst).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: 1, userId: "user-1" },
+				}),
+			);
 			expect(result.message).toBe("Favorite removed successfully");
 		});
 
@@ -285,18 +344,46 @@ describe("ChatsService", () => {
 	});
 
 	describe("findAll", () => {
-		it("should query by searchSpaceId without permissionsService (guard enforces access)", async () => {
+		it("should query by searchSpaceId and userId (user-scoped)", async () => {
 			prisma.chat.findMany.mockResolvedValue([]);
 
 			await service.findAll("user-1", 0, 50, 5);
 
-			expect(permissionsService.requireRead).not.toHaveBeenCalled();
-			expect(permissionsService.requireWrite).not.toHaveBeenCalled();
 			expect(prisma.chat.findMany).toHaveBeenCalledWith(
 				expect.objectContaining({
-					where: { searchSpaceId: 5 },
+					where: { searchSpaceId: 5, userId: "user-1" },
 				}),
 			);
+		});
+
+		it("should only return chats owned by the requesting user", async () => {
+			const user1Chats = [
+				{ id: 1, title: "Chat 1", searchSpaceId: 5, userId: "user-1", favorites: [] },
+				{ id: 2, title: "Chat 2", searchSpaceId: 5, userId: "user-1", favorites: [] },
+			];
+			prisma.chat.findMany.mockResolvedValue(user1Chats);
+
+			const result = await service.findAll("user-1", 0, 50, 5);
+
+			expect(prisma.chat.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { searchSpaceId: 5, userId: "user-1" },
+				}),
+			);
+			expect(result).toHaveLength(2);
+		});
+
+		it("should not return chats owned by another user in same search space", async () => {
+			prisma.chat.findMany.mockResolvedValue([]);
+
+			const result = await service.findAll("user-2", 0, 50, 5);
+
+			expect(prisma.chat.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { searchSpaceId: 5, userId: "user-2" },
+				}),
+			);
+			expect(result).toHaveLength(0);
 		});
 	});
 

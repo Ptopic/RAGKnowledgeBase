@@ -20,7 +20,6 @@ import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
 import useGetChats from "@/api/chats/hooks/useGetChats";
 import useAddFavoriteChat from "@/api/chats/hooks/useAddFavoriteChat";
 import useRemoveFavoriteChat from "@/api/chats/hooks/useRemoveFavoriteChat";
-import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,8 +116,6 @@ export default function ChatsPageClient({
 	const { mutate: removeFavoriteChat } = useRemoveFavoriteChat();
 
 	const searchSpaceIdNum = parseInt(searchSpaceId, 10);
-	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
-	const canDelete = searchSpace ? searchSpace.is_owner || searchSpace.role === "EDITOR" : false;
 
 	const [selectedChats, setSelectedChats] = useState<number[]>([]);
 	const [selectionMode, setSelectionMode] = useState(false);
@@ -452,25 +449,21 @@ export default function ChatsPageClient({
 																<ExternalLink className="mr-2 h-4 w-4" />
 																<span>View Chat</span>
 															</DropdownMenuItem>
-															{canDelete && (
-																<>
-																	<DropdownMenuSeparator />
-																	<DropdownMenuItem
-																		className="text-destructive focus:text-destructive"
-																		onClick={(e) => {
-																			e.stopPropagation();
-																			setChatToDelete({
-																				id: chat.id,
-																				title: chat.title || `Chat ${chat.id}`,
-																			});
-																			setDeleteDialogOpen(true);
-																		}}
-																	>
-																		<Trash2 className="mr-2 h-4 w-4" />
-																		<span>Delete Chat</span>
-																	</DropdownMenuItem>
-																</>
-															)}
+															<DropdownMenuSeparator />
+															<DropdownMenuItem
+																className="text-destructive focus:text-destructive"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setChatToDelete({
+																		id: chat.id,
+																		title: chat.title || `Chat ${chat.id}`,
+																	});
+																	setDeleteDialogOpen(true);
+																}}
+															>
+																<Trash2 className="mr-2 h-4 w-4" />
+																<span>Delete Chat</span>
+															</DropdownMenuItem>
 														</DropdownMenuContent>
 													</DropdownMenu>
 												</div>

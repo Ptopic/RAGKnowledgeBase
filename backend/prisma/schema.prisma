@@ -137,6 +137,7 @@ model User {
   queryTemplates         QueryTemplate[]
   favoriteDocuments      UserDocumentFavorite[]
   favorites              UserChatFavorite[]
+  chats                  Chat[]
   searchSpaceMemberships SearchSpaceMember[]
   invitedMemberships     SearchSpaceMember[] @relation("InvitedBy")
   sentInvitations        SearchSpaceInvitation[] @relation("SentInvitations")
@@ -271,15 +272,18 @@ model Chat {
   initialConnectors String[] @map("initial_connectors")
   messages          Json     @map("messages") // Array of message objects
 
-  searchSpaceId Int @map("search_space_id")
+  searchSpaceId Int    @map("search_space_id")
+  userId        String @map("user_id")
 
   // Relationships
   searchSpace SearchSpace        @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   shareLinks  ChatShareLink[]
   favorites   UserChatFavorite[]
 
   @@index([title])
   @@index([searchSpaceId])
+  @@index([userId])
   @@map("chats")
 }
 

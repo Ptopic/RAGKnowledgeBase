@@ -7,6 +7,7 @@ export interface Chat {
 	type: string;
 	title: string;
 	search_space_id: number;
+	user_id: string;
 	is_favorite?: boolean;
 }
 

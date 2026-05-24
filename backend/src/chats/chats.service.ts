@@ -43,6 +43,7 @@ export class ChatsService {
 					initialConnectors: createDto.initial_connectors || [],
 					messages: createDto.messages as unknown as Prisma.InputJsonValue,
 					searchSpaceId: createDto.search_space_id,
+					userId,
 				},
 			});
 
@@ -72,7 +73,7 @@ export class ChatsService {
 			}
 
 			const chats = await this.prisma.chat.findMany({
-				where: { searchSpaceId },
+				where: { searchSpaceId, userId },
 				skip,
 				take: limit,
 				orderBy: { createdAt: "desc" },
@@ -99,7 +100,7 @@ export class ChatsService {
 	async findOne(id: number, userId: string): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: { id },
+				where: { id, userId },
 			});
 
 			if (!chat) {
@@ -126,7 +127,7 @@ export class ChatsService {
 	): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: { id },
+				where: { id, userId },
 			});
 
 			if (!chat) {
@@ -159,7 +160,7 @@ export class ChatsService {
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: { id },
+				where: { id, userId },
 			});
 
 			if (!chat) {
@@ -186,7 +187,7 @@ export class ChatsService {
 	async addFavorite(chatId: number, userId: string): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: { id: chatId },
+				where: { id: chatId, userId },
 			});
 
 			if (!chat) {
@@ -222,7 +223,7 @@ export class ChatsService {
 	): Promise<{ message: string }> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: { id: chatId },
+				where: { id: chatId, userId },
 			});
 
 			if (!chat) {
@@ -295,6 +296,7 @@ export class ChatsService {
 			initial_connectors: chat.initialConnectors || [],
 			messages: chat.messages,
 			search_space_id: chat.searchSpaceId,
+			user_id: chat.userId,
 			is_favorite: Array.isArray(chat.favorites)
 				? chat.favorites.length > 0
 				: undefined,
@@ -309,6 +311,7 @@ export class ChatsService {
 			title: chat.title,
 			initial_connectors: chat.initialConnectors || [],
 			search_space_id: chat.searchSpaceId,
+			user_id: chat.userId,
 			is_favorite: Array.isArray(chat.favorites)
 				? chat.favorites.length > 0
 				: undefined,

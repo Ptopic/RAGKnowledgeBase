@@ -5,24 +5,12 @@ import { CreateChatDto, UpdateChatDto, ToggleFavoriteDto } from "./dtos/chat.dto
 import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 
-// Use require to avoid ts-jest type-checking the service file
 const { ChatsService } = require("./chats.service");
 
 describe("ChatsController", () => {
 	let controller: ChatsController;
 	let chatsService: any;
 
-	// OWNER/EDITOR membership — used for delete tests (requires EDITOR+)
-	const editorMembership = {
-		id: "mem-1",
-		role: MemberRole.EDITOR,
-		searchSpaceId: 1,
-		userId: "user-1",
-		invitedById: "admin-1",
-		createdAt: new Date(),
-	};
-
-	// VIEWER membership — used for create/update/read/favorite tests (requires VIEWER+)
 	const viewerMembership = {
 		id: "mem-2",
 		role: MemberRole.VIEWER,
@@ -177,16 +165,28 @@ describe("ChatsController", () => {
 	});
 
 	describe("DELETE /chats/:id", () => {
-		it("should call service.remove with EDITOR membership (delete requires EDITOR+)", async () => {
+		it("should call service.remove with VIEWER membership (delete requires VIEWER+, service enforces ownership)", async () => {
 			const req = {
 				user: { id: "user-1" },
-				searchSpaceContext: { searchSpaceId: 1, membership: editorMembership },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
 			} as any;
 			chatsService.remove.mockResolvedValue({ message: "Chat deleted successfully" });
 
 			await controller.remove(1, req);
 
 			expect(chatsService.remove).toHaveBeenCalledWith(1, "user-1");
+		});
+
+		it("VIEWER can delete their own chat (DELETE /chats/:id requires VIEWER+, service enforces ownership)", async () => {
+			const req = {
+				user: { id: "user-viewer" },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+			} as any;
+			chatsService.remove.mockResolvedValue({ message: "Chat deleted successfully" });
+
+			await controller.remove(1, req);
+
+			expect(chatsService.remove).toHaveBeenCalledWith(1, "user-viewer");
 		});
 	});
 
@@ -280,7 +280,7 @@ describe("ChatsController", () => {
 			expect(result).toBeDefined();
 		});
 
-		it("VIEWER cannot delete chats — guard blocks at EDITOR requirement (DELETE /chats/:id)", async () => {
+		it("VIEWER can delete chats (DELETE /chats/:id requires VIEWER+, service enforces ownership)", async () => {
 			const req = {
 				user: { id: "user-viewer" },
 				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },

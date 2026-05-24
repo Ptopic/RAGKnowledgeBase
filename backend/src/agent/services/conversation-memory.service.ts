@@ -46,11 +46,7 @@ export class ConversationMemoryService {
 		const chat = await this.prisma.chat.findFirst({
 			where: {
 				id: chatId,
-				searchSpace: {
-					members: {
-						some: { userId },
-					},
-				},
+				userId,
 			},
 		});
 
