@@ -122,8 +122,6 @@ export const acceptInvitation =
 		request.call(`${config.apiUrl}/searchspaces/invite/${data.token}/accept`, (init) => ({
 			...init,
 			method: "POST",
-			headers: { ...init.headers, "Content-Type": "application/json" },
-			body: JSON.stringify(data),
 		}));
 
 export const declineInvitation =
@@ -132,8 +130,6 @@ export const declineInvitation =
 		request.call(`${config.apiUrl}/searchspaces/invite/${data.token}/decline`, (init) => ({
 			...init,
 			method: "POST",
-			headers: { ...init.headers, "Content-Type": "application/json" },
-			body: JSON.stringify(data),
 		}));
 
 export const getMyInvitations =

@@ -65,6 +65,7 @@ const mockPrisma = {
 	},
 	$transaction: jest.fn((fn) => fn({
 		searchSpaceMember: {
+			findUnique: jest.fn().mockResolvedValue(null),
 			create: jest.fn().mockResolvedValue({
 				id: mockMemberId,
 				userId: "invitee-user-id",
@@ -256,7 +257,6 @@ describe("SearchSpaceInvitationsService", () => {
 		it("should accept a valid pending invitation", async () => {
 			prisma.searchSpaceInvitation.findUnique.mockResolvedValue(mockInvitation);
 			prisma.user.findUnique.mockResolvedValue(mockInviteeUser);
-			prisma.searchSpaceMember.findUnique.mockResolvedValue(null);
 
 			const result = await service.acceptInvitation(
 				"abc123token",
@@ -289,13 +289,7 @@ describe("SearchSpaceInvitationsService", () => {
 		it("should return success when member already exists (idempotent)", async () => {
 			prisma.searchSpaceInvitation.findUnique.mockResolvedValue(mockInvitation);
 			prisma.user.findUnique.mockResolvedValue(mockInviteeUser);
-			prisma.searchSpaceMember.findUnique.mockResolvedValue({
-				id: mockMemberId,
-				userId: "invitee-user-id",
-				searchSpaceId: 1,
-				role: "VIEWER",
-				invitedById: "inviter-id",
-			});
+			prisma.$transaction.mockResolvedValue(undefined);
 
 			const result = await service.acceptInvitation(
 				"abc123token",
@@ -303,7 +297,6 @@ describe("SearchSpaceInvitationsService", () => {
 			);
 
 			expect(result.message).toBe("Invitation accepted successfully");
-			expect(prisma.$transaction).not.toHaveBeenCalled();
 		});
 
 		it("should throw BadRequestException when invitation has expired", async () => {
@@ -432,6 +425,25 @@ describe("SearchSpaceInvitationsService", () => {
 			await expect(
 				service.declineInvitation("abc123token", "nonexistent-user-id"),
 			).rejects.toThrow(ForbiddenException);
+		});
+
+		it("should throw BadRequestException when trying to decline an expired invitation", async () => {
+			const expiredInvitation = {
+				...mockInvitation,
+				expiresAt: new Date(Date.now() - 1000),
+			};
+			prisma.searchSpaceInvitation.findUnique.mockResolvedValue(
+				expiredInvitation,
+			);
+			prisma.user.findUnique.mockResolvedValue(mockInviteeUser);
+			prisma.searchSpaceInvitation.update.mockResolvedValue({
+				...expiredInvitation,
+				status: "EXPIRED",
+			});
+
+			await expect(
+				service.declineInvitation("abc123token", "invitee-user-id"),
+			).rejects.toThrow(BadRequestException);
 		});
 	});
 

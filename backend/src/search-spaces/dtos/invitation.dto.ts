@@ -1,7 +1,8 @@
-import { IsEmail } from "class-validator";
+import { IsEmail, MaxLength } from "class-validator";
 
 export class CreateInvitationDto {
 	@IsEmail()
+	@MaxLength(255)
 	inviteeEmail: string;
 }
 

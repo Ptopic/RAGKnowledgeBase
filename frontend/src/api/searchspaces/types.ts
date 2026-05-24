@@ -42,12 +42,14 @@ export interface UpdateMemberRoleRequest {
 	role: MemberRole;
 }
 
+export type InvitationStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED";
+
 export interface SearchSpaceInvitation {
 	id: number;
 	searchSpaceId: number;
 	inviterId: string;
 	inviteeEmail: string;
-	status: string;
+	status: InvitationStatus;
 	expiresAt: string;
 	createdAt: string;
 	searchSpaceName?: string;

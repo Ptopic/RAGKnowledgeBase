@@ -83,6 +83,7 @@ const formatRelativeTime = (dateStr: string) => {
 	const date = new Date(dateStr);
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
+	if (diffMs < 0) return "just now";
 	const diffMins = Math.floor(diffMs / 60000);
 	const diffHours = Math.floor(diffMs / 3600000);
 	const diffDays = Math.floor(diffMs / 86400000);
@@ -105,14 +106,14 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 	const updateRoleMutation = useUpdateMemberRole();
 	const removeMutation = useRemoveMember();
 	const leaveMutation = useLeaveSearchSpace();
-	const { data: pendingInvites = [], isLoading: loadingPending } = useGetPendingInvitations(searchSpaceId);
+	const isOwner = searchSpace?.is_owner ?? false;
+	const { data: pendingInvites = [], isLoading: loadingPending } = useGetPendingInvitations(searchSpaceId, isOwner);
 	const cancelInvitationMutation = useCancelInvitation();
 
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [removingMember, setRemovingMember] = useState<{ id: string; email: string } | null>(null);
 	const [leavingSpace, setLeavingSpace] = useState(false);
 
-	const isOwner = searchSpace?.is_owner ?? false;
 	const currentUserId = currentUser?.id;
 
 	const handleInvite = () => {

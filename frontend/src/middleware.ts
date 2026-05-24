@@ -11,9 +11,16 @@ const AUTH_PUBLIC_ROUTES = [
 ];
 const HOME_ROUTE = "/dashboard";
 
-/** Prevent open-redirect: only allow relative internal paths */
+const SAFE_REDIRECT_ROUTES = ["/invite", "/dashboard"];
+
+/** Prevent open-redirect: only allow whitelisted relative internal paths */
 function isSafeRedirect(url: string): boolean {
-	return url.startsWith("/") && !url.startsWith("//") && !url.includes("://");
+	return (
+		url.startsWith("/") &&
+		!url.startsWith("//") &&
+		!url.includes("://") &&
+		SAFE_REDIRECT_ROUTES.some((route) => url.startsWith(route))
+	);
 }
 
 export const config = {

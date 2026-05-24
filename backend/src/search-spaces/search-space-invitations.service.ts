@@ -147,6 +147,16 @@ export class SearchSpaceInvitationsService {
 			throw new NotFoundException("Invitation not found");
 		}
 
+		// Verify the authenticated user is the invitee (fail-fast for wrong user)
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+		});
+		if (!user || user.email !== invitation.inviteeEmail) {
+			throw new ForbiddenException(
+				"Only the invited user can accept this invitation",
+			);
+		}
+
 		if (invitation.status === "ACCEPTED") {
 			return { message: "Invitation already accepted" };
 		}
@@ -165,30 +175,20 @@ export class SearchSpaceInvitationsService {
 			throw new BadRequestException("Invitation has expired");
 		}
 
-		// Verify the authenticated user is the invitee
-		const user = await this.prisma.user.findUnique({
-			where: { id: userId },
-		});
-		if (!user || user.email !== invitation.inviteeEmail) {
-			throw new ForbiddenException(
-				"Only the invited user can accept this invitation",
-			);
-		}
-
-		// Idempotency: check if member already exists
-		const existingMember = await this.prisma.searchSpaceMember.findUnique({
-			where: {
-				searchSpaceId_userId: {
-					userId,
-					searchSpaceId: invitation.searchSpaceId,
-				},
-			},
-		});
-		if (existingMember) {
-			return { message: "Invitation accepted successfully" };
-		}
-
 		await this.prisma.$transaction(async (tx) => {
+			// Check if member already exists (inside transaction to prevent TOCTOU race)
+			const existingMember = await tx.searchSpaceMember.findUnique({
+				where: {
+					searchSpaceId_userId: {
+						userId,
+						searchSpaceId: invitation.searchSpaceId,
+					},
+				},
+			});
+			if (existingMember) {
+				return;
+			}
+
 			await tx.searchSpaceMember.create({
 				data: {
 					id: randomUUID(),
@@ -223,13 +223,7 @@ export class SearchSpaceInvitationsService {
 			throw new NotFoundException("Invitation not found");
 		}
 
-		if (invitation.status !== "PENDING") {
-			throw new BadRequestException(
-				`Invitation cannot be declined (status: ${invitation.status})`,
-			);
-		}
-
-		// Verify the authenticated user is the invitee
+		// Verify the authenticated user is the invitee (fail-fast for wrong user)
 		const user = await this.prisma.user.findUnique({
 			where: { id: userId },
 		});
@@ -237,6 +231,20 @@ export class SearchSpaceInvitationsService {
 			throw new ForbiddenException(
 				"Only the invited user can decline this invitation",
 			);
+		}
+
+		if (invitation.status !== "PENDING") {
+			throw new BadRequestException(
+				`Invitation cannot be declined (status: ${invitation.status})`,
+			);
+		}
+
+		if (invitation.expiresAt < new Date()) {
+			await this.prisma.searchSpaceInvitation.update({
+				where: { id: invitation.id },
+				data: { status: "EXPIRED" },
+			});
+			throw new BadRequestException("Invitation has expired");
 		}
 
 		await this.prisma.searchSpaceInvitation.update({

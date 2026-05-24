@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import type { ReadonlyURLSearchParams } from "next/navigation";
+import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 
 import InviteAcceptPage from "./InviteAcceptPage";
 
@@ -44,5 +44,3 @@ describe("InviteAcceptPage", () => {
 		expect(screen.getByText(/not found/i)).toBeInTheDocument();
 	});
 });
-
-import { useSearchParams } from "next/navigation";
