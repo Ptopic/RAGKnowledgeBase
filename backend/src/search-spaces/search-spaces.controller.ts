@@ -76,7 +76,7 @@ export class SearchSpacesController {
 	}
 
 	@Post(":id/members")
-	@RequireSearchSpaceRole(MemberRole.OWNER)
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async inviteMember(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() inviteDto: InviteMemberDto,

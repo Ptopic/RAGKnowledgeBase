@@ -1,13 +1,16 @@
 import { Module } from '@nestjs/common';
+import { MailModule } from '../mail/mail.module';
+import { PermissionsModule } from '../permissions/permissions.module';
+import { PrismaService } from '../prisma/prisma.service';
+import { SearchSpaceInvitationsController } from './search-space-invitations.controller';
+import { SearchSpaceInvitationsService } from './search-space-invitations.service';
 import { SearchSpacesController } from './search-spaces.controller';
 import { SearchSpacesService } from './search-spaces.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { PermissionsModule } from '../permissions/permissions.module';
 
 @Module({
-  controllers: [SearchSpacesController],
-  providers: [SearchSpacesService, PrismaService],
-  imports: [PermissionsModule],
+  imports: [PermissionsModule, MailModule],
+  controllers: [SearchSpaceInvitationsController, SearchSpacesController],
+  providers: [SearchSpacesService, SearchSpaceInvitationsService, PrismaService],
   exports: [SearchSpacesService],
 })
 export class SearchSpacesModule {}

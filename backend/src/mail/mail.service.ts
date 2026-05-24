@@ -47,6 +47,43 @@ export class MailService {
 		}
 	}
 
+	async sendSearchSpaceInvitationEmail(
+		to: string,
+		inviterName: string,
+		searchSpaceName: string,
+		token: string,
+	): Promise<void> {
+		const inviteUrl = `${this.frontendUrl}/invite?token=${token}`;
+
+		if (!this.isEnabled) {
+			this.logger.log(
+				`[MOCK EMAIL] Search space invitation for ${to}: ${inviteUrl}`,
+			);
+			return;
+		}
+
+		try {
+			await this.resend?.emails.send({
+				from: this.fromEmail,
+				to,
+				subject: `You've been invited to join ${searchSpaceName}`,
+				html: this.buildSearchSpaceInvitationHtml(
+					inviterName,
+					searchSpaceName,
+					inviteUrl,
+				),
+			});
+
+			this.logger.log(`Search space invitation email sent to ${to}`);
+		} catch (error) {
+			this.logger.error(
+				"Failed to send search space invitation email:",
+				error,
+			);
+			throw error;
+		}
+	}
+
 	private buildPasswordResetHtml(resetUrl: string): string {
 		return `
 		<!DOCTYPE html>
@@ -82,6 +119,57 @@ export class MailService {
 									</p>
 									<p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">
 										If you did not request this, you can safely ignore this email.
+									</p>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</body>
+		</html>
+		`;
+	}
+
+	private buildSearchSpaceInvitationHtml(
+		inviterName: string,
+		searchSpaceName: string,
+		inviteUrl: string,
+	): string {
+		return `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Search Space Invitation</title>
+		</head>
+		<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background-color:#f5f5f5;">
+			<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:40px 0;">
+				<tr>
+					<td align="center">
+						<table width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+							<tr>
+								<td style="padding:40px 32px 24px;">
+									<h1 style="margin:0;font-size:22px;font-weight:600;color:#111827;">You've been invited to join ${searchSpaceName}</h1>
+									<p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:#4b5563;">
+										${inviterName} has invited you to join the search space <strong>${searchSpaceName}</strong>. Click the button below to view the invite. This link will expire in 7 days.
+									</p>
+								</td>
+							</tr>
+							<tr>
+								<td style="padding:0 32px 32px;">
+									<a href="${inviteUrl}" style="display:inline-block;padding:12px 24px;background-color:#111827;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:500;">View Invite</a>
+								</td>
+							</tr>
+							<tr>
+								<td style="padding:0 32px 40px;">
+									<p style="margin:0;font-size:13px;color:#6b7280;line-height:1.5;">
+										If the button does not work, copy and paste this link into your browser:<br>
+										<a href="${inviteUrl}" style="color:#3b82f6;word-break:break-all;">${inviteUrl}</a>
+									</p>
+									<p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">
+										If you did not expect this invitation, you can safely ignore this email.
 									</p>
 								</td>
 							</tr>

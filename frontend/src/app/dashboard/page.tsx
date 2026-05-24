@@ -187,6 +187,9 @@ const DashboardPage = () => {
 	if (loading || fetching || refetching) return <LoadingScreen />;
 	if (error) return <ErrorScreen message={error.toString()} />;
 
+	const ownedSpaces = searchSpaces?.filter((space) => space.is_owner) ?? [];
+	const sharedSpaces = searchSpaces?.filter((space) => !space.is_owner) ?? [];
+
 	const handleDeleteSearchSpace = (id: number) => {
 		deleteSearchSpace(id);
 	};
@@ -194,9 +197,6 @@ const DashboardPage = () => {
 	const handleLeaveSearchSpace = (id: number) => {
 		leaveSearchSpace(id);
 	};
-
-	const ownedSpaces = searchSpaces?.filter((space) => space.is_owner) ?? [];
-	const sharedSpaces = searchSpaces?.filter((space) => !space.is_owner) ?? [];
 
 	const renderSpaceCard = (space: (typeof searchSpaces)[0], isShared: boolean) => (
 		<motion.div
@@ -364,6 +364,7 @@ const DashboardPage = () => {
 							<p className="text-muted-foreground">{"Welcome message"}</p>
 						</div>
 					</div>
+
 					<div className="flex items-center space-x-3">
 						<UserDropdown user={customUser} />
 						<ThemeTogglerComponent />

@@ -41,3 +41,41 @@ export interface InviteResponse {
 export interface UpdateMemberRoleRequest {
 	role: MemberRole;
 }
+
+export interface SearchSpaceInvitation {
+	id: number;
+	searchSpaceId: number;
+	inviterId: string;
+	inviteeEmail: string;
+	status: string;
+	expiresAt: string;
+	createdAt: string;
+	searchSpaceName?: string;
+	inviterName?: string;
+}
+
+export interface CreateInvitationRequest {
+	inviteeEmail: string;
+}
+
+export interface AcceptInvitationRequest {
+	token: string;
+}
+
+export interface DeclineInvitationRequest {
+	token: string;
+}
+
+export interface SearchSpaceMember {
+	id: string;
+	userId: string;
+	searchSpaceId: number;
+	role: string;
+	createdAt: string;
+	user?: {
+		id: string;
+		email: string;
+		fullName: string | null;
+		picture: string | null;
+	};
+}

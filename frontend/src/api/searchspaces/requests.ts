@@ -2,12 +2,16 @@ import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {
+	AcceptInvitationRequest,
+	CreateInvitationRequest,
 	CreateSearchSpaceRequest,
 	CreateSearchSpaceResponse,
+	DeclineInvitationRequest,
 	InviteMemberRequest,
 	InviteResponse,
 	Member,
 	SearchSpace,
+	SearchSpaceInvitation,
 	UpdateMemberRoleRequest,
 } from "./types";
 
@@ -96,3 +100,43 @@ export const leaveSearchSpace =
 			...init,
 			method: "DELETE",
 		}));
+
+export const createInvitation =
+	(request: ICallableRequestBuilder<SearchSpaceInvitation>) =>
+	async (searchSpaceId: number, data: CreateInvitationRequest) =>
+		request.call(`${config.apiUrl}/searchspaces/${searchSpaceId}/invitations`, (init) => ({
+			...init,
+			method: "POST",
+			headers: { ...init.headers, "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		}));
+
+export const getInvitationByToken =
+	(request: ICallableRequestBuilder<SearchSpaceInvitation>) =>
+	async (token: string) =>
+		request.call(`${config.apiUrl}/searchspaces/invite/${token}`);
+
+export const acceptInvitation =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (data: AcceptInvitationRequest) =>
+		request.call(`${config.apiUrl}/searchspaces/invite/${data.token}/accept`, (init) => ({
+			...init,
+			method: "POST",
+			headers: { ...init.headers, "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		}));
+
+export const declineInvitation =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (data: DeclineInvitationRequest) =>
+		request.call(`${config.apiUrl}/searchspaces/invite/${data.token}/decline`, (init) => ({
+			...init,
+			method: "POST",
+			headers: { ...init.headers, "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		}));
+
+export const getMyInvitations =
+	(request: ICallableRequestBuilder<SearchSpaceInvitation[]>) =>
+	async () =>
+		request.call(`${config.apiUrl}/searchspaces/invitations`);

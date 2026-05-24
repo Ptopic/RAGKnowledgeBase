@@ -14,11 +14,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import useGetMembers from "@/api/searchspaces/hooks/useGetMembers";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
-import useInviteMember from "@/api/searchspaces/hooks/useInviteMember";
+import useCreateInvitation from "@/api/searchspaces/hooks/useCreateInvitation";
 import useLeaveSearchSpace from "@/api/searchspaces/hooks/useLeaveSearchSpace";
 import useRemoveMember from "@/api/searchspaces/hooks/useRemoveMember";
 import useUpdateMemberRole from "@/api/searchspaces/hooks/useUpdateMemberRole";
-import type { InviteMemberRequest, MemberRole } from "@/api/searchspaces/types";
+import type { MemberRole } from "@/api/searchspaces/types";
 import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -84,13 +84,12 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 	const { data: searchSpace, isLoading: loadingSpace } = useGetSearchSpace(searchSpaceId);
 	const { data: currentUser } = useGetCurrentUser();
 
-	const inviteMutation = useInviteMember();
+	const createInvitation = useCreateInvitation();
 	const updateRoleMutation = useUpdateMemberRole();
 	const removeMutation = useRemoveMember();
 	const leaveMutation = useLeaveSearchSpace();
 
 	const [inviteEmail, setInviteEmail] = useState("");
-	const [inviteRole, setInviteRole] = useState<MemberRole>("VIEWER");
 	const [removingMember, setRemovingMember] = useState<{ id: string; email: string } | null>(null);
 	const [leavingSpace, setLeavingSpace] = useState(false);
 
@@ -100,16 +99,11 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 	const handleInvite = () => {
 		if (!inviteEmail.trim()) return;
 
-		const data: InviteMemberRequest = {
-			email: inviteEmail.trim(),
-			role: inviteRole,
-		};
-		inviteMutation.mutate(
-			{ searchSpaceId, data },
+		createInvitation.mutate(
+			{ searchSpaceId, inviteeEmail: inviteEmail.trim() },
 			{
 				onSuccess: () => {
 					setInviteEmail("");
-					setInviteRole("VIEWER");
 				},
 			},
 		);
@@ -199,8 +193,11 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 						<div className="space-y-4">
 							<div className="flex items-center gap-2">
 								<Mail className="h-5 w-5 text-blue-600" />
-								<h3 className="text-lg font-semibold tracking-tight">Invite Member</h3>
+								<h3 className="text-lg font-semibold tracking-tight">Invite by Email</h3>
 							</div>
+							<p className="text-sm text-muted-foreground">
+								Send an invitation email. The recipient must accept before gaining access.
+							</p>
 							<div className="flex flex-col sm:flex-row gap-3">
 								<Input
 									type="email"
@@ -212,26 +209,17 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 										if (e.key === "Enter") handleInvite();
 									}}
 								/>
-								<Select value={inviteRole} onValueChange={(value) => setInviteRole(value as MemberRole)}>
-									<SelectTrigger className="w-[140px]">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="EDITOR">Editor</SelectItem>
-										<SelectItem value="VIEWER">Viewer</SelectItem>
-									</SelectContent>
-								</Select>
 								<Button
 									onClick={handleInvite}
-									disabled={!inviteEmail.trim() || inviteMutation.isPending}
+									disabled={!inviteEmail.trim() || createInvitation.isPending}
 									className="flex items-center gap-2"
 								>
-									{inviteMutation.isPending ? (
+									{createInvitation.isPending ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
 									) : (
 										<Mail className="h-4 w-4" />
 									)}
-									Invite
+									Send Invite
 								</Button>
 							</div>
 						</div>

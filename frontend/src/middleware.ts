@@ -3,7 +3,7 @@ import appConfig from "@shared/config";
 import { COOKIE_NAME } from "@shared/constants/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
-const AUTH_PUBLIC_ROUTES = ["/auth", "/auth/forgot-password", "/auth/reset-password", "/s"];
+const AUTH_PUBLIC_ROUTES = ["/auth", "/auth/forgot-password", "/auth/reset-password", "/s", "/invite"];
 const HOME_ROUTE = "/dashboard";
 
 export const config = {
