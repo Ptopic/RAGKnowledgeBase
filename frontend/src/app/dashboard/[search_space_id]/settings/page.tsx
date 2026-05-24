@@ -17,6 +17,7 @@ export default function SettingsPage() {
 	const searchSpaceId = Number(params.search_space_id);
 	const { data: searchSpace } = useGetSearchSpace(searchSpaceId);
 	const isOwner = searchSpace?.is_owner ?? false;
+	const canModifyTemplates = isOwner || searchSpace?.role === "EDITOR";
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -102,7 +103,7 @@ export default function SettingsPage() {
 						)}
 
 						<TabsContent value="templates" className="space-y-6">
-							<QueryTemplateManager searchSpaceId={searchSpaceId} />
+							<QueryTemplateManager searchSpaceId={searchSpaceId} canModify={canModifyTemplates} />
 						</TabsContent>
 
 						<TabsContent value="members" className="space-y-6">

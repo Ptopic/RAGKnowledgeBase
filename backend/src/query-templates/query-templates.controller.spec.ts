@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MemberRole } from "@prisma/client";
+import { SEARCH_SPACE_ROLES_KEY } from "../permissions/decorators/require-search-space-role.decorator";
 import { QueryTemplatesController } from "./query-templates.controller";
 import { QueryTemplatesService } from "./query-templates.service";
 import { PermissionsService } from "../permissions/permissions.service";
@@ -107,6 +108,38 @@ describe("QueryTemplatesController", () => {
 			await controller.createGlobal(dto, req);
 
 			expect(queryTemplatesService.createGlobal).toHaveBeenCalledWith(dto, "user-1");
+		});
+	});
+
+	describe("VIEWER permission matrix — template mutations require EDITOR+", () => {
+		it("POST createForSearchSpace has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.createForSearchSpace);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("DELETE removeForSearchSpace has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.removeForSearchSpace);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("PUT updateForSearchSpace has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.updateForSearchSpace);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("POST pinQueryTemplate has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.pinQueryTemplate);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("POST unpinQueryTemplate has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.unpinQueryTemplate);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("GET findAllForSearchSpace has @RequireSearchSpaceRole(VIEWER) — read-only allowed for VIEWER", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.findAllForSearchSpace);
+			expect(roles).toContain(MemberRole.VIEWER);
 		});
 	});
 });

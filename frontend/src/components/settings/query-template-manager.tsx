@@ -47,9 +47,10 @@ const DEBOUNCE_MS = 400;
 
 interface QueryTemplateManagerProps {
 	searchSpaceId: number;
+	canModify?: boolean;
 }
 
-export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProps) {
+export function QueryTemplateManager({ searchSpaceId, canModify = true }: QueryTemplateManagerProps) {
 	const [localSearch, setLocalSearch] = useState("");
 	const [skip, setSkip] = useState(0);
 
@@ -253,7 +254,7 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 									: "Create query templates to quickly reuse common prompts and questions."}
 							</p>
 						</div>
-						{!localSearch.trim() && (
+						{!localSearch.trim() && canModify && (
 							<Button onClick={() => setIsAddingNew(true)} size="lg">
 								<Plus className="h-4 w-4 mr-2" />
 								Add First Template
@@ -310,6 +311,7 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															</div>
 														</div>
 														<div className="flex flex-col gap-2 ml-4">
+															{canModify && (
 															<Button
 																variant="outline"
 																size="sm"
@@ -318,6 +320,8 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															>
 																<PinOff className="h-4 w-4" />
 															</Button>
+															)}
+															{canModify && (
 															<Button
 																variant="outline"
 																size="sm"
@@ -326,7 +330,8 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															>
 																<Pencil className="h-4 w-4" />
 															</Button>
-															{!template.is_global && (
+															)}
+															{canModify && !template.is_global && (
 																<Button
 																	variant="outline"
 																	size="sm"
@@ -388,6 +393,7 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															</div>
 														</div>
 														<div className="flex flex-col gap-2 ml-4">
+															{canModify && (
 															<Button
 																variant="outline"
 																size="sm"
@@ -396,6 +402,8 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															>
 																<Pin className="h-4 w-4" />
 															</Button>
+															)}
+															{canModify && (
 															<Button
 																variant="outline"
 																size="sm"
@@ -404,6 +412,7 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															>
 																<Pencil className="h-4 w-4" />
 															</Button>
+															)}
 														</div>
 													</div>
 												</CardContent>
@@ -423,10 +432,12 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 									Manage templates specific to this search space
 								</p>
 							</div>
+							{canModify && (
 							<Button onClick={() => setIsAddingNew(true)} className="flex items-center gap-2">
 								<Plus className="h-4 w-4" />
 								Add Template
 							</Button>
+							)}
 						</div>
 
 						{spaceTemplates.length > 0 ? (
@@ -460,6 +471,7 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															</div>
 														</div>
 														<div className="flex flex-col gap-2 ml-4">
+															{canModify && (
 															<Button
 																variant="outline"
 																size="sm"
@@ -468,6 +480,8 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															>
 																<Pin className="h-4 w-4" />
 															</Button>
+															)}
+															{canModify && (
 															<Button
 																variant="outline"
 																size="sm"
@@ -476,6 +490,8 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															>
 																<Pencil className="h-4 w-4" />
 															</Button>
+															)}
+															{canModify && (
 															<Button
 																variant="outline"
 																size="sm"
@@ -484,6 +500,7 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 															>
 																<Trash2 className="h-4 w-4" />
 															</Button>
+															)}
 														</div>
 													</div>
 												</CardContent>
@@ -519,10 +536,12 @@ export function QueryTemplateManager({ searchSpaceId }: QueryTemplateManagerProp
 												Create query templates to quickly reuse common prompts and questions.
 											</p>
 										</div>
+										{canModify && (
 										<Button onClick={() => setIsAddingNew(true)} size="lg">
 											<Plus className="h-4 w-4 mr-2" />
 											Add First Template
 										</Button>
+										)}
 									</CardContent>
 								</Card>
 							)
