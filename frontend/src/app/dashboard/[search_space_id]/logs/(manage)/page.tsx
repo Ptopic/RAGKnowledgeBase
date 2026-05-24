@@ -519,6 +519,8 @@ export default function LogsManagePage() {
 					uniqueStatuses={uniqueStatuses}
 					inputRef={inputRef}
 					id={id}
+					messageFilter={messageFilter}
+					setMessageFilter={setMessageFilter}
 				/>
 
 				{/* Delete Button */}
@@ -726,12 +728,16 @@ function LogsFilters({
 	uniqueStatuses,
 	inputRef,
 	id,
+	messageFilter,
+	setMessageFilter,
 }: {
 	table: any;
 	uniqueLevels: string[];
 	uniqueStatuses: string[];
 	inputRef: React.RefObject<HTMLInputElement | null>;
 	id: string;
+	messageFilter: string;
+	setMessageFilter: (value: string) => void;
 }) {
 	return (
 		<motion.div
