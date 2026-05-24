@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MemberRole } from "@prisma/client";
+import { SEARCH_SPACE_ROLES_KEY } from "../permissions/decorators/require-search-space-role.decorator";
 import { DocumentsController } from "./documents.controller";
 import { DocumentsService } from "./documents.service";
 import { PermissionsService } from "../permissions/permissions.service";
@@ -141,6 +142,53 @@ describe("DocumentsController", () => {
 			await controller.remove(1, req);
 
 			expect(documentsService.remove).toHaveBeenCalledWith(1, "user-1");
+		});
+	});
+
+	describe("VIEWER permission matrix — document mutations require EDITOR+", () => {
+		it("POST create has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.create);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("POST createFileUpload has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.createFileUpload);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("PUT update has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.update);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("DELETE remove has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.remove);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("POST addFavorite has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.addFavorite);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("DELETE removeFavorite has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.removeFavorite);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("GET findAll has @RequireSearchSpaceRole(VIEWER) — read-only allowed for VIEWER", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.findAll);
+			expect(roles).toContain(MemberRole.VIEWER);
+		});
+
+		it("GET search has @RequireSearchSpaceRole(VIEWER) — read-only allowed for VIEWER", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.search);
+			expect(roles).toContain(MemberRole.VIEWER);
+		});
+
+		it("GET findOne has @RequireSearchSpaceRole(VIEWER) — read-only allowed for VIEWER", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.findOne);
+			expect(roles).toContain(MemberRole.VIEWER);
 		});
 	});
 });

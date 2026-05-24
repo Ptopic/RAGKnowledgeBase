@@ -8,6 +8,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import useAddYouTubeVideos from "@/api/documents/hooks/useAddYouTubeVideos";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -24,6 +26,8 @@ export default function YouTubeVideoAdder() {
 	const router = useRouter();
 	const search_space_id = params.search_space_id as string;
 
+	const { data: searchSpaceData } = useGetSearchSpace(Number(search_space_id));
+
 	const [videoTags, setVideoTags] = useState<Tag[]>([]);
 	const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -34,6 +38,10 @@ export default function YouTubeVideoAdder() {
 				router.push(`/dashboard/${search_space_id}/documents`);
 			},
 		});
+
+	if (searchSpaceData && searchSpaceData.role === "VIEWER" && !searchSpaceData.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	// Function to extract video ID from URL
 	const extractVideoId = (url: string): string | null => {

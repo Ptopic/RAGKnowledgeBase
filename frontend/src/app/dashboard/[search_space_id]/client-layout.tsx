@@ -31,6 +31,13 @@ interface NavItem {
 	items?: { title: string; url: string }[];
 }
 
+const VIEWER_RESTRICTED_SUFFIXES = [
+	"/documents/upload",
+	"/documents/webpage",
+	"/documents/youtube",
+	"/notebooks/create",
+];
+
 export function DashboardClientLayout({
 	children,
 	searchSpaceId,
@@ -63,9 +70,24 @@ export function DashboardClientLayout({
 
 	const isEditorPage = pathname?.match(/\/notebooks\/(create|\d+\/edit|\d+)$/) !== null;
 
+	const isViewer = searchSpaceData?.role === "VIEWER" && !searchSpaceData?.is_owner;
+
 	const translatedNavMain = useMemo(() => {
-		return navMain;
-	}, [navMain]);
+		if (!isViewer) return navMain;
+
+		return navMain.map((group) => {
+			if (group.title !== "Documents" || !group.items?.length) return group;
+
+			return {
+				...group,
+				items: group.items.filter(
+					(item) => !VIEWER_RESTRICTED_SUFFIXES.some((suffix) =>
+						item.url.endsWith(suffix),
+					),
+				),
+			};
+		});
+	}, [navMain, isViewer]);
 
 	const translatedNavSecondary = useMemo(() => {
 		return navSecondary;

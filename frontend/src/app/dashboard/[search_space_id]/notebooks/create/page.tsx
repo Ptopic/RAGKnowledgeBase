@@ -7,6 +7,8 @@ import { use, useState } from "react";
 import { toast } from "sonner";
 
 import useCreateNotebook from "@/api/notebooks/hooks/useCreateNotebook";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import { NotebookEditor } from "@/components/notebook/NotebookEditor";
 import { NotebookPreviewModal } from "@/components/notebook/NotebookPreviewModal";
 import { HeadlineImageUploader } from "@/components/notebook/HeadlineImageUploader";
@@ -22,9 +24,7 @@ export default function CreateNotebookPage({
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
 
-	if (Number.isNaN(searchSpaceIdNum)) {
-		throw new Error("Invalid search space ID");
-	}
+	const { data: searchSpaceData } = useGetSearchSpace(searchSpaceIdNum);
 
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
@@ -33,6 +33,14 @@ export default function CreateNotebookPage({
 	const [previewOpen, setPreviewOpen] = useState(false);
 
 	const createMutation = useCreateNotebook();
+
+	if (searchSpaceData && searchSpaceData.role === "VIEWER" && !searchSpaceData.is_owner) {
+		return <AccessDeniedPage />;
+	}
+
+	if (Number.isNaN(searchSpaceIdNum)) {
+		throw new Error("Invalid search space ID");
+	}
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();

@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import useUploadDocuments from "@/api/documents/hooks/useUploadDocuments";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +49,8 @@ function GridPattern() {
 export default function FileUploader() {
 	const params = useParams();
 	const search_space_id = params.search_space_id as string;
+
+	const { data: searchSpaceData } = useGetSearchSpace(Number(search_space_id));
 
 	const [files, setFiles] = useState<File[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -291,6 +295,10 @@ export default function FileUploader() {
 		visible: { opacity: 1, x: 0, transition: { duration: 0.3 } },
 		exit: { opacity: 0, x: 20, transition: { duration: 0.2 } },
 	};
+
+	if (searchSpaceData && searchSpaceData.role === "VIEWER" && !searchSpaceData.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	return (
 		<div className="grow flex items-center justify-center p-4 md:p-8">
