@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { useDocuments } from "@/hooks/use-documents";
 import { useDebounce } from "@/hooks/use-debounce";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import {
@@ -24,6 +25,8 @@ export default function DocumentsTable() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const searchSpaceId = Number(params.search_space_id);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceId);
+	const canDelete = searchSpace ? searchSpace.is_owner || searchSpace.role === "EDITOR" : false;
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
@@ -212,6 +215,7 @@ export default function DocumentsTable() {
 					setFavoriteStatus(status);
 					setPageIndex(0);
 				}}
+				canDelete={canDelete}
 			/>
 
 			<DocumentsTableShell
@@ -234,6 +238,7 @@ export default function DocumentsTable() {
 				}}
 				favoriteIds={favoriteIds}
 				onToggleFavorite={toggleFavorite}
+				canDelete={canDelete}
 			/>
 
 			<PaginationControls

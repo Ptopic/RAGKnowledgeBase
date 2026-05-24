@@ -82,6 +82,7 @@ export function DocumentsTableShell({
 	onSortChange,
 	favoriteIds,
 	onToggleFavorite,
+	canDelete = true,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -96,6 +97,7 @@ export function DocumentsTableShell({
 	onSortChange: (key: SortKey) => void;
 	favoriteIds: Set<number>;
 	onToggleFavorite: (id: number, isFavorite: boolean) => void;
+	canDelete?: boolean;
 }) {
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
@@ -184,6 +186,7 @@ export function DocumentsTableShell({
 						<Table className="table-fixed w-full">
 							<TableHeader className="sticky top-0 bg-background z-10">
 								<TableRow className="hover:bg-transparent">
+									{canDelete && (
 									<TableHead style={{ width: 28 }}>
 										<Checkbox
 											checked={
@@ -194,6 +197,7 @@ export function DocumentsTableShell({
 											aria-label="Select all"
 										/>
 									</TableHead>
+									)}
 									{columnVisibility.title && (
 										<TableHead style={{ width: 250 }}>
 											<Button
@@ -313,6 +317,7 @@ export function DocumentsTableShell({
 											exit={{ opacity: 0, y: -10 }}
 											className="border-b transition-colors hover:bg-muted/50"
 										>
+											{canDelete && (
 											<TableCell className="px-4 py-3">
 												<Checkbox
 													checked={selectedIds.has(doc.id)}
@@ -320,6 +325,7 @@ export function DocumentsTableShell({
 													aria-label="Select row"
 												/>
 											</TableCell>
+											)}
 											{columnVisibility.title && (
 												<TableCell className="px-4 py-3">
 													<motion.div
@@ -446,6 +452,7 @@ export function DocumentsTableShell({
 											refreshDocuments={async () => {
 												await onRefresh();
 											}}
+											canDelete={canDelete}
 										/>
 									</TableCell>
 										</motion.tr>
@@ -460,11 +467,13 @@ export function DocumentsTableShell({
 							return (
 								<div key={doc.id} className="p-3">
 									<div className="flex items-start gap-3">
+										{canDelete && (
 										<Checkbox
 											checked={selectedIds.has(doc.id)}
 											onCheckedChange={(v) => toggleOne(doc.id, !!v)}
 											aria-label="Select row"
 										/>
+										)}
 										<div className="flex-1 min-w-0">
 											<div className="flex items-center justify-between gap-2">
 												<div className="flex items-center gap-2 min-w-0">
@@ -481,6 +490,7 @@ export function DocumentsTableShell({
 											refreshDocuments={async () => {
 												await onRefresh();
 											}}
+											canDelete={canDelete}
 										/>
 											</div>
 											<div className="mt-1 flex flex-wrap items-center gap-2">

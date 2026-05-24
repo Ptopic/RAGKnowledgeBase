@@ -166,14 +166,16 @@ describe("DocumentsController", () => {
 			expect(roles).toContain(MemberRole.EDITOR);
 		});
 
-		it("POST addFavorite has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+		it("POST addFavorite has @RequireSearchSpaceRole(VIEWER) — favorite allowed for VIEWER", () => {
 			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.addFavorite);
-			expect(roles).toContain(MemberRole.EDITOR);
+			expect(roles).toContain(MemberRole.VIEWER);
+			expect(roles).not.toContain(MemberRole.EDITOR);
 		});
 
-		it("DELETE removeFavorite has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+		it("DELETE removeFavorite has @RequireSearchSpaceRole(VIEWER) — unfavorite allowed for VIEWER", () => {
 			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.removeFavorite);
-			expect(roles).toContain(MemberRole.EDITOR);
+			expect(roles).toContain(MemberRole.VIEWER);
+			expect(roles).not.toContain(MemberRole.EDITOR);
 		});
 
 		it("GET findAll has @RequireSearchSpaceRole(VIEWER) — read-only allowed for VIEWER", () => {

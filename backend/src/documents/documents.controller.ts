@@ -191,7 +191,7 @@ export class DocumentsController {
 	}
 
 	@Post(":id/favorite")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async addFavorite(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -200,7 +200,7 @@ export class DocumentsController {
 	}
 
 	@Delete(":id/favorite")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async removeFavorite(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,

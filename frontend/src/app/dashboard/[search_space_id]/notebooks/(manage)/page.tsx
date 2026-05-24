@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { use, useId, useState } from "react";
 import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import useGetNotebooks from "@/api/notebooks/hooks/useGetNotebooks";
+import { useGetSearchSpace } from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PaginationControls } from "../../documents/(manage)/components/PaginationControls";
@@ -23,6 +24,8 @@ export default function NotebooksManagePage({
 	const { search_space_id } = use(params);
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
+	const canModify = searchSpace ? searchSpace.is_owner || searchSpace.role === "EDITOR" : false;
 	const id = useId();
 
 	const [search, setSearch] = useState("");
@@ -82,14 +85,16 @@ export default function NotebooksManagePage({
 						Create, edit, and manage your notebooks
 					</p>
 				</div>
-				<Button
-					onClick={() =>
-						router.push(`/dashboard/${search_space_id}/notebooks/create`)
-					}
-				>
-					<Plus className="mr-2 h-4 w-4" />
-					Create Notebook
-				</Button>
+				{canModify && (
+					<Button
+						onClick={() =>
+							router.push(`/dashboard/${search_space_id}/notebooks/create`)
+						}
+					>
+						<Plus className="mr-2 h-4 w-4" />
+						Create Notebook
+					</Button>
+				)}
 			</div>
 
 			<div className="mt-6 space-y-6">
@@ -120,6 +125,7 @@ export default function NotebooksManagePage({
 							setSortDesc(key === "created");
 						}
 					}}
+					canModify={canModify}
 				/>
 				<PaginationControls
 					pageIndex={pageIndex}

@@ -62,6 +62,7 @@ export function DocumentsFilters({
 	onToggleColumn,
 	favoriteStatus,
 	onFavoriteStatusChange,
+	canDelete = true,
 }: {
 	typeCounts: Record<string, number>;
 	selectedIds: Set<number>;
@@ -74,6 +75,7 @@ export function DocumentsFilters({
 	onToggleColumn: (id: keyof ColumnVisibility, checked: boolean) => void;
 	favoriteStatus: "all" | "favorited" | "non_favorited";
 	onFavoriteStatusChange: (status: "all" | "favorited" | "non_favorited") => void;
+	canDelete?: boolean;
 }) {
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -303,7 +305,7 @@ export function DocumentsFilters({
 			</div>
 
 			<div className="flex items-center gap-3">
-				{selectedIds.size > 0 && (
+				{canDelete && selectedIds.size > 0 && (
 					<AlertDialog>
 						<AlertDialogTrigger asChild>
 							<Button className="ml-auto" variant="outline">

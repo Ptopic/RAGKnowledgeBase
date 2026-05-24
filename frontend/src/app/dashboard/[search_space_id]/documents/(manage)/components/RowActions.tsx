@@ -28,10 +28,12 @@ export function RowActions({
 	document,
 	deleteDocument,
 	refreshDocuments,
+	canDelete = true,
 }: {
 	document: Document;
 	deleteDocument: (id: number) => Promise<void>;
 	refreshDocuments: () => Promise<void>;
+	canDelete?: boolean;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -70,37 +72,41 @@ export function RowActions({
 							</DropdownMenuItem>
 						}
 					/>
-					<DropdownMenuSeparator />
-					<AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-						<AlertDialogTrigger asChild>
-							<DropdownMenuItem
-								className="text-destructive focus:text-destructive"
-								onSelect={(e) => {
-									e.preventDefault();
-									setIsOpen(true);
-								}}
-							>
-								Delete
-							</DropdownMenuItem>
-						</AlertDialogTrigger>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>Are you sure?</AlertDialogTitle>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction
-									onClick={(e) => {
-										e.preventDefault();
-										handleDelete();
-									}}
-									disabled={isDeleting}
-								>
-									{isDeleting ? "Deleting..." : "Delete"}
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
+					{canDelete && (
+						<>
+							<DropdownMenuSeparator />
+							<AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+								<AlertDialogTrigger asChild>
+									<DropdownMenuItem
+										className="text-destructive focus:text-destructive"
+										onSelect={(e) => {
+											e.preventDefault();
+											setIsOpen(true);
+										}}
+									>
+										Delete
+									</DropdownMenuItem>
+								</AlertDialogTrigger>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction
+											onClick={(e) => {
+												e.preventDefault();
+												handleDelete();
+											}}
+											disabled={isDeleting}
+										>
+											{isDeleting ? "Deleting..." : "Delete"}
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						</>
+					)}
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>

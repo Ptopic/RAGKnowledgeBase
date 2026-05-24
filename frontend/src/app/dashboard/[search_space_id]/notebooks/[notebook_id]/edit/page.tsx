@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
 import useUpdateNotebook from "@/api/notebooks/hooks/useUpdateNotebook";
+import { useGetSearchSpace } from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import { NotebookEditor } from "@/components/notebook/NotebookEditor";
 import { NotebookPreviewModal } from "@/components/notebook/NotebookPreviewModal";
 import { HeadlineImageUploader } from "@/components/notebook/HeadlineImageUploader";
@@ -38,6 +40,8 @@ export default function EditNotebookPage({
 	const queryClient = useQueryClient();
 	const searchSpaceIdNum = Number(search_space_id);
 	const notebookIdNum = Number(notebook_id);
+
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 
 	if (Number.isNaN(searchSpaceIdNum) || Number.isNaN(notebookIdNum)) {
 		throw new Error("Invalid ID parameter");
@@ -68,6 +72,10 @@ export default function EditNotebookPage({
 			setHeadlineImageUrl(notebook.headline_image_url || null);
 		}
 	}, [notebook]);
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	const validateFields = () => {
 		if (!title.trim()) {

@@ -9,6 +9,7 @@ import useDeleteNotebook from "@/api/notebooks/hooks/useDeleteNotebook";
 import useGetNotebook from "@/api/notebooks/hooks/useGetNotebook";
 import usePublishNotebook from "@/api/notebooks/hooks/usePublishNotebook";
 import useUnpublishNotebook from "@/api/notebooks/hooks/useUnpublishNotebook";
+import { useGetSearchSpace } from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { estimateReadTime } from "@/components/notebook/estimateReadTime";
 import { NotebookMetadataHeader } from "@/components/notebook/NotebookMetadataHeader";
 import { NotebookViewer } from "@/components/notebook/NotebookViewer";
@@ -41,6 +42,8 @@ export default function NotebookDetailPage({
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
 	const notebookIdNum = Number(notebook_id);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
+	const canModify = searchSpace ? searchSpace.is_owner || searchSpace.role === "EDITOR" : false;
 
 	if (isNaN(searchSpaceIdNum) || isNaN(notebookIdNum)) {
 		throw new Error("Invalid ID parameter");
@@ -143,77 +146,81 @@ export default function NotebookDetailPage({
 							</a>
 						</Button>
 					)}
-					<Button variant="outline" size="sm" asChild>
-						<a
-							href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}
-						>
-							<Edit className="h-4 w-4 mr-1" />
-							Edit
-						</a>
-					</Button>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant="outline" size="sm" disabled={isTogglingPublish}>
-								{isTogglingPublish && (
-									<Loader2 className="h-4 w-4 mr-1 animate-spin" />
-								)}
-								{notebook.is_published ? "Unpublish" : "Publish"}
+					{canModify && (
+						<>
+							<Button variant="outline" size="sm" asChild>
+								<a
+									href={`/dashboard/${search_space_id}/notebooks/${notebook_id}/edit`}
+								>
+									<Edit className="h-4 w-4 mr-1" />
+									Edit
+								</a>
 							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							{notebook.is_published ? (
-								<DropdownMenuItem
-									onClick={handleUnpublish}
-									disabled={unpublishMutation.isPending}
-								>
-									<Globe className="h-4 w-4 mr-2" />
-									Unpublish Notebook
-								</DropdownMenuItem>
-							) : (
-								<DropdownMenuItem
-									onClick={handlePublish}
-									disabled={publishMutation.isPending}
-								>
-									<Globe className="h-4 w-4 mr-2" />
-									Publish Notebook
-								</DropdownMenuItem>
-							)}
-						</DropdownMenuContent>
-					</DropdownMenu>
-					<AlertDialog>
-						<AlertDialogTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-destructive-foreground hover:bg-destructive/10"
-							>
-								<Trash2 className="h-4 w-4 mr-1" />
-								Delete
-							</Button>
-						</AlertDialogTrigger>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>Delete Notebook</AlertDialogTitle>
-								<AlertDialogDescription>
-									Are you sure you want to delete &quot;{notebook.title}&quot;?
-									This action cannot be undone.
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction
-									className="bg-destructive text-white hover:bg-destructive/90"
-									onClick={handleDelete}
-									disabled={deleteMutation.isPending}
-								>
-									{deleteMutation.isPending && (
-										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline" size="sm" disabled={isTogglingPublish}>
+										{isTogglingPublish && (
+											<Loader2 className="h-4 w-4 mr-1 animate-spin" />
+										)}
+										{notebook.is_published ? "Unpublish" : "Publish"}
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									{notebook.is_published ? (
+										<DropdownMenuItem
+											onClick={handleUnpublish}
+											disabled={unpublishMutation.isPending}
+										>
+											<Globe className="h-4 w-4 mr-2" />
+											Unpublish Notebook
+										</DropdownMenuItem>
+									) : (
+										<DropdownMenuItem
+											onClick={handlePublish}
+											disabled={publishMutation.isPending}
+										>
+											<Globe className="h-4 w-4 mr-2" />
+											Publish Notebook
+										</DropdownMenuItem>
 									)}
-									Delete
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
+								</DropdownMenuContent>
+							</DropdownMenu>
+							<AlertDialog>
+								<AlertDialogTrigger asChild>
+									<Button
+										variant="outline"
+										size="sm"
+										className="text-destructive-foreground hover:bg-destructive/10"
+									>
+										<Trash2 className="h-4 w-4 mr-1" />
+										Delete
+									</Button>
+								</AlertDialogTrigger>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Delete Notebook</AlertDialogTitle>
+										<AlertDialogDescription>
+											Are you sure you want to delete &quot;{notebook.title}&quot;?
+											This action cannot be undone.
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction
+											className="bg-destructive text-white hover:bg-destructive/90"
+											onClick={handleDelete}
+											disabled={deleteMutation.isPending}
+										>
+											{deleteMutation.isPending && (
+												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											)}
+											Delete
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						</>
+					)}
 				</div>
 			</div>
 

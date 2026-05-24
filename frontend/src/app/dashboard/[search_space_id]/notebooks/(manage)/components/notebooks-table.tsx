@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Edit, ImageIcon, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit, Eye, ImageIcon, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import NextImage from "next/image";
 import Link from "next/link";
@@ -45,6 +45,7 @@ interface NotebooksTableProps {
 	sortKey: SortKey;
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
+	canModify?: boolean;
 }
 
 function formatDate(dateStr: string): string {
@@ -99,6 +100,7 @@ export function NotebooksTable({
 	sortKey,
 	sortDesc,
 	onSortChange,
+	canModify = true,
 }: NotebooksTableProps) {
 	const [notebookToDelete, setNotebookToDelete] =
 		useState<NotebookListItem | null>(null);
@@ -157,11 +159,13 @@ export function NotebooksTable({
 				<p className="text-muted-foreground mb-6">
 					No notebooks match your current search and filter criteria.
 				</p>
-				<Button asChild>
-					<Link href={`/dashboard/${searchSpaceId}/notebooks/create`}>
-						Create Notebook
-					</Link>
-				</Button>
+				{canModify && (
+					<Button asChild>
+						<Link href={`/dashboard/${searchSpaceId}/notebooks/create`}>
+							Create Notebook
+						</Link>
+					</Button>
+				)}
 			</div>
 		);
 	}
@@ -277,23 +281,39 @@ export function NotebooksTable({
 								</TableCell>
 								<TableCell className="text-right">
 									<div className="flex justify-end gap-2">
-										<Button variant="outline" size="sm" asChild>
-											<Link
-												href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}/edit`}
-											>
-												<Edit className="h-4 w-4" />
-												<span className="sr-only">Edit</span>
-											</Link>
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											className="text-destructive-foreground hover:bg-destructive/10"
-											onClick={() => setNotebookToDelete(notebook)}
-										>
-											<Trash2 className="h-4 w-4" />
-											<span className="sr-only">Delete</span>
-										</Button>
+										{notebook.is_published && (
+											<Button variant="outline" size="sm" asChild>
+												<a
+													href={`/public/notebooks/${notebook.slug}`}
+													target="_blank"
+													rel="noopener noreferrer"
+												>
+													<Eye className="h-4 w-4" />
+													<span className="sr-only">View public URL</span>
+												</a>
+											</Button>
+										)}
+										{canModify && (
+											<>
+												<Button variant="outline" size="sm" asChild>
+													<Link
+														href={`/dashboard/${searchSpaceId}/notebooks/${notebook.id}/edit`}
+													>
+														<Edit className="h-4 w-4" />
+														<span className="sr-only">Edit</span>
+													</Link>
+												</Button>
+												<Button
+													variant="outline"
+													size="sm"
+													className="text-destructive-foreground hover:bg-destructive/10"
+													onClick={() => setNotebookToDelete(notebook)}
+												>
+													<Trash2 className="h-4 w-4" />
+													<span className="sr-only">Delete</span>
+												</Button>
+											</>
+										)}
 									</div>
 								</TableCell>
 							</motion.tr>
