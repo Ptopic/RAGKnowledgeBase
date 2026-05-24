@@ -49,6 +49,8 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 // Assuming useSearchSourceConnectors hook exists and works similarly
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 
 // Define the form schema with Zod for GitHub PAT entry step
 const githubPatFormSchema = z.object({
@@ -74,6 +76,8 @@ export default function GithubConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const searchSpaceIdNum = Number(searchSpaceId);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	const [step, setStep] = useState<"enter_pat" | "select_repos">("enter_pat");
 	const [isCreatingConnector, setIsCreatingConnector] = useState(false);
 	const [repositories, setRepositories] = useState<GithubRepo[]>([]);
@@ -99,6 +103,10 @@ export default function GithubConnectorPage() {
 			github_pat: "",
 		},
 	});
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	// Function to fetch repositories using the new backend endpoint
 	const handleFetchRepositories = (values: GithubPatFormValues) => {

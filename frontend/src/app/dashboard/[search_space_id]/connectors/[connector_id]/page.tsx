@@ -21,6 +21,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
@@ -83,6 +85,8 @@ export default function EditConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const searchSpaceIdNum = Number(searchSpaceId);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	const connectorId = parseInt(params.connector_id as string, 10);
 
 	const { connectors, updateConnector } = useSearchSourceConnectors(false, parseInt(searchSpaceId));
@@ -126,6 +130,10 @@ export default function EditConnectorPage() {
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		}
 	}, [connectors, connectorId, form, router, searchSpaceId, isLoading]);
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	// Handle form submission
 	const onSubmit = async (values: ApiConnectorFormValues) => {

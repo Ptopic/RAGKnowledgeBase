@@ -16,6 +16,7 @@ Object.defineProperty(window, "matchMedia", {
 });
 
 let mockSearchSpaceData: { role: string; is_owner: boolean } | null = null;
+let mockPathname = "/dashboard/1/researcher";
 
 vi.mock("@/api/searchspaces/hooks/useGetSearchSpace", () => ({
 	default: () => ({
@@ -34,7 +35,7 @@ vi.mock("@/hooks/use-llm-configs", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-	usePathname: () => "/dashboard/1/researcher",
+	usePathname: () => mockPathname,
 	useRouter: () => ({ push: vi.fn() }),
 }));
 
@@ -67,6 +68,10 @@ vi.mock("@/components/no-access-page", () => ({
 	NoAccessPage: () => <div>NoAccess</div>,
 }));
 
+vi.mock("@/components/access-denied-page", () => ({
+	AccessDeniedPage: () => <div data-testid="access-denied">AccessDenied</div>,
+}));
+
 import { DashboardClientLayout } from "./client-layout";
 
 const baseNavMain = [
@@ -87,6 +92,15 @@ const baseNavMain = [
 			{ title: "Manage Documents", url: "/dashboard/1/documents" },
 			{ title: "Create Notebook", url: "/dashboard/1/notebooks/create" },
 			{ title: "Manage Notebooks", url: "/dashboard/1/notebooks" },
+		],
+	},
+	{
+		title: "Connectors",
+		url: "#",
+		icon: "Plug",
+		items: [
+			{ title: "Add Connector", url: "/dashboard/1/connectors/add" },
+			{ title: "Manage Connectors", url: "/dashboard/1/connectors" },
 		],
 	},
 ];
@@ -173,5 +187,162 @@ describe("DashboardClientLayout sidebar filtering", () => {
 
 		expect(screen.getByTestId("nav-item-Upload Documents")).toBeDefined();
 		expect(screen.getByTestId("nav-item-Create Notebook")).toBeDefined();
+	});
+});
+
+describe("DashboardClientLayout Connectors sidebar filtering", () => {
+	beforeEach(() => {
+		mockPathname = "/dashboard/1/researcher";
+	});
+
+	it("hides Connectors group for VIEWER", () => {
+		mockSearchSpaceData = { role: "VIEWER", is_owner: false };
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.queryByTestId("nav-group-Connectors")).toBeNull();
+	});
+
+	it("shows Connectors group for EDITOR", () => {
+		mockSearchSpaceData = { role: "EDITOR", is_owner: false };
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.getByTestId("nav-group-Connectors")).toBeDefined();
+	});
+
+	it("shows Connectors group for OWNER", () => {
+		mockSearchSpaceData = { role: "OWNER", is_owner: true };
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.getByTestId("nav-group-Connectors")).toBeDefined();
+	});
+});
+
+describe("DashboardClientLayout Connectors route guard", () => {
+	beforeEach(() => {
+		mockSearchSpaceData = { role: "VIEWER", is_owner: false };
+	});
+
+	it("shows AccessDeniedPage for VIEWER on /connectors", () => {
+		mockPathname = "/dashboard/1/connectors";
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.getByTestId("access-denied")).toBeDefined();
+	});
+
+	it("shows AccessDeniedPage for VIEWER on /connectors/add", () => {
+		mockPathname = "/dashboard/1/connectors/add";
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.getByTestId("access-denied")).toBeDefined();
+	});
+
+	it("shows AccessDeniedPage for VIEWER on /connectors/add/slack-connector", () => {
+		mockPathname = "/dashboard/1/connectors/add/slack-connector";
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.getByTestId("access-denied")).toBeDefined();
+	});
+
+	it("shows AccessDeniedPage for VIEWER on /connectors/5", () => {
+		mockPathname = "/dashboard/1/connectors/5";
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.getByTestId("access-denied")).toBeDefined();
+	});
+
+	it("shows AccessDeniedPage for VIEWER on /connectors/5/edit", () => {
+		mockPathname = "/dashboard/1/connectors/5/edit";
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.getByTestId("access-denied")).toBeDefined();
+	});
+
+	it("does NOT show AccessDeniedPage for EDITOR on /connectors", () => {
+		mockSearchSpaceData = { role: "EDITOR", is_owner: false };
+		mockPathname = "/dashboard/1/connectors";
+
+		render(
+			<DashboardClientLayout
+				searchSpaceId="1"
+				navSecondary={baseNavSecondary}
+				navMain={baseNavMain}
+			>
+				<div>Content</div>
+			</DashboardClientLayout>,
+		);
+
+		expect(screen.queryByTestId("access-denied")).toBeNull();
 	});
 });

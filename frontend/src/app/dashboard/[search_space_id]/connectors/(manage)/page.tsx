@@ -70,6 +70,8 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
@@ -79,6 +81,8 @@ export default function ConnectorsPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const searchSpaceIdNum = Number(searchSpaceId);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	const today = new Date();
 
 	const {
@@ -116,6 +120,10 @@ export default function ConnectorsPage() {
 			console.error("Error fetching connectors:", error);
 		}
 	}, [error]);
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	// Handle connector deletion
 	const handleDeleteConnector = async () => {

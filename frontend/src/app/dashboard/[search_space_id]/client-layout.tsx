@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import { NoAccessPage } from "@/components/no-access-page";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
@@ -69,24 +70,27 @@ export function DashboardClientLayout({
 	const isSettingsPage = pathname === settingsPath || pathname?.startsWith(`${settingsPath}/`);
 
 	const isEditorPage = pathname?.match(/\/notebooks\/(create|\d+\/edit|\d+)$/) !== null;
+	const isConnectorsPage = pathname?.includes("/connectors") && pathname?.startsWith(`/dashboard/${searchSpaceId}/connectors`);
 
 	const isViewer = searchSpaceData?.role === "VIEWER" && !searchSpaceData?.is_owner;
 
 	const translatedNavMain = useMemo(() => {
 		if (!isViewer) return navMain;
 
-		return navMain.map((group) => {
-			if (group.title !== "Documents" || !group.items?.length) return group;
+		return navMain
+			.filter((group) => group.title !== "Connectors")
+			.map((group) => {
+				if (group.title !== "Documents" || !group.items?.length) return group;
 
-			return {
-				...group,
-				items: group.items.filter(
-					(item) => !VIEWER_RESTRICTED_SUFFIXES.some((suffix) =>
-						item.url.endsWith(suffix),
+				return {
+					...group,
+					items: group.items.filter(
+						(item) => !VIEWER_RESTRICTED_SUFFIXES.some((suffix) =>
+							item.url.endsWith(suffix),
+						),
 					),
-				),
-			};
-		});
+				};
+			});
 	}, [navMain, isViewer]);
 
 	const translatedNavSecondary = useMemo(() => {
@@ -183,6 +187,10 @@ export function DashboardClientLayout({
 
 	if (isEditorPage) {
 		return <>{children}</>;
+	}
+
+	if (isConnectorsPage && isViewer) {
+		return <AccessDeniedPage />;
 	}
 
 	return (

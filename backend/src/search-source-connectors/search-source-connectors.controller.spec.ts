@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MemberRole } from "@prisma/client";
+import { SEARCH_SPACE_ROLES_KEY } from "../permissions/decorators/require-search-space-role.decorator";
 import { SearchSourceConnectorsController } from "./search-source-connectors.controller";
 import { SearchSourceConnectorsService } from "./search-source-connectors.service";
 import { PermissionsService } from "../permissions/permissions.service";
@@ -96,6 +97,43 @@ describe("SearchSourceConnectorsController", () => {
 			await controller.remove(1, req);
 
 			expect(connectorsService.remove).toHaveBeenCalledWith(1, "user-1");
+		});
+	});
+
+	describe("VIEWER permission matrix — connector mutations require EDITOR+", () => {
+		it("POST create has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.create);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("PUT update has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.update);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("DELETE remove has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.remove);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("POST indexConnectorContent has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.indexConnectorContent);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("POST listGitHubRepositories has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.listGitHubRepositories);
+			expect(roles).toContain(MemberRole.EDITOR);
+		});
+
+		it("GET findAll has @RequireSearchSpaceRole(VIEWER) — read allowed for VIEWER", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.findAll);
+			expect(roles).toContain(MemberRole.VIEWER);
+		});
+
+		it("GET findOne has @RequireSearchSpaceRole(VIEWER) — read allowed for VIEWER", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.findOne);
+			expect(roles).toContain(MemberRole.VIEWER);
 		});
 	});
 });

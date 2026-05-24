@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import useInitiateGoogleGmailOAuth from "@/api/connectors/hooks/useInitiateGoogleGmailOAuth";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -26,6 +28,8 @@ export default function GoogleGmailConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const searchSpaceIdNum = Number(searchSpaceId);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
 	const { fetchConnectors } = useSearchSourceConnectors(
@@ -47,6 +51,10 @@ export default function GoogleGmailConnectorPage() {
 			}
 		});
 	}, []);
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	// Handle Google OAuth connection
 	const handleConnectGoogle = () => {

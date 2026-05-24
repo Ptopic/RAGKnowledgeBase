@@ -21,6 +21,8 @@ import {
 import { Form } from "@/components/ui/form";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useConnectorEditPage } from "@/hooks/use-connector-edit-page";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 // Import Utils, Types, Hook, and Components
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 
@@ -28,6 +30,8 @@ export default function EditConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const searchSpaceIdNum = Number(searchSpaceId);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	// Ensure connectorId is parsed safely
 	const connectorIdParam = params.connector_id as string;
 	const connectorId = connectorIdParam ? parseInt(connectorIdParam, 10) : NaN;
@@ -61,6 +65,10 @@ export default function EditConnectorPage() {
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		}
 	}, [connectorId, router, searchSpaceId]);
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	// Loading State
 	if (connectorsLoading || !connector) {

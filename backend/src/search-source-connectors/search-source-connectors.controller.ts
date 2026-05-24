@@ -31,6 +31,7 @@ export class SearchSourceConnectorsController {
 	) {}
 
 	@Post("github/repositories")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async listGitHubRepositories(
 		@Body() patRequest: GitHubPATRequestDto,
 		@Req() req: any,

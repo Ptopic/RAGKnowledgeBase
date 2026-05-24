@@ -38,6 +38,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 
 // Define the form schema with Zod
 const notionConnectorFormSchema = z.object({
@@ -56,6 +58,8 @@ export default function NotionConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const searchSpaceIdNum = Number(searchSpaceId);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { createConnector } = useSearchSourceConnectors();
 
@@ -67,6 +71,10 @@ export default function NotionConnectorPage() {
 			integration_token: "",
 		},
 	});
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	// Handle form submission
 	const onSubmit = async (values: NotionConnectorFormValues) => {

@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/collapsible";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { AccessDeniedPage } from "@/components/access-denied-page";
 
 // Define the Connector type
 interface Connector {
@@ -144,11 +146,17 @@ const cardVariants: Variants = {
 export default function ConnectorsPage() {
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const searchSpaceIdNum = Number(searchSpaceId);
+	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	const [expandedCategories, setExpandedCategories] = useState<string[]>([
 		"knowledge-bases",
 		"team-chats",
 		"communication",
 	]);
+
+	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+		return <AccessDeniedPage />;
+	}
 
 	const toggleCategory = (categoryId: string) => {
 		setExpandedCategories((prev) =>
