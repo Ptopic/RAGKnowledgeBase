@@ -25,3 +25,4 @@ export const PUBLIC_NOTEBOOK = "publicNotebook";
 export const USER_API_KEYS = "userApiKeys";
 export const SHARE_LINKS = "shareLinks";
 export const SHARED_CHAT = "sharedChat";
+export const SEARCH_SPACE_PENDING_INVITATIONS = "searchSpacePendingInvitations";

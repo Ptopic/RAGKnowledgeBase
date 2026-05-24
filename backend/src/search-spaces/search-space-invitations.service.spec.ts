@@ -61,6 +61,7 @@ const mockPrisma = {
 		findFirst: jest.fn(),
 		findMany: jest.fn(),
 		update: jest.fn(),
+		delete: jest.fn(),
 	},
 	$transaction: jest.fn((fn) => fn({
 		searchSpaceMember: {
@@ -466,6 +467,96 @@ describe("SearchSpaceInvitationsService", () => {
 			await expect(
 				service.getMyInvitations("nonexistent"),
 			).rejects.toThrow(NotFoundException);
+		});
+	});
+
+	describe("getPendingInvitations", () => {
+		it("should return pending invitations for a search space", async () => {
+			prisma.searchSpaceInvitation.findMany.mockResolvedValue([
+				{
+					...mockInvitation,
+					searchSpace: { name: "Test Space" },
+					inviter: { fullName: "Inviter User", email: "inviter@example.com" },
+				},
+			]);
+
+			const result = await service.getPendingInvitations(1);
+
+			expect(prisma.searchSpaceInvitation.findMany).toHaveBeenCalledWith({
+				where: {
+					searchSpaceId: 1,
+					status: "PENDING",
+					expiresAt: { gt: expect.any(Date) },
+				},
+				include: {
+					searchSpace: { select: { name: true } },
+					inviter: { select: { fullName: true, email: true } },
+				},
+				orderBy: { createdAt: "desc" },
+			});
+			expect(result).toHaveLength(1);
+			expect(result[0].searchSpaceName).toBe("Test Space");
+		});
+
+		it("should return empty array when no pending invitations exist", async () => {
+			prisma.searchSpaceInvitation.findMany.mockResolvedValue([]);
+
+			const result = await service.getPendingInvitations(1);
+
+			expect(result).toEqual([]);
+		});
+	});
+
+	describe("cancelInvitation", () => {
+		it("should delete a pending invitation", async () => {
+			prisma.searchSpaceInvitation.findFirst.mockResolvedValue(mockInvitation);
+			prisma.searchSpaceInvitation.delete.mockResolvedValue(mockInvitation);
+
+			const result = await service.cancelInvitation(1, 1);
+
+			expect(prisma.searchSpaceInvitation.findFirst).toHaveBeenCalledWith({
+				where: { id: 1, searchSpaceId: 1 },
+			});
+			expect(prisma.searchSpaceInvitation.delete).toHaveBeenCalledWith({
+				where: { id: 1 },
+			});
+			expect(result.message).toBe("Invitation cancelled");
+		});
+
+		it("should throw NotFoundException when invitation not found", async () => {
+			prisma.searchSpaceInvitation.findFirst.mockResolvedValue(null);
+
+			await expect(
+				service.cancelInvitation(999, 1),
+			).rejects.toThrow(NotFoundException);
+		});
+
+		it("should throw BadRequestException when invitation is not PENDING (ACCEPTED)", async () => {
+			const acceptedInvitation = {
+				...mockInvitation,
+				status: "ACCEPTED",
+			};
+			prisma.searchSpaceInvitation.findFirst.mockResolvedValue(
+				acceptedInvitation,
+			);
+
+			await expect(
+				service.cancelInvitation(1, 1),
+			).rejects.toThrow(BadRequestException);
+		});
+
+		it("should throw BadRequestException when invitation is DECLINED", async () => {
+			const declinedInvitation = {
+				...mockInvitation,
+				status: "DECLINED",
+			};
+			prisma.searchSpaceInvitation.findFirst.mockResolvedValue(
+				declinedInvitation,
+			);
+
+			await expect(
+				service.cancelInvitation(1, 1),
+			).rejects.toThrow(BadRequestException);
 		});
 	});
 });

@@ -1,6 +1,7 @@
 import { withAuthenticatedClientRequest, withClientRequest } from "@api/requestBuilder/client/withClientRequest";
 import {
 	acceptInvitation,
+	cancelInvitation,
 	createInvitation,
 	createSearchSpace,
 	declineInvitation,
@@ -8,6 +9,7 @@ import {
 	getInvitationByToken,
 	getMembers,
 	getMyInvitations,
+	getPendingInvitations,
 	getSearchSpace,
 	getSearchSpaces,
 	inviteMember,
@@ -31,6 +33,8 @@ const searchSpacesClientRequests = {
 	acceptInvitation: withAuthenticatedClientRequest(acceptInvitation),
 	declineInvitation: withAuthenticatedClientRequest(declineInvitation),
 	getMyInvitations: withAuthenticatedClientRequest(getMyInvitations),
+	getPendingInvitations: withAuthenticatedClientRequest(getPendingInvitations),
+	cancelInvitation: withAuthenticatedClientRequest(cancelInvitation),
 };
 
 export default searchSpacesClientRequests;

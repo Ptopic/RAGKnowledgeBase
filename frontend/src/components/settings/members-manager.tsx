@@ -2,6 +2,7 @@
 
 import {
 	AlertCircle,
+	Clock,
 	Crown,
 	Loader2,
 	LogOut,
@@ -9,12 +10,15 @@ import {
 	RefreshCw,
 	Trash2,
 	Users,
+	XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import useGetMembers from "@/api/searchspaces/hooks/useGetMembers";
-import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import useCancelInvitation from "@/api/searchspaces/hooks/useCancelInvitation";
 import useCreateInvitation from "@/api/searchspaces/hooks/useCreateInvitation";
+import useGetMembers from "@/api/searchspaces/hooks/useGetMembers";
+import useGetPendingInvitations from "@/api/searchspaces/hooks/useGetPendingInvitations";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import useLeaveSearchSpace from "@/api/searchspaces/hooks/useLeaveSearchSpace";
 import useRemoveMember from "@/api/searchspaces/hooks/useRemoveMember";
 import useUpdateMemberRole from "@/api/searchspaces/hooks/useUpdateMemberRole";
@@ -75,6 +79,19 @@ const getInitials = (name: string | null, email: string) => {
 	return email[0].toUpperCase();
 };
 
+const formatRelativeTime = (dateStr: string) => {
+	const date = new Date(dateStr);
+	const now = new Date();
+	const diffMs = now.getTime() - date.getTime();
+	const diffMins = Math.floor(diffMs / 60000);
+	const diffHours = Math.floor(diffMs / 3600000);
+	const diffDays = Math.floor(diffMs / 86400000);
+	if (diffMins < 1) return "just now";
+	if (diffMins < 60) return `${diffMins}m ago`;
+	if (diffHours < 24) return `${diffHours}h ago`;
+	return `${diffDays}d ago`;
+};
+
 interface MembersManagerProps {
 	searchSpaceId: number;
 }
@@ -88,12 +105,15 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 	const updateRoleMutation = useUpdateMemberRole();
 	const removeMutation = useRemoveMember();
 	const leaveMutation = useLeaveSearchSpace();
+	const { data: pendingInvites = [], isLoading: loadingPending } = useGetPendingInvitations(searchSpaceId);
+	const cancelInvitationMutation = useCancelInvitation();
 
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [removingMember, setRemovingMember] = useState<{ id: string; email: string } | null>(null);
 	const [leavingSpace, setLeavingSpace] = useState(false);
 
 	const isOwner = searchSpace?.is_owner ?? false;
+	const isEditorOrAbove = isOwner || searchSpace?.role === "EDITOR";
 	const currentUserId = currentUser?.id;
 
 	const handleInvite = () => {
@@ -222,6 +242,77 @@ export function MembersManager({ searchSpaceId }: MembersManagerProps) {
 									Send Invite
 								</Button>
 							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{!isLoading && isEditorOrAbove && (pendingInvites.length > 0 || loadingPending) && (
+				<Card className="border-l-4 border-l-amber-500">
+					<CardContent className="p-6">
+						<div className="space-y-4">
+							<div className="flex items-center gap-2">
+								<Clock className="h-5 w-5 text-amber-600" />
+								<h3 className="text-lg font-semibold tracking-tight">Pending Invites</h3>
+								{pendingInvites.length > 0 && (
+									<Badge variant="secondary" className="ml-2">
+										{pendingInvites.length}
+									</Badge>
+								)}
+							</div>
+							{loadingPending ? (
+								<div className="flex items-center gap-2 text-muted-foreground py-4">
+									<Loader2 className="h-4 w-4 animate-spin" />
+									<span>Loading pending invites...</span>
+								</div>
+							) : pendingInvites.length === 0 ? (
+								<p className="text-sm text-muted-foreground">No pending invitations.</p>
+							) : (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Email</TableHead>
+											<TableHead>Sent</TableHead>
+											<TableHead className="text-right">Actions</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										<AnimatePresence>
+											{pendingInvites.map((invite) => (
+												<motion.tr
+													key={invite.id}
+													initial={{ opacity: 0, y: 10 }}
+													animate={{ opacity: 1, y: 0 }}
+													exit={{ opacity: 0, y: -10 }}
+													transition={{ duration: 0.2 }}
+													className="hover:bg-muted/50 border-b transition-colors"
+												>
+													<TableCell>
+														<span className="font-medium text-sm">{invite.inviteeEmail}</span>
+													</TableCell>
+													<TableCell>
+														<span className="text-sm text-muted-foreground">{formatRelativeTime(invite.createdAt)}</span>
+													</TableCell>
+													<TableCell className="text-right">
+														<div className="flex items-center justify-end gap-2">
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => cancelInvitationMutation.mutate({ searchSpaceId, invitationId: invite.id })}
+																disabled={cancelInvitationMutation.isPending}
+																className="h-8 flex items-center gap-1 border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+															>
+																<XCircle className="h-4 w-4" />
+																Cancel
+															</Button>
+														</div>
+													</TableCell>
+												</motion.tr>
+											))}
+										</AnimatePresence>
+									</TableBody>
+								</Table>
+							)}
 						</div>
 					</CardContent>
 				</Card>

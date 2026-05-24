@@ -140,3 +140,19 @@ export const getMyInvitations =
 	(request: ICallableRequestBuilder<SearchSpaceInvitation[]>) =>
 	async () =>
 		request.call(`${config.apiUrl}/searchspaces/invitations`);
+
+export const getPendingInvitations =
+	(request: ICallableRequestBuilder<SearchSpaceInvitation[]>) =>
+	async (searchSpaceId: number): Promise<SearchSpaceInvitation[]> =>
+		request.call(`${config.apiUrl}/searchspaces/${searchSpaceId}/invitations/pending`, (init) => ({
+			...init,
+			method: "GET",
+		}));
+
+export const cancelInvitation =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (searchSpaceId: number, invitationId: number): Promise<{ message: string }> =>
+		request.call(`${config.apiUrl}/searchspaces/${searchSpaceId}/invitations/${invitationId}`, (init) => ({
+			...init,
+			method: "DELETE",
+		}));

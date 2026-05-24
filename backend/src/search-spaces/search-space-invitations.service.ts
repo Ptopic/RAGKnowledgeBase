@@ -247,6 +247,54 @@ export class SearchSpaceInvitationsService {
 		return { message: "Invitation declined" };
 	}
 
+	async getPendingInvitations(searchSpaceId: number): Promise<InvitationResponseDto[]> {
+		const invitations = await this.prisma.searchSpaceInvitation.findMany({
+			where: {
+				searchSpaceId,
+				status: "PENDING",
+				expiresAt: { gt: new Date() },
+			},
+			include: {
+				searchSpace: { select: { name: true } },
+				inviter: { select: { fullName: true, email: true } },
+			},
+			orderBy: { createdAt: "desc" },
+		});
+
+		return invitations.map((inv) =>
+			this.toResponseDto(
+				inv,
+				inv.searchSpace.name,
+				inv.inviter.fullName ?? inv.inviter.email,
+			),
+		);
+	}
+
+	async cancelInvitation(
+		invitationId: number,
+		searchSpaceId: number,
+	): Promise<{ message: string }> {
+		const invitation = await this.prisma.searchSpaceInvitation.findFirst({
+			where: { id: invitationId, searchSpaceId },
+		});
+
+		if (!invitation) {
+			throw new NotFoundException("Invitation not found");
+		}
+
+		if (invitation.status !== "PENDING") {
+			throw new BadRequestException(
+				`Invitation cannot be cancelled (status: ${invitation.status})`,
+			);
+		}
+
+		await this.prisma.searchSpaceInvitation.delete({
+			where: { id: invitationId },
+		});
+
+		return { message: "Invitation cancelled" };
+	}
+
 	async getMyInvitations(userId: string): Promise<InvitationResponseDto[]> {
 		const user = await this.prisma.user.findUnique({
 			where: { id: userId },

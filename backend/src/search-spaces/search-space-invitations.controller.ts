@@ -1,6 +1,7 @@
 import {
 	Body,
 	Controller,
+	Delete,
 	Get,
 	Param,
 	Post,
@@ -39,6 +40,27 @@ export class SearchSpaceInvitationsController {
 			searchSpaceId,
 			dto,
 		);
+	}
+
+	@Throttle({ default: { limit: 10, ttl: 900000 } })
+	@Get(":id/invitations/pending")
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	async getPendingInvitations(
+		@Param("id", ParseIntPipe) searchSpaceId: number,
+	): Promise<InvitationResponseDto[]> {
+		return this.invitationsService.getPendingInvitations(searchSpaceId);
+	}
+
+	@Throttle({ default: { limit: 10, ttl: 900000 } })
+	@Delete(":id/invitations/:invitationId")
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	async cancelInvitation(
+		@Param("id", ParseIntPipe) searchSpaceId: number,
+		@Param("invitationId", ParseIntPipe) invitationId: number,
+	): Promise<{ message: string }> {
+		return this.invitationsService.cancelInvitation(invitationId, searchSpaceId);
 	}
 
 	@Throttle({ default: { limit: 10, ttl: 900000 } })

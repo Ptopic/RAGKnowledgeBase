@@ -90,6 +90,7 @@ enum InviteStatus {
   ACCEPTED
   DECLINED
   EXPIRED
+  CANCELLED
 }
 
 enum MemberRole {
