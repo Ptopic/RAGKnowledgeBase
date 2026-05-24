@@ -43,9 +43,9 @@ export const createSearchSourceConnector =
 
 export const updateSearchSourceConnector =
 	(request: ICallableRequestBuilder<SearchSourceConnector>) =>
-	async (id: number, data: UpdateSearchSourceConnectorRequest) =>
+	async (id: number, searchSpaceId: number, data: UpdateSearchSourceConnectorRequest) =>
 		request.call(
-			`${config.apiUrl}/search-source-connectors/${id}`,
+			`${config.apiUrl}/search-source-connectors/${id}?search_space_id=${searchSpaceId}`,
 			(init) => ({
 				...init,
 				method: "PUT",
@@ -58,9 +58,10 @@ export const updateSearchSourceConnector =
 		);
 
 export const deleteSearchSourceConnector =
-	(request: ICallableRequestBuilder<void>) => async (id: number) =>
+	(request: ICallableRequestBuilder<void>) =>
+	async (id: number, searchSpaceId: number) =>
 		request.call(
-			`${config.apiUrl}/search-source-connectors/${id}`,
+			`${config.apiUrl}/search-source-connectors/${id}?search_space_id=${searchSpaceId}`,
 			(init) => ({
 				...init,
 				method: "DELETE",

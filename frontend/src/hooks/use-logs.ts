@@ -55,19 +55,21 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	};
 
 	const updateLog = async (logId: number, updateData: UpdateLogRequest) => {
-		return updateLogMutation.mutateAsync({ id: logId, data: updateData });
+		if (!searchSpaceId) throw new Error("Search Space ID is required");
+		return updateLogMutation.mutateAsync({ id: logId, searchSpaceId, data: updateData });
 	};
 
 	const deleteLog = async (logId: number) => {
-		await deleteLogMutation.mutateAsync(logId);
+		if (!searchSpaceId) throw new Error("Search Space ID is required");
+		await deleteLogMutation.mutateAsync({ id: logId, searchSpaceId });
 		return true;
 	};
 
 	const getLog = async (logId: number) => {
-		// Import the client requests directly for one-off fetches
+		if (!searchSpaceId) throw new Error("Search Space ID is required");
 		const logsClientRequests = (await import("@api/logs/authClientRequests"))
 			.default;
-		return logsClientRequests.getLog(logId);
+		return logsClientRequests.getLog(logId, searchSpaceId);
 	};
 
 	const fetchLogs = async () => {

@@ -7,14 +7,19 @@ import { toast } from "sonner";
 import { SEARCH_SPACE_CONNECTORS } from "@/shared/queryKeys";
 import searchSourceConnectorsClientRequests from "../authClientRequests";
 
+interface DeleteSearchSourceConnectorParams {
+	id: number;
+	searchSpaceId: number;
+}
+
 const useDeleteSearchSourceConnector = (
-	options?: UseMutationOptions<void, Error, number, unknown>,
+	options?: UseMutationOptions<void, Error, DeleteSearchSourceConnectorParams, unknown>,
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: number) =>
-			searchSourceConnectorsClientRequests.deleteSearchSourceConnector(id),
+		mutationFn: ({ id, searchSpaceId }: DeleteSearchSourceConnectorParams) =>
+			searchSourceConnectorsClientRequests.deleteSearchSourceConnector(id, searchSpaceId),
 		onSuccess: () => {
 			toast.success("Connector deleted successfully");
 		},

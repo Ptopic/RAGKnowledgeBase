@@ -1,12 +1,15 @@
 import { Type } from "class-transformer";
 import {
 	IsArray,
+	IsBoolean,
+	IsEnum,
 	IsInt,
 	IsOptional,
 	IsString,
 	IsUUID,
 	MaxLength,
 } from "class-validator";
+import { MemberRole } from "@prisma/client";
 
 export class CreateSearchSpaceDto {
 	@IsString()
@@ -52,4 +55,10 @@ export class SearchSpaceDto {
 
 	@Type(() => Date)
 	created_at: Date;
+
+	@IsEnum(MemberRole)
+	role: MemberRole | null;
+
+	@IsBoolean()
+	is_owner: boolean;
 }

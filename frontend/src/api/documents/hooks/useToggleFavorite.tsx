@@ -8,6 +8,7 @@ import documentsClientRequests from "../authClientRequests";
 
 interface ToggleFavoriteData {
 	documentId: number;
+	searchSpaceId: number;
 	isFavorite: boolean;
 }
 
@@ -17,11 +18,11 @@ const useToggleFavorite = (
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async ({ documentId, isFavorite }: ToggleFavoriteData) => {
+		mutationFn: async ({ documentId, searchSpaceId, isFavorite }: ToggleFavoriteData) => {
 			if (isFavorite) {
-				await documentsClientRequests.removeFavorite(documentId);
+				await documentsClientRequests.removeFavorite(documentId, searchSpaceId);
 			} else {
-				await documentsClientRequests.addFavorite(documentId);
+				await documentsClientRequests.addFavorite(documentId, searchSpaceId);
 			}
 		},
 		onSettled: () => {

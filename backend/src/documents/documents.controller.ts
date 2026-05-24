@@ -15,27 +15,28 @@ import {
 	UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
+import { MemberRole } from "@prisma/client";
 import * as fs from "fs";
 import { diskStorage } from "multer";
 import * as path from "path";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
 import { DocumentsService } from "./documents.service";
 import {
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
-	GetDocumentsQueryDto,
+	FavoriteStatus,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
 } from "./dtos/document.dto";
 
-// Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
 	fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure Multer storage
 const storage = diskStorage({
 	destination: (_req, _file, cb) => {
 		cb(null, uploadsDir);
@@ -49,11 +50,12 @@ const storage = diskStorage({
 });
 
 @Controller("documents")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class DocumentsController {
 	constructor(private readonly documentsService: DocumentsService) {}
 
 	@Post()
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async create(
 		@Body() createDto: CreateDocumentsDto,
 		@Req() req: any,
@@ -63,14 +65,12 @@ export class DocumentsController {
 
 	@Post("fileupload")
 	@UseInterceptors(FilesInterceptor("files", 10, { storage }))
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async createFileUpload(
 		@UploadedFiles() files: Express.Multer.File[],
 		@Body("search_space_id", ParseIntPipe) searchSpaceId: number,
 		@Req() req: any,
 	): Promise<{ message: string }> {
-		if (!searchSpaceId) {
-			throw new BadRequestException("search_space_id is required");
-		}
 		return this.documentsService.createFileUpload(
 			files,
 			searchSpaceId,
@@ -79,63 +79,70 @@ export class DocumentsController {
 	}
 
 	@Get()
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findAll(
 		@Req() req: any,
-		@Query() query: GetDocumentsQueryDto,
+		@Query("skip") skip?: string,
+		@Query("page") page?: string,
+		@Query("page_size") page_size?: string,
+		@Query("document_types") document_types?: string,
+		@Query("favorite_status") favorite_status?: FavoriteStatus,
 	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
-		const skipNum = query.skip !== undefined ? parseInt(query.skip, 10) : undefined;
-		const pageNum = query.page !== undefined ? parseInt(query.page, 10) : undefined;
-		const pageSizeNum = query.page_size !== undefined ? parseInt(query.page_size, 10) : 50;
-		const searchSpaceIdNum =
-			query.search_space_id !== undefined ? parseInt(query.search_space_id, 10) : undefined;
+		const skipNum = skip !== undefined ? parseInt(skip, 10) : undefined;
+		const pageNum = page !== undefined ? parseInt(page, 10) : undefined;
+		const pageSizeNum = page_size !== undefined ? parseInt(page_size, 10) : 50;
 
 		return this.documentsService.findAll(
 			req.user.id,
+			req.searchSpaceContext.searchSpaceId,
 			skipNum,
 			pageNum,
 			pageSizeNum,
-			searchSpaceIdNum,
-			query.document_types,
-			query.favorite_status,
+			document_types,
+			favorite_status,
 		);
 	}
 
 	@Get("search")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async search(
 		@Req() req: any,
 		@Query("title") title: string,
-		@Query() query: GetDocumentsQueryDto,
+		@Query("skip") skip?: string,
+		@Query("page") page?: string,
+		@Query("page_size") page_size?: string,
+		@Query("document_types") document_types?: string,
+		@Query("favorite_status") favorite_status?: FavoriteStatus,
 	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
 		if (!title) {
 			throw new BadRequestException("title query parameter is required");
 		}
 
-		const skipNum = query.skip !== undefined ? parseInt(query.skip, 10) : undefined;
-		const pageNum = query.page !== undefined ? parseInt(query.page, 10) : undefined;
-		const pageSizeNum = query.page_size !== undefined ? parseInt(query.page_size, 10) : 50;
-		const searchSpaceIdNum =
-			query.search_space_id !== undefined ? parseInt(query.search_space_id, 10) : undefined;
+		const skipNum = skip !== undefined ? parseInt(skip, 10) : undefined;
+		const pageNum = page !== undefined ? parseInt(page, 10) : undefined;
+		const pageSizeNum = page_size !== undefined ? parseInt(page_size, 10) : 50;
 
 		return this.documentsService.search(
 			req.user.id,
+			req.searchSpaceContext.searchSpaceId,
 			title,
 			skipNum,
 			pageNum,
 			pageSizeNum,
-			searchSpaceIdNum,
-			query.document_types,
-			query.favorite_status,
+			document_types,
+			favorite_status,
 		);
 	}
 
 	@Get("type-counts")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async getTypeCounts(
 		@Req() req: any,
-		@Query("search_space_id") searchSpaceId?: string,
 	): Promise<Record<string, number>> {
-		const searchSpaceIdNum =
-			searchSpaceId !== undefined ? parseInt(searchSpaceId, 10) : undefined;
-		return this.documentsService.getTypeCounts(req.user.id, searchSpaceIdNum);
+		return this.documentsService.getTypeCounts(
+			req.user.id,
+			req.searchSpaceContext.searchSpaceId,
+		);
 	}
 
 	@Get("by-chunk/:chunkId")
@@ -147,6 +154,7 @@ export class DocumentsController {
 	}
 
 	@Get(":id/chunks")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findOneWithChunks(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -155,6 +163,7 @@ export class DocumentsController {
 	}
 
 	@Get(":id")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async findOne(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -163,6 +172,7 @@ export class DocumentsController {
 	}
 
 	@Put(":id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateDocumentDto,
@@ -172,6 +182,7 @@ export class DocumentsController {
 	}
 
 	@Delete(":id")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async remove(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -180,6 +191,7 @@ export class DocumentsController {
 	}
 
 	@Post(":id/favorite")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async addFavorite(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,
@@ -188,6 +200,7 @@ export class DocumentsController {
 	}
 
 	@Delete(":id/favorite")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
 	async removeFavorite(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: any,

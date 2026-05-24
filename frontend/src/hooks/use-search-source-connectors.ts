@@ -114,8 +114,10 @@ export const useSearchSourceConnectors = (
 		connectorId: number,
 		connectorData: UpdateSearchSourceConnectorRequest,
 	) => {
+		if (!searchSpaceId) throw new Error("Search Space ID is required");
 		return updateConnectorMutation.mutateAsync({
 			id: connectorId,
+			searchSpaceId,
 			data: connectorData,
 		});
 	};
@@ -124,7 +126,8 @@ export const useSearchSourceConnectors = (
 	 * Delete a search source connector
 	 */
 	const deleteConnector = async (connectorId: number) => {
-		await deleteConnectorMutation.mutateAsync(connectorId);
+		if (!searchSpaceId) throw new Error("Search Space ID is required");
+		await deleteConnectorMutation.mutateAsync({ id: connectorId, searchSpaceId });
 	};
 
 	/**

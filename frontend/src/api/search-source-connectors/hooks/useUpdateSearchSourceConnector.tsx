@@ -13,6 +13,7 @@ import type {
 
 interface UpdateSearchSourceConnectorParams {
 	id: number;
+	searchSpaceId: number;
 	data: UpdateSearchSourceConnectorRequest;
 }
 
@@ -27,9 +28,10 @@ const useUpdateSearchSourceConnector = (
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, data }: UpdateSearchSourceConnectorParams) =>
+		mutationFn: ({ id, searchSpaceId, data }: UpdateSearchSourceConnectorParams) =>
 			searchSourceConnectorsClientRequests.updateSearchSourceConnector(
 				id,
+				searchSpaceId,
 				data,
 			),
 		onSuccess: () => {

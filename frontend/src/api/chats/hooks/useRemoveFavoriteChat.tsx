@@ -7,18 +7,24 @@ import { toast } from "sonner";
 import { CHATS, FAVORITE_CHATS } from "@/shared/queryKeys";
 import chatsClientRequests from "../authClientRequests";
 
+interface FavoriteChatParams {
+	id: number;
+	searchSpaceId: number;
+}
+
 const useRemoveFavoriteChat = (
 	options?: UseMutationOptions<
 		{ id: number; is_favorite: boolean },
 		Error,
-		number,
+		FavoriteChatParams,
 		unknown
 	>,
 ) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: number) => chatsClientRequests.removeFavoriteChat(id),
+		mutationFn: ({ id, searchSpaceId }: FavoriteChatParams) =>
+			chatsClientRequests.removeFavoriteChat(id, searchSpaceId),
 		onSuccess: () => {
 			toast.success("Removed from favorites");
 		},

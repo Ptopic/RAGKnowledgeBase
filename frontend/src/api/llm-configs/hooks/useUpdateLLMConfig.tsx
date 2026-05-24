@@ -10,6 +10,7 @@ import type { LLMConfig, UpdateLLMConfig } from "../types";
 
 interface UpdateLLMConfigParams {
 	id: number;
+	searchSpaceId: number;
 	data: UpdateLLMConfig;
 }
 
@@ -24,8 +25,8 @@ const useUpdateLLMConfig = (
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, data }: UpdateLLMConfigParams) =>
-			llmConfigsClientRequests.updateLLMConfig(id, data),
+		mutationFn: ({ id, searchSpaceId, data }: UpdateLLMConfigParams) =>
+			llmConfigsClientRequests.updateLLMConfig(id, searchSpaceId, data),
 		onSuccess: () => {
 			toast.success("LLM configuration updated successfully");
 		},

@@ -3,8 +3,25 @@ import appConfig from "@shared/config";
 import { COOKIE_NAME } from "@shared/constants/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
-const AUTH_PUBLIC_ROUTES = ["/auth", "/auth/forgot-password", "/auth/reset-password", "/s"];
+const AUTH_PUBLIC_ROUTES = [
+	"/auth",
+	"/auth/forgot-password",
+	"/auth/reset-password",
+	"/s",
+];
 const HOME_ROUTE = "/dashboard";
+
+const SAFE_REDIRECT_ROUTES = ["/invite", "/dashboard"];
+
+/** Prevent open-redirect: only allow whitelisted relative internal paths */
+function isSafeRedirect(url: string): boolean {
+	return (
+		url.startsWith("/") &&
+		!url.startsWith("//") &&
+		!url.includes("://") &&
+		SAFE_REDIRECT_ROUTES.some((route) => url.startsWith(route))
+	);
+}
 
 export const config = {
 	matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
@@ -31,7 +48,7 @@ export async function middleware(request: NextRequest) {
 			const isValid = await verifyToken(accessToken);
 			if (isValid) {
 				const redirectUrl = request.nextUrl.searchParams.get("redirect");
-				if (redirectUrl) {
+				if (redirectUrl && isSafeRedirect(redirectUrl)) {
 					return NextResponse.redirect(new URL(redirectUrl, request.url));
 				}
 				return NextResponse.redirect(new URL(HOME_ROUTE, request.url));

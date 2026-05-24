@@ -115,6 +115,8 @@ export default function ChatsPageClient({
 	const { mutate: addFavoriteChat } = useAddFavoriteChat();
 	const { mutate: removeFavoriteChat } = useRemoveFavoriteChat();
 
+	const searchSpaceIdNum = parseInt(searchSpaceId, 10);
+
 	const [selectedChats, setSelectedChats] = useState<number[]>([]);
 	const [selectionMode, setSelectionMode] = useState(false);
 
@@ -181,7 +183,7 @@ export default function ChatsPageClient({
 	// Function to handle chat deletion
 	const handleDeleteChat = () => {
 		if (!chatToDelete) return;
-		deleteChat(chatToDelete.id);
+		deleteChat({ id: chatToDelete.id, searchSpaceId: searchSpaceIdNum });
 	};
 
 	// Calculate pagination
@@ -406,9 +408,9 @@ export default function ChatsPageClient({
 													onClick={(e) => {
 														e.stopPropagation();
 														if (chat.is_favorite) {
-															removeFavoriteChat(chat.id);
+															removeFavoriteChat({ id: chat.id, searchSpaceId: searchSpaceIdNum });
 														} else {
-															addFavoriteChat(chat.id);
+															addFavoriteChat({ id: chat.id, searchSpaceId: searchSpaceIdNum });
 														}
 													}}
 												>

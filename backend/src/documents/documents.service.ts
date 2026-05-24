@@ -26,34 +26,16 @@ export class DocumentsService {
 		private queueService: QueueService,
 	) {}
 
-	async checkSearchSpaceOwnership(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
-
 	async create(
 		createDto: CreateDocumentsDto,
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
-
 			if (!createDto.content || createDto.content.length === 0) {
 				throw new BadRequestException("Content array cannot be empty");
 			}
 
 			if (createDto.document_type === DocumentType.CRAWLED_URL) {
-				// Process crawled URLs
 				const queuedJobs = [];
 				for (const url of createDto.content) {
 					this.logger.log(`Queuing URL for crawling: ${url}`);
@@ -74,7 +56,6 @@ export class DocumentsService {
 				};
 			}
 			if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
-				// Process YouTube videos
 				const queuedJobs = [];
 				for (const videoUrl of createDto.content) {
 					this.logger.log(`Queuing YouTube video for processing: ${videoUrl}`);
@@ -118,13 +99,10 @@ export class DocumentsService {
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.checkSearchSpaceOwnership(searchSpaceId, userId);
-
 			if (!files || files.length === 0) {
 				throw new BadRequestException("No files provided");
 			}
 
-			// Queue each file for background processing
 			const queuedJobs = [];
 			for (const file of files) {
 				this.logger.log(
@@ -167,10 +145,10 @@ export class DocumentsService {
 
 	async findAll(
 		userId: string,
+		searchSpaceId: number,
 		skip?: number,
 		page?: number,
 		pageSize: number = 50,
-		searchSpaceId?: number,
 		documentTypes?: string,
 		favoriteStatus?: FavoriteStatus,
 	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
@@ -183,12 +161,8 @@ export class DocumentsService {
 			}
 
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId,
 			};
-
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			if (documentTypes) {
 				const types = documentTypes.split(",").map((t) => t.trim());
@@ -226,9 +200,7 @@ export class DocumentsService {
 			}
 
 			const favoriteWhere: any = { userId };
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				favoriteWhere.document = { searchSpaceId };
-			}
+			favoriteWhere.document = { searchSpaceId };
 			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
 				where: favoriteWhere,
 				select: { documentId: true },
@@ -248,11 +220,11 @@ export class DocumentsService {
 
 	async search(
 		userId: string,
+		searchSpaceId: number,
 		title: string,
 		skip?: number,
 		page?: number,
 		pageSize: number = 50,
-		searchSpaceId?: number,
 		documentTypes?: string,
 		favoriteStatus?: FavoriteStatus,
 	): Promise<PaginatedResponseDto<DocumentDto> & { favorite_ids: number[] }> {
@@ -265,13 +237,9 @@ export class DocumentsService {
 			}
 
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId,
 				title: { contains: title, mode: "insensitive" },
 			};
-
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			if (documentTypes) {
 				const types = documentTypes.split(",").map((t) => t.trim());
@@ -309,9 +277,7 @@ export class DocumentsService {
 			}
 
 			const favoriteWhere: any = { userId };
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				favoriteWhere.document = { searchSpaceId };
-			}
+			favoriteWhere.document = { searchSpaceId };
 			const favoriteRecords = await this.prisma.userDocumentFavorite.findMany({
 				where: favoriteWhere,
 				select: { documentId: true },
@@ -331,16 +297,12 @@ export class DocumentsService {
 
 	async getTypeCounts(
 		userId: string,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 	): Promise<Record<string, number>> {
 		try {
 			const where: any = {
-				searchSpace: { userId },
+				searchSpaceId,
 			};
-
-			if (searchSpaceId !== undefined && searchSpaceId !== null) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			const documents = await this.prisma.document.groupBy({
 				by: ["documentType"],
@@ -379,7 +341,6 @@ export class DocumentsService {
 			const document = await this.prisma.document.findFirst({
 				where: {
 					id: chunk.documentId,
-					searchSpace: { userId },
 				},
 				include: {
 					chunks: {
@@ -408,10 +369,7 @@ export class DocumentsService {
 	async findOne(id: number, userId: string): Promise<DocumentDto> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
@@ -435,10 +393,7 @@ export class DocumentsService {
 	): Promise<DocumentWithChunksDto> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 				include: {
 					chunks: {
 						orderBy: { createdAt: "asc" },
@@ -468,10 +423,7 @@ export class DocumentsService {
 	): Promise<DocumentDto> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
@@ -501,10 +453,7 @@ export class DocumentsService {
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
@@ -563,10 +512,7 @@ export class DocumentsService {
 	): Promise<{ message: string }> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {
@@ -604,10 +550,7 @@ export class DocumentsService {
 	): Promise<{ message: string }> {
 		try {
 			const document = await this.prisma.document.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!document) {

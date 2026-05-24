@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { QueryTemplate as PrismaQueryTemplate, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { PermissionsService } from "../permissions/permissions.service";
 import {
 	CreateQueryTemplateDto,
 	PaginatedQueryTemplatesResponseDto,
@@ -15,7 +16,10 @@ import {
 
 @Injectable()
 export class QueryTemplatesService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private permissionsService: PermissionsService,
+	) {}
 
 	async createGlobal(
 		createDto: CreateQueryTemplateDto,
@@ -48,8 +52,6 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<QueryTemplateDto> {
 		try {
-			await this.checkSearchSpaceAccess(searchSpaceId, userId);
-
 			const template = await this.prisma.queryTemplate.create({
 				data: {
 					title: createDto.title,
@@ -122,14 +124,12 @@ export class QueryTemplatesService {
 	): Promise<PaginatedQueryTemplatesResponseDto> {
 		try {
 			const searchSpace = await this.prisma.searchSpace.findFirst({
-				where: { id: searchSpaceId, userId },
+				where: { id: searchSpaceId },
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});
 
 			if (!searchSpace) {
-				throw new NotFoundException(
-					"Search space not found or you do not have permission to access it",
-				);
+				throw new NotFoundException("Search space not found");
 			}
 
 			const pinnedIds = searchSpace.pinnedQueryTemplates.map(
@@ -195,7 +195,7 @@ export class QueryTemplatesService {
 			}
 
 			if (!template.isGlobal && template.searchSpaceId) {
-				await this.checkSearchSpaceAccess(template.searchSpaceId, userId);
+				await this.permissionsService.requireRead(template.searchSpaceId, userId);
 			}
 
 			return this.toDto(template);
@@ -243,7 +243,9 @@ export class QueryTemplatesService {
 
 			if (updateDto.is_global !== undefined && updateDto.is_global !== template.isGlobal) {
 				updateData.isGlobal = updateDto.is_global;
-				updateData.searchSpaceId = updateDto.is_global ? null : template.searchSpaceId;
+				updateData.searchSpace = updateDto.is_global
+					? { disconnect: true }
+					: { connect: { id: template.searchSpaceId! } };
 			}
 
 			const updated = await this.prisma.queryTemplate.update({
@@ -272,8 +274,6 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<QueryTemplateDto> {
 		try {
-			await this.checkSearchSpaceAccess(searchSpaceId, userId);
-
 			const template = await this.prisma.queryTemplate.findUnique({
 				where: { id },
 			});
@@ -302,7 +302,9 @@ export class QueryTemplatesService {
 
 			if (updateDto.is_global !== undefined && updateDto.is_global !== template.isGlobal) {
 				updateData.isGlobal = updateDto.is_global;
-				updateData.searchSpaceId = updateDto.is_global ? null : searchSpaceId;
+				updateData.searchSpace = updateDto.is_global
+					? { disconnect: true }
+					: { connect: { id: searchSpaceId } };
 			}
 
 			const updated = await this.prisma.queryTemplate.update({
@@ -367,8 +369,6 @@ export class QueryTemplatesService {
 		userId: string,
 	): Promise<{ message: string }> {
 		try {
-			await this.checkSearchSpaceAccess(searchSpaceId, userId);
-
 			const template = await this.prisma.queryTemplate.findUnique({
 				where: { id },
 			});
@@ -409,7 +409,7 @@ export class QueryTemplatesService {
 		try {
 			return await this.prisma.$transaction(async (tx) => {
 				const searchSpace = await tx.searchSpace.findFirst({
-					where: { id: searchSpaceId, userId },
+					where: { id: searchSpaceId },
 					include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 				});
 
@@ -481,7 +481,7 @@ export class QueryTemplatesService {
 		try {
 			return await this.prisma.$transaction(async (tx) => {
 				const searchSpace = await tx.searchSpace.findFirst({
-					where: { id: searchSpaceId, userId },
+					where: { id: searchSpaceId },
 				});
 
 				if (!searchSpace) {
@@ -495,7 +495,7 @@ export class QueryTemplatesService {
 				});
 
 				const updated = await tx.searchSpace.findFirst({
-					where: { id: searchSpaceId, userId },
+					where: { id: searchSpaceId },
 					include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 				});
 
@@ -514,21 +514,6 @@ export class QueryTemplatesService {
 			}
 			throw new InternalServerErrorException(
 				`Failed to unpin query template: ${error.message}`,
-			);
-		}
-	}
-
-	private async checkSearchSpaceAccess(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
 			);
 		}
 	}

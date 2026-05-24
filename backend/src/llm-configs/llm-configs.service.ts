@@ -1,5 +1,6 @@
 import {
 	BadRequestException,
+	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	NotFoundException,
@@ -28,28 +29,11 @@ export class LLMConfigsService {
 		private apiKeysService: ApiKeysService,
 	) {}
 
-	async checkSearchSpaceAccess(
-		searchSpaceId: number,
-		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
-
 	async create(
 		createDto: CreateLLMConfigDto,
 		userId: string,
 	): Promise<LLMConfigDto> {
 		try {
-			await this.checkSearchSpaceAccess(createDto.search_space_id, userId);
-
 			if (!createDto.api_key && !createDto.user_provider_key_id) {
 				throw new BadRequestException(
 					'Either api_key or user_provider_key_id must be provided',
@@ -89,7 +73,7 @@ export class LLMConfigsService {
 
 			return this.toDto(llmConfig);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof BadRequestException) {
+			if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -105,8 +89,6 @@ export class LLMConfigsService {
 		limit: number = 200,
 	): Promise<LLMConfigDto[]> {
 		try {
-			await this.checkSearchSpaceAccess(searchSpaceId, userId);
-
 			const llmConfigs = await this.prisma.lLMConfig.findMany({
 				where: { searchSpaceId },
 				skip,
@@ -115,7 +97,7 @@ export class LLMConfigsService {
 
 			return llmConfigs.map((config) => this.toDto(config));
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -134,11 +116,9 @@ export class LLMConfigsService {
 				throw new NotFoundException("LLM configuration not found");
 			}
 
-			await this.checkSearchSpaceAccess(llmConfig.searchSpaceId, userId);
-
 			return this.toDto(llmConfig);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -160,8 +140,6 @@ export class LLMConfigsService {
 			if (!llmConfig) {
 				throw new NotFoundException("LLM configuration not found");
 			}
-
-			await this.checkSearchSpaceAccess(llmConfig.searchSpaceId, userId);
 
 			const selectiveData: {
 				name?: string;
@@ -207,7 +185,7 @@ export class LLMConfigsService {
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -226,8 +204,6 @@ export class LLMConfigsService {
 				throw new NotFoundException("LLM configuration not found");
 			}
 
-			await this.checkSearchSpaceAccess(llmConfig.searchSpaceId, userId);
-
 			this.apiKeysService.invalidateConfigCache(id);
 
 			await this.prisma.lLMConfig.delete({
@@ -236,7 +212,7 @@ export class LLMConfigsService {
 
 			return { message: "LLM configuration deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -250,8 +226,6 @@ export class LLMConfigsService {
 		userId: string,
 	): Promise<LLMPreferencesDto> {
 		try {
-			await this.checkSearchSpaceAccess(searchSpaceId, userId);
-
 			let preference = await this.prisma.userSearchSpacePreference.findFirst({
 				where: { userId, searchSpaceId },
 				include: {
@@ -287,7 +261,7 @@ export class LLMConfigsService {
 					: undefined,
 			};
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -302,8 +276,6 @@ export class LLMConfigsService {
 		userId: string,
 	): Promise<LLMPreferencesDto> {
 		try {
-			await this.checkSearchSpaceAccess(searchSpaceId, userId);
-
 			let preference = await this.prisma.userSearchSpacePreference.findFirst({
 				where: { userId, searchSpaceId },
 			});
@@ -369,7 +341,8 @@ export class LLMConfigsService {
 		} catch (error) {
 			if (
 				error instanceof NotFoundException ||
-				error instanceof BadRequestException
+				error instanceof BadRequestException ||
+				error instanceof ForbiddenException
 			) {
 				throw error;
 			}

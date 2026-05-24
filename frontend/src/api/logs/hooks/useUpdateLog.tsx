@@ -10,6 +10,7 @@ import type { Log, UpdateLogRequest } from "../types";
 
 interface UpdateLogParams {
 	id: number;
+	searchSpaceId: number;
 	data: UpdateLogRequest;
 }
 
@@ -19,8 +20,8 @@ const useUpdateLog = (
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ id, data }: UpdateLogParams) =>
-			logsClientRequests.updateLog(id, data),
+		mutationFn: ({ id, searchSpaceId, data }: UpdateLogParams) =>
+			logsClientRequests.updateLog(id, searchSpaceId, data),
 		onSuccess: () => {
 			toast.success("Log updated successfully");
 		},

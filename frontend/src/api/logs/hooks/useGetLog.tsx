@@ -5,20 +5,24 @@ import type { Log } from "../types";
 
 const useGetLog = (
 	id: number | null,
+	searchSpaceId: number | null,
 	options?: Omit<
 		UseQueryOptions<Log, Error, Log, readonly unknown[]>,
 		"queryKey" | "queryFn"
 	>,
 ) => {
 	return useQuery<Log, Error>({
-		queryKey: [LOGS, id],
+		queryKey: [LOGS, id, searchSpaceId],
 		queryFn: () => {
 			if (!id) {
 				throw new Error("Log ID is required");
 			}
-			return logsClientRequests.getLog(id);
+			if (!searchSpaceId) {
+				throw new Error("Search Space ID is required");
+			}
+			return logsClientRequests.getLog(id, searchSpaceId);
 		},
-		enabled: !!id,
+		enabled: !!id && !!searchSpaceId,
 		...options,
 	});
 };

@@ -125,7 +125,7 @@ export function AppSidebarProvider({
 	// Handle delete chat
 	const handleDeleteChat = () => {
 		if (!chatToDelete) return;
-		deleteChatMutation(chatToDelete.id);
+		deleteChatMutation({ id: chatToDelete.id, searchSpaceId: Number(searchSpaceId) });
 	};
 
 	// Memoized fallback chats

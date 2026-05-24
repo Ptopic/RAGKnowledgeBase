@@ -1,11 +1,15 @@
 import {
 	BadRequestException,
 	ConflictException,
+	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { PermissionsService } from "../permissions/permissions.service";
+import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
 import {
 	ChatDto,
 	ChatWithoutMessagesDto,
@@ -15,40 +19,36 @@ import {
 
 @Injectable()
 export class ChatsService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private permissionsService: PermissionsService,
+	) {}
 
-	async checkSearchSpaceOwnership(
-		searchSpaceId: number,
+	async create(
+		createDto: CreateChatDto,
 		userId: string,
-	): Promise<void> {
-		const searchSpace = await this.prisma.searchSpace.findFirst({
-			where: { id: searchSpaceId, userId },
-		});
-
-		if (!searchSpace) {
-			throw new NotFoundException(
-				"Search space not found or you do not have permission to access it",
-			);
-		}
-	}
-
-	async create(createDto: CreateChatDto, userId: string): Promise<ChatDto> {
+		membership?: SearchSpaceMembershipAttachment,
+	): Promise<ChatDto> {
 		try {
-			await this.checkSearchSpaceOwnership(createDto.search_space_id, userId);
+			// Authorization: guard-provided membership skips DB lookup for HTTP callers;
+			// non-HTTP callers (AgentService, DeepAgentService) omit membership, requiring explicit check
+			if (!membership) {
+				await this.permissionsService.requireWrite(createDto.search_space_id, userId);
+			}
 
 			const chat = await this.prisma.chat.create({
 				data: {
 					type: createDto.type,
 					title: createDto.title,
 					initialConnectors: createDto.initial_connectors || [],
-					messages: createDto.messages,
+					messages: createDto.messages as unknown as Prisma.InputJsonValue,
 					searchSpaceId: createDto.search_space_id,
 				},
 			});
 
 			return this.toDto(chat);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -61,7 +61,7 @@ export class ChatsService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 100,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 	): Promise<ChatWithoutMessagesDto[]> {
 		try {
 			if (skip < 0) {
@@ -70,22 +70,9 @@ export class ChatsService {
 			if (limit <= 0 || limit > 1000) {
 				throw new BadRequestException("limit must be between 1 and 1000");
 			}
-			if (searchSpaceId !== undefined && searchSpaceId <= 0) {
-				throw new BadRequestException(
-					"search_space_id must be a positive integer",
-				);
-			}
-
-			const where: any = {
-				searchSpace: { userId },
-			};
-
-			if (searchSpaceId !== undefined) {
-				where.searchSpaceId = searchSpaceId;
-			}
 
 			const chats = await this.prisma.chat.findMany({
-				where,
+				where: { searchSpaceId },
 				skip,
 				take: limit,
 				orderBy: { createdAt: "desc" },
@@ -112,10 +99,7 @@ export class ChatsService {
 	async findOne(id: number, userId: string): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!chat) {
@@ -126,7 +110,7 @@ export class ChatsService {
 
 			return this.toDto(chat);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -142,10 +126,7 @@ export class ChatsService {
 	): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!chat) {
@@ -160,13 +141,13 @@ export class ChatsService {
 					type: updateDto.type,
 					title: updateDto.title,
 					initialConnectors: updateDto.initial_connectors,
-					messages: updateDto.messages,
+					messages: updateDto.messages as unknown as Prisma.InputJsonValue,
 				},
 			});
 
 			return this.toDto(updated);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -178,10 +159,7 @@ export class ChatsService {
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id,
-					searchSpace: { userId },
-				},
+				where: { id },
 			});
 
 			if (!chat) {
@@ -196,7 +174,7 @@ export class ChatsService {
 
 			return { message: "Chat deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -208,10 +186,7 @@ export class ChatsService {
 	async addFavorite(chatId: number, userId: string): Promise<ChatDto> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id: chatId,
-					searchSpace: { userId },
-				},
+				where: { id: chatId },
 			});
 
 			if (!chat) {
@@ -229,7 +204,7 @@ export class ChatsService {
 
 			return this.toDto(chat);
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			if (error.code === "P2002") {
@@ -247,10 +222,7 @@ export class ChatsService {
 	): Promise<{ message: string }> {
 		try {
 			const chat = await this.prisma.chat.findFirst({
-				where: {
-					id: chatId,
-					searchSpace: { userId },
-				},
+				where: { id: chatId },
 			});
 
 			if (!chat) {
@@ -268,7 +240,7 @@ export class ChatsService {
 
 			return { message: "Favorite removed successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -281,7 +253,7 @@ export class ChatsService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 100,
-		searchSpaceId?: number,
+		searchSpaceId: number,
 	): Promise<ChatDto[]> {
 		try {
 			if (skip < 0) {
@@ -290,24 +262,12 @@ export class ChatsService {
 			if (limit <= 0 || limit > 1000) {
 				throw new BadRequestException("limit must be between 1 and 1000");
 			}
-			if (searchSpaceId !== undefined && searchSpaceId <= 0) {
-				throw new BadRequestException(
-					"search_space_id must be a positive integer",
-				);
-			}
-
-			const where: any = {
-				userId,
-			};
-
-			if (searchSpaceId !== undefined) {
-				where.chat = {
-					searchSpaceId,
-				};
-			}
 
 			const favorites = await this.prisma.userChatFavorite.findMany({
-				where,
+				where: {
+					userId,
+					chat: { searchSpaceId },
+				},
 				skip,
 				take: limit,
 				orderBy: { createdAt: "desc" },
