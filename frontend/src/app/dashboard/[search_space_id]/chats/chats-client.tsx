@@ -151,6 +151,8 @@ export default function ChatsPageClient({
 		if (selectedType !== "all") {
 			if (selectedType === "favorites") {
 				result = result.filter((chat) => chat.is_favorite === true);
+			} else if (selectedType === "non-favorites") {
+				result = result.filter((chat) => chat.is_favorite !== true);
 			} else {
 				result = result.filter((chat) => chat.type === selectedType);
 			}
@@ -193,7 +195,7 @@ export default function ChatsPageClient({
 
 	// Get unique chat types for filter dropdown (memoized to prevent infinite re-renders)
 	const chatTypes = useMemo(
-		() => ["all", "favorites", ...Array.from(new Set(chats.map((chat) => chat.type)))],
+		() => ["all", "favorites", "non-favorites", ...Array.from(new Set(chats.map((chat) => chat.type)))],
 		[chats],
 	);
 
@@ -265,7 +267,9 @@ export default function ChatsPageClient({
 												? "All Types"
 												: type === "favorites"
 													? "Favorites"
-													: type.charAt(0).toUpperCase() + type.slice(1)}
+													: type === "non-favorites"
+														? "Non-favorites"
+														: type.charAt(0).toUpperCase() + type.slice(1)}
 										</SelectItem>
 									))}
 								</SelectGroup>
