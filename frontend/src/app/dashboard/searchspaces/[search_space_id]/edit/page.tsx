@@ -18,17 +18,24 @@ export default function EditSearchSpacePage({
 	const { search_space_id } = use(params);
 	const router = useRouter();
 	const searchSpaceIdNum = Number(search_space_id);
+	const isValidId = !Number.isNaN(searchSpaceIdNum);
 
-	const { data: searchSpace, isLoading } = useGetSearchSpace(searchSpaceIdNum);
-	const { mutate: updateSearchSpace } = useUpdateSearchSpace();
+	const { data: searchSpace, isLoading } = useGetSearchSpace(
+		isValidId ? searchSpaceIdNum : null,
+	);
+	const { mutate: updateSearchSpace } = useUpdateSearchSpace({
+		onSuccess: () => {
+			router.push("/dashboard");
+		},
+	});
 	const { mutate: deleteSearchSpace } = useDeleteSearchSpace({
 		onSuccess: () => {
 			router.push("/dashboard");
 		},
 	});
 
-	if (Number.isNaN(searchSpaceIdNum)) {
-		throw new Error("Invalid search space ID");
+	if (!isValidId) {
+		return <AccessDeniedPage />;
 	}
 
 	if (isLoading) {
@@ -39,8 +46,11 @@ export default function EditSearchSpacePage({
 		);
 	}
 
-	// Only owners and editors can edit
-	if (searchSpace && searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+	if (!searchSpace) {
+		return <AccessDeniedPage />;
+	}
+
+	if (searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
 		return <AccessDeniedPage />;
 	}
 
@@ -63,8 +73,8 @@ export default function EditSearchSpacePage({
 				<SearchSpaceForm
 					isEditing
 					initialData={{
-						name: searchSpace?.name || "",
-						description: searchSpace?.description || "",
+						name: searchSpace.name,
+						description: searchSpace.description,
 					}}
 					onSubmit={handleUpdate}
 					onDelete={handleDelete}

@@ -91,12 +91,11 @@ describe("SearchSpacesService — update", () => {
 	});
 
 	it("should update only name when description is not provided", async () => {
-		const updatedWithoutDescription = {
+		const updatedWithNameOnly = {
 			...mockUpdatedSearchSpace,
 			name: "New Name Only",
-			description: undefined,
 		};
-		prisma.searchSpace.update.mockResolvedValue(updatedWithoutDescription);
+		prisma.searchSpace.update.mockResolvedValue(updatedWithNameOnly);
 
 		const result = await service.update(
 			searchSpaceId,
