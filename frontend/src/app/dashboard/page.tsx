@@ -4,7 +4,7 @@ import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import useDeleteSearchSpace from "@/api/searchspaces/hooks/useDeleteSearchSpace";
 import useGetSearchSpaces from "@/api/searchspaces/hooks/useGetSearchSpaces";
 import useLeaveSearchSpace from "@/api/searchspaces/hooks/useLeaveSearchSpace";
@@ -152,15 +152,25 @@ const DashboardPage = () => {
 	const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+				e.preventDefault();
+				searchInputRef.current?.focus();
+			}
+		};
+		document.addEventListener("keydown", handler);
+		return () => document.removeEventListener("keydown", handler);
+	}, []);
+
 	const {
 		data: searchSpaces,
 		isLoading: loading,
 		isFetching: fetching,
-		isRefetching: refetching,
 		error,
 		refetch: refreshSearchSpaces,
 	} = useGetSearchSpaces({
-		q: debouncedSearch || undefined,
+		q: debouncedSearch.trim() || undefined,
 	});
 
 	const { mutate: deleteSearchSpace } =
@@ -195,8 +205,8 @@ const DashboardPage = () => {
 		avatar: "/icon-128.png",
 	};
 
-	if (loading || fetching || refetching) return <LoadingScreen />;
-	if (error) return <ErrorScreen message={error.toString()} />;
+	if (loading && !searchSpaces) return <LoadingScreen />;
+	if (error && !searchSpaces) return <ErrorScreen message={error.toString()} />;
 
 	const ownedSpaces = searchSpaces?.filter((space) => space.is_owner) ?? [];
 	const sharedSpaces = searchSpaces?.filter((space) => !space.is_owner) ?? [];
@@ -394,10 +404,10 @@ const DashboardPage = () => {
 							>
 								<Input
 									ref={searchInputRef}
-									className="peer min-w-60 ps-9"
+									className="peer min-w-60 ps-9 pe-9"
 									value={search}
 									onChange={(e) => setSearch(e.target.value)}
-									placeholder="Search knowledge bases..."
+									placeholder="Search knowledge bases... ⌘K"
 									type="text"
 									aria-label="Search knowledge bases"
 								/>
@@ -431,7 +441,7 @@ const DashboardPage = () => {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{ownedSpaces.map((space) => renderSpaceCard(space, false))}
 
-						{ownedSpaces.length === 0 && sharedSpaces.length === 0 && (
+						{ownedSpaces.length === 0 && sharedSpaces.length === 0 && !fetching && (
 							<motion.div
 								variants={itemVariants}
 								className="col-span-full flex flex-col items-center justify-center p-12 text-center"

@@ -1,4 +1,5 @@
 import {
+	BadRequestException,
 	Body,
 	Controller,
 	Delete,
@@ -45,6 +46,9 @@ export class SearchSpacesController {
 	): Promise<SearchSpaceDto[]> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 200;
+		if (q && q.trim().length > 100) {
+			throw new BadRequestException("Search query too long (max 100 characters)");
+		}
 		return this.searchSpacesService.findAll(req.user.id, skipNum, limitNum, q);
 	}
 

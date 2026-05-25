@@ -12,9 +12,10 @@ interface UseGetSearchSpacesOptions {
 }
 
 const useGetSearchSpaces = ({ q, queryOptions }: UseGetSearchSpacesOptions = {}) => {
+	const trimmedQ = q?.trim() || undefined;
 	return useQuery<SearchSpace[], Error>({
-		queryKey: [SEARCH_SPACES, q],
-		queryFn: () => searchSpacesClientRequests.getSearchSpaces(q),
+		queryKey: trimmedQ ? [SEARCH_SPACES, trimmedQ] : [SEARCH_SPACES],
+		queryFn: () => searchSpacesClientRequests.getSearchSpaces(trimmedQ),
 		...queryOptions,
 	});
 };
