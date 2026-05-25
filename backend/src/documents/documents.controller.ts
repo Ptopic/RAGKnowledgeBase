@@ -189,7 +189,11 @@ export class DocumentsController {
 		@Body() bulkDeleteDto: BulkDeleteDocumentsDto,
 		@Req() req: any,
 	): Promise<BulkDeleteResultDto> {
-		return this.documentsService.bulkRemove(bulkDeleteDto.ids, req.user.id);
+		return this.documentsService.bulkRemove(
+			bulkDeleteDto.ids,
+			req.searchSpaceContext.searchSpaceId,
+			req.user.id,
+		);
 	}
 
 	@Delete(":id")

@@ -478,51 +478,52 @@ export class DocumentsService {
 
 	async bulkRemove(
 		ids: number[],
+		searchSpaceId: number,
 		userId: string,
 	): Promise<BulkDeleteResultDto> {
-		const results = await Promise.allSettled(
-			ids.map(async (id) => {
-				const document = await this.prisma.document.findFirst({
-					where: { id },
-				});
+		try {
+			const existingDocs = await this.prisma.document.findMany({
+				where: {
+					id: { in: ids },
+					searchSpaceId,
+				},
+				select: { id: true },
+			});
 
-				if (!document) {
-					throw new Error("Not found");
+			const existingIds = new Set(existingDocs.map((d) => d.id));
+			const deleted: number[] = [];
+			const failed: Array<{ id: number; reason: string }> = [];
+
+			for (const id of ids) {
+				if (!existingIds.has(id)) {
+					failed.push({ id, reason: "Not found" });
 				}
-
-				await this.prisma.document.delete({
-					where: { id },
-				});
-
-				return id;
-			}),
-		);
-
-		const deleted: number[] = [];
-		const failed: Array<{ id: number; reason: string }> = [];
-
-		results.forEach((result, index) => {
-			const id = ids[index];
-			if (result.status === "fulfilled") {
-				deleted.push(id);
-			} else {
-				const reason =
-					result.reason?.message === "Not found"
-						? "Not found"
-						: result.reason?.message || "Unknown error";
-				failed.push({ id, reason });
 			}
-		});
 
-		this.logger.log(
-			`Bulk delete completed: ${deleted.length} deleted, ${failed.length} failed`,
-		);
+			if (existingDocs.length > 0) {
+				await this.prisma.document.deleteMany({
+					where: {
+						id: { in: Array.from(existingIds) },
+						searchSpaceId,
+					},
+				});
+				deleted.push(...Array.from(existingIds));
+			}
 
-		return {
-			deleted,
-			failed,
-			message: `Bulk delete completed: ${deleted.length} deleted, ${failed.length} failed`,
-		};
+			this.logger.log(
+				`Bulk delete completed: ${deleted.length} deleted, ${failed.length} failed`,
+			);
+
+			return {
+				deleted,
+				failed,
+				message: `Bulk delete completed: ${deleted.length} deleted, ${failed.length} failed`,
+			};
+		} catch (error) {
+			throw new InternalServerErrorException(
+				`Failed to bulk delete documents: ${error.message}`,
+			);
+		}
 	}
 
 	private toDto(document: any): DocumentDto {

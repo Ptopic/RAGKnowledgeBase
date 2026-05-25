@@ -147,9 +147,9 @@ describe("DocumentsController", () => {
 	});
 
 	describe("DELETE /documents/bulk", () => {
-		it("should call service.bulkRemove with ids and userId", async () => {
+		it("should call service.bulkRemove with ids, searchSpaceId, and userId", async () => {
 			const dto = { ids: [1, 2, 3], search_space_id: 5 } as any;
-			const req = { user: { id: "user-1" } } as any;
+			const req = { user: { id: "user-1" }, searchSpaceContext: { searchSpaceId: 5 } } as any;
 			const expectedResult = {
 				deleted: [1, 2, 3],
 				failed: [],
@@ -159,7 +159,7 @@ describe("DocumentsController", () => {
 
 			const result = await controller.bulkRemove(dto, req);
 
-			expect(documentsService.bulkRemove).toHaveBeenCalledWith([1, 2, 3], "user-1");
+			expect(documentsService.bulkRemove).toHaveBeenCalledWith([1, 2, 3], 5, "user-1");
 			expect(result).toEqual(expectedResult);
 		});
 
