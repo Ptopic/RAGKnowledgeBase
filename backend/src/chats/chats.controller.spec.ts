@@ -1,9 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MemberRole } from "@prisma/client";
-import { ChatsController } from "./chats.controller";
-import { CreateChatDto, UpdateChatDto, ToggleFavoriteDto, BulkDeleteChatsDto } from "./dtos/chat.dto";
-import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
+import { PermissionsService } from "../permissions/permissions.service";
+import { ChatsController } from "./chats.controller";
+import { BulkDeleteChatsDto, CreateChatDto, ToggleFavoriteDto, UpdateChatDto } from "./dtos/chat.dto";
 
 const { ChatsService } = require("./chats.service");
 

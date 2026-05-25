@@ -13,20 +13,18 @@ import {
 } from "@nestjs/common";
 import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
-import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { ChatsService } from "./chats.service";
 import {
+	BulkDeleteChatsDto,
+	BulkDeleteResponseDto,
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
 	FavoriteChatResponseDto,
 	ToggleFavoriteDto,
 	UpdateChatDto,
-} from "./dtos/chat.dto";
-import {
-	BulkDeleteChatsDto,
-	BulkDeleteResponseDto,
 } from "./dtos/chat.dto";
 
 @Controller()
@@ -64,7 +62,7 @@ export class ChatsController {
 		);
 	}
 
-	@Post("chats/bulk-delete")
+	@Delete("chats/bulk")
 	@RequireSearchSpaceRole(MemberRole.VIEWER)
 	async bulkRemove(
 		@Body() bulkDeleteDto: BulkDeleteChatsDto,

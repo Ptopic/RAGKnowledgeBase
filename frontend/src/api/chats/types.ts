@@ -51,7 +51,7 @@ export interface UpdateChatRequest {
 
 export interface BulkDeleteChatsParams {
 	ids: number[];
-	searchSpaceId: number;
+	search_space_id: number;
 }
 
 export interface BulkDeleteChatsResponse {

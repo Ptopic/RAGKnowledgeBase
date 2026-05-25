@@ -7,16 +7,16 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { PrismaService } from "../prisma/prisma.service";
-import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
+import { PermissionsService } from "../permissions/permissions.service";
+import { PrismaService } from "../prisma/prisma.service";
 import {
+	BulkDeleteResponseDto,
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
 	UpdateChatDto,
 } from "./dtos/chat.dto";
-import { BulkDeleteResponseDto } from "./dtos/chat.dto";
 
 @Injectable()
 export class ChatsService {

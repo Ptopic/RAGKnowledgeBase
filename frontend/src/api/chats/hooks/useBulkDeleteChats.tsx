@@ -14,8 +14,17 @@ const useBulkDeleteChats = (
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ ids, searchSpaceId }: BulkDeleteChatsParams) =>
-			chatsClientRequests.bulkDeleteChats(ids, searchSpaceId),
+		mutationFn: (params: BulkDeleteChatsParams) =>
+			chatsClientRequests.bulkDeleteChats(params),
+		onSuccess: (data) => {
+			if (data.failed.length === 0) {
+				toast.success(`Successfully deleted ${data.deleted.length} chat(s)`);
+			} else if (data.deleted.length > 0) {
+				toast.warning(`Deleted ${data.deleted.length} chat(s), but ${data.failed.length} could not be deleted`);
+			} else {
+				toast.error("Could not delete the selected chat(s)");
+			}
+		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: [CHATS] });
 		},
