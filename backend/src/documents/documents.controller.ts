@@ -30,6 +30,8 @@ import {
 	FavoriteStatus,
 	PaginatedResponseDto,
 	UpdateDocumentDto,
+	BulkDeleteDocumentsDto,
+	BulkDeleteResultDto,
 } from "./dtos/document.dto";
 
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -179,6 +181,19 @@ export class DocumentsController {
 		@Req() req: any,
 	): Promise<DocumentDto> {
 		return this.documentsService.update(id, updateDto, req.user.id);
+	}
+
+	@Delete("bulk")
+	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	async bulkRemove(
+		@Body() bulkDeleteDto: BulkDeleteDocumentsDto,
+		@Req() req: any,
+	): Promise<BulkDeleteResultDto> {
+		return this.documentsService.bulkRemove(
+			bulkDeleteDto.ids,
+			req.searchSpaceContext.searchSpaceId,
+			req.user.id,
+		);
 	}
 
 	@Delete(":id")

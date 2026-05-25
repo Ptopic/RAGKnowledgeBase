@@ -4,6 +4,8 @@ import { normalizeListResponse } from "@/lib/pagination";
 import type {
 	AddYouTubeVideosRequest,
 	AddYouTubeVideosResponse,
+	BulkDeleteDocumentsRequest,
+	BulkDeleteDocumentsResponse,
 	CrawlWebpagesRequest,
 	CrawlWebpagesResponse,
 	Document,
@@ -155,6 +157,19 @@ export const deleteDocument =
 		request.call(`${config.apiUrl}/documents/${id}?search_space_id=${searchSpaceId}`, (init) => ({
 			...init,
 			method: "DELETE",
+		}));
+
+export const bulkDeleteDocuments =
+	(request: ICallableRequestBuilder<BulkDeleteDocumentsResponse>) =>
+	async (data: BulkDeleteDocumentsRequest) =>
+		request.call(`${config.apiUrl}/documents/bulk`, (init) => ({
+			...init,
+			method: "DELETE",
+			headers: {
+				...init.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(data),
 		}));
 
 export const getDocumentTypeCounts =
