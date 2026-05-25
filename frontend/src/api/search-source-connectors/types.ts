@@ -15,6 +15,7 @@ export interface SearchSourceConnector {
 
 export interface GetSearchSourceConnectorsParams {
 	search_space_id?: number;
+	name?: string;
 }
 
 export interface CreateSearchSourceConnectorRequest {

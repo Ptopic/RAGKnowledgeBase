@@ -54,6 +54,7 @@ export class SearchSourceConnectorsController {
 		@Req() req: any,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
+		@Query("name") name?: string,
 	): Promise<SearchSourceConnectorDto[]> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
@@ -62,6 +63,7 @@ export class SearchSourceConnectorsController {
 			skipNum,
 			limitNum,
 			req.searchSpaceContext.searchSpaceId,
+			name,
 		);
 	}
 

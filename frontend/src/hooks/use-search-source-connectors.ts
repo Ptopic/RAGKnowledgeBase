@@ -23,14 +23,19 @@ export interface ConnectorSourceItem {
  * Hook to fetch search source connectors from the API
  * @param lazy - If true, connectors won't be fetched on mount
  * @param searchSpaceId - Optional search space ID to filter connectors
+ * @param name - Optional name filter for searching connectors by name
  */
 export const useSearchSourceConnectors = (
 	lazy: boolean = false,
 	searchSpaceId?: number,
+	name?: string,
 ) => {
 	const params = useMemo(() => {
-		return searchSpaceId ? { search_space_id: searchSpaceId } : undefined;
-	}, [searchSpaceId]);
+		const p: { search_space_id?: number; name?: string } = {};
+		if (searchSpaceId) p.search_space_id = searchSpaceId;
+		if (name) p.name = name;
+		return searchSpaceId || name ? p : undefined;
+	}, [searchSpaceId, name]);
 
 	// Use the React Query hooks
 	const {

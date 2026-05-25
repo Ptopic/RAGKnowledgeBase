@@ -88,10 +88,15 @@ export class SearchSourceConnectorsService {
 		skip: number = 0,
 		limit: number = 100,
 		searchSpaceId: number,
+		name?: string,
 	): Promise<SearchSourceConnectorDto[]> {
 		try {
+			const where: any = { searchSpaceId };
+			if (name) {
+				where.name = { contains: name, mode: "insensitive" };
+			}
 			const connectors = await this.prisma.searchSourceConnector.findMany({
-				where: { searchSpaceId },
+				where,
 				skip,
 				take: limit,
 			});
