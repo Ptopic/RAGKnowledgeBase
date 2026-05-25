@@ -93,6 +93,22 @@ export interface SearchDocumentsParams {
 	favorite_status?: "favorited" | "non_favorited";
 }
 
+export interface BulkDeleteDocumentsRequest {
+	ids: number[];
+	search_space_id: number;
+}
+
+export interface BulkDeleteItemFailure {
+	id: number;
+	reason: string;
+}
+
+export interface BulkDeleteDocumentsResponse {
+	deleted: number[];
+	failed: BulkDeleteItemFailure[];
+	message: string;
+}
+
 export interface ListResponse<T> {
 	items: T[];
 	total: number;

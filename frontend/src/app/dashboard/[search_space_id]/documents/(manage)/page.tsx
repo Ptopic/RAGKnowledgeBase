@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { useDocuments } from "@/hooks/use-documents";
 import { useDebounce } from "@/hooks/use-debounce";
+import useBulkDeleteDocuments from "@/api/documents/hooks/useBulkDeleteDocuments";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
@@ -48,6 +49,8 @@ export default function DocumentsTable() {
 	const [favoriteStatus, setFavoriteStatus] = useState<"all" | "favorited" | "non_favorited">(
 		(searchParams.get("favorite_status") as "all" | "favorited" | "non_favorited") || "all",
 	);
+
+	const { mutateAsync: bulkDeleteDocuments } = useBulkDeleteDocuments();
 
 	// Use server-side pagination, search, and filtering
 	const {
@@ -152,13 +155,26 @@ export default function DocumentsTable() {
 			return;
 		}
 		try {
-			const results = await Promise.allSettled(
-				Array.from(selectedIds).map((id) => deleteDocument?.(id)),
-			);
-			const okCount = results.filter((r) => r.status === "fulfilled").length;
-			if (okCount === selectedIds.size)
-				toast.success(`Successfully deleted ${okCount} document(s)`);
-			else toast.error("Some documents could not be deleted");
+			const result = await bulkDeleteDocuments({
+				ids: Array.from(selectedIds),
+				searchSpaceId,
+			});
+			if (result.failed.length === 0) {
+				toast.success(`Successfully deleted ${result.deleted.length} document(s)`);
+			} else if (result.deleted.length > 0) {
+				toast.warning(
+					`Deleted ${result.deleted.length} document(s), ${result.failed.length} failed`,
+					{
+						description: result.failed.map(f => `Document ${f.id}: ${f.reason}`).join('\n'),
+						duration: 8000,
+					}
+				);
+			} else {
+				toast.error("Failed to delete documents", {
+					description: result.failed.map(f => `Document ${f.id}: ${f.reason}`).join('\n'),
+					duration: 8000,
+				});
+			}
 			await refreshCurrentView();
 			setSelectedIds(new Set());
 		} catch (e) {

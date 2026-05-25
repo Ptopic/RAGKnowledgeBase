@@ -30,6 +30,7 @@ describe("DocumentsController", () => {
 			findOneWithChunks: jest.fn(),
 			update: jest.fn(),
 			remove: jest.fn(),
+			bulkRemove: jest.fn(),
 			addFavorite: jest.fn(),
 			removeFavorite: jest.fn(),
 			getDocumentByChunkId: jest.fn(),
@@ -142,6 +143,29 @@ describe("DocumentsController", () => {
 			await controller.remove(1, req);
 
 			expect(documentsService.remove).toHaveBeenCalledWith(1, "user-1");
+		});
+	});
+
+	describe("DELETE /documents/bulk", () => {
+		it("should call service.bulkRemove with ids and userId", async () => {
+			const dto = { ids: [1, 2, 3], search_space_id: 5 } as any;
+			const req = { user: { id: "user-1" } } as any;
+			const expectedResult = {
+				deleted: [1, 2, 3],
+				failed: [],
+				message: "Bulk delete completed: 3 deleted, 0 failed",
+			};
+			documentsService.bulkRemove.mockResolvedValue(expectedResult);
+
+			const result = await controller.bulkRemove(dto, req);
+
+			expect(documentsService.bulkRemove).toHaveBeenCalledWith([1, 2, 3], "user-1");
+			expect(result).toEqual(expectedResult);
+		});
+
+		it("has @RequireSearchSpaceRole(EDITOR) — VIEWER blocked", () => {
+			const roles = Reflect.getMetadata(SEARCH_SPACE_ROLES_KEY, controller.bulkRemove);
+			expect(roles).toContain(MemberRole.EDITOR);
 		});
 	});
 

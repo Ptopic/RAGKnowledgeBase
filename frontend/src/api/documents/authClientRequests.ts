@@ -2,6 +2,7 @@ import { withAuthenticatedClientRequest } from "@api/requestBuilder/client/withC
 import {
 	addFavorite,
 	addYouTubeVideos,
+	bulkDeleteDocuments,
 	crawlWebpages,
 	deleteDocument,
 	getDocumentByChunk,
@@ -38,6 +39,7 @@ const documentsClientRequests = {
 	getDocuments: withAuthenticatedClientRequest(getDocuments),
 	searchDocuments: withAuthenticatedClientRequest(searchDocuments),
 	deleteDocument: withAuthenticatedClientRequest(deleteDocument),
+	bulkDeleteDocuments: withAuthenticatedClientRequest(bulkDeleteDocuments),
 	addFavorite: withAuthenticatedClientRequest(addFavorite),
 	removeFavorite: withAuthenticatedClientRequest(removeFavorite),
 };

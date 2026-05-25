@@ -93,6 +93,21 @@ export enum FavoriteStatus {
 	NON_FAVORITED = "non_favorited",
 }
 
+export class BulkDeleteDocumentsDto {
+	@IsArray()
+	@IsInt({ each: true })
+	ids: number[];
+
+	@IsInt()
+	search_space_id: number;
+}
+
+export class BulkDeleteResultDto {
+	deleted: number[];
+	failed: Array<{ id: number; reason: string }>;
+	message: string;
+}
+
 export class GetDocumentsQueryDto {
 	@IsOptional()
 	@IsString()

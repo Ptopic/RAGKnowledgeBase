@@ -9,6 +9,7 @@ import { DocumentType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
 import {
+	BulkDeleteResultDto,
 	CreateDocumentsDto,
 	DocumentDto,
 	DocumentWithChunksDto,
@@ -473,6 +474,55 @@ export class DocumentsService {
 				`Failed to delete document: ${error.message}`,
 			);
 		}
+	}
+
+	async bulkRemove(
+		ids: number[],
+		userId: string,
+	): Promise<BulkDeleteResultDto> {
+		const results = await Promise.allSettled(
+			ids.map(async (id) => {
+				const document = await this.prisma.document.findFirst({
+					where: { id },
+				});
+
+				if (!document) {
+					throw new Error("Not found");
+				}
+
+				await this.prisma.document.delete({
+					where: { id },
+				});
+
+				return id;
+			}),
+		);
+
+		const deleted: number[] = [];
+		const failed: Array<{ id: number; reason: string }> = [];
+
+		results.forEach((result, index) => {
+			const id = ids[index];
+			if (result.status === "fulfilled") {
+				deleted.push(id);
+			} else {
+				const reason =
+					result.reason?.message === "Not found"
+						? "Not found"
+						: result.reason?.message || "Unknown error";
+				failed.push({ id, reason });
+			}
+		});
+
+		this.logger.log(
+			`Bulk delete completed: ${deleted.length} deleted, ${failed.length} failed`,
+		);
+
+		return {
+			deleted,
+			failed,
+			message: `Bulk delete completed: ${deleted.length} deleted, ${failed.length} failed`,
+		};
 	}
 
 	private toDto(document: any): DocumentDto {
