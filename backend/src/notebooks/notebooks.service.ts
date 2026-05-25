@@ -444,8 +444,8 @@ export class NotebooksService {
 		skip: number = 0,
 		limit: number = 100,
 		search?: string,
-		sortBy?: string,
-		sortOrder?: string,
+		sortBy?: "published_at",
+		sortOrder?: "asc" | "desc",
 	): Promise<{ items: PublicNotebookListItemDto[]; total: number }> {
 		try {
 			const where: any = { isPublished: true };

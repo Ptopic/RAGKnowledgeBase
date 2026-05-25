@@ -41,6 +41,10 @@ export class PublicNotebooksController {
 			throw new BadRequestException("limit must be between 1 and 1000");
 		}
 
+		if (q !== undefined && q.length > 200) {
+			throw new BadRequestException("Search query must be 200 characters or less");
+		}
+
 		if (sortBy !== undefined && sortBy !== "published_at") {
 			throw new BadRequestException("sortBy must be 'published_at'");
 		}

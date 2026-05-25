@@ -460,6 +460,7 @@ model Notebook {
   @@index([slug])
   @@index([authorId])
   @@index([isPublished])
+  @@index([isPublished, publishedAt])
   @@map("notebooks")
 }
 
