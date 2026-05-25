@@ -73,6 +73,8 @@ import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors"
 import { cn } from "@/lib/utils";
 import { formatDateString } from "@/shared/utils/date";
 
+const DEBOUNCE_MS = 400;
+
 export default function ConnectorsPage() {
 	const router = useRouter();
 	const params = useParams();
@@ -82,7 +84,6 @@ export default function ConnectorsPage() {
 	const today = new Date();
 
 	const [search, setSearch] = useState("");
-	const DEBOUNCE_MS = 400;
 	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
 
 	const {

@@ -5,6 +5,7 @@ import useIndexConnector from "@api/search-source-connectors/hooks/useIndexConne
 import useUpdateSearchSourceConnector from "@api/search-source-connectors/hooks/useUpdateSearchSourceConnector";
 import type {
 	CreateSearchSourceConnectorRequest,
+	GetSearchSourceConnectorsParams,
 	UpdateSearchSourceConnectorRequest,
 } from "@api/search-source-connectors/types";
 import { useCallback, useMemo } from "react";
@@ -31,7 +32,7 @@ export const useSearchSourceConnectors = (
 	name?: string,
 ) => {
 	const params = useMemo(() => {
-		const p: { search_space_id?: number; name?: string } = {};
+		const p: GetSearchSourceConnectorsParams = {};
 		if (searchSpaceId) p.search_space_id = searchSpaceId;
 		if (name) p.name = name;
 		return searchSpaceId || name ? p : undefined;
