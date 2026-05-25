@@ -7,6 +7,7 @@ import {
 	Loader2,
 	Plus,
 	RefreshCw,
+	Search,
 	Trash2,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -67,9 +68,12 @@ import {
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { AccessDeniedPage } from "@/components/access-denied-page";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 import { formatDateString } from "@/shared/utils/date";
+
+const DEBOUNCE_MS = 400;
 
 export default function ConnectorsPage() {
 	const router = useRouter();
@@ -79,6 +83,9 @@ export default function ConnectorsPage() {
 	const { data: searchSpace } = useGetSearchSpace(searchSpaceIdNum);
 	const today = new Date();
 
+	const [search, setSearch] = useState("");
+	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
+
 	const {
 		connectors,
 		isLoading,
@@ -86,7 +93,7 @@ export default function ConnectorsPage() {
 		deleteConnector,
 		indexConnector,
 		updateConnector,
-	} = useSearchSourceConnectors(false, parseInt(searchSpaceId));
+	} = useSearchSourceConnectors(false, parseInt(searchSpaceId), debouncedSearch || undefined);
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(
 		null,
 	);
@@ -303,6 +310,16 @@ export default function ConnectorsPage() {
 					<Plus className="mr-2 h-4 w-4" />
 					Add Connector
 				</Button>
+			</div>
+
+			<div className="mt-4 relative">
+				<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+				<Input
+					placeholder="Search connectors by name..."
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					className="pl-9 max-w-sm"
+				/>
 			</div>
 
 			<div className="mt-6 space-y-6">

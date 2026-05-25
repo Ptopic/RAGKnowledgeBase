@@ -18,6 +18,10 @@ export const getSearchSourceConnectors =
 			url.searchParams.append("search_space_id", params.search_space_id.toString());
 		}
 
+		if (params?.name) {
+			url.searchParams.append("name", params.name);
+		}
+
 		return request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",

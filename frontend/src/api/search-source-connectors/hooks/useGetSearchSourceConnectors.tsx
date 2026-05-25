@@ -19,7 +19,7 @@ const useGetSearchSourceConnectors = (
 	>,
 ) => {
 	return useQuery<SearchSourceConnector[], Error>({
-		queryKey: [SEARCH_SPACE_CONNECTORS, params?.search_space_id],
+		queryKey: [SEARCH_SPACE_CONNECTORS, params?.search_space_id, params?.name],
 		queryFn: () =>
 			searchSourceConnectorsClientRequests.getSearchSourceConnectors(
 				params || undefined,

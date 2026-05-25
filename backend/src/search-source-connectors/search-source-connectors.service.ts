@@ -6,7 +6,7 @@ import {
 	InternalServerErrorException,
 	NotFoundException,
 } from "@nestjs/common";
-import { SearchSourceConnectorType } from "@prisma/client";
+import { Prisma, SearchSourceConnectorType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
 import {
@@ -88,10 +88,15 @@ export class SearchSourceConnectorsService {
 		skip: number = 0,
 		limit: number = 100,
 		searchSpaceId: number,
+		name?: string,
 	): Promise<SearchSourceConnectorDto[]> {
 		try {
+			const where: Prisma.SearchSourceConnectorWhereInput = { searchSpaceId };
+			if (name) {
+				where.name = { contains: name, mode: "insensitive" };
+			}
 			const connectors = await this.prisma.searchSourceConnector.findMany({
-				where: { searchSpaceId },
+				where,
 				skip,
 				take: limit,
 			});

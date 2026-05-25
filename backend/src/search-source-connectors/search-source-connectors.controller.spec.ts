@@ -62,7 +62,19 @@ describe("SearchSourceConnectorsController", () => {
 
 			await controller.findAll(req);
 
-			expect(connectorsService.findAll).toHaveBeenCalledWith("user-1", 0, 100, 5);
+			expect(connectorsService.findAll).toHaveBeenCalledWith("user-1", 0, 100, 5, undefined);
+		});
+
+		it("should pass name query param to service.findAll", async () => {
+			const req = {
+				user: { id: "user-1" },
+				searchSpaceContext: { searchSpaceId: 5 },
+			} as any;
+			connectorsService.findAll.mockResolvedValue([]);
+
+			await controller.findAll(req, undefined, undefined, "Slack");
+
+			expect(connectorsService.findAll).toHaveBeenCalledWith("user-1", 0, 100, 5, "Slack");
 		});
 	});
 
