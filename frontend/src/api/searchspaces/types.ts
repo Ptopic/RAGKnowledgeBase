@@ -18,6 +18,13 @@ export interface CreateSearchSpaceRequest {
 
 export interface CreateSearchSpaceResponse extends SearchSpace {}
 
+export interface UpdateSearchSpaceRequest {
+	name: string;
+	description?: string;
+}
+
+export interface UpdateSearchSpaceResponse extends SearchSpace {}
+
 export interface Member {
 	id: string;
 	user_id: string;

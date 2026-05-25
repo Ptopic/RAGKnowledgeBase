@@ -62,7 +62,7 @@ export class SearchSpacesController {
 	}
 
 	@Put(":id")
-	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequireSearchSpaceRole(MemberRole.OWNER)
 	async update(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateSearchSpaceDto,

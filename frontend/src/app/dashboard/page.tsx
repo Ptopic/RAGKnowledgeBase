@@ -1,10 +1,19 @@
 "use client";
-import { AlertCircle, CircleX, Loader2, LogOut, Plus, Search, Trash2 } from "lucide-react";
+import {
+	AlertCircle,
+	CircleX,
+	Loader2,
+	LogOut,
+	Pencil,
+	Plus,
+	Search,
+	Trash2,
+} from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import useDeleteSearchSpace from "@/api/searchspaces/hooks/useDeleteSearchSpace";
 import useGetSearchSpaces from "@/api/searchspaces/hooks/useGetSearchSpaces";
 import useLeaveSearchSpace from "@/api/searchspaces/hooks/useLeaveSearchSpace";
@@ -173,19 +182,17 @@ const DashboardPage = () => {
 		q: debouncedSearch.trim() || undefined,
 	});
 
-	const { mutate: deleteSearchSpace } =
-		useDeleteSearchSpace({
-			onSuccess: () => {
-				refreshSearchSpaces();
-			},
-		});
+	const { mutate: deleteSearchSpace } = useDeleteSearchSpace({
+		onSuccess: () => {
+			refreshSearchSpaces();
+		},
+	});
 
-	const { mutate: leaveSearchSpace } =
-		useLeaveSearchSpace({
-			onSuccess: () => {
-				refreshSearchSpaces();
-			},
-		});
+	const { mutate: leaveSearchSpace } = useLeaveSearchSpace({
+		onSuccess: () => {
+			refreshSearchSpaces();
+		},
+	});
 
 	const {
 		data: user,
@@ -219,12 +226,11 @@ const DashboardPage = () => {
 		leaveSearchSpace(id);
 	};
 
-	const renderSpaceCard = (space: (typeof searchSpaces)[0], isShared: boolean) => (
-		<motion.div
-			key={space.id}
-			variants={itemVariants}
-			className="aspect-[4/3]"
-		>
+	const renderSpaceCard = (
+		space: (typeof searchSpaces)[0],
+		isShared: boolean,
+	) => (
+		<motion.div key={space.id} variants={itemVariants} className="aspect-[4/3]">
 			<Tilt
 				rotationFactor={6}
 				isRevese
@@ -246,10 +252,7 @@ const DashboardPage = () => {
 				/>
 				<div className="flex flex-col h-full justify-between overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
 					<div className="relative h-32 w-full overflow-hidden">
-						<Link
-							href={`/dashboard/${space.id}/documents`}
-							key={space.id}
-						>
+						<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
 							<Image
 								src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
 								alt={space.name}
@@ -266,7 +269,17 @@ const DashboardPage = () => {
 								</Badge>
 							)}
 							{!isShared && (
-								<div>
+								<div className="flex items-center gap-1">
+									<Link href={`/dashboard/searchspaces/${space.id}/edit`}>
+										<Button
+											variant="ghost"
+											size="icon"
+											aria-label="Edit search space"
+											className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/20 cursor-pointer"
+										>
+											<Pencil className="h-4 w-4" />
+										</Button>
+									</Link>
 									<AlertDialog>
 										<AlertDialogTrigger asChild>
 											<Button
@@ -287,13 +300,9 @@ const DashboardPage = () => {
 												</AlertDialogDescription>
 											</AlertDialogHeader>
 											<AlertDialogFooter>
-												<AlertDialogCancel>
-													{"Cancel"}
-												</AlertDialogCancel>
+												<AlertDialogCancel>{"Cancel"}</AlertDialogCancel>
 												<AlertDialogAction
-													onClick={() =>
-														handleDeleteSearchSpace(space.id)
-													}
+													onClick={() => handleDeleteSearchSpace(space.id)}
 													className="bg-destructive hover:bg-destructive/90"
 												>
 													{"Delete"}
@@ -304,7 +313,7 @@ const DashboardPage = () => {
 								</div>
 							)}
 							{isShared && (
-								<div>
+								<div className="flex items-center gap-1">
 									<AlertDialog>
 										<AlertDialogTrigger asChild>
 											<Button
@@ -321,17 +330,14 @@ const DashboardPage = () => {
 													{"Leave search space"}
 												</AlertDialogTitle>
 												<AlertDialogDescription>
-													{"Are you sure you want to leave"} {space.name}? {"You will lose access to this search space."}
+													{"Are you sure you want to leave"} {space.name}?{" "}
+													{"You will lose access to this search space."}
 												</AlertDialogDescription>
 											</AlertDialogHeader>
 											<AlertDialogFooter>
-												<AlertDialogCancel>
-													{"Cancel"}
-												</AlertDialogCancel>
+												<AlertDialogCancel>{"Cancel"}</AlertDialogCancel>
 												<AlertDialogAction
-													onClick={() =>
-														handleLeaveSearchSpace(space.id)
-													}
+													onClick={() => handleLeaveSearchSpace(space.id)}
 													className="bg-destructive hover:bg-destructive/90"
 												>
 													{"Leave"}
@@ -350,9 +356,7 @@ const DashboardPage = () => {
 					>
 						<div className="flex flex-1 flex-col justify-between p-1">
 							<div>
-								<h3 className="font-medium text-lg">
-									{space.name}
-								</h3>
+								<h3 className="font-medium text-lg">{space.name}</h3>
 								<p className="mt-1 text-sm text-muted-foreground">
 									{space.description}
 								</p>
@@ -427,7 +431,10 @@ const DashboardPage = () => {
 									</button>
 								)}
 							</motion.div>
-							<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+							<motion.div
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+							>
 								<Link href="/dashboard/searchspaces">
 									<Button className="h-10">
 										<Plus className="mr-2 h-4 w-4" />
@@ -441,30 +448,34 @@ const DashboardPage = () => {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{ownedSpaces.map((space) => renderSpaceCard(space, false))}
 
-						{ownedSpaces.length === 0 && sharedSpaces.length === 0 && !fetching && (
-							<motion.div
-								variants={itemVariants}
-								className="col-span-full flex flex-col items-center justify-center p-12 text-center"
-							>
-								<div className="rounded-full bg-muted/50 p-4 mb-4">
-									<Search className="h-8 w-8 text-muted-foreground" />
-								</div>
-								<h3 className="text-lg font-medium mb-2">
-									{search ? "No matching spaces" : "No spaces found"}
-								</h3>
-								<p className="text-muted-foreground mb-6">
-									{search ? "Try a different search term" : "Create first space"}
-								</p>
-								{!search && (
-									<Link href="/dashboard/searchspaces">
-										<Button>
-											<Plus className="mr-2 h-4 w-4" />
-											{"Create search space"}
-										</Button>
-									</Link>
-								)}
-							</motion.div>
-						)}
+						{ownedSpaces.length === 0 &&
+							sharedSpaces.length === 0 &&
+							!fetching && (
+								<motion.div
+									variants={itemVariants}
+									className="col-span-full flex flex-col items-center justify-center p-12 text-center"
+								>
+									<div className="rounded-full bg-muted/50 p-4 mb-4">
+										<Search className="h-8 w-8 text-muted-foreground" />
+									</div>
+									<h3 className="text-lg font-medium mb-2">
+										{search ? "No matching spaces" : "No spaces found"}
+									</h3>
+									<p className="text-muted-foreground mb-6">
+										{search
+											? "Try a different search term"
+											: "Create first space"}
+									</p>
+									{!search && (
+										<Link href="/dashboard/searchspaces">
+											<Button>
+												<Plus className="mr-2 h-4 w-4" />
+												{"Create search space"}
+											</Button>
+										</Link>
+									)}
+								</motion.div>
+							)}
 
 						{ownedSpaces.length > 0 && (
 							<motion.div variants={itemVariants} className="aspect-[4/3]">
