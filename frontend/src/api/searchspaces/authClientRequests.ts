@@ -1,4 +1,7 @@
-import { withAuthenticatedClientRequest, withClientRequest } from "@api/requestBuilder/client/withClientRequest";
+import {
+	withAuthenticatedClientRequest,
+	withClientRequest,
+} from "@api/requestBuilder/client/withClientRequest";
 import {
 	acceptInvitation,
 	cancelInvitation,
@@ -16,6 +19,7 @@ import {
 	leaveSearchSpace,
 	removeMember,
 	updateMemberRole,
+	updateSearchSpace,
 } from "./requests";
 
 const searchSpacesClientRequests = {
@@ -23,6 +27,7 @@ const searchSpacesClientRequests = {
 	getSearchSpace: withAuthenticatedClientRequest(getSearchSpace),
 	createSearchSpace: withAuthenticatedClientRequest(createSearchSpace),
 	deleteSearchSpace: withAuthenticatedClientRequest(deleteSearchSpace),
+	updateSearchSpace: withAuthenticatedClientRequest(updateSearchSpace),
 	getMembers: withAuthenticatedClientRequest(getMembers),
 	inviteMember: withAuthenticatedClientRequest(inviteMember),
 	updateMemberRole: withAuthenticatedClientRequest(updateMemberRole),
