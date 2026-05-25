@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MemberRole } from "@prisma/client";
 import { ChatsController } from "./chats.controller";
-import { CreateChatDto, UpdateChatDto, ToggleFavoriteDto } from "./dtos/chat.dto";
+import { CreateChatDto, UpdateChatDto, ToggleFavoriteDto, BulkDeleteChatsDto } from "./dtos/chat.dto";
 import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 
@@ -27,6 +27,7 @@ describe("ChatsController", () => {
 			findOne: jest.fn(),
 			update: jest.fn(),
 			remove: jest.fn(),
+			bulkRemove: jest.fn(),
 			addFavorite: jest.fn(),
 			removeFavorite: jest.fn(),
 			findFavorites: jest.fn(),
@@ -146,6 +147,42 @@ describe("ChatsController", () => {
 			await controller.findOne(1, req);
 
 			expect(chatsService.findOne).toHaveBeenCalledWith(1, "user-1");
+		});
+	});
+
+	describe("DELETE /chats/bulk", () => {
+		it("should call service.bulkRemove with ids and userId", async () => {
+			const dto: BulkDeleteChatsDto = { ids: [1, 2, 3] };
+			const req = {
+				user: { id: "user-1" },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+			} as any;
+			chatsService.bulkRemove.mockResolvedValue({
+				deleted: [1, 2, 3],
+				failed: [],
+			});
+
+			const result = await controller.bulkRemove(dto, req);
+
+			expect(chatsService.bulkRemove).toHaveBeenCalledWith([1, 2, 3], "user-1");
+			expect(result.deleted).toEqual([1, 2, 3]);
+			expect(result.failed).toEqual([]);
+		});
+
+		it("should pass VIEWER membership (bulk delete requires VIEWER+, service enforces ownership)", async () => {
+			const dto: BulkDeleteChatsDto = { ids: [1] };
+			const req = {
+				user: { id: "user-viewer" },
+				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+			} as any;
+			chatsService.bulkRemove.mockResolvedValue({
+				deleted: [1],
+				failed: [],
+			});
+
+			await controller.bulkRemove(dto, req);
+
+			expect(chatsService.bulkRemove).toHaveBeenCalledWith([1], "user-viewer");
 		});
 	});
 

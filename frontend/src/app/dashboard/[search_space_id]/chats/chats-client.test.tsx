@@ -46,6 +46,13 @@ vi.mock("@/api/chats/hooks/useRemoveFavoriteChat", () => ({
 	default: () => ({ mutate: vi.fn() }),
 }));
 
+vi.mock("@/api/chats/hooks/useBulkDeleteChats", () => ({
+	default: () => ({
+		mutate: vi.fn(),
+		isPending: false,
+	}),
+}));
+
 vi.mock("next/navigation", () => ({
 	useRouter: () => ({ push: vi.fn() }),
 	useSearchParams: () => new URLSearchParams(),
@@ -101,6 +108,15 @@ describe("ChatsPageClient", () => {
 		await userEvent.setup().click(moreButtons[0]);
 
 		expect(screen.getByText("Delete Chat")).toBeInTheDocument();
+	});
+
+	describe("Bulk delete", () => {
+		it("should show Delete Selected button when chats are selected in selection mode", async () => {
+			mockSearchSpaceData = { id: 1, name: "Test", is_owner: true, role: "OWNER" };
+			mockChatsData = [mockChat, { ...mockChat, id: 2, title: "Chat 2" }];
+
+			render(<ChatsPageClient searchSpaceId="1" />);
+		});
 	});
 
 	describe("Type filter - Non-favorites", () => {

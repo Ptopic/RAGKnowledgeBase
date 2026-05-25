@@ -24,6 +24,10 @@ import {
 	ToggleFavoriteDto,
 	UpdateChatDto,
 } from "./dtos/chat.dto";
+import {
+	BulkDeleteChatsDto,
+	BulkDeleteResponseDto,
+} from "./dtos/chat.dto";
 
 @Controller()
 @UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
@@ -58,6 +62,15 @@ export class ChatsController {
 			limitNum,
 			req.searchSpaceContext.searchSpaceId,
 		);
+	}
+
+	@Post("chats/bulk-delete")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
+	async bulkRemove(
+		@Body() bulkDeleteDto: BulkDeleteChatsDto,
+		@Req() req: any,
+	): Promise<BulkDeleteResponseDto> {
+		return this.chatsService.bulkRemove(bulkDeleteDto.ids, req.user.id);
 	}
 
 	@Get("chats/:id")

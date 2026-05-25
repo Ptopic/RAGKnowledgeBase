@@ -16,6 +16,7 @@ import {
 	CreateChatDto,
 	UpdateChatDto,
 } from "./dtos/chat.dto";
+import { BulkDeleteResponseDto } from "./dtos/chat.dto";
 
 @Injectable()
 export class ChatsService {
@@ -182,6 +183,62 @@ export class ChatsService {
 				`Failed to delete chat: ${error.message}`,
 			);
 		}
+	}
+
+	async bulkRemove(
+		ids: number[],
+		userId: string,
+	): Promise<BulkDeleteResponseDto> {
+		if (!ids || ids.length === 0) {
+			throw new BadRequestException("ids array must not be empty");
+		}
+
+		const results = await Promise.allSettled(
+			ids.map(async (id) => {
+				const chat = await this.prisma.chat.findFirst({
+					where: { id, userId },
+				});
+
+				if (!chat) {
+					throw new NotFoundException(
+						"Chat not found or you do not have permission to access it",
+					);
+				}
+
+				await this.prisma.chat.delete({
+					where: { id },
+				});
+
+				return id;
+			}),
+		);
+
+		const deleted: number[] = [];
+		const failed: Array<{ id: number; reason: string }> = [];
+
+		results.forEach((result, index) => {
+			const id = ids[index];
+			if (result.status === "fulfilled") {
+				deleted.push(result.value);
+			} else {
+				const reason =
+					result.reason instanceof Error
+						? result.reason.message
+						: String(result.reason);
+				failed.push({ id, reason });
+			}
+		});
+
+		let message: string;
+		if (failed.length === 0) {
+			message = `${deleted.length} chat(s) deleted successfully`;
+		} else if (deleted.length === 0) {
+			message = `${failed.length} chat(s) failed to delete`;
+		} else {
+			message = `${deleted.length} of ${ids.length} chat(s) deleted, ${failed.length} failed`;
+		}
+
+		return { deleted, failed, message };
 	}
 
 	async addFavorite(chatId: number, userId: string): Promise<ChatDto> {

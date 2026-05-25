@@ -5,18 +5,21 @@ import {
 	Calendar,
 	CheckCircle,
 	Circle,
+	CircleAlert,
 	ExternalLink,
 	MessageCircleMore,
 	MoreHorizontal,
 	Search,
 	Star,
 	Tag,
+	Trash,
 	Trash2,
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import useDeleteChat from "@/api/chats/hooks/useDeleteChat";
+import useBulkDeleteChats from "@/api/chats/hooks/useBulkDeleteChats";
 import useGetChats from "@/api/chats/hooks/useGetChats";
 import useAddFavoriteChat from "@/api/chats/hooks/useAddFavoriteChat";
 import useRemoveFavoriteChat from "@/api/chats/hooks/useRemoveFavoriteChat";
@@ -37,6 +40,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -95,6 +109,7 @@ export default function ChatsPageClient({
 	const [selectedType, setSelectedType] = useState<string>("all");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{
 		id: number;
 		title: string;
@@ -114,6 +129,7 @@ export default function ChatsPageClient({
 	});
 	const { mutate: addFavoriteChat } = useAddFavoriteChat();
 	const { mutate: removeFavoriteChat } = useRemoveFavoriteChat();
+	const { mutate: bulkDeleteChats, isPending: isBulkDeleting } = useBulkDeleteChats();
 
 	const searchSpaceIdNum = parseInt(searchSpaceId, 10);
 
@@ -186,6 +202,21 @@ export default function ChatsPageClient({
 	const handleDeleteChat = () => {
 		if (!chatToDelete) return;
 		deleteChat({ id: chatToDelete.id, searchSpaceId: searchSpaceIdNum });
+	};
+
+	// Function to handle bulk chat deletion
+	const handleBulkDeleteChats = () => {
+		if (selectedChats.length === 0) return;
+		bulkDeleteChats(
+			{ ids: selectedChats, search_space_id: searchSpaceIdNum },
+			{
+				onSettled: () => {
+					setBulkDeleteDialogOpen(false);
+					setSelectedChats([]);
+					setSelectionMode(false);
+				},
+			},
+		);
 	};
 
 	// Calculate pagination
@@ -280,6 +311,39 @@ export default function ChatsPageClient({
 					<div className="flex items-center gap-2">
 						{selectionMode ? (
 							<>
+								{selectedChats.length > 0 && (
+									<AlertDialog>
+										<AlertDialogTrigger asChild>
+											<Button variant="outline" size="sm" className="gap-1 text-destructive hover:text-destructive">
+												<Trash className="h-4 w-4" />
+												Delete Selected
+												<span className="-me-1 ms-1 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 text-[0.625rem] font-medium text-muted-foreground/70">
+													{selectedChats.length}
+												</span>
+											</Button>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+												<AlertDialogDescription>
+													This action cannot be undone. This will permanently delete{" "}
+													{selectedChats.length} selected chat
+													{selectedChats.length === 1 ? "" : "s"}.
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>Cancel</AlertDialogCancel>
+												<AlertDialogAction
+													onClick={handleBulkDeleteChats}
+													disabled={isBulkDeleting}
+													className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+												>
+													{isBulkDeleting ? "Deleting..." : "Delete"}
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
+								)}
 								<Button
 									variant="outline"
 									size="sm"

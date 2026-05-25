@@ -5,7 +5,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
 import { CreateChatDto, UpdateChatDto } from "./dtos/chat.dto";
-import { NotFoundException, ForbiddenException } from "@nestjs/common";
+import { NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 
 describe("ChatsService", () => {
 	let service: ChatsService;
@@ -278,6 +278,94 @@ describe("ChatsService", () => {
 
 			await expect(service.remove(1, "user-2")).rejects.toThrow(NotFoundException);
 			expect(prisma.chat.delete).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("bulkRemove", () => {
+		it("should delete multiple chats owned by the user and return deleted ids", async () => {
+			prisma.chat.findFirst
+				.mockResolvedValueOnce({
+					id: 1,
+					type: "QNA",
+					title: "Chat 1",
+					initialConnectors: [],
+					messages: [],
+					searchSpaceId: 1,
+					userId: "user-1",
+					createdAt: new Date(),
+				})
+				.mockResolvedValueOnce({
+					id: 2,
+					type: "QNA",
+					title: "Chat 2",
+					initialConnectors: [],
+					messages: [],
+					searchSpaceId: 1,
+					userId: "user-1",
+					createdAt: new Date(),
+				});
+			prisma.chat.delete.mockResolvedValue({});
+
+			const result = await service.bulkRemove([1, 2], "user-1");
+
+			expect(result.deleted).toEqual([1, 2]);
+			expect(result.failed).toEqual([]);
+			expect(prisma.chat.findFirst).toHaveBeenCalledTimes(2);
+			expect(prisma.chat.delete).toHaveBeenCalledTimes(2);
+		});
+
+		it("should return failed entries for chats not found or not owned", async () => {
+			prisma.chat.findFirst
+				.mockResolvedValueOnce(null)
+				.mockResolvedValueOnce(null);
+			prisma.chat.delete.mockResolvedValue({});
+
+			const result = await service.bulkRemove([999, 1000], "user-1");
+
+			expect(result.deleted).toEqual([]);
+			expect(result.failed).toEqual([
+				{ id: 999, reason: "Chat not found or you do not have permission to access it" },
+				{ id: 1000, reason: "Chat not found or you do not have permission to access it" },
+			]);
+			expect(prisma.chat.delete).not.toHaveBeenCalled();
+		});
+
+		it("should handle mixed success and failure", async () => {
+			prisma.chat.findFirst
+				.mockResolvedValueOnce({
+					id: 1,
+					type: "QNA",
+					title: "Chat 1",
+					initialConnectors: [],
+					messages: [],
+					searchSpaceId: 1,
+					userId: "user-1",
+					createdAt: new Date(),
+				})
+				.mockResolvedValueOnce(null)
+				.mockResolvedValueOnce({
+					id: 3,
+					type: "QNA",
+					title: "Chat 3",
+					initialConnectors: [],
+					messages: [],
+					searchSpaceId: 1,
+					userId: "user-1",
+					createdAt: new Date(),
+				});
+			prisma.chat.delete.mockResolvedValue({});
+
+			const result = await service.bulkRemove([1, 2, 3], "user-1");
+
+			expect(result.deleted).toEqual([1, 3]);
+			expect(result.failed).toEqual([
+				{ id: 2, reason: "Chat not found or you do not have permission to access it" },
+			]);
+		});
+
+		it("should throw BadRequestException when ids array is empty", async () => {
+			await expect(service.bulkRemove([], "user-1")).rejects.toThrow(BadRequestException);
+			await expect(service.bulkRemove([], "user-1")).rejects.toThrow("ids array must not be empty");
 		});
 	});
 

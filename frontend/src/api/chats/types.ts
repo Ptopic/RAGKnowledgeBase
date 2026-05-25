@@ -48,3 +48,14 @@ export interface UpdateChatRequest {
 	messages: Message[];
 	search_space_id: number;
 }
+
+export interface BulkDeleteChatsParams {
+	ids: number[];
+	searchSpaceId: number;
+}
+
+export interface BulkDeleteChatsResponse {
+	deleted: number[];
+	failed: Array<{ id: number; reason: string }>;
+	message: string;
+}

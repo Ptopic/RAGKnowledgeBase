@@ -1,6 +1,8 @@
 import { ChatType } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
+	ArrayMaxSize,
+	ArrayMinSize,
 	IsArray,
 	IsEnum,
 	IsInt,
@@ -123,5 +125,20 @@ export class ToggleFavoriteDto {}
 
 export class FavoriteChatResponseDto {
 	@IsString()
+	message: string;
+}
+
+export class BulkDeleteChatsDto {
+	@IsArray()
+	@ArrayMinSize(1)
+	@ArrayMaxSize(100)
+	@Type(() => Number)
+	@IsInt({ each: true })
+	ids: number[];
+}
+
+export interface BulkDeleteResponseDto {
+	deleted: number[];
+	failed: Array<{ id: number; reason: string }>;
 	message: string;
 }
