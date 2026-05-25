@@ -1,6 +1,7 @@
 "use client";
 import {
 	AlertCircle,
+	CircleX,
 	Loader2,
 	LogOut,
 	Pencil,
@@ -8,12 +9,11 @@ import {
 	Search,
 	Trash2,
 } from "lucide-react";
-import { AlertCircle, CircleX, Loader2, LogOut, Plus, Search, Trash2 } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import useDeleteSearchSpace from "@/api/searchspaces/hooks/useDeleteSearchSpace";
 import useGetSearchSpaces from "@/api/searchspaces/hooks/useGetSearchSpaces";
 import useLeaveSearchSpace from "@/api/searchspaces/hooks/useLeaveSearchSpace";
@@ -431,7 +431,10 @@ const DashboardPage = () => {
 									</button>
 								)}
 							</motion.div>
-							<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+							<motion.div
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+							>
 								<Link href="/dashboard/searchspaces">
 									<Button className="h-10">
 										<Plus className="mr-2 h-4 w-4" />
@@ -445,30 +448,34 @@ const DashboardPage = () => {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{ownedSpaces.map((space) => renderSpaceCard(space, false))}
 
-						{ownedSpaces.length === 0 && sharedSpaces.length === 0 && !fetching && (
-							<motion.div
-								variants={itemVariants}
-								className="col-span-full flex flex-col items-center justify-center p-12 text-center"
-							>
-								<div className="rounded-full bg-muted/50 p-4 mb-4">
-									<Search className="h-8 w-8 text-muted-foreground" />
-								</div>
-								<h3 className="text-lg font-medium mb-2">
-									{search ? "No matching spaces" : "No spaces found"}
-								</h3>
-								<p className="text-muted-foreground mb-6">
-									{search ? "Try a different search term" : "Create first space"}
-								</p>
-								{!search && (
-									<Link href="/dashboard/searchspaces">
-										<Button>
-											<Plus className="mr-2 h-4 w-4" />
-											{"Create search space"}
-										</Button>
-									</Link>
-								)}
-							</motion.div>
-						)}
+						{ownedSpaces.length === 0 &&
+							sharedSpaces.length === 0 &&
+							!fetching && (
+								<motion.div
+									variants={itemVariants}
+									className="col-span-full flex flex-col items-center justify-center p-12 text-center"
+								>
+									<div className="rounded-full bg-muted/50 p-4 mb-4">
+										<Search className="h-8 w-8 text-muted-foreground" />
+									</div>
+									<h3 className="text-lg font-medium mb-2">
+										{search ? "No matching spaces" : "No spaces found"}
+									</h3>
+									<p className="text-muted-foreground mb-6">
+										{search
+											? "Try a different search term"
+											: "Create first space"}
+									</p>
+									{!search && (
+										<Link href="/dashboard/searchspaces">
+											<Button>
+												<Plus className="mr-2 h-4 w-4" />
+												{"Create search space"}
+											</Button>
+										</Link>
+									)}
+								</motion.div>
+							)}
 
 						{ownedSpaces.length > 0 && (
 							<motion.div variants={itemVariants} className="aspect-[4/3]">
