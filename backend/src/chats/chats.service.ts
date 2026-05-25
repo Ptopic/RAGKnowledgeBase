@@ -7,10 +7,11 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { PrismaService } from "../prisma/prisma.service";
-import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
+import { PermissionsService } from "../permissions/permissions.service";
+import { PrismaService } from "../prisma/prisma.service";
 import {
+	BulkDeleteResponseDto,
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
@@ -182,6 +183,48 @@ export class ChatsService {
 				`Failed to delete chat: ${error.message}`,
 			);
 		}
+	}
+
+	async bulkRemove(
+		ids: number[],
+		userId: string,
+		searchSpaceId: number,
+	): Promise<BulkDeleteResponseDto> {
+		if (!ids || ids.length === 0) {
+			throw new BadRequestException("ids array must not be empty");
+		}
+
+		const ownedChats = await this.prisma.chat.findMany({
+			where: { id: { in: ids }, userId, searchSpaceId },
+			select: { id: true },
+		});
+
+		const ownedIds = ownedChats.map((chat) => chat.id);
+		const deleted = ownedIds;
+
+		if (ownedIds.length > 0) {
+			await this.prisma.chat.deleteMany({
+				where: { id: { in: ownedIds } },
+			});
+		}
+
+		const failed: Array<{ id: number; reason: string }> = ids
+			.filter((id) => !ownedIds.includes(id))
+			.map((id) => ({
+				id,
+				reason: "Chat not found or you do not have permission to access it",
+			}));
+
+		let message: string;
+		if (failed.length === 0) {
+			message = `${deleted.length} chat(s) deleted successfully`;
+		} else if (deleted.length === 0) {
+			message = `${failed.length} chat(s) failed to delete`;
+		} else {
+			message = `${deleted.length} of ${ids.length} chat(s) deleted, ${failed.length} failed`;
+		}
+
+		return { deleted, failed, message };
 	}
 
 	async addFavorite(chatId: number, userId: string): Promise<ChatDto> {

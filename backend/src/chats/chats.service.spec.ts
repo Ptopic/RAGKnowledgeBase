@@ -5,7 +5,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
 import { CreateChatDto, UpdateChatDto } from "./dtos/chat.dto";
-import { NotFoundException, ForbiddenException } from "@nestjs/common";
+import { NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 
 describe("ChatsService", () => {
 	let service: ChatsService;
@@ -38,6 +38,7 @@ describe("ChatsService", () => {
 				findFirst: jest.fn(),
 				update: jest.fn(),
 				delete: jest.fn(),
+				deleteMany: jest.fn(),
 			},
 			userChatFavorite: {
 				create: jest.fn(),
@@ -278,6 +279,75 @@ describe("ChatsService", () => {
 
 			await expect(service.remove(1, "user-2")).rejects.toThrow(NotFoundException);
 			expect(prisma.chat.delete).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("bulkRemove", () => {
+		it("should delete multiple chats owned by the user in the search space and return deleted ids", async () => {
+			prisma.chat.findMany.mockResolvedValue([
+				{ id: 1 },
+				{ id: 2 },
+			]);
+			prisma.chat.deleteMany.mockResolvedValue({ count: 2 });
+
+			const result = await service.bulkRemove([1, 2], "user-1", 1);
+
+			expect(result.deleted).toEqual([1, 2]);
+			expect(result.failed).toEqual([]);
+			expect(prisma.chat.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: { in: [1, 2] }, userId: "user-1", searchSpaceId: 1 },
+				}),
+			);
+			expect(prisma.chat.deleteMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: { in: [1, 2] } },
+				}),
+			);
+		});
+
+		it("should return failed entries for chats not found or not owned", async () => {
+			prisma.chat.findMany.mockResolvedValue([]);
+			prisma.chat.deleteMany.mockResolvedValue({ count: 0 });
+
+			const result = await service.bulkRemove([999, 1000], "user-1", 1);
+
+			expect(result.deleted).toEqual([]);
+			expect(result.failed).toEqual([
+				{ id: 999, reason: "Chat not found or you do not have permission to access it" },
+				{ id: 1000, reason: "Chat not found or you do not have permission to access it" },
+			]);
+			expect(prisma.chat.deleteMany).not.toHaveBeenCalled();
+		});
+
+		it("should handle mixed success and failure", async () => {
+			prisma.chat.findMany.mockResolvedValue([{ id: 1 }, { id: 3 }]);
+			prisma.chat.deleteMany.mockResolvedValue({ count: 2 });
+
+			const result = await service.bulkRemove([1, 2, 3], "user-1", 1);
+
+			expect(result.deleted).toEqual([1, 3]);
+			expect(result.failed).toEqual([
+				{ id: 2, reason: "Chat not found or you do not have permission to access it" },
+			]);
+		});
+
+		it("should scope by searchSpaceId to prevent cross-space deletion", async () => {
+			prisma.chat.findMany.mockResolvedValue([{ id: 1 }]);
+			prisma.chat.deleteMany.mockResolvedValue({ count: 1 });
+
+			await service.bulkRemove([1, 2], "user-1", 5);
+
+			expect(prisma.chat.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: { id: { in: [1, 2] }, userId: "user-1", searchSpaceId: 5 },
+				}),
+			);
+		});
+
+		it("should throw BadRequestException when ids array is empty", async () => {
+			await expect(service.bulkRemove([], "user-1", 1)).rejects.toThrow(BadRequestException);
+			await expect(service.bulkRemove([], "user-1", 1)).rejects.toThrow("ids array must not be empty");
 		});
 	});
 

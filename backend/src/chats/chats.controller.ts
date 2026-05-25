@@ -13,10 +13,12 @@ import {
 } from "@nestjs/common";
 import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
-import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
+import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { ChatsService } from "./chats.service";
 import {
+	BulkDeleteChatsDto,
+	BulkDeleteResponseDto,
 	ChatDto,
 	ChatWithoutMessagesDto,
 	CreateChatDto,
@@ -56,6 +58,19 @@ export class ChatsController {
 			req.user.id,
 			skipNum,
 			limitNum,
+			req.searchSpaceContext.searchSpaceId,
+		);
+	}
+
+	@Delete("chats/bulk")
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
+	async bulkRemove(
+		@Body() bulkDeleteDto: BulkDeleteChatsDto,
+		@Req() req: any,
+	): Promise<BulkDeleteResponseDto> {
+		return this.chatsService.bulkRemove(
+			bulkDeleteDto.ids,
+			req.user.id,
 			req.searchSpaceContext.searchSpaceId,
 		);
 	}

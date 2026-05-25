@@ -2,6 +2,8 @@ import type { ICallableRequestBuilder } from "@requestBuilder/types";
 
 import config from "@shared/config";
 import type {
+	BulkDeleteChatsParams,
+	BulkDeleteChatsResponse,
 	Chat,
 	ChatDetails,
 	CreateChatRequest,
@@ -91,3 +93,16 @@ export const getFavoriteChats =
 				method: "GET",
 			}),
 		);
+
+export const bulkDeleteChats =
+	(request: ICallableRequestBuilder<BulkDeleteChatsResponse>) =>
+	async (data: BulkDeleteChatsParams) =>
+		request.call(`${config.apiUrl}/chats/bulk?search_space_id=${data.search_space_id}`, (init) => ({
+			...init,
+			method: "DELETE",
+			headers: {
+				...init.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ ids: data.ids }),
+		}));
