@@ -167,30 +167,30 @@ export default function ConnectorsPage() {
 	};
 
 	return (
-        <div className="container mx-auto py-12 max-w-6xl">
-			<motion.div
-				initial={{ opacity: 0, y: 30 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{
-					duration: 0.6,
-					ease: [0.22, 1, 0.36, 1],
-				}}
-				className="mb-12 text-center"
-			>
-				<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-					Add Connector
-				</h1>
-				<p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">
-					Connect your favorite tools and services to your knowledge base
-				</p>
-			</motion.div>
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.3 }}
+			className="w-full px-6 py-4"
+		>
+			<div className="flex items-center justify-between">
+				<div>
+					<h1 className="text-3xl font-bold tracking-tight">
+						Add Connector
+					</h1>
+					<p className="text-muted-foreground mt-2">
+						Connect your favorite tools and services to your knowledge base
+					</p>
+				</div>
+			</div>
 
-			<motion.div
-				className="space-y-8"
-				initial="hidden"
-				animate="visible"
-				variants={staggerContainer}
-			>
+			<div className="mt-6 space-y-6">
+				<motion.div
+					className="space-y-8"
+					initial="hidden"
+					animate="visible"
+					variants={staggerContainer}
+				>
 				{connectorCategories.map((category) => (
 					<motion.div
 						key={category.id}
@@ -342,6 +342,7 @@ export default function ConnectorsPage() {
 					</motion.div>
 				))}
 			</motion.div>
-		</div>
-    );
+			</div>
+		</motion.div>
+	);
 }

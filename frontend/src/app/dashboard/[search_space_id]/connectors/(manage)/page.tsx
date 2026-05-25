@@ -10,6 +10,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -26,13 +27,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -278,15 +272,25 @@ export default function ConnectorsPage() {
 	};
 
 	return (
-		<div className="container mx-auto py-8 max-w-6xl">
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5 }}
-				className="mb-8 flex items-center justify-between"
-			>
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.3 }}
+			className="w-full px-6 py-4"
+		>
+			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold tracking-tight">Connectors</h1>
+					<div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+						<Link
+							href={`/dashboard/${searchSpaceId}/connectors`}
+							className="hover:underline"
+						>
+							Connectors
+						</Link>
+					</div>
+					<h1 className="text-3xl font-bold tracking-tight">
+						Manage Connectors
+					</h1>
 					<p className="text-muted-foreground mt-2">
 						Manage your connected services and data sources
 					</p>
@@ -299,40 +303,33 @@ export default function ConnectorsPage() {
 					<Plus className="mr-2 h-4 w-4" />
 					Add Connector
 				</Button>
-			</motion.div>
+			</div>
 
-			<Card>
-				<CardHeader className="pb-3">
-					<CardTitle>Your Connectors</CardTitle>
-					<CardDescription>
-						View and manage your connected services
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{isLoading ? (
-						<div className="flex justify-center py-8">
-							<div className="animate-pulse text-center">
-								<div className="h-6 w-32 bg-muted rounded mx-auto mb-2"></div>
-								<div className="h-4 w-48 bg-muted rounded mx-auto"></div>
-							</div>
+			<div className="mt-6 space-y-6">
+				{isLoading ? (
+					<div className="flex justify-center py-8">
+						<div className="animate-pulse text-center">
+							<div className="h-6 w-32 bg-muted rounded mx-auto mb-2"></div>
+							<div className="h-4 w-48 bg-muted rounded mx-auto"></div>
 						</div>
-					) : connectors.length === 0 ? (
-						<div className="text-center py-12">
-							<h3 className="text-lg font-medium mb-2">No connectors</h3>
-							<p className="text-muted-foreground mb-6">
-								Get started by adding your first connector
-							</p>
-							<Button
-								onClick={() =>
-									router.push(`/dashboard/${searchSpaceId}/connectors/add`)
-								}
-							>
-								<Plus className="mr-2 h-4 w-4" />
-								Add Your First Connector
-							</Button>
-						</div>
-					) : (
-						<div className="rounded-md border">
+					</div>
+				) : connectors.length === 0 ? (
+					<div className="text-center py-12">
+						<h3 className="text-lg font-medium mb-2">No connectors</h3>
+						<p className="text-muted-foreground mb-6">
+							Get started by adding your first connector
+						</p>
+						<Button
+							onClick={() =>
+								router.push(`/dashboard/${searchSpaceId}/connectors/add`)
+							}
+						>
+							<Plus className="mr-2 h-4 w-4" />
+							Add Your First Connector
+						</Button>
+					</div>
+				) : (
+					<div className="rounded-md border overflow-hidden">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -545,10 +542,9 @@ export default function ConnectorsPage() {
 									))}
 								</TableBody>
 							</Table>
-						</div>
-					)}
-				</CardContent>
-			</Card>
+					</div>
+				)}
+			</div>
 
 			{/* Date Picker Dialog */}
 			<Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
@@ -781,6 +777,6 @@ export default function ConnectorsPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</div>
+		</motion.div>
 	);
 }
