@@ -151,20 +151,21 @@ describe("ChatsController", () => {
 	});
 
 	describe("DELETE /chats/bulk", () => {
-		it("should call service.bulkRemove with ids and userId", async () => {
+		it("should call service.bulkRemove with ids, userId, and searchSpaceId", async () => {
 			const dto: BulkDeleteChatsDto = { ids: [1, 2, 3] };
 			const req = {
 				user: { id: "user-1" },
-				searchSpaceContext: { searchSpaceId: 1, membership: viewerMembership },
+				searchSpaceContext: { searchSpaceId: 5, membership: viewerMembership },
 			} as any;
 			chatsService.bulkRemove.mockResolvedValue({
 				deleted: [1, 2, 3],
 				failed: [],
+				message: "3 chat(s) deleted successfully",
 			});
 
 			const result = await controller.bulkRemove(dto, req);
 
-			expect(chatsService.bulkRemove).toHaveBeenCalledWith([1, 2, 3], "user-1");
+			expect(chatsService.bulkRemove).toHaveBeenCalledWith([1, 2, 3], "user-1", 5);
 			expect(result.deleted).toEqual([1, 2, 3]);
 			expect(result.failed).toEqual([]);
 		});
@@ -178,11 +179,12 @@ describe("ChatsController", () => {
 			chatsService.bulkRemove.mockResolvedValue({
 				deleted: [1],
 				failed: [],
+				message: "1 chat(s) deleted successfully",
 			});
 
 			await controller.bulkRemove(dto, req);
 
-			expect(chatsService.bulkRemove).toHaveBeenCalledWith([1], "user-viewer");
+			expect(chatsService.bulkRemove).toHaveBeenCalledWith([1], "user-viewer", 1);
 		});
 	});
 

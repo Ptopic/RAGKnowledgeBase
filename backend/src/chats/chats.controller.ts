@@ -68,7 +68,11 @@ export class ChatsController {
 		@Body() bulkDeleteDto: BulkDeleteChatsDto,
 		@Req() req: any,
 	): Promise<BulkDeleteResponseDto> {
-		return this.chatsService.bulkRemove(bulkDeleteDto.ids, req.user.id);
+		return this.chatsService.bulkRemove(
+			bulkDeleteDto.ids,
+			req.user.id,
+			req.searchSpaceContext.searchSpaceId,
+		);
 	}
 
 	@Get("chats/:id")

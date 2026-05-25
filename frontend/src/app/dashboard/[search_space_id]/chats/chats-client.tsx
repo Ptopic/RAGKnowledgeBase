@@ -5,7 +5,6 @@ import {
 	Calendar,
 	CheckCircle,
 	Circle,
-	CircleAlert,
 	ExternalLink,
 	MessageCircleMore,
 	MoreHorizontal,
@@ -312,7 +311,7 @@ export default function ChatsPageClient({
 						{selectionMode ? (
 							<>
 								{selectedChats.length > 0 && (
-									<AlertDialog>
+									<AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
 										<AlertDialogTrigger asChild>
 											<Button variant="outline" size="sm" className="gap-1 text-destructive hover:text-destructive">
 												<Trash className="h-4 w-4" />
@@ -334,7 +333,10 @@ export default function ChatsPageClient({
 											<AlertDialogFooter>
 												<AlertDialogCancel>Cancel</AlertDialogCancel>
 												<AlertDialogAction
-													onClick={handleBulkDeleteChats}
+													onClick={(e) => {
+														e.preventDefault();
+														handleBulkDeleteChats();
+													}}
 													disabled={isBulkDeleting}
 													className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 												>
@@ -362,6 +364,15 @@ export default function ChatsPageClient({
 							</>
 						) : (
 							<>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setSelectionMode(true)}
+									className="gap-1"
+								>
+									<CheckCircle className="h-4 w-4" />
+									Select
+								</Button>
 								<Select value={sortOrder} onValueChange={setSortOrder}>
 									<SelectTrigger className="w-40">
 										<SelectValue placeholder="Sort order" />

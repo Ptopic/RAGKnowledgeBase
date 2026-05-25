@@ -111,11 +111,22 @@ describe("ChatsPageClient", () => {
 	});
 
 	describe("Bulk delete", () => {
-		it("should show Delete Selected button when chats are selected in selection mode", async () => {
+		it("should show Delete Selected button after entering selection mode and selecting chats", async () => {
 			mockSearchSpaceData = { id: 1, name: "Test", is_owner: true, role: "OWNER" };
 			mockChatsData = [mockChat, { ...mockChat, id: 2, title: "Chat 2" }];
 
+			const user = userEvent.setup();
 			render(<ChatsPageClient searchSpaceId="1" />);
+
+			expect(screen.queryByText("Delete Selected")).not.toBeInTheDocument();
+
+			const selectButton = screen.getByRole("button", { name: /select/i });
+			await user.click(selectButton);
+
+			const chatCards = screen.getAllByText("Test Chat");
+			await user.click(chatCards[0]);
+
+			expect(screen.getByText("Delete Selected")).toBeInTheDocument();
 		});
 	});
 

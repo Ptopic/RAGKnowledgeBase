@@ -188,46 +188,32 @@ export class ChatsService {
 	async bulkRemove(
 		ids: number[],
 		userId: string,
+		searchSpaceId: number,
 	): Promise<BulkDeleteResponseDto> {
 		if (!ids || ids.length === 0) {
 			throw new BadRequestException("ids array must not be empty");
 		}
 
-		const results = await Promise.allSettled(
-			ids.map(async (id) => {
-				const chat = await this.prisma.chat.findFirst({
-					where: { id, userId },
-				});
-
-				if (!chat) {
-					throw new NotFoundException(
-						"Chat not found or you do not have permission to access it",
-					);
-				}
-
-				await this.prisma.chat.delete({
-					where: { id },
-				});
-
-				return id;
-			}),
-		);
-
-		const deleted: number[] = [];
-		const failed: Array<{ id: number; reason: string }> = [];
-
-		results.forEach((result, index) => {
-			const id = ids[index];
-			if (result.status === "fulfilled") {
-				deleted.push(result.value);
-			} else {
-				const reason =
-					result.reason instanceof Error
-						? result.reason.message
-						: String(result.reason);
-				failed.push({ id, reason });
-			}
+		const ownedChats = await this.prisma.chat.findMany({
+			where: { id: { in: ids }, userId, searchSpaceId },
+			select: { id: true },
 		});
+
+		const ownedIds = ownedChats.map((chat) => chat.id);
+		const deleted = ownedIds;
+
+		if (ownedIds.length > 0) {
+			await this.prisma.chat.deleteMany({
+				where: { id: { in: ownedIds } },
+			});
+		}
+
+		const failed: Array<{ id: number; reason: string }> = ids
+			.filter((id) => !ownedIds.includes(id))
+			.map((id) => ({
+				id,
+				reason: "Chat not found or you do not have permission to access it",
+			}));
 
 		let message: string;
 		if (failed.length === 0) {
