@@ -330,16 +330,6 @@ export default function ConnectorsPage() {
 							<div className="h-4 w-48 bg-muted rounded mx-auto"></div>
 						</div>
 					</div>
-				) : connectors.length === 0 && search ? (
-					<div className="text-center py-12">
-						<h3 className="text-lg font-medium mb-2">No connectors found</h3>
-						<p className="text-muted-foreground mb-6">
-							No connectors match &quot;{search}&quot;. Try a different search term.
-						</p>
-						<Button variant="outline" onClick={() => setSearch("")}>
-							Clear Search
-						</Button>
-					</div>
 				) : connectors.length === 0 ? (
 					<div className="text-center py-12">
 						<h3 className="text-lg font-medium mb-2">No connectors</h3>
