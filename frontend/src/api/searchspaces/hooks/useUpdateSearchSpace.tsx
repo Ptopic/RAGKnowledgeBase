@@ -25,7 +25,11 @@ const useUpdateSearchSpace = (
 		}: {
 			id: number;
 			data: UpdateSearchSpaceRequest;
-		}) => searchSpacesClientRequests.updateSearchSpace(id, data),
+		}) => searchSpacesClientRequests.updateSearchSpace(id, {
+			name: data.name,
+			description: data.description,
+			headline_image_url: data.headline_image_url,
+		}),
 		onSuccess: () => {
 			toast.success("Search space updated successfully");
 		},

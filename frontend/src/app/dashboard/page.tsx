@@ -253,13 +253,23 @@ const DashboardPage = () => {
 				<div className="flex flex-col h-full justify-between overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
 					<div className="relative h-32 w-full overflow-hidden">
 						<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
-							<Image
-								src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
-								alt={space.name}
-								className="h-full w-full object-cover grayscale duration-700 group-hover:grayscale-0"
-								width={248}
-								height={248}
-							/>
+							{space.headline_image_url ? (
+								<Image
+									src={space.headline_image_url}
+									alt={space.name}
+									className="h-full w-full object-cover grayscale duration-700 group-hover:grayscale-0"
+									width={248}
+									height={248}
+								/>
+							) : (
+								<Image
+									src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
+									alt={space.name}
+									className="h-full w-full object-cover grayscale duration-700 group-hover:grayscale-0"
+									width={248}
+									height={248}
+								/>
+							)}
 							<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
 						</Link>
 						<div className="absolute top-2 right-2 flex items-center gap-1">

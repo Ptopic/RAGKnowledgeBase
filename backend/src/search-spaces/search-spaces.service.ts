@@ -34,6 +34,7 @@ export class SearchSpacesService {
 				data: {
 					name: createDto.name,
 					description: createDto.description,
+					headlineImageUrl: createDto.headlineImageUrl,
 					userId,
 				},
 			});
@@ -127,6 +128,7 @@ export class SearchSpacesService {
 				data: {
 					name: updateDto.name,
 					description: updateDto.description,
+					headlineImageUrl: updateDto.headlineImageUrl,
 				},
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});
@@ -350,6 +352,7 @@ export class SearchSpacesService {
 			id: searchSpace.id,
 			name: searchSpace.name,
 			description: searchSpace.description,
+			headline_image_url: searchSpace.headlineImageUrl,
 			userId: searchSpace.userId,
 			pinned_query_template_ids: pinnedIds,
 			created_at: searchSpace.createdAt,

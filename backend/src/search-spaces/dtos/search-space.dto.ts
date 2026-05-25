@@ -20,6 +20,11 @@ export class CreateSearchSpaceDto {
 	@IsOptional()
 	@MaxLength(500)
 	description?: string;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	headlineImageUrl?: string;
 }
 
 export class UpdateSearchSpaceDto {
@@ -31,6 +36,11 @@ export class UpdateSearchSpaceDto {
 	@IsOptional()
 	@MaxLength(500)
 	description?: string;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	headlineImageUrl?: string;
 }
 
 export class SearchSpaceDto {
@@ -48,6 +58,11 @@ export class SearchSpaceDto {
 	@IsOptional()
 	@MaxLength(500)
 	description?: string;
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(500)
+	headline_image_url?: string;
 
 	@IsArray()
 	@IsInt({ each: true })

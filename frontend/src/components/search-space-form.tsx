@@ -33,22 +33,21 @@ import { Separator } from "@/components/ui/separator";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
 import { cn } from "@/lib/utils";
+import { SearchSpaceHeadlineImageUploader } from "@/components/search-space-headline-image-uploader";
 
-// Define the form schema with Zod
 const searchSpaceFormSchema = z.object({
 	name: z.string().min(3, "Name is required"),
 	description: z.string().min(10, "Description is required"),
 });
 
-// Define the type for the form values
 type SearchSpaceFormValues = z.infer<typeof searchSpaceFormSchema>;
 
 interface SearchSpaceFormProps {
-	onSubmit?: (data: { name: string; description: string }) => void;
+	onSubmit?: (data: { name: string; description: string; headline_image_url?: string | null }) => void;
 	onDelete?: () => void;
 	className?: string;
 	isEditing?: boolean;
-	initialData?: { name: string; description: string };
+	initialData?: { name: string; description: string; headline_image_url?: string | null };
 }
 
 export function SearchSpaceForm({
@@ -56,9 +55,12 @@ export function SearchSpaceForm({
 	onDelete,
 	className,
 	isEditing = false,
-	initialData = { name: "", description: "" },
+	initialData = { name: "", description: "", headline_image_url: null },
 }: SearchSpaceFormProps) {
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [headlineImageUrl, setHeadlineImageUrl] = useState<string | null>(
+		initialData.headline_image_url ?? null,
+	);
 	const router = useRouter();
 
 	// Initialize the form with React Hook Form and Zod validation
@@ -70,10 +72,12 @@ export function SearchSpaceForm({
 		},
 	});
 
-	// Handle form submission
 	const handleFormSubmit = (values: SearchSpaceFormValues) => {
 		if (onSubmit) {
-			onSubmit(values);
+			onSubmit({
+				...values,
+				headline_image_url: headlineImageUrl,
+			});
 		}
 	};
 
@@ -257,6 +261,17 @@ export function SearchSpaceForm({
 							</FormItem>
 						)}
 					/>
+
+					<FormItem>
+						<FormLabel>Headline Image</FormLabel>
+						<SearchSpaceHeadlineImageUploader
+							value={headlineImageUrl}
+							onChange={setHeadlineImageUrl}
+						/>
+						<FormDescription>
+							An optional cover image for your search space.
+						</FormDescription>
+					</FormItem>
 
 					<div className="flex justify-end pt-2">
 						<Button type="submit" className="w-full sm:w-auto">

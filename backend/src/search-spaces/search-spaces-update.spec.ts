@@ -55,6 +55,7 @@ describe("SearchSpacesService — update", () => {
 		id: searchSpaceId,
 		name: "Updated Name",
 		description: "Updated Description",
+		headlineImageUrl: null,
 		userId: ownerId,
 		createdAt: new Date("2024-01-01"),
 		pinnedQueryTemplates: [],
@@ -74,6 +75,7 @@ describe("SearchSpacesService — update", () => {
 			data: {
 				name: "Updated Name",
 				description: "Updated Description",
+				headlineImageUrl: undefined,
 			},
 			include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 		});
@@ -82,12 +84,65 @@ describe("SearchSpacesService — update", () => {
 			id: searchSpaceId,
 			name: "Updated Name",
 			description: "Updated Description",
+			headline_image_url: null,
 			userId: ownerId,
 			pinned_query_template_ids: [],
 			created_at: mockUpdatedSearchSpace.createdAt,
 			role: MemberRole.OWNER,
 			is_owner: true,
 		});
+	});
+
+	it("should update headlineImageUrl when provided", async () => {
+		const updatedWithImage = {
+			...mockUpdatedSearchSpace,
+			headlineImageUrl: "https://cdn.example.com/searchspaces/img.png",
+		};
+		prisma.searchSpace.update.mockResolvedValue(updatedWithImage);
+
+		const result = await service.update(
+			searchSpaceId,
+			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: "https://cdn.example.com/searchspaces/img.png" },
+			baseMembership,
+		);
+
+		expect(prisma.searchSpace.update).toHaveBeenCalledWith({
+			where: { id: searchSpaceId },
+			data: {
+				name: "Updated Name",
+				description: "Updated Description",
+				headlineImageUrl: "https://cdn.example.com/searchspaces/img.png",
+			},
+			include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
+		});
+
+		expect(result.headline_image_url).toBe("https://cdn.example.com/searchspaces/img.png");
+	});
+
+	it("should clear headlineImageUrl when set to null", async () => {
+		const clearedImage = {
+			...mockUpdatedSearchSpace,
+			headlineImageUrl: null,
+		};
+		prisma.searchSpace.update.mockResolvedValue(clearedImage);
+
+		const result = await service.update(
+			searchSpaceId,
+			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: null },
+			baseMembership,
+		);
+
+		expect(prisma.searchSpace.update).toHaveBeenCalledWith({
+			where: { id: searchSpaceId },
+			data: {
+				name: "Updated Name",
+				description: "Updated Description",
+				headlineImageUrl: null,
+			},
+			include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
+		});
+
+		expect(result.headline_image_url).toBeNull();
 	});
 
 	it("should update only name when description is not provided", async () => {
@@ -108,6 +163,7 @@ describe("SearchSpacesService — update", () => {
 			data: {
 				name: "New Name Only",
 				description: undefined,
+				headlineImageUrl: undefined,
 			},
 			include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 		});
@@ -120,7 +176,7 @@ describe("SearchSpacesService — update", () => {
 
 		const result = await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description" },
+			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: null },
 			baseMembership,
 		);
 
@@ -137,7 +193,7 @@ describe("SearchSpacesService — update", () => {
 
 		const result = await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description" },
+			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: null },
 			editorMembership,
 		);
 
