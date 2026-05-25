@@ -5,6 +5,7 @@ import type {
 	CreateNotebookRequest,
 	DeleteNotebookImageRequest,
 	GetNotebooksParams,
+	GetPublicNotebooksParams,
 	Notebook,
 	PaginatedNotebooksResponse,
 	PaginatedPublicNotebooksResponse,
@@ -162,12 +163,16 @@ export const deleteNotebookImage =
 // Public endpoints (no auth required)
 export const getPublicNotebooks =
 	(request: ICallableRequestBuilder<PaginatedPublicNotebooksResponse>) =>
-	async (searchSpaceId?: number, skip?: number, limit?: number) => {
+	async (params: GetPublicNotebooksParams) => {
 		const url = new URL(`${config.apiUrl}/public/notebooks`);
-		if (searchSpaceId !== undefined)
-			url.searchParams.append("search_space_id", searchSpaceId.toString());
-		if (skip !== undefined) url.searchParams.append("skip", skip.toString());
-		if (limit !== undefined) url.searchParams.append("limit", limit.toString());
+		if (params.search_space_id !== undefined)
+			url.searchParams.append("search_space_id", params.search_space_id.toString());
+		if (params.skip !== undefined) url.searchParams.append("skip", params.skip.toString());
+		if (params.limit !== undefined) url.searchParams.append("limit", params.limit.toString());
+		if (params.search !== undefined && params.search.trim())
+			url.searchParams.append("q", params.search.trim());
+		if (params.sort_by !== undefined) url.searchParams.append("sortBy", params.sort_by);
+		if (params.sort_order !== undefined) url.searchParams.append("sortOrder", params.sort_order);
 		return request.call(url.toString(), (init) => ({
 			...init,
 			method: "GET",

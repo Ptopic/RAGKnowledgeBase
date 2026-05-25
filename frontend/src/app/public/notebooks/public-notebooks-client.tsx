@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Globe, Loader2 } from "lucide-react";
+import { BookOpen, CircleX, Globe, ListFilter, Loader2, ArrowUpDown } from "lucide-react";
 import NextImage from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -8,7 +8,16 @@ import useGetPublicNotebooks from "@/api/notebooks/hooks/useGetPublicNotebooks";
 import type { PublicNotebookListItem } from "@/api/notebooks/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { getInitials, formatDate } from "@/components/notebook/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 
 const PAGE_SIZE = 5;
 
@@ -66,17 +75,27 @@ function NotebookCard({ notebook }: { notebook: PublicNotebookListItem }) {
 }
 
 export default function PublicNotebooksClient() {
+	const [search, setSearch] = useState("");
+	const debouncedSearch = useDebounce(search, 400);
+	const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 	const [allNotebooks, setAllNotebooks] = useState<PublicNotebookListItem[]>([]);
 	const [skip, setSkip] = useState(0);
 	const [total, setTotal] = useState(0);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const loadingRef = useRef(false);
 
-	const { data, isLoading, error } = useGetPublicNotebooks(
-		undefined,
+	const { data, isLoading, error } = useGetPublicNotebooks({
+		search: debouncedSearch || undefined,
+		sort_by: "published_at",
+		sort_order: sortOrder,
 		skip,
-		PAGE_SIZE,
-	);
+		limit: PAGE_SIZE,
+	});
+
+	useEffect(() => {
+		setSkip(0);
+		setAllNotebooks([]);
+	}, [debouncedSearch, sortOrder]);
 
 	useEffect(() => {
 		if (data) {
@@ -127,13 +146,65 @@ export default function PublicNotebooksClient() {
 
 	if (!isLoading && allNotebooks.length === 0) {
 		return (
-			<div className="flex items-center justify-center h-screen">
-				<div className="flex flex-col items-center gap-4 text-center max-w-md">
-					<BookOpen className="h-12 w-12 text-muted-foreground" />
-					<h1 className="text-2xl font-bold">No Published Notebooks</h1>
-					<p className="text-muted-foreground">
-						There are no published notebooks available yet.
-					</p>
+			<div className="min-h-screen bg-background">
+				<div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+					<div className="container mx-auto flex h-14 items-center px-4">
+						<div className="flex items-center gap-2">
+							<Globe className="h-5 w-5 text-muted-foreground" />
+							<h1 className="text-lg font-semibold">Published Notebooks</h1>
+						</div>
+					</div>
+				</div>
+
+				<div className="container mx-auto px-4 py-8">
+				<div className="flex flex-col max-w-4xl mx-auto">
+					<div className="flex items-center gap-3 mb-6">
+							<div className="relative flex-1">
+								<Input
+									className="peer ps-9"
+									value={search}
+									onChange={(e) => setSearch(e.target.value)}
+									placeholder="Search notebooks..."
+									type="text"
+									aria-label="Search notebooks"
+								/>
+								<div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50">
+									<ListFilter size={16} strokeWidth={2} aria-hidden="true" />
+								</div>
+								{Boolean(search) && (
+									<button
+										className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 transition-colors hover:text-foreground"
+										aria-label="Clear search"
+										onClick={() => setSearch("")}
+									>
+										<CircleX size={16} strokeWidth={2} aria-hidden="true" />
+									</button>
+								)}
+							</div>
+							<Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "desc" | "asc")}>
+								<SelectTrigger className="w-[160px]">
+									<ArrowUpDown className="mr-2 h-4 w-4" />
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="desc">Newest first</SelectItem>
+									<SelectItem value="asc">Oldest first</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="flex items-center justify-center py-16">
+							<div className="flex flex-col items-center gap-4 text-center max-w-md">
+								<BookOpen className="h-12 w-12 text-muted-foreground" />
+								<h1 className="text-2xl font-bold">No Published Notebooks</h1>
+								<p className="text-muted-foreground">
+									{debouncedSearch
+										? "No published notebooks found."
+										: "There are no published notebooks available yet."}
+								</p>
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		);
@@ -152,6 +223,41 @@ export default function PublicNotebooksClient() {
 
 			<div className="container mx-auto px-4 py-8">
 				<div className="flex flex-col max-w-4xl mx-auto">
+						<div className="flex items-center gap-3 mb-6">
+						<div className="relative flex-1">
+							<Input
+								className="peer ps-9"
+								value={search}
+								onChange={(e) => setSearch(e.target.value)}
+								placeholder="Search notebooks..."
+								type="text"
+								aria-label="Search notebooks"
+							/>
+							<div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50">
+								<ListFilter size={16} strokeWidth={2} aria-hidden="true" />
+							</div>
+							{Boolean(search) && (
+								<button
+									className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 transition-colors hover:text-foreground"
+									aria-label="Clear search"
+									onClick={() => setSearch("")}
+								>
+									<CircleX size={16} strokeWidth={2} aria-hidden="true" />
+								</button>
+							)}
+						</div>
+						<Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "desc" | "asc")}>
+							<SelectTrigger className="w-[160px]">
+								<ArrowUpDown className="mr-2 h-4 w-4" />
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="desc">Newest first</SelectItem>
+								<SelectItem value="asc">Oldest first</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+
 					{allNotebooks.map((notebook, index) => (
 						<div key={notebook.id}>
 							<NotebookCard notebook={notebook} />

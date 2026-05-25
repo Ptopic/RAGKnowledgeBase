@@ -20,6 +20,9 @@ export class PublicNotebooksController {
 		@Query("search_space_id") searchSpaceId?: string,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
+		@Query("q") q?: string,
+		@Query("sortBy") sortBy?: string,
+		@Query("sortOrder") sortOrder?: string,
 	): Promise<PaginatedPublicNotebooksResponseDto> {
 		const searchSpaceIdNum = searchSpaceId
 			? parseInt(searchSpaceId, 10)
@@ -38,10 +41,24 @@ export class PublicNotebooksController {
 			throw new BadRequestException("limit must be between 1 and 1000");
 		}
 
+		if (sortBy !== undefined && sortBy !== "published_at") {
+			throw new BadRequestException("sortBy must be 'published_at'");
+		}
+		if (
+			sortOrder !== undefined &&
+			sortOrder !== "asc" &&
+			sortOrder !== "desc"
+		) {
+			throw new BadRequestException("sortOrder must be 'asc' or 'desc'");
+		}
+
 		return this.notebooksService.findPublishedNotebooks(
 			searchSpaceIdNum,
 			skipNum,
 			limitNum,
+			q,
+			sortBy,
+			sortOrder,
 		);
 	}
 
