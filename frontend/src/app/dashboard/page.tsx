@@ -292,18 +292,6 @@ const DashboardPage = () => {
 							)}
 							{isShared && (
 								<div className="flex items-center gap-1">
-									{(space.role === "EDITOR" || space.role === "OWNER") && (
-										<Link href={`/dashboard/searchspaces/${space.id}/edit`}>
-											<Button
-												variant="ghost"
-												size="icon"
-												aria-label="Edit search space"
-												className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/20 cursor-pointer"
-											>
-												<Pencil className="h-4 w-4" />
-											</Button>
-										</Link>
-									)}
 									<AlertDialog>
 										<AlertDialogTrigger asChild>
 											<Button

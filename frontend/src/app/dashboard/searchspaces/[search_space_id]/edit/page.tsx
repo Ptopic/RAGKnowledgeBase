@@ -50,7 +50,7 @@ export default function EditSearchSpacePage({
 		return <AccessDeniedPage />;
 	}
 
-	if (searchSpace.role === "VIEWER" && !searchSpace.is_owner) {
+	if (!searchSpace.is_owner) {
 		return <AccessDeniedPage />;
 	}
 
