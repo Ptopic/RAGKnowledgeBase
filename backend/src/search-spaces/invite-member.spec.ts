@@ -3,6 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { MemberRole } from "@prisma/client";
 import { PermissionsService } from "../permissions/permissions.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { UploadService } from "../upload";
 import { SearchSpacesService } from "./search-spaces.service";
 
 const INVITE_SUCCESS_MESSAGE =
@@ -30,11 +31,17 @@ describe("SearchSpacesService — inviteMember (non-enumeration)", () => {
 			getAccessibleSearchSpaceIds: jest.fn(),
 		};
 
+		const uploadService = {
+			delete: jest.fn().mockResolvedValue(undefined),
+			isOwnedUrl: jest.fn().mockReturnValue(true),
+		};
+
 		const module: TestingModule = await Test.createTestingModule({
 			providers: [
 				SearchSpacesService,
 				{ provide: PrismaService, useValue: prisma },
 				{ provide: PermissionsService, useValue: permissionsService },
+				{ provide: UploadService, useValue: uploadService },
 			],
 		}).compile();
 
