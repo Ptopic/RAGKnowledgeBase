@@ -1,17 +1,15 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
-import notebooksClientRequests from "../authClientRequests";
-import type { PaginatedPublicNotebooksResponse } from "../types";
 import { PUBLIC_NOTEBOOKS } from "@/shared/queryKeys";
+import notebooksClientRequests from "../authClientRequests";
+import type { GetPublicNotebooksParams, PaginatedPublicNotebooksResponse } from "../types";
 
 const useGetPublicNotebooks = (
-	searchSpaceId?: number,
-	skip?: number,
-	limit?: number,
+	params: GetPublicNotebooksParams,
 	options?: UseQueryOptions<PaginatedPublicNotebooksResponse, Error>,
 ) => {
 	return useQuery<PaginatedPublicNotebooksResponse, Error>({
-		queryKey: [PUBLIC_NOTEBOOKS, searchSpaceId, skip, limit],
-		queryFn: () => notebooksClientRequests.getPublicNotebooks(searchSpaceId, skip, limit),
+		queryKey: [PUBLIC_NOTEBOOKS, params.search_space_id, params.search, params.sort_by, params.sort_order, params.skip, params.limit],
+		queryFn: () => notebooksClientRequests.getPublicNotebooks(params),
 		...options,
 	});
 };

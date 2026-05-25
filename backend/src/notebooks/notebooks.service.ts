@@ -443,6 +443,9 @@ export class NotebooksService {
 		searchSpaceId?: number,
 		skip: number = 0,
 		limit: number = 100,
+		search?: string,
+		sortBy?: "published_at",
+		sortOrder?: "asc" | "desc",
 	): Promise<{ items: PublicNotebookListItemDto[]; total: number }> {
 		try {
 			const where: any = { isPublished: true };
@@ -450,10 +453,21 @@ export class NotebooksService {
 				where.searchSpaceId = searchSpaceId;
 			}
 
+			if (search && search.trim()) {
+				where.OR = [
+					{ title: { contains: search.trim(), mode: "insensitive" } },
+				];
+			}
+
+			const orderBy =
+				sortBy === "published_at" && sortOrder === "asc"
+					? { publishedAt: "asc" as const }
+					: { publishedAt: "desc" as const };
+
 			const [notebooks, total] = await Promise.all([
 				this.prisma.notebook.findMany({
 					where,
-					orderBy: { publishedAt: "desc" },
+					orderBy,
 					skip,
 					take: limit,
 					select: {
