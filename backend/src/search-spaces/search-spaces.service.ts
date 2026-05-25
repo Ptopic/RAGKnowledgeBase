@@ -5,7 +5,7 @@ import {
 	Logger,
 	NotFoundException,
 } from "@nestjs/common";
-import { MemberRole } from "@prisma/client";
+import { MemberRole, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
@@ -59,13 +59,20 @@ export class SearchSpacesService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 200,
+		q?: string,
 	): Promise<SearchSpaceDto[]> {
 		try {
 			const accessibleSpaces = await this.permissionsService.getSearchSpacesForUser(userId);
 			const spaceIds = accessibleSpaces.map((s) => s.id);
 
+			const trimmedQ = q?.trim();
+			const where: Prisma.SearchSpaceWhereInput = { id: { in: spaceIds } };
+			if (trimmedQ) {
+				where.name = { contains: trimmedQ, mode: "insensitive" };
+			}
+
 			const searchSpaces = await this.prisma.searchSpace.findMany({
-				where: { id: { in: spaceIds } },
+				where,
 				skip,
 				take: limit,
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },

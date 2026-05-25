@@ -70,6 +70,15 @@ export interface PublicNotebook {
 	updated_at: string;
 }
 
+export interface GetPublicNotebooksParams {
+	search_space_id?: number;
+	search?: string;
+	sort_by?: "published_at";
+	sort_order?: "asc" | "desc";
+	skip?: number;
+	limit?: number;
+}
+
 export interface GetNotebooksParams {
 	search_space_id: number;
 	search?: string;
