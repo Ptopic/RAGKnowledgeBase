@@ -1,9 +1,10 @@
 "use client";
-import { AlertCircle, Loader2, LogOut, Plus, Search, Trash2 } from "lucide-react";
+import { AlertCircle, CircleX, Loader2, LogOut, Plus, Search, Trash2 } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import useDeleteSearchSpace from "@/api/searchspaces/hooks/useDeleteSearchSpace";
 import useGetSearchSpaces from "@/api/searchspaces/hooks/useGetSearchSpaces";
 import useLeaveSearchSpace from "@/api/searchspaces/hooks/useLeaveSearchSpace";
@@ -34,8 +35,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
+import { useDebounce } from "@/hooks/use-debounce";
 import { formatDateString } from "@/shared/utils/date";
 
 const roleBadgeVariant = (role: MemberRole) => {
@@ -119,6 +122,8 @@ const ErrorScreen = ({ message }: { message: string }) => {
 	);
 };
 
+const SEARCH_DEBOUNCE_MS = 400;
+
 const DashboardPage = () => {
 	const containerVariants: Variants = {
 		hidden: { opacity: 0 },
@@ -143,6 +148,10 @@ const DashboardPage = () => {
 		},
 	};
 
+	const [search, setSearch] = useState("");
+	const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS);
+	const searchInputRef = useRef<HTMLInputElement>(null);
+
 	const {
 		data: searchSpaces,
 		isLoading: loading,
@@ -150,7 +159,9 @@ const DashboardPage = () => {
 		isRefetching: refetching,
 		error,
 		refetch: refreshSearchSpaces,
-	} = useGetSearchSpaces();
+	} = useGetSearchSpaces({
+		q: debouncedSearch || undefined,
+	});
 
 	const { mutate: deleteSearchSpace } =
 		useDeleteSearchSpace({
@@ -372,16 +383,49 @@ const DashboardPage = () => {
 				</div>
 
 				<div className="flex flex-col space-y-6 mt-6">
-					<div className="flex justify-between items-center">
+					<div className="flex flex-wrap justify-between items-center gap-3">
 						<h2 className="text-2xl font-semibold">{"Your search spaces"}</h2>
-						<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-							<Link href="/dashboard/searchspaces">
-								<Button className="h-10">
-									<Plus className="mr-2 h-4 w-4" />
-									{"Create search space"}
-								</Button>
-							</Link>
-						</motion.div>
+						<div className="flex items-center gap-3">
+							<motion.div
+								className="relative"
+								initial={{ opacity: 0, y: -10 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ type: "spring", stiffness: 300, damping: 30 }}
+							>
+								<Input
+									ref={searchInputRef}
+									className="peer min-w-60 ps-9"
+									value={search}
+									onChange={(e) => setSearch(e.target.value)}
+									placeholder="Search knowledge bases..."
+									type="text"
+									aria-label="Search knowledge bases"
+								/>
+								<div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50">
+									<Search size={16} strokeWidth={2} aria-hidden="true" />
+								</div>
+								{Boolean(search) && (
+									<button
+										className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground"
+										aria-label="Clear search"
+										onClick={() => {
+											setSearch("");
+											searchInputRef.current?.focus();
+										}}
+									>
+										<CircleX size={16} strokeWidth={2} aria-hidden="true" />
+									</button>
+								)}
+							</motion.div>
+							<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+								<Link href="/dashboard/searchspaces">
+									<Button className="h-10">
+										<Plus className="mr-2 h-4 w-4" />
+										{"Create search space"}
+									</Button>
+								</Link>
+							</motion.div>
+						</div>
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -396,17 +440,19 @@ const DashboardPage = () => {
 									<Search className="h-8 w-8 text-muted-foreground" />
 								</div>
 								<h3 className="text-lg font-medium mb-2">
-									{"No spaces found"}
+									{search ? "No matching spaces" : "No spaces found"}
 								</h3>
 								<p className="text-muted-foreground mb-6">
-									{"Create first space"}
+									{search ? "Try a different search term" : "Create first space"}
 								</p>
-								<Link href="/dashboard/searchspaces">
-									<Button>
-										<Plus className="mr-2 h-4 w-4" />
-										{"Create search space"}
-									</Button>
-								</Link>
+								{!search && (
+									<Link href="/dashboard/searchspaces">
+										<Button>
+											<Plus className="mr-2 h-4 w-4" />
+											{"Create search space"}
+										</Button>
+									</Link>
+								)}
 							</motion.div>
 						)}
 

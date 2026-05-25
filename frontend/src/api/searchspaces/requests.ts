@@ -17,11 +17,16 @@ import type {
 
 export const getSearchSpaces =
 	(request: ICallableRequestBuilder<SearchSpace[]>) =>
-	async (): Promise<SearchSpace[]> =>
-		request.call(`${config.apiUrl}/searchspaces`, (init) => ({
+	async (q?: string): Promise<SearchSpace[]> => {
+		const params = new URLSearchParams();
+		if (q) params.set("q", q);
+		const query = params.toString();
+		const url = `${config.apiUrl}/searchspaces${query ? `?${query}` : ""}`;
+		return request.call(url, (init) => ({
 			...init,
 			method: "GET",
 		}));
+	};
 
 export const getSearchSpace =
 	(request: ICallableRequestBuilder<SearchSpace>) =>

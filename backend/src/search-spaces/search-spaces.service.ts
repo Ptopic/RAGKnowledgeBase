@@ -59,13 +59,19 @@ export class SearchSpacesService {
 		userId: string,
 		skip: number = 0,
 		limit: number = 200,
+		q?: string,
 	): Promise<SearchSpaceDto[]> {
 		try {
 			const accessibleSpaces = await this.permissionsService.getSearchSpacesForUser(userId);
 			const spaceIds = accessibleSpaces.map((s) => s.id);
 
+			const where: any = { id: { in: spaceIds } };
+			if (q) {
+				where.name = { contains: q, mode: "insensitive" };
+			}
+
 			const searchSpaces = await this.prisma.searchSpace.findMany({
-				where: { id: { in: spaceIds } },
+				where,
 				skip,
 				take: limit,
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },

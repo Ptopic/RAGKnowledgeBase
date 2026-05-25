@@ -39,12 +39,13 @@ export class SearchSpacesController {
 	@Get()
 	async findAll(
 		@Req() req: any,
+		@Query("q") q?: string,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
 	): Promise<SearchSpaceDto[]> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 200;
-		return this.searchSpacesService.findAll(req.user.id, skipNum, limitNum);
+		return this.searchSpacesService.findAll(req.user.id, skipNum, limitNum, q);
 	}
 
 	@Get(":id")
