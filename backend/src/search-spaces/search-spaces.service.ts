@@ -62,6 +62,9 @@ export class SearchSpacesService {
 
 			return this.toDto(searchSpace, MemberRole.OWNER);
 		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw error;
+			}
 			throw new InternalServerErrorException(
 				`Failed to create search space: ${error.message}`,
 			);

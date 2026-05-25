@@ -22,6 +22,7 @@ import { RequireSearchSpaceRole } from "../permissions/decorators/require-search
 import { UploadService } from "../upload";
 import {
 	CreateSearchSpaceDto,
+	DeleteSearchSpaceImageDto,
 	SearchSpaceDto,
 	UpdateSearchSpaceDto,
 } from "./dtos/search-space.dto";
@@ -80,9 +81,12 @@ export class SearchSpacesController {
 
 	@Delete("delete-image")
 	async deleteImage(
-		@Body() body: { url: string },
+		@Body() body: DeleteSearchSpaceImageDto,
 		@Req() req: any,
 	): Promise<{ message: string }> {
+		if (!this.uploadService.isOwnedUrl(body.url)) {
+			throw new BadRequestException("URL must point to application-managed storage");
+		}
 		await this.uploadService.delete(body.url);
 		return { message: "Image deleted" };
 	}

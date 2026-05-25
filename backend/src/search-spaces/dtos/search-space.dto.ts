@@ -6,6 +6,7 @@ import {
 	IsInt,
 	IsOptional,
 	IsString,
+	IsUrl,
 	IsUUID,
 	MaxLength,
 } from "class-validator";
@@ -21,10 +22,10 @@ export class CreateSearchSpaceDto {
 	@MaxLength(500)
 	description?: string;
 
-	@IsString()
+	@IsUrl()
 	@IsOptional()
 	@MaxLength(500)
-	headlineImageUrl?: string;
+	headlineImageUrl?: string | null;
 }
 
 export class UpdateSearchSpaceDto {
@@ -37,10 +38,16 @@ export class UpdateSearchSpaceDto {
 	@MaxLength(500)
 	description?: string;
 
-	@IsString()
+	@IsUrl()
 	@IsOptional()
 	@MaxLength(500)
-	headlineImageUrl?: string;
+	headlineImageUrl?: string | null;
+}
+
+export class DeleteSearchSpaceImageDto {
+	@IsUrl()
+	@MaxLength(500)
+	url: string;
 }
 
 export class SearchSpaceDto {
