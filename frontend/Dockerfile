@@ -15,18 +15,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js env vars needed at build time
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_WEBSITE_URL
-ARG NEXT_PUBLIC_APP_NAME
-ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
-ARG NEXT_PUBLIC_ETL_SERVICE
-
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_WEBSITE_URL=$NEXT_PUBLIC_WEBSITE_URL
-ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
-ENV NEXT_PUBLIC_ETL_SERVICE=$NEXT_PUBLIC_ETL_SERVICE
+# Use placeholder values at build time so they can be replaced at runtime
+# via the entrypoint script. This avoids requiring build args / GitHub secrets.
+ENV NEXT_PUBLIC_API_URL=__NEXT_PUBLIC_API_URL__
+ENV NEXT_PUBLIC_WEBSITE_URL=__NEXT_PUBLIC_WEBSITE_URL__
+ENV NEXT_PUBLIC_APP_NAME=__NEXT_PUBLIC_APP_NAME__
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=__NEXT_PUBLIC_GOOGLE_CLIENT_ID__
+ENV NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__
 
 # Limit heap to 1536MB to avoid crashing the server
 ENV NODE_OPTIONS="--max-old-space-size=1536"
@@ -44,8 +39,13 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 
+# Copy the runtime env injection script
+COPY --from=build /app/env.sh ./env.sh
+RUN chmod +x ./env.sh
+
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+ENTRYPOINT ["./env.sh"]
 CMD ["node", "server.js"]
