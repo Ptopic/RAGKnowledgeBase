@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import type { SSEEvent } from "@/hooks/useSSE";
-import config from "@/shared/config/config";
+import { config } from "@/shared/config/config";
 import { COOKIE_NAME } from "@/shared/constants/cookies";
 
 type SSECallback = (event: SSEEvent) => void;
