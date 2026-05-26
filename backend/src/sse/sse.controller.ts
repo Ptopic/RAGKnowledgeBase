@@ -1,14 +1,24 @@
-import { Controller, Req, Sse, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, Sse, UseGuards } from '@nestjs/common';
 import { Observable, Subject, interval } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 import * as crypto from 'node:crypto';
-import { SseService } from './sse.service';
+import { SseService, SSEEventResponse } from './sse.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 
 interface SSEMessageEvent {
 	data: string;
 	id?: string;
 	type?: string;
+}
+
+interface PublishEventBody {
+	topic: string;
+	// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+	data?: any;
+	targetConnectionId?: string;
+	excludeConnectionId?: string;
+	broadcastToAll?: boolean;
+	broadcastToOtherUsers?: boolean;
 }
 
 @Controller('sse')
@@ -67,5 +77,30 @@ export class SseController {
 		});
 
 		return merged$;
+	}
+
+	@Post('events')
+	async publishEvent(@Body() body: PublishEventBody): Promise<SSEEventResponse> {
+		const {
+			topic,
+			data,
+			targetConnectionId,
+			excludeConnectionId,
+			broadcastToAll,
+			broadcastToOtherUsers,
+		} = body;
+
+		if (!topic) {
+			return { success: false, error: 'topic is required' };
+		}
+
+		return this.sseService.sendEvent({
+			topic,
+			data,
+			targetConnectionId,
+			excludeConnectionId,
+			broadcastToAll,
+			broadcastToOtherUsers,
+		});
 	}
 }

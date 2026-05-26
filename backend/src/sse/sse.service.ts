@@ -84,7 +84,7 @@ export class SseService implements OnModuleInit {
 
 	// --- Core send method (matches hegnar EventService.sendEvent) ---
 
-	private async sendEvent(payload: SSEEventPayload): Promise<SSEEventResponse> {
+	async sendEvent(payload: SSEEventPayload): Promise<SSEEventResponse> {
 		try {
 			const event: SseBroadcastEvent = {
 				id: crypto.randomUUID(),
