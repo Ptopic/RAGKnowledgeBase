@@ -69,7 +69,7 @@ export class SearchSpaceDto {
 	@IsString()
 	@IsOptional()
 	@MaxLength(500)
-	headline_image_url?: string;
+	headline_image_url?: string | null;
 
 	@IsArray()
 	@IsInt({ each: true })
