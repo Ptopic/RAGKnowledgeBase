@@ -15,6 +15,7 @@ import { DeepgramService } from "../../services/deepgram.service";
 import { DoclingService } from "../../services/docling.service";
 import { LlamaCloudService } from "../../services/llamacloud.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
+import { SseService } from "../../sse/sse.service";
 import { optimizeContentForContextWindow } from "../../utils/document-converters";
 import {
 	chunkMarkdownContent,
@@ -44,6 +45,7 @@ export class FileProcessorsService {
 		private llamaCloudService: LlamaCloudService,
 		private deepgramService: DeepgramService,
 		private imageAnalysisService: ImageAnalysisService,
+		private sseService: SseService,
 	) {}
 
 	/**
@@ -457,6 +459,7 @@ export class FileProcessorsService {
 		const taskLogger = TaskLoggingService.forSearchSpace(
 			this.prisma,
 			searchSpaceId,
+			this.sseService,
 		);
 
 		let logEntry: Log | null = null;

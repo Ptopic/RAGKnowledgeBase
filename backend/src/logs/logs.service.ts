@@ -8,6 +8,7 @@ import { LogLevel, LogStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
+import { SseService } from "../sse/sse.service";
 import { CreateLogDto, LogDto, UpdateLogDto } from "./dtos/log.dto";
 
 @Injectable()
@@ -15,6 +16,7 @@ export class LogsService {
 	constructor(
 		private prisma: PrismaService,
 		private permissionsService: PermissionsService,
+		private sseService: SseService,
 	) {}
 
 	async create(createDto: CreateLogDto, userId: string): Promise<LogDto> {
@@ -28,6 +30,11 @@ export class LogsService {
 					logMetadata: createDto.log_metadata || {},
 					searchSpaceId: createDto.search_space_id,
 				},
+			});
+
+			this.sseService.broadcastEvent({
+				topic: 'logs',
+				data: { action: 'create', searchSpaceId: createDto.search_space_id, logId: log.id },
 			});
 
 			return this.toDto(log);
@@ -215,6 +222,11 @@ export class LogsService {
 				},
 			});
 
+			this.sseService.broadcastEvent({
+				topic: 'logs',
+				data: { action: 'update', searchSpaceId: log.searchSpaceId, logId: id },
+			});
+
 			return this.toDto(updated);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -238,6 +250,11 @@ export class LogsService {
 
 			await this.prisma.log.delete({
 				where: { id },
+			});
+
+			this.sseService.broadcastEvent({
+				topic: 'logs',
+				data: { action: 'delete', searchSpaceId: log.searchSpaceId, logId: id },
 			});
 
 			return { message: "Log deleted successfully" };

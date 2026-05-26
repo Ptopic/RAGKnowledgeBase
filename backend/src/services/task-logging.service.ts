@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SseService } from '../sse/sse.service';
 import { LogLevel, LogStatus, Log } from '@prisma/client';
 
 @Injectable()
@@ -9,16 +10,15 @@ export class TaskLoggingService {
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly searchSpaceId: number,
+		private readonly sseService: SseService,
 	) {}
 
-	/**
-	 * Create a TaskLoggingService for a specific search space
-	 */
 	static forSearchSpace(
 		prisma: PrismaService,
 		searchSpaceId: number,
+		sseService: SseService,
 	): TaskLoggingService {
-		return new TaskLoggingService(prisma, searchSpaceId);
+		return new TaskLoggingService(prisma, searchSpaceId, sseService);
 	}
 
 	/**
@@ -46,6 +46,12 @@ export class TaskLoggingService {
 		});
 
 		this.logger.log(`Started task ${taskName}: ${message}`);
+
+		this.sseService.broadcastEvent({
+			topic: 'logs',
+			data: { action: 'create', searchSpaceId: this.searchSpaceId, logId: logEntry.id },
+		});
+
 		return logEntry;
 	}
 
@@ -79,6 +85,12 @@ export class TaskLoggingService {
 
 			const taskName = updatedMetadata.task_name || 'unknown';
 			this.logger.log(`Completed task ${taskName}: ${message}`);
+
+			this.sseService.broadcastEvent({
+				topic: 'logs',
+				data: { action: 'update', searchSpaceId: this.searchSpaceId, logId: updated.id },
+			});
+
 			return updated;
 		} catch (error) {
 			this.logger.error(`Error updating log entry to success: ${error.message}`);
@@ -124,6 +136,11 @@ export class TaskLoggingService {
 				this.logger.error(`Error details: ${errorDetails}`);
 			}
 
+			this.sseService.broadcastEvent({
+				topic: 'logs',
+				data: { action: 'update', searchSpaceId: this.searchSpaceId, logId: updated.id },
+			});
+
 			return updated;
 		} catch (error) {
 			this.logger.error(`Error updating log entry to failure: ${error.message}`);
@@ -160,6 +177,12 @@ export class TaskLoggingService {
 
 			const taskName = updatedMetadata.task_name || 'unknown';
 			this.logger.log(`Progress update for task ${taskName}: ${progressMessage}`);
+
+			this.sseService.broadcastEvent({
+				topic: 'logs',
+				data: { action: 'update', searchSpaceId: this.searchSpaceId, logId: updated.id },
+			});
+
 			return updated;
 		} catch (error) {
 			this.logger.error(`Error updating log entry progress: ${error.message}`);
@@ -188,6 +211,12 @@ export class TaskLoggingService {
 		});
 
 		this.logger.log(`Logged event from ${source}: ${message}`);
+
+		this.sseService.broadcastEvent({
+			topic: 'logs',
+			data: { action: 'create', searchSpaceId: this.searchSpaceId, logId: logEntry.id },
+		});
+
 		return logEntry;
 	}
 }
