@@ -22,7 +22,7 @@ importers:
         version: 1.4.0(@langchain/core@1.1.47(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1))
       '@langchain/community':
         specifier: ^1.1.0
-        version: 1.1.28(@aws-crypto/sha256-js@5.2.0)(@aws-sdk/client-s3@3.1050.0)(@aws-sdk/credential-provider-node@3.972.43)(@browserbasehq/sdk@2.11.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.60.0)(deepmerge@4.3.1)(dotenv@17.4.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(zod@3.25.76))(@ibm-cloud/watsonx-ai@1.7.12)(@langchain/core@1.1.47(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1))(@notionhq/client@2.3.0)(@opentelemetry/api@1.9.0)(@smithy/signature-v4@5.4.3)(fast-xml-parser@5.7.3)(google-auth-library@10.6.2)(googleapis@164.1.0)(ibm-cloud-sdk-core@5.4.19)(ignore@7.0.5)(ioredis@5.10.1)(jsdom@26.1.0)(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(pdf-parse@1.1.4)(pg@8.21.0)(playwright@1.60.0)(ws@8.20.1)
+        version: 1.1.28(@aws-crypto/sha256-js@5.2.0)(@aws-sdk/client-s3@3.1050.0)(@aws-sdk/credential-provider-node@3.972.43)(@browserbasehq/sdk@2.11.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.60.0)(deepmerge@4.3.1)(dotenv@17.4.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(zod@3.25.76))(@ibm-cloud/watsonx-ai@1.7.12)(@langchain/core@1.1.47(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1))(@notionhq/client@2.3.0)(@opentelemetry/api@1.9.0)(@smithy/signature-v4@5.4.3)(fast-xml-parser@5.7.3)(google-auth-library@10.6.2)(googleapis@164.1.0)(ibm-cloud-sdk-core@5.4.19)(ignore@7.0.5)(ioredis@5.11.0)(jsdom@26.1.0)(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(pdf-parse@1.1.4)(pg@8.21.0)(playwright@1.60.0)(ws@8.20.1)
       '@langchain/core':
         specifier: ^1.1.18
         version: 1.1.47(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1)
@@ -72,7 +72,7 @@ importers:
         specifier: ^22.0.1
         version: 22.0.1
       '@prisma/client':
-        specifier: ^5.22.0
+        specifier: 5.22.0
         version: 5.22.0(prisma@5.22.0)
       '@slack/web-api':
         specifier: ^7.12.0
@@ -122,6 +122,9 @@ importers:
       googleapis:
         specifier: ^164.1.0
         version: 164.1.0
+      ioredis:
+        specifier: ^5.11.0
+        version: 5.11.0
       langchain:
         specifier: ^1.2.11
         version: 1.4.1(@langchain/core@1.1.47(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1))(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1)(zod-to-json-schema@3.25.2(zod@3.25.76))
@@ -140,9 +143,15 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.21.0
+      prisma:
+        specifier: 5.22.0
+        version: 5.22.0
       reflect-metadata:
         specifier: ^0.2.0
         version: 0.2.2
+      resend:
+        specifier: ^6.12.3
+        version: 6.12.4
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
@@ -240,9 +249,6 @@ importers:
       prettier:
         specifier: ^3.0.0
         version: 3.8.3
-      prisma:
-        specifier: ^5.22.0
-        version: 5.22.0
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
@@ -893,8 +899,8 @@ packages:
     resolution: {integrity: sha512-t2IEY+unGHOzAaVM5Xx6DEWKeXlDDcNPeDyUpsRc6CUhBfU3VQOEl+Vssh7VNp1dR8MdUJBWhuObjXCsVpjN5g==}
     engines: {node: '>=18'}
 
-  '@ioredis/commands@1.5.1':
-    resolution: {integrity: sha512-JH8ZL/ywcJyR9MmJ5BNqZllXNZQqQbnVZOqpPQqE1vHiFgAw4NHbvE0FOduNU8IX9babitBT46571OnPTT0Zcw==}
+  '@ioredis/commands@1.10.0':
+    resolution: {integrity: sha512-UmeW7z4LfctwoQ5wkhVzgq8tXkreED2xZGpX+Bg+zA+WJFZCT6c062AfCK/Dfk81xZnnwdhJCUMkitihRaoC2Q==}
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -2889,8 +2895,8 @@ packages:
     resolution: {integrity: sha512-sY09kYg7wprkndAOjZBAYqFZqwL+SxnEGcAvksOvFA+5upnFn949UjkEkHKNSwkBtW/xRDd0p6NgbSXZcxkI3w==}
     engines: {node: '>=9'}
 
-  cluster-key-slot@1.1.2:
-    resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
+  cluster-key-slot@1.1.1:
+    resolution: {integrity: sha512-rwHwUfXL40Chm1r08yrhU3qpUvdVlgkKNeyeGPOxnW8/SyVDvgRaed/Uz54AqWNaTCAThlj6QAs3TZcKI0xDEw==}
     engines: {node: '>=0.10.0'}
 
   co@4.6.0:
@@ -3989,8 +3995,8 @@ packages:
   inspect-with-kind@1.0.5:
     resolution: {integrity: sha512-MAQUJuIo7Xqk8EVNP+6d3CKq9c80hi4tjIbIAT6lmGW9W6WzlHiu9PS8uSuUYU+Do+j1baiFp3H25XEVxDIG2g==}
 
-  ioredis@5.10.1:
-    resolution: {integrity: sha512-HuEDBTI70aYdx1v6U97SbNx9F1+svQKBDo30o0b9fw055LMepzpOOd0Ccg9Q6tbqmBSJaMuY0fB7yw9/vjBYCA==}
+  ioredis@5.11.0:
+    resolution: {integrity: sha512-EZBErytyVovD8f6pDfG3Kb37N6Y3lmDA9NNj+4+IP13CzzHGeX+OyeRM2Um13khRzoBSzzL+5lVnCX8V2RLeMg==}
     engines: {node: '>=12.22.0'}
 
   ip-address@10.2.0:
@@ -4423,14 +4429,8 @@ packages:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
 
-  lodash.defaults@4.2.0:
-    resolution: {integrity: sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ==}
-
   lodash.includes@4.3.0:
     resolution: {integrity: sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w==}
-
-  lodash.isarguments@3.1.0:
-    resolution: {integrity: sha512-chi4NHZlZqZD18a0imDHnZPrDeBbTtVN7GXMwuGdRH9qotxAjYs3aVLKc7zNOG9eddR5Ksd8rvFEBc9SsggPpg==}
 
   lodash.isboolean@3.0.3:
     resolution: {integrity: sha512-Bz5mupy2SVbPHURB98VAcw+aHh4vRV5IPNhILUCsOzRmsTmSQ17jIuqopAentWoehktxGd9e/hbIXq980/1QJg==}
@@ -5017,6 +5017,9 @@ packages:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
 
+  postal-mime@2.7.4:
+    resolution: {integrity: sha512-0WdnFQYUrPGGTFu1uOqD2s7omwua8xaeYGdO6rb88oD5yJ/4pPHDA4sdWqfD8wQVfCny563n/HQS7zTFft+f/g==}
+
   postgres-array@2.0.0:
     resolution: {integrity: sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==}
     engines: {node: '>=4'}
@@ -5154,6 +5157,15 @@ packages:
 
   requires-port@1.0.0:
     resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
+
+  resend@6.12.4:
+    resolution: {integrity: sha512-lRpJ2Hxd+ht+JPDm97juRcUp9HOMuZyxaRFRFmc9Tx8iNWiei94Dx9v6SWufgKk2667C/uCeKKspMotOHSpCSg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@react-email/render': '*'
+    peerDependenciesMeta:
+      '@react-email/render':
+        optional: true
 
   resolve-alpn@1.2.1:
     resolution: {integrity: sha512-0a1F4l73/ZFZOakJnQ3FvkJ2+gSTQWz/r2KE5OdDY0TxPm5h4GkqkWWfM47T7HsbnOtcJVEF4epCVy6u7Q3K+g==}
@@ -7019,7 +7031,7 @@ snapshots:
 
   '@inquirer/figures@1.0.15': {}
 
-  '@ioredis/commands@1.5.1': {}
+  '@ioredis/commands@1.10.0': {}
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -7259,7 +7271,7 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/community@1.1.28(@aws-crypto/sha256-js@5.2.0)(@aws-sdk/client-s3@3.1050.0)(@aws-sdk/credential-provider-node@3.972.43)(@browserbasehq/sdk@2.11.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.60.0)(deepmerge@4.3.1)(dotenv@17.4.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(zod@3.25.76))(@ibm-cloud/watsonx-ai@1.7.12)(@langchain/core@1.1.47(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1))(@notionhq/client@2.3.0)(@opentelemetry/api@1.9.0)(@smithy/signature-v4@5.4.3)(fast-xml-parser@5.7.3)(google-auth-library@10.6.2)(googleapis@164.1.0)(ibm-cloud-sdk-core@5.4.19)(ignore@7.0.5)(ioredis@5.10.1)(jsdom@26.1.0)(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(pdf-parse@1.1.4)(pg@8.21.0)(playwright@1.60.0)(ws@8.20.1)':
+  '@langchain/community@1.1.28(@aws-crypto/sha256-js@5.2.0)(@aws-sdk/client-s3@3.1050.0)(@aws-sdk/credential-provider-node@3.972.43)(@browserbasehq/sdk@2.11.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.60.0)(deepmerge@4.3.1)(dotenv@17.4.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(zod@3.25.76))(@ibm-cloud/watsonx-ai@1.7.12)(@langchain/core@1.1.47(@opentelemetry/api@1.9.0)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(ws@8.20.1))(@notionhq/client@2.3.0)(@opentelemetry/api@1.9.0)(@smithy/signature-v4@5.4.3)(fast-xml-parser@5.7.3)(google-auth-library@10.6.2)(googleapis@164.1.0)(ibm-cloud-sdk-core@5.4.19)(ignore@7.0.5)(ioredis@5.11.0)(jsdom@26.1.0)(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(pdf-parse@1.1.4)(pg@8.21.0)(playwright@1.60.0)(ws@8.20.1)':
     dependencies:
       '@browserbasehq/stagehand': 1.14.0(@playwright/test@1.60.0)(deepmerge@4.3.1)(dotenv@17.4.1)(openai@6.38.0(ws@8.20.1)(zod@3.25.76))(zod@3.25.76)
       '@ibm-cloud/watsonx-ai': 1.7.12
@@ -7286,7 +7298,7 @@ snapshots:
       google-auth-library: 10.6.2
       googleapis: 164.1.0
       ignore: 7.0.5
-      ioredis: 5.10.1
+      ioredis: 5.11.0
       jsdom: 26.1.0
       jsonwebtoken: 9.0.3
       lodash: 4.18.1
@@ -8106,7 +8118,7 @@ snapshots:
 
   '@types/ioredis@5.0.0':
     dependencies:
-      ioredis: 5.10.1
+      ioredis: 5.11.0
     transitivePeerDependencies:
       - supports-color
 
@@ -8892,7 +8904,7 @@ snapshots:
     dependencies:
       cron-parser: 4.9.0
       get-port: 5.1.1
-      ioredis: 5.10.1
+      ioredis: 5.11.0
       lodash: 4.18.1
       msgpackr: 1.11.12
       semver: 7.8.0
@@ -9053,7 +9065,7 @@ snapshots:
     dependencies:
       lodash: 4.18.1
 
-  cluster-key-slot@1.1.2: {}
+  cluster-key-slot@1.1.1: {}
 
   co@4.6.0: {}
 
@@ -10324,14 +10336,12 @@ snapshots:
     dependencies:
       kind-of: 6.0.3
 
-  ioredis@5.10.1:
+  ioredis@5.11.0:
     dependencies:
-      '@ioredis/commands': 1.5.1
-      cluster-key-slot: 1.1.2
+      '@ioredis/commands': 1.10.0
+      cluster-key-slot: 1.1.1
       debug: 4.4.3
       denque: 2.1.0
-      lodash.defaults: 4.2.0
-      lodash.isarguments: 3.1.0
       redis-errors: 1.2.0
       redis-parser: 3.0.0
       standard-as-callback: 2.1.0
@@ -10959,11 +10969,7 @@ snapshots:
     dependencies:
       p-locate: 5.0.0
 
-  lodash.defaults@4.2.0: {}
-
   lodash.includes@4.3.0: {}
-
-  lodash.isarguments@3.1.0: {}
 
   lodash.isboolean@3.0.3: {}
 
@@ -11477,6 +11483,8 @@ snapshots:
 
   pluralize@8.0.0: {}
 
+  postal-mime@2.7.4: {}
+
   postgres-array@2.0.0: {}
 
   postgres-bytea@1.0.1: {}
@@ -11600,6 +11608,11 @@ snapshots:
   require-from-string@2.0.2: {}
 
   requires-port@1.0.0: {}
+
+  resend@6.12.4:
+    dependencies:
+      postal-mime: 2.7.4
+      standardwebhooks: 1.0.0
 
   resolve-alpn@1.2.1: {}
 

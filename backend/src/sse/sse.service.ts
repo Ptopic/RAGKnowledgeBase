@@ -1,11 +1,39 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Subject } from 'rxjs';
 import * as crypto from 'node:crypto';
+import { RedisPubSubService } from '../redis/redis.service';
+
+interface SseBroadcastEvent {
+	id: string;
+	topic: string;
+	data: Record<string, unknown>;
+	timestamp: number;
+	broadcastToAll?: boolean;
+	broadcastToOtherUsers?: boolean;
+	excludeConnectionId?: string;
+	targetConnectionId?: string;
+}
 
 @Injectable()
-export class SseService {
+export class SseService implements OnModuleInit {
 	private readonly logger = new Logger(SseService.name);
 	private connections: Map<string, Subject<{ data: string }>> = new Map();
+
+	constructor(private readonly redisPubSub: RedisPubSubService) {}
+
+	async onModuleInit() {
+		await this.redisPubSub.subscribe('sse-broadcast', (channel, message) => {
+			if (channel === 'sse-broadcast') {
+				try {
+					const event: SseBroadcastEvent = JSON.parse(message);
+					this.broadcastToLocalConnections(event);
+				} catch (error) {
+					this.logger.error('Error processing Redis message:', error);
+				}
+			}
+		});
+		this.logger.log('SSE subscribed to Redis channel: sse-broadcast');
+	}
 
 	addConnection(connectionId: string, client$: Subject<{ data: string }>): void {
 		this.connections.set(connectionId, client$);
@@ -33,34 +61,80 @@ export class SseService {
 		}
 	}
 
-	broadcastEvent(event: { topic: string; data: any; searchSpaceId?: number }): void {
-		const enrichedEvent = {
+	broadcastEvent(event: { topic: string; data: Record<string, unknown>; searchSpaceId?: number }): void {
+		const enrichedEvent: SseBroadcastEvent = {
 			id: crypto.randomUUID(),
 			topic: event.topic,
 			data: event.data || {},
 			timestamp: Date.now(),
+			broadcastToAll: true,
 		};
-		const message = JSON.stringify(enrichedEvent);
-		let sent = 0;
+		this.redisPubSub.publish('sse-broadcast', JSON.stringify(enrichedEvent));
+	}
+
+	broadcastToSearchSpace(searchSpaceId: number, event: { topic: string; data: Record<string, unknown> }): void {
+		this.broadcastEvent({ ...event, searchSpaceId });
+	}
+
+	async pushEventToConnection(topic: string, connectionId: string, data?: Record<string, unknown>): Promise<void> {
+		const enrichedEvent: SseBroadcastEvent = {
+			id: crypto.randomUUID(),
+			topic,
+			data: data || {},
+			timestamp: Date.now(),
+			targetConnectionId: connectionId,
+		};
+		await this.redisPubSub.publish('sse-broadcast', JSON.stringify(enrichedEvent));
+	}
+
+	async broadcastToOtherUsers(topic: string, excludeConnectionId: string, data?: Record<string, unknown>): Promise<void> {
+		const enrichedEvent: SseBroadcastEvent = {
+			id: crypto.randomUUID(),
+			topic,
+			data: data || {},
+			timestamp: Date.now(),
+			broadcastToOtherUsers: true,
+			excludeConnectionId,
+		};
+		await this.redisPubSub.publish('sse-broadcast', JSON.stringify(enrichedEvent));
+	}
+
+	private broadcastToLocalConnections(event: SseBroadcastEvent): void {
+		const { broadcastToOtherUsers, excludeConnectionId, targetConnectionId } = event;
+		const message = JSON.stringify(event);
 		const toRemove: string[] = [];
 
-		for (const [connectionId, client$] of this.connections) {
-			try {
-				client$.next({ data: message });
-				sent++;
-			} catch {
-				toRemove.push(connectionId);
+		if (targetConnectionId) {
+			const client$ = this.connections.get(targetConnectionId);
+			if (client$) {
+				try {
+					client$.next({ data: message });
+				} catch {
+					toRemove.push(targetConnectionId);
+				}
+			}
+		} else if (broadcastToOtherUsers && excludeConnectionId) {
+			for (const [id, client$] of this.connections) {
+				if (id !== excludeConnectionId) {
+					try {
+						client$.next({ data: message });
+					} catch {
+						toRemove.push(id);
+					}
+				}
+			}
+		} else {
+			for (const [id, client$] of this.connections) {
+				try {
+					client$.next({ data: message });
+				} catch {
+					toRemove.push(id);
+				}
 			}
 		}
 
 		for (const id of toRemove) {
 			this.removeConnection(id);
 		}
-
-		this.logger.debug(`Broadcast event [${event.topic}]: sent to ${sent} connections`);
-	}
-
-	broadcastToSearchSpace(searchSpaceId: number, event: { topic: string; data: any }): void {
-		this.broadcastEvent({ ...event, searchSpaceId });
 	}
 }

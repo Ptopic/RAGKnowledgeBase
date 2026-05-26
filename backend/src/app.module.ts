@@ -21,6 +21,7 @@ import { SearchSourceConnectorsModule } from "./search-source-connectors/search-
 import { SearchSpacesModule } from "./search-spaces/search-spaces.module";
 import { QueryTemplatesModule } from "./query-templates/query-templates.module";
 import { ServicesModule } from "./services/services.module";
+import { RedisModule } from "./redis/redis.module";
 import { SseModule } from "./sse/sse.module";
 
 @Module({
@@ -51,6 +52,7 @@ import { SseModule } from "./sse/sse.module";
 		QueryTemplatesModule,
 		LogsModule,
 		GoogleAuthModule,
+		RedisModule,
 		SseModule,
 	],
 	controllers: [AppController],
