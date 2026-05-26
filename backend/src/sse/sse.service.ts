@@ -3,15 +3,36 @@ import { Subject } from 'rxjs';
 import * as crypto from 'node:crypto';
 import { RedisPubSubService } from '../redis/redis.service';
 
+// Event shape published to Redis "sse-broadcast" channel
+// Matches hegnar-journalist-boost EventService.sendEvent() payload
 interface SseBroadcastEvent {
 	id: string;
 	topic: string;
-	data: Record<string, unknown>;
+	// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+	data?: any;
 	timestamp: number;
+	targetConnectionId?: string;
+	excludeConnectionId?: string;
 	broadcastToAll?: boolean;
 	broadcastToOtherUsers?: boolean;
-	excludeConnectionId?: string;
+}
+
+// Matches hegnar-journalist-boost SSEEventResponse
+export interface SSEEventResponse {
+	success: boolean;
+	eventId?: string;
+	error?: string;
+}
+
+// Matches hegnar-journalist-boost SSEEventPayload
+interface SSEEventPayload {
+	topic: string;
+	// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+	data?: any;
 	targetConnectionId?: string;
+	excludeConnectionId?: string;
+	broadcastToAll?: boolean;
+	broadcastToOtherUsers?: boolean;
 }
 
 @Injectable()
@@ -61,50 +82,124 @@ export class SseService implements OnModuleInit {
 		}
 	}
 
-	broadcastEvent(event: { topic: string; data: Record<string, unknown>; searchSpaceId?: number }): void {
-		const enrichedEvent: SseBroadcastEvent = {
-			id: crypto.randomUUID(),
-			topic: event.topic,
-			data: event.data || {},
-			timestamp: Date.now(),
-			broadcastToAll: true,
-		};
-		this.redisPubSub.publish('sse-broadcast', JSON.stringify(enrichedEvent));
+	// --- Core send method (matches hegnar EventService.sendEvent) ---
+
+	private async sendEvent(payload: SSEEventPayload): Promise<SSEEventResponse> {
+		try {
+			const event: SseBroadcastEvent = {
+				id: crypto.randomUUID(),
+				topic: payload.topic,
+				data: payload.data || {},
+				timestamp: Date.now(),
+				targetConnectionId: payload.targetConnectionId,
+				excludeConnectionId: payload.excludeConnectionId,
+				broadcastToAll: payload.broadcastToAll,
+				broadcastToOtherUsers: payload.broadcastToOtherUsers,
+			};
+
+			await this.redisPubSub.publish('sse-broadcast', JSON.stringify(event));
+
+			return {
+				success: true,
+				eventId: event.id,
+			};
+		} catch (error) {
+			this.logger.error('❌ [EventService] Failed to send event:', error);
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error',
+			};
+		}
 	}
 
-	broadcastToSearchSpace(searchSpaceId: number, event: { topic: string; data: Record<string, unknown> }): void {
-		this.broadcastEvent({ ...event, searchSpaceId });
+	// --- Public API (matches hegnar EventService methods 1:1) ---
+
+	/** Send to a specific connection. Matches hegnar EventService.pushEventToTopic() */
+	async pushEventToTopic(
+		topic: string,
+		connectionId: string,
+		// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+		data?: any,
+	): Promise<SSEEventResponse> {
+		const payload = { topic, data, targetConnectionId: connectionId };
+		return this.sendEvent(payload);
 	}
 
-	async pushEventToConnection(topic: string, connectionId: string, data?: Record<string, unknown>): Promise<void> {
-		const enrichedEvent: SseBroadcastEvent = {
-			id: crypto.randomUUID(),
+	/** Broadcast to all connections on a topic. Matches hegnar EventService.broadcastToTopic() */
+	async broadcastToTopic(
+		topic: string,
+		// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+		data?: any,
+	): Promise<SSEEventResponse> {
+		const payload = { topic, data, broadcastToAll: true };
+		return this.sendEvent(payload);
+	}
+
+	/** Broadcast to all other users in a topic (excluding one). Matches hegnar EventService.broadcastToAllOtherUsersInTopic() */
+	async broadcastToAllOtherUsersInTopic(
+		topic: string,
+		connectionId: string,
+		// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+		data?: any,
+	): Promise<SSEEventResponse> {
+		const payload = {
 			topic,
-			data: data || {},
-			timestamp: Date.now(),
-			targetConnectionId: connectionId,
-		};
-		await this.redisPubSub.publish('sse-broadcast', JSON.stringify(enrichedEvent));
-	}
-
-	async broadcastToOtherUsers(topic: string, excludeConnectionId: string, data?: Record<string, unknown>): Promise<void> {
-		const enrichedEvent: SseBroadcastEvent = {
-			id: crypto.randomUUID(),
-			topic,
-			data: data || {},
-			timestamp: Date.now(),
+			data,
+			excludeConnectionId: connectionId,
 			broadcastToOtherUsers: true,
-			excludeConnectionId,
 		};
-		await this.redisPubSub.publish('sse-broadcast', JSON.stringify(enrichedEvent));
+		return this.sendEvent(payload);
 	}
+
+	/** Broadcast to all topics. Matches hegnar EventService.broadcastToAllTopics() */
+	async broadcastToAllTopics(
+		// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+		data?: any,
+	): Promise<SSEEventResponse> {
+		const payload = { topic: '*', data, broadcastToAll: true };
+		return this.sendEvent(payload);
+	}
+
+	/** Broadcast to all other users in all topics. Matches hegnar EventService.broadcastToAllOtherUsersInAllTopics() */
+	async broadcastToAllOtherUsersInAllTopics(
+		connectionId: string,
+		// biome-ignore lint/suspicious/noExplicitAny: SSE data can contain anything
+		data?: any,
+	): Promise<SSEEventResponse> {
+		const payload = {
+			topic: '*',
+			data,
+			excludeConnectionId: connectionId,
+			broadcastToOtherUsers: true,
+		};
+		return this.sendEvent(payload);
+	}
+
+	// --- Convenience wrapper for existing callers (LogsService, TaskLoggingService) ---
+
+	async broadcastEvent(event: { topic: string; data: any; searchSpaceId?: number }): Promise<SSEEventResponse> {
+		return this.broadcastToTopic(event.topic, event.data);
+	}
+
+	broadcastToSearchSpace(searchSpaceId: number, event: { topic: string; data: any }): Promise<SSEEventResponse> {
+		return this.broadcastToTopic(event.topic, event.data);
+	}
+
+	// --- Local connection routing (matches hegnar route.ts broadcastToLocalConnections) ---
 
 	private broadcastToLocalConnections(event: SseBroadcastEvent): void {
-		const { broadcastToOtherUsers, excludeConnectionId, targetConnectionId } = event;
+		const {
+			broadcastToAll,
+			broadcastToOtherUsers,
+			excludeConnectionId,
+			targetConnectionId,
+		} = event;
+
 		const message = JSON.stringify(event);
 		const toRemove: string[] = [];
 
 		if (targetConnectionId) {
+			// Send to specific client
 			const client$ = this.connections.get(targetConnectionId);
 			if (client$) {
 				try {
@@ -114,6 +209,7 @@ export class SseService implements OnModuleInit {
 				}
 			}
 		} else if (broadcastToOtherUsers && excludeConnectionId) {
+			// Send to all except one
 			for (const [id, client$] of this.connections) {
 				if (id !== excludeConnectionId) {
 					try {
@@ -123,7 +219,17 @@ export class SseService implements OnModuleInit {
 					}
 				}
 			}
+		} else if (broadcastToAll) {
+			// Send to all
+			for (const [id, client$] of this.connections) {
+				try {
+					client$.next({ data: message });
+				} catch {
+					toRemove.push(id);
+				}
+			}
 		} else {
+			// Default: send to all (client filters by topic)
 			for (const [id, client$] of this.connections) {
 				try {
 					client$.next({ data: message });
