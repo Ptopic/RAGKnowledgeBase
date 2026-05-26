@@ -15,13 +15,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Use placeholder values at build time so they can be replaced at runtime
-# via the entrypoint script. This avoids requiring build args / GitHub secrets.
-ENV NEXT_PUBLIC_API_URL=__NEXT_PUBLIC_API_URL__
-ENV NEXT_PUBLIC_WEBSITE_URL=__NEXT_PUBLIC_WEBSITE_URL__
-ENV NEXT_PUBLIC_APP_NAME=__NEXT_PUBLIC_APP_NAME__
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=__NEXT_PUBLIC_GOOGLE_CLIENT_ID__
-ENV NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__
+# Placeholder URLs/values for build time — replaced at runtime by env.sh
+ENV NEXT_PUBLIC_API_URL=http://placeholder.api.url
+ENV NEXT_PUBLIC_WEBSITE_URL=http://placeholder.website.url
+ENV NEXT_PUBLIC_APP_NAME=PLACEHOLDER_APP_NAME
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=placeholder.google.client.id
+ENV NEXT_PUBLIC_ETL_SERVICE=PLACEHOLDER_ETL_SERVICE
 
 # Limit heap to 1536MB to avoid crashing the server
 ENV NODE_OPTIONS="--max-old-space-size=1536"
