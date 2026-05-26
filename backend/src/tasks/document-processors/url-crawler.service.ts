@@ -14,6 +14,7 @@ import { EmbeddingService } from '../../retriever/embedding.service';
 import { ImageAnalysisService } from '../../services/image-analysis.service';
 import { JinaReaderService } from '../../services/jina-reader.service';
 import { TaskLoggingService } from '../../services/task-logging.service';
+import { SseService } from '../../sse/sse.service';
 import { optimizeContentForContextWindow } from '../../utils/document-converters';
 import {
   chunkMarkdownContent,
@@ -33,6 +34,7 @@ export class UrlCrawlerService {
     private embeddingService: EmbeddingService,
     private jinaReaderService: JinaReaderService,
     private imageAnalysisService: ImageAnalysisService,
+    private sseService: SseService,
   ) {}
 
   /**
@@ -170,6 +172,7 @@ export class UrlCrawlerService {
     const taskLogger = TaskLoggingService.forSearchSpace(
       this.prisma,
       searchSpaceId,
+      this.sseService,
     );
 
     // Log task start

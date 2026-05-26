@@ -12,6 +12,7 @@ import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
 import { EmbeddingService } from "../../retriever/embedding.service";
 import { ImageAnalysisService } from "../../services/image-analysis.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
+import { SseService } from "../../sse/sse.service";
 import { optimizeContentForContextWindow } from "../../utils/document-converters";
 import {
 	chunkMarkdownContent,
@@ -33,6 +34,7 @@ export class YoutubeProcessorService {
 		private baseService: DocumentProcessorBaseService,
 		private embeddingService: EmbeddingService,
 		private imageAnalysisService: ImageAnalysisService,
+		private sseService: SseService,
 	) {
 		// Initialize BrightData configuration
 		this.brightDataApiKey = process.env.BRIGHTDATA_API_KEY;
@@ -387,6 +389,7 @@ export class YoutubeProcessorService {
 		const taskLogger = TaskLoggingService.forSearchSpace(
 			this.prisma,
 			searchSpaceId,
+			this.sseService,
 		);
 
 		let logEntry: Log | null = null;

@@ -10,6 +10,7 @@ import { GoogleGmailConnector } from "../../connectors/google-gmail.connector";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EmbeddingService } from "../../retriever/embedding.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
+import { SseService } from "../../sse/sse.service";
 import {
 	generateContentHash,
 	generateDocumentSummary,
@@ -27,6 +28,7 @@ export class GoogleGmailIndexerService {
 		private baseService: ConnectorIndexerBaseService,
 		private embeddingService: EmbeddingService,
 		private llmService: LLMService,
+		private sseService: SseService,
 	) {
 		// Initialize text splitter with reasonable defaults
 		this.textSplitter = new RecursiveCharacterTextSplitter({
@@ -75,6 +77,7 @@ export class GoogleGmailIndexerService {
 		const taskLogger = TaskLoggingService.forSearchSpace(
 			this.prisma,
 			searchSpaceId,
+			this.sseService,
 		);
 
 		// Log task start

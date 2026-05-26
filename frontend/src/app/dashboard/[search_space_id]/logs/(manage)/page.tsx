@@ -1,4 +1,5 @@
 "use client";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import {
 	type ColumnDef,
 	type ColumnFiltersState,
@@ -14,6 +15,7 @@ import {
 	useReactTable,
 	type VisibilityState,
 } from "@tanstack/react-table";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	Activity,
 	AlertCircle,
@@ -103,7 +105,9 @@ import {
 	useLogs,
 	useLogsSummary,
 } from "@/hooks/use-logs";
-import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { useSSE } from "@/hooks/useSSE";
+import { LOGS, LOGS_SUMMARY } from "@/shared/queryKeys";
+import { LOGS_SSE_TOPIC } from "@/shared/sseTopics";
 import { cn } from "@/lib/utils";
 
 // Define animation variants for reuse
@@ -390,6 +394,30 @@ export default function LogsManagePage() {
 		error: summaryError,
 		refreshSummary,
 	} = useLogsSummary(searchSpaceId, 24);
+
+	const queryClient = useQueryClient();
+	const { lastEvent, isConnected } = useSSE({ topic: LOGS_SSE_TOPIC });
+
+	useEffect(() => {
+		if (!lastEvent?.data) return;
+		const { searchSpaceId: eventSearchSpaceId } = lastEvent.data;
+		if (eventSearchSpaceId && eventSearchSpaceId !== searchSpaceId) return;
+		queryClient.invalidateQueries({ queryKey: [LOGS, searchSpaceId] });
+		queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY, searchSpaceId] });
+	}, [lastEvent, queryClient, searchSpaceId]);
+
+	// Refresh on SSE reconnect to catch any events missed while tab was inactive
+	const connectionCountRef = useRef(0);
+	useEffect(() => {
+		if (isConnected) {
+			connectionCountRef.current++;
+			// Skip first connection (initial load), refresh on subsequent reconnects
+			if (connectionCountRef.current > 1) {
+				queryClient.invalidateQueries({ queryKey: [LOGS, searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY, searchSpaceId] });
+			}
+		}
+	}, [isConnected, queryClient, searchSpaceId]);
 
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
