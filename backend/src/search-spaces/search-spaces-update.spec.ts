@@ -114,7 +114,7 @@ describe("SearchSpacesService — update", () => {
 		});
 	});
 
-	it("should update headlineImageUrl when provided", async () => {
+	it("should update headline_image_url when provided", async () => {
 		const newImageUrl = "https://cdn.example.com/searchspaces/img.png";
 		const existingNoImage = { ...existingSearchSpace, headlineImageUrl: null };
 		prisma.searchSpace.findFirst.mockResolvedValue(existingNoImage);
@@ -127,7 +127,7 @@ describe("SearchSpacesService — update", () => {
 
 		const result = await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: newImageUrl },
+			{ name: "Updated Name", description: "Updated Description", headline_image_url: newImageUrl },
 			baseMembership,
 		);
 
@@ -159,7 +159,7 @@ describe("SearchSpacesService — update", () => {
 
 		await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: newImageUrl },
+			{ name: "Updated Name", description: "Updated Description", headline_image_url: newImageUrl },
 			baseMembership,
 		);
 
@@ -179,14 +179,14 @@ describe("SearchSpacesService — update", () => {
 
 		await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: null },
+			{ name: "Updated Name", description: "Updated Description", headline_image_url: null },
 			baseMembership,
 		);
 
 		expect(uploadService.delete).toHaveBeenCalledWith(oldImageUrl);
 	});
 
-	it("should not delete old headline image when headlineImageUrl is not changed", async () => {
+	it("should not delete old headline image when headline_image_url is not changed", async () => {
 		const imageUrl = "https://cdn.example.com/searchspaces/img.png";
 		const existingWithImage = { ...existingSearchSpace, headlineImageUrl: imageUrl };
 		prisma.searchSpace.findFirst.mockResolvedValue(existingWithImage);
@@ -199,21 +199,21 @@ describe("SearchSpacesService — update", () => {
 
 		await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: imageUrl },
+			{ name: "Updated Name", description: "Updated Description", headline_image_url: imageUrl },
 			baseMembership,
 		);
 
 		expect(uploadService.delete).not.toHaveBeenCalled();
 	});
 
-	it("should reject headlineImageUrl pointing to external storage", async () => {
+	it("should reject headline_image_url pointing to external storage", async () => {
 		prisma.searchSpace.findFirst.mockResolvedValue(existingSearchSpace);
 		uploadService.isOwnedUrl.mockReturnValue(false);
 
 		await expect(
 			service.update(
 				searchSpaceId,
-				{ name: "Updated Name", description: "Updated Description", headlineImageUrl: "https://evil.com/img.png" },
+				{ name: "Updated Name", description: "Updated Description", headline_image_url: "https://evil.com/img.png" },
 				baseMembership,
 			),
 		).rejects.toThrow(BadRequestException);
@@ -227,7 +227,7 @@ describe("SearchSpacesService — update", () => {
 
 		await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: null },
+			{ name: "Updated Name", description: "Updated Description", headline_image_url: null },
 			baseMembership,
 		);
 
@@ -279,7 +279,7 @@ describe("SearchSpacesService — update", () => {
 
 		const result = await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: null },
+			{ name: "Updated Name", description: "Updated Description", headline_image_url: null },
 			baseMembership,
 		);
 
@@ -297,7 +297,7 @@ describe("SearchSpacesService — update", () => {
 
 		const result = await service.update(
 			searchSpaceId,
-			{ name: "Updated Name", description: "Updated Description", headlineImageUrl: null },
+			{ name: "Updated Name", description: "Updated Description", headline_image_url: null },
 			editorMembership,
 		);
 

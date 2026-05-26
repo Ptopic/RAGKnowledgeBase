@@ -34,8 +34,8 @@ export class SearchSpacesService {
 	): Promise<SearchSpaceDto> {
 		try {
 			if (
-				createDto.headlineImageUrl &&
-				!this.uploadService.isOwnedUrl(createDto.headlineImageUrl)
+				createDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(createDto.headline_image_url)
 			) {
 				throw new BadRequestException(
 					"headline_image_url must point to application-managed storage",
@@ -46,7 +46,7 @@ export class SearchSpacesService {
 				data: {
 					name: createDto.name,
 					description: createDto.description,
-					headlineImageUrl: createDto.headlineImageUrl,
+					headlineImageUrl: createDto.headline_image_url,
 					userId,
 				},
 			});
@@ -139,8 +139,8 @@ export class SearchSpacesService {
 	): Promise<SearchSpaceDto> {
 		try {
 			if (
-				updateDto.headlineImageUrl &&
-				!this.uploadService.isOwnedUrl(updateDto.headlineImageUrl)
+				updateDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(updateDto.headline_image_url)
 			) {
 				throw new BadRequestException(
 					"headline_image_url must point to application-managed storage",
@@ -156,9 +156,9 @@ export class SearchSpacesService {
 			}
 
 			if (
-				updateDto.headlineImageUrl !== undefined &&
+				updateDto.headline_image_url !== undefined &&
 				existing.headlineImageUrl &&
-				existing.headlineImageUrl !== updateDto.headlineImageUrl
+				existing.headlineImageUrl !== updateDto.headline_image_url
 			) {
 				await this.uploadService
 					.delete(existing.headlineImageUrl)
@@ -174,7 +174,7 @@ export class SearchSpacesService {
 				data: {
 					name: updateDto.name,
 					description: updateDto.description,
-					headlineImageUrl: updateDto.headlineImageUrl,
+					headlineImageUrl: updateDto.headline_image_url,
 				},
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});

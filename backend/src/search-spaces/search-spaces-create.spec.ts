@@ -96,7 +96,7 @@ describe("SearchSpacesService — create", () => {
 		prisma.searchSpaceMember.create.mockResolvedValue(createdMember);
 
 		const result = await service.create(
-			{ name: "Test Space", description: "A test space", headlineImageUrl: imageUrl },
+			{ name: "Test Space", description: "A test space", headline_image_url: imageUrl },
 			userId,
 		);
 
@@ -112,12 +112,12 @@ describe("SearchSpacesService — create", () => {
 		expect(uploadService.isOwnedUrl).toHaveBeenCalledWith(imageUrl);
 	});
 
-	it("should reject headlineImageUrl pointing to external storage", async () => {
+	it("should reject headline_image_url pointing to external storage", async () => {
 		uploadService.isOwnedUrl.mockReturnValue(false);
 
 		await expect(
 			service.create(
-				{ name: "Test Space", description: "A test space", headlineImageUrl: "https://evil.com/img.png" },
+				{ name: "Test Space", description: "A test space", headline_image_url: "https://evil.com/img.png" },
 				userId,
 			),
 		).rejects.toThrow(BadRequestException);
@@ -126,12 +126,12 @@ describe("SearchSpacesService — create", () => {
 		expect(prisma.searchSpace.create).not.toHaveBeenCalled();
 	});
 
-	it("should allow creating with headlineImageUrl set to null", async () => {
+	it("should allow creating with headline_image_url set to null", async () => {
 		prisma.searchSpace.create.mockResolvedValue(createdSearchSpace);
 		prisma.searchSpaceMember.create.mockResolvedValue(createdMember);
 
 		const result = await service.create(
-			{ name: "Test Space", description: "A test space", headlineImageUrl: null },
+			{ name: "Test Space", description: "A test space", headline_image_url: null },
 			userId,
 		);
 

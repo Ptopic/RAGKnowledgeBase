@@ -25,7 +25,7 @@ export class CreateSearchSpaceDto {
 	@IsUrl()
 	@IsOptional()
 	@MaxLength(500)
-	headlineImageUrl?: string | null;
+	headline_image_url?: string | null;
 }
 
 export class UpdateSearchSpaceDto {
@@ -41,7 +41,7 @@ export class UpdateSearchSpaceDto {
 	@IsUrl()
 	@IsOptional()
 	@MaxLength(500)
-	headlineImageUrl?: string | null;
+	headline_image_url?: string | null;
 }
 
 export class DeleteSearchSpaceImageDto {
