@@ -37,6 +37,7 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const isConnectingRef = useRef(false);
+  const connectionIdRef = useRef<string | null>(null);
   const subscribersRef = useRef<Map<string, Set<SSECallback>>>(new Map());
 
   const connect = useCallback(() => {
@@ -44,22 +45,27 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
 
     isConnectingRef.current = true;
 
-    // SSE EventSource doesn't support custom headers, so we pass token as query param
-    const getCookieValue = (name: string) => {
-      const match = document.cookie.match(
-        new RegExp(`(?:^|; )${name}=([^;]*)`),
-      );
-      return match ? decodeURIComponent(match[1]) : null;
-    };
+    if (!connectionIdRef.current) {
+      // SSE EventSource doesn't support custom headers, so we pass token as query param
+      const getCookieValue = (name: string) => {
+        const match = document.cookie.match(
+          new RegExp(`(?:^|; )${name}=([^;]*)`),
+        );
+        return match ? decodeURIComponent(match[1]) : null;
+      };
 
-    const token = getCookieValue(COOKIE_NAME.ACCESS_TOKEN);
-    if (!token) {
-      isConnectingRef.current = false;
-      return;
+      const token = getCookieValue(COOKIE_NAME.ACCESS_TOKEN);
+      if (!token) {
+        isConnectingRef.current = false;
+        return;
+      }
+
+      connectionIdRef.current = token;
+      setConnectionId(token);
     }
 
     const baseUrl = config.apiUrl || "";
-    const url = `${baseUrl}/sse/events?token=${encodeURIComponent(token)}`;
+    const url = `${baseUrl}/sse/events?token=${encodeURIComponent(connectionIdRef.current)}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
@@ -72,13 +78,16 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed: SSEEvent = JSON.parse(event.data);
 
+        // Handle connection handshake
         if (parsed.topic === "connection" && parsed.data?.connectionId) {
           setConnectionId(parsed.data.connectionId);
           return;
         }
 
+        // Skip heartbeats
         if (parsed.topic === "heartbeat") return;
 
+        // Dispatch to topic subscribers
         const callbacks = subscribersRef.current.get(parsed.topic);
         if (callbacks) {
           for (const cb of callbacks) {
@@ -86,6 +95,7 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        // Also dispatch to wildcard subscribers
         const wildcardCallbacks = subscribersRef.current.get("*");
         if (wildcardCallbacks) {
           for (const cb of wildcardCallbacks) {
@@ -93,6 +103,7 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
+        // Ignore parse errors
       }
     };
 
@@ -102,37 +113,33 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
       eventSourceRef.current = null;
       isConnectingRef.current = false;
 
+      // Retry after 2s
       setTimeout(() => {
         if (!eventSourceRef.current && !isConnectingRef.current) {
           connect();
         }
-      }, 3000);
+      }, 2000);
     };
   }, []);
 
-  const subscribe = useCallback(
-    (topic: string, callback: SSECallback) => {
-      if (!subscribersRef.current.has(topic)) {
-        subscribersRef.current.set(topic, new Set());
-      }
-      subscribersRef.current.get(topic)?.add(callback);
-    },
-    [],
-  );
+  const subscribe = useCallback((topic: string, callback: SSECallback) => {
+    if (!subscribersRef.current.has(topic)) {
+      subscribersRef.current.set(topic, new Set());
+    }
+    subscribersRef.current.get(topic)?.add(callback);
+  }, []);
 
-  const unsubscribe = useCallback(
-    (topic: string, callback: SSECallback) => {
-      const callbacks = subscribersRef.current.get(topic);
-      if (callbacks) {
-        callbacks.delete(callback);
-        if (callbacks.size === 0) {
-          subscribersRef.current.delete(topic);
-        }
+  const unsubscribe = useCallback((topic: string, callback: SSECallback) => {
+    const callbacks = subscribersRef.current.get(topic);
+    if (callbacks) {
+      callbacks.delete(callback);
+      if (callbacks.size === 0) {
+        subscribersRef.current.delete(topic);
       }
-    },
-    [],
-  );
+    }
+  }, []);
 
+  // Auto-connect on mount
   useEffect(() => {
     connect();
     return () => {
@@ -143,6 +150,7 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
     };
   }, [connect]);
 
+  // Reconnect on visibility change
   useEffect(() => {
     const handleVisibility = () => {
       if (

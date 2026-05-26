@@ -1,47 +1,66 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Subject } from 'rxjs';
+import * as crypto from 'node:crypto';
 
 @Injectable()
 export class SseService {
 	private readonly logger = new Logger(SseService.name);
-	private connections: Map<string, ReadableStreamDefaultController> = new Map();
+	private connections: Map<string, Subject<{ data: string }>> = new Map();
 
-	addConnection(connectionId: string, controller: ReadableStreamDefaultController): void {
-		this.connections.set(connectionId, controller);
+	addConnection(connectionId: string, client$: Subject<{ data: string }>): void {
+		this.connections.set(connectionId, client$);
 		this.logger.log(`SSE client connected: ${connectionId} (total: ${this.connections.size})`);
 	}
 
 	removeConnection(connectionId: string): void {
-		this.connections.delete(connectionId);
+		const client$ = this.connections.get(connectionId);
+		if (client$) {
+			client$.complete();
+			this.connections.delete(connectionId);
+		}
 		this.logger.log(`SSE client disconnected: ${connectionId} (total: ${this.connections.size})`);
 	}
 
-	broadcastToSearchSpace(searchSpaceId: number, event: { topic: string; data: any }): void {
-		const message = `data: ${JSON.stringify(event)}\n\n`;
-		let sent = 0;
-		for (const [connectionId, controller] of this.connections) {
+	closeExistingConnection(connectionId: string): void {
+		const existing = this.connections.get(connectionId);
+		if (existing) {
 			try {
-				controller.enqueue(new TextEncoder().encode(message));
-				sent++;
+				existing.complete();
 			} catch {
-				this.logger.warn(`Failed to send to connection ${connectionId}, removing`);
-				this.removeConnection(connectionId);
+				// Already closed
 			}
+			this.connections.delete(connectionId);
 		}
-		this.logger.debug(`Broadcast to search space ${searchSpaceId}: sent to ${sent} connections`);
 	}
 
 	broadcastEvent(event: { topic: string; data: any; searchSpaceId?: number }): void {
-		const message = `data: ${JSON.stringify(event)}\n\n`;
+		const enrichedEvent = {
+			id: crypto.randomUUID(),
+			topic: event.topic,
+			data: event.data || {},
+			timestamp: Date.now(),
+		};
+		const message = JSON.stringify(enrichedEvent);
 		let sent = 0;
-		for (const [connectionId, controller] of this.connections) {
+		const toRemove: string[] = [];
+
+		for (const [connectionId, client$] of this.connections) {
 			try {
-				controller.enqueue(new TextEncoder().encode(message));
+				client$.next({ data: message });
 				sent++;
 			} catch {
-				this.logger.warn(`Failed to send to connection ${connectionId}, removing`);
-				this.removeConnection(connectionId);
+				toRemove.push(connectionId);
 			}
 		}
+
+		for (const id of toRemove) {
+			this.removeConnection(id);
+		}
+
 		this.logger.debug(`Broadcast event [${event.topic}]: sent to ${sent} connections`);
+	}
+
+	broadcastToSearchSpace(searchSpaceId: number, event: { topic: string; data: any }): void {
+		this.broadcastEvent({ ...event, searchSpaceId });
 	}
 }

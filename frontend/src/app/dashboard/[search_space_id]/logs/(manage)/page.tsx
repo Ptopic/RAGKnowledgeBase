@@ -406,15 +406,16 @@ export default function LogsManagePage() {
 		queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY, searchSpaceId] });
 	}, [lastEvent, queryClient, searchSpaceId]);
 
-	const prevConnectedRef = useRef(false);
+	// Refresh on SSE reconnect to catch any events missed while tab was inactive
+	const connectionCountRef = useRef(0);
 	useEffect(() => {
-		if (isConnected && prevConnectedRef.current === false) {
-			prevConnectedRef.current = true;
-		} else if (isConnected && prevConnectedRef.current === true) {
-			queryClient.invalidateQueries({ queryKey: [LOGS, searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY, searchSpaceId] });
-		} else {
-			prevConnectedRef.current = false;
+		if (isConnected) {
+			connectionCountRef.current++;
+			// Skip first connection (initial load), refresh on subsequent reconnects
+			if (connectionCountRef.current > 1) {
+				queryClient.invalidateQueries({ queryKey: [LOGS, searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: [LOGS_SUMMARY, searchSpaceId] });
+			}
 		}
 	}, [isConnected, queryClient, searchSpaceId]);
 
