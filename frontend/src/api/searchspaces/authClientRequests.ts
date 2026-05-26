@@ -9,6 +9,7 @@ import {
 	createSearchSpace,
 	declineInvitation,
 	deleteSearchSpace,
+	deleteSearchSpaceImage,
 	getInvitationByToken,
 	getMembers,
 	getMyInvitations,
@@ -20,6 +21,7 @@ import {
 	removeMember,
 	updateMemberRole,
 	updateSearchSpace,
+	uploadSearchSpaceImage,
 } from "./requests";
 
 const searchSpacesClientRequests = {
@@ -28,6 +30,8 @@ const searchSpacesClientRequests = {
 	createSearchSpace: withAuthenticatedClientRequest(createSearchSpace),
 	deleteSearchSpace: withAuthenticatedClientRequest(deleteSearchSpace),
 	updateSearchSpace: withAuthenticatedClientRequest(updateSearchSpace),
+	uploadSearchSpaceImage: withAuthenticatedClientRequest(uploadSearchSpaceImage),
+	deleteSearchSpaceImage: withAuthenticatedClientRequest(deleteSearchSpaceImage),
 	getMembers: withAuthenticatedClientRequest(getMembers),
 	inviteMember: withAuthenticatedClientRequest(inviteMember),
 	updateMemberRole: withAuthenticatedClientRequest(updateMemberRole),

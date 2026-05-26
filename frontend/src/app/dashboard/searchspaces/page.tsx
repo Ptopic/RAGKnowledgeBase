@@ -10,8 +10,13 @@ export default function SearchSpacesPage() {
 	const handleCreateSearchSpace = (data: {
 		name: string;
 		description: string;
+		headline_image_url?: string | null;
 	}) => {
-		createSearchSpace(data);
+		createSearchSpace({
+			name: data.name,
+			description: data.description,
+			...(data.headline_image_url ? { headline_image_url: data.headline_image_url } : {}),
+		});
 	};
 
 	return (

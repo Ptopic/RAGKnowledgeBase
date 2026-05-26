@@ -4,6 +4,7 @@ export interface SearchSpace {
 	id: number;
 	name: string;
 	description: string;
+	headline_image_url: string | null;
 	created_at: string;
 	user_id: string;
 	pinned_query_template_ids: number[];
@@ -14,6 +15,7 @@ export interface SearchSpace {
 export interface CreateSearchSpaceRequest {
 	name: string;
 	description: string;
+	headline_image_url?: string;
 }
 
 export interface CreateSearchSpaceResponse extends SearchSpace {}
@@ -21,9 +23,22 @@ export interface CreateSearchSpaceResponse extends SearchSpace {}
 export interface UpdateSearchSpaceRequest {
 	name: string;
 	description?: string;
+	headline_image_url?: string | null;
 }
 
 export interface UpdateSearchSpaceResponse extends SearchSpace {}
+
+export interface UploadSearchSpaceImageRequest {
+	file: File;
+}
+
+export interface UploadSearchSpaceImageResponse {
+	url: string;
+}
+
+export interface DeleteSearchSpaceImageRequest {
+	url: string;
+}
 
 export interface Member {
 	id: string;

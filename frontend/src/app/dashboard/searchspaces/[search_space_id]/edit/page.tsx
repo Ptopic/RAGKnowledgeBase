@@ -54,7 +54,7 @@ export default function EditSearchSpacePage({
 		return <AccessDeniedPage />;
 	}
 
-	const handleUpdate = (data: { name: string; description: string }) => {
+	const handleUpdate = (data: { name: string; description: string; headline_image_url?: string | null }) => {
 		updateSearchSpace({ id: searchSpaceIdNum, data });
 	};
 
@@ -75,6 +75,7 @@ export default function EditSearchSpacePage({
 					initialData={{
 						name: searchSpace.name,
 						description: searchSpace.description,
+						headline_image_url: searchSpace.headline_image_url,
 					}}
 					onSubmit={handleUpdate}
 					onDelete={handleDelete}

@@ -172,9 +172,10 @@ model SearchSpace {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
 
-  name        String  @db.VarChar(100)
-  description String? @db.VarChar(500)
-  userId      String  @map("user_id")
+  name             String  @db.VarChar(100)
+  description      String? @db.VarChar(500)
+  headlineImageUrl String? @map("headline_image_url") @db.VarChar(500)
+  userId           String  @map("user_id")
 
   // Relationships
   user                   User                             @relation(fields: [userId], references: [id], onDelete: Cascade)

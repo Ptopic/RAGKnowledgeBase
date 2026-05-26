@@ -1,4 +1,5 @@
 import {
+	BadRequestException,
 	ForbiddenException,
 	Injectable,
 	InternalServerErrorException,
@@ -9,6 +10,7 @@ import { MemberRole, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PermissionsService } from "../permissions/permissions.service";
 import { SearchSpaceMembershipAttachment } from "../permissions/guards/search-space-access.guard";
+import { UploadService } from "../upload";
 import {
 	CreateSearchSpaceDto,
 	SearchSpaceDto,
@@ -23,6 +25,7 @@ export class SearchSpacesService {
 	constructor(
 		private prisma: PrismaService,
 		private permissionsService: PermissionsService,
+		private uploadService: UploadService,
 	) {}
 
 	async create(
@@ -30,10 +33,20 @@ export class SearchSpacesService {
 		userId: string,
 	): Promise<SearchSpaceDto> {
 		try {
+			if (
+				createDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(createDto.headline_image_url)
+			) {
+				throw new BadRequestException(
+					"headline_image_url must point to application-managed storage",
+				);
+			}
+
 			const searchSpace = await this.prisma.searchSpace.create({
 				data: {
 					name: createDto.name,
 					description: createDto.description,
+					headlineImageUrl: createDto.headline_image_url,
 					userId,
 				},
 			});
@@ -49,6 +62,9 @@ export class SearchSpacesService {
 
 			return this.toDto(searchSpace, MemberRole.OWNER);
 		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw error;
+			}
 			throw new InternalServerErrorException(
 				`Failed to create search space: ${error.message}`,
 			);
@@ -122,18 +138,50 @@ export class SearchSpacesService {
 		membership: SearchSpaceMembershipAttachment,
 	): Promise<SearchSpaceDto> {
 		try {
+			if (
+				updateDto.headline_image_url &&
+				!this.uploadService.isOwnedUrl(updateDto.headline_image_url)
+			) {
+				throw new BadRequestException(
+					"headline_image_url must point to application-managed storage",
+				);
+			}
+
+			const existing = await this.prisma.searchSpace.findFirst({
+				where: { id },
+			});
+
+			if (!existing) {
+				throw new NotFoundException("Search space not found");
+			}
+
+			if (
+				updateDto.headline_image_url !== undefined &&
+				existing.headlineImageUrl &&
+				existing.headlineImageUrl !== updateDto.headline_image_url
+			) {
+				await this.uploadService
+					.delete(existing.headlineImageUrl)
+					.catch((err) =>
+						this.logger.warn(
+							`Failed to delete old headline image: ${err.message}`,
+						),
+					);
+			}
+
 			const updated = await this.prisma.searchSpace.update({
 				where: { id },
 				data: {
 					name: updateDto.name,
 					description: updateDto.description,
+					headlineImageUrl: updateDto.headline_image_url,
 				},
 				include: { pinnedQueryTemplates: { select: { queryTemplateId: true } } },
 			});
 
 			return this.toDto(updated, membership.role);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (error instanceof NotFoundException || error instanceof ForbiddenException || error instanceof BadRequestException) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -144,6 +192,22 @@ export class SearchSpacesService {
 
 	async remove(id: number, userId: string): Promise<{ message: string }> {
 		try {
+			const searchSpace = await this.prisma.searchSpace.findFirst({
+				where: { id },
+			});
+
+			if (!searchSpace) {
+				throw new NotFoundException("Search space not found");
+			}
+
+			if (searchSpace.headlineImageUrl) {
+				await this.uploadService
+					.delete(searchSpace.headlineImageUrl)
+					.catch((err) =>
+						this.logger.warn(`Failed to delete headline image: ${err.message}`),
+					);
+			}
+
 			await this.prisma.searchSpace.delete({
 				where: { id },
 			});
@@ -350,6 +414,7 @@ export class SearchSpacesService {
 			id: searchSpace.id,
 			name: searchSpace.name,
 			description: searchSpace.description,
+			headline_image_url: searchSpace.headlineImageUrl,
 			userId: searchSpace.userId,
 			pinned_query_template_ids: pinnedIds,
 			created_at: searchSpace.createdAt,

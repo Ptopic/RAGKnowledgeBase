@@ -11,23 +11,36 @@ import {
 	Req,
 	UseGuards,
 	ParseIntPipe,
+	UploadedFile,
+	UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
-import { MemberRole } from "@prisma/client";
+import { UploadService } from "../upload";
 import {
 	CreateSearchSpaceDto,
+	DeleteSearchSpaceImageDto,
 	SearchSpaceDto,
 	UpdateSearchSpaceDto,
 } from "./dtos/search-space.dto";
 import { InviteMemberDto, InviteResponseDto, MemberDto, UpdateMemberRoleDto } from "./dtos/member.dto";
 import { SearchSpacesService } from "./search-spaces.service";
 
+interface AuthenticatedRequest extends Request {
+	user: { id: string };
+	searchSpaceContext?: import("../permissions/guards/search-space-access.guard").SearchSpaceContext;
+}
+
 @Controller("searchspaces")
 @UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class SearchSpacesController {
-	constructor(private readonly searchSpacesService: SearchSpacesService) {}
+	constructor(
+		private readonly searchSpacesService: SearchSpacesService,
+		private readonly uploadService: UploadService,
+	) {}
 
 	@Post()
 	async create(
@@ -35,6 +48,47 @@ export class SearchSpacesController {
 		@Req() req: any,
 	): Promise<SearchSpaceDto> {
 		return this.searchSpacesService.create(createDto, req.user.id);
+	}
+
+	@Post("upload-image")
+	@UseInterceptors(
+		FileInterceptor("file", {
+			limits: { fileSize: 5 * 1024 * 1024 },
+		}),
+	)
+	async uploadImage(
+		@UploadedFile() file: Express.Multer.File,
+		@Req() req: any,
+	): Promise<{ url: string }> {
+		if (!file) {
+			throw new BadRequestException("No file uploaded");
+		}
+		if (!file.mimetype.startsWith("image/")) {
+			throw new BadRequestException("Only image files are allowed");
+		}
+
+		const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+		const ext = file.originalname.split(".").pop() || "png";
+		const filename = `searchspace-${uniqueSuffix}.${ext}`;
+		const result = await this.uploadService.upload(
+			file.buffer,
+			filename,
+			"searchspaces",
+			file.mimetype,
+		);
+		return { url: result.url };
+	}
+
+	@Delete("delete-image")
+	async deleteImage(
+		@Body() body: DeleteSearchSpaceImageDto,
+		@Req() req: any,
+	): Promise<{ message: string }> {
+		if (!this.uploadService.isOwnedUrl(body.url)) {
+			throw new BadRequestException("URL must point to application-managed storage");
+		}
+		await this.uploadService.delete(body.url);
+		return { message: "Image deleted" };
 	}
 
 	@Get()

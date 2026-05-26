@@ -7,6 +7,7 @@ import type {
 	CreateSearchSpaceRequest,
 	CreateSearchSpaceResponse,
 	DeclineInvitationRequest,
+	DeleteSearchSpaceImageRequest,
 	InviteMemberRequest,
 	InviteResponse,
 	Member,
@@ -15,6 +16,8 @@ import type {
 	UpdateMemberRoleRequest,
 	UpdateSearchSpaceRequest,
 	UpdateSearchSpaceResponse,
+	UploadSearchSpaceImageRequest,
+	UploadSearchSpaceImageResponse,
 } from "./types";
 
 export const getSearchSpaces =
@@ -212,5 +215,44 @@ export const cancelInvitation =
 			(init) => ({
 				...init,
 				method: "DELETE",
+			}),
+		);
+
+export const uploadSearchSpaceImage =
+	(request: ICallableRequestBuilder<UploadSearchSpaceImageResponse>) =>
+	async (data: UploadSearchSpaceImageRequest) => {
+		const formData = new FormData();
+		formData.append("file", data.file);
+
+		return request.call(
+			`${config.apiUrl}/searchspaces/upload-image`,
+			(init) => {
+				const headers = new Headers(init.headers);
+				headers.delete("Content-Type");
+				headers.delete("content-type");
+
+				return {
+					...init,
+					method: "POST",
+					headers,
+					body: formData,
+				};
+			},
+		);
+	};
+
+export const deleteSearchSpaceImage =
+	(request: ICallableRequestBuilder<{ message: string }>) =>
+	async (data: DeleteSearchSpaceImageRequest) =>
+		request.call(
+			`${config.apiUrl}/searchspaces/delete-image`,
+			(init) => ({
+				...init,
+				method: "DELETE",
+				headers: {
+					...init.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ url: data.url }),
 			}),
 		);
