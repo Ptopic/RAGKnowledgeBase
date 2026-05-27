@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, FileX, Star } from "lucide-react";
+import { ChevronDown, ChevronUp, FileX, Star, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import React from "react";
@@ -66,6 +66,10 @@ function truncate(text: string, len = 150): string {
 		.trim();
 	if (plain.length <= len) return plain;
 	return `${plain.slice(0, len)}...`;
+}
+
+function isProcessing(doc: Document): boolean {
+	return doc.processing_status === "PROCESSING";
 }
 
 export function DocumentsTableShell({
@@ -336,7 +340,7 @@ export function DocumentsTableShell({
 													>
 														<Tooltip>
 															<TooltipTrigger asChild>
-																{notebookHref ? (
+																{notebookHref && !isProcessing(doc) ? (
 																	<Link href={notebookHref} className="flex items-center gap-2 hover:underline">
 																		<span className="text-muted-foreground shrink-0">
 																			{icon}
@@ -346,9 +350,11 @@ export function DocumentsTableShell({
 																) : (
 																	<span className="flex items-center gap-2">
 																		<span className="text-muted-foreground shrink-0">
-																			{icon}
+																			{isProcessing(doc) ? <Loader2 size={16} className="animate-spin text-blue-500" /> : icon}
 																		</span>
-																		<span>{truncatedTitle}</span>
+																		<span className={isProcessing(doc) ? "text-muted-foreground italic" : ""}>
+																			{truncatedTitle}
+																		</span>
 																	</span>
 																)}
 															</TooltipTrigger>
@@ -362,7 +368,7 @@ export function DocumentsTableShell({
 											{columnVisibility.document_type && (
 												<TableCell className="px-4 py-3">
 													<div className="flex items-center gap-2">
-														<DocumentTypeChip type={doc.document_type} />
+														<DocumentTypeChip type={doc.document_type} processingStatus={doc.processing_status} />
 													</div>
 												</TableCell>
 											)}
@@ -370,21 +376,26 @@ export function DocumentsTableShell({
 												<TableCell className="px-4 py-3">
 													<div className="flex flex-col gap-2">
 														<div className="max-w-[300px] max-h-[60px] overflow-hidden text-sm text-muted-foreground">
-															{truncate(doc.content)}
-														</div>
-														<DocumentViewer
-															title={doc.title}
-															content={doc.content}
-															trigger={
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	className="w-fit text-xs"
-																>
-																	View Full
-																</Button>
+															{isProcessing(doc)
+																? <span className="italic text-muted-foreground">Processing...</span>
+																: truncate(doc.content || "")
 															}
-														/>
+														</div>
+														{!isProcessing(doc) && (
+															<DocumentViewer
+																title={doc.title}
+																content={doc.content || ""}
+																trigger={
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		className="w-fit text-xs"
+																	>
+																		View Full
+																	</Button>
+																}
+															/>
+														)}
 													</div>
 												</TableCell>
 											)}
@@ -392,16 +403,18 @@ export function DocumentsTableShell({
 												<TableCell className="px-4 py-3">
 													<div className="flex items-center gap-2">
 														<span className="text-sm text-muted-foreground">
-															{doc.chunks_count ?? 0}
+															{isProcessing(doc) ? "-" : (doc.chunks_count ?? 0)}
 														</span>
-														<Button
-															variant="ghost"
-															size="sm"
-															className="h-7 px-2 text-xs"
-															onClick={() => openChunksModal(doc.id, doc.title)}
-														>
-															View
-														</Button>
+														{!isProcessing(doc) && (
+															<Button
+																variant="ghost"
+																size="sm"
+																className="h-7 px-2 text-xs"
+																onClick={() => openChunksModal(doc.id, doc.title)}
+															>
+																View
+															</Button>
+														)}
 													</div>
 												</TableCell>
 											)}
@@ -478,9 +491,9 @@ export function DocumentsTableShell({
 											<div className="flex items-center justify-between gap-2">
 												<div className="flex items-center gap-2 min-w-0">
 													<span className="text-muted-foreground shrink-0">
-														{icon}
+														{isProcessing(doc) ? <Loader2 size={16} className="animate-spin text-blue-500" /> : icon}
 													</span>
-													<div className="font-medium truncate">
+													<div className={`font-medium truncate ${isProcessing(doc) ? "text-muted-foreground italic" : ""}`}>
 														{doc.title}
 													</div>
 												</div>
@@ -494,7 +507,7 @@ export function DocumentsTableShell({
 										/>
 											</div>
 											<div className="mt-1 flex flex-wrap items-center gap-2">
-												<DocumentTypeChip type={doc.document_type} />
+												<DocumentTypeChip type={doc.document_type} processingStatus={doc.processing_status} />
 												<span className="text-xs text-muted-foreground">
 													{new Date(doc.created_at).toLocaleDateString()}
 												</span>
@@ -526,30 +539,35 @@ export function DocumentsTableShell({
 											</div>
 											{columnVisibility.content && (
 												<div className="mt-2 text-sm text-muted-foreground">
-													{truncate(doc.content)}
-													<div className="mt-1 flex items-center gap-3">
-														<DocumentViewer
-															title={doc.title}
-															content={doc.content}
-															trigger={
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	className="w-fit text-xs p-0 h-auto"
-																>
-																	View Full
-																</Button>
-															}
-														/>
-														<Button
-															variant="ghost"
-															size="sm"
-															className="w-fit text-xs p-0 h-auto"
-															onClick={() => openChunksModal(doc.id, doc.title)}
-														>
-															Chunks ({doc.chunks_count ?? 0})
-														</Button>
-													</div>
+													{isProcessing(doc)
+														? <span className="italic text-muted-foreground">Processing...</span>
+														: truncate(doc.content || "")
+													}
+													{!isProcessing(doc) && (
+														<div className="mt-1 flex items-center gap-3">
+															<DocumentViewer
+																title={doc.title}
+																content={doc.content || ""}
+																trigger={
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		className="w-fit text-xs p-0 h-auto"
+																	>
+																		View Full
+																	</Button>
+																}
+															/>
+															<Button
+																variant="ghost"
+																size="sm"
+																className="w-fit text-xs p-0 h-auto"
+																onClick={() => openChunksModal(doc.id, doc.title)}
+															>
+																Chunks ({doc.chunks_count ?? 0})
+															</Button>
+														</div>
+													)}
 												</div>
 											)}
 										</div>

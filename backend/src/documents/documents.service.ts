@@ -8,6 +8,7 @@ import {
 import { DocumentType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
+import { SseService } from "../sse/sse.service";
 import {
 	BulkDeleteResultDto,
 	CreateDocumentsDto,
@@ -25,6 +26,7 @@ export class DocumentsService {
 	constructor(
 		private prisma: PrismaService,
 		private queueService: QueueService,
+		private sseService: SseService,
 	) {}
 
 	async create(
@@ -36,46 +38,86 @@ export class DocumentsService {
 				throw new BadRequestException("Content array cannot be empty");
 			}
 
-			if (createDto.document_type === DocumentType.CRAWLED_URL) {
-				const queuedJobs = [];
-				for (const url of createDto.content) {
-					this.logger.log(`Queuing URL for crawling: ${url}`);
-					const job = await this.queueService.processUrlDocument(
-						url,
-						createDto.search_space_id,
-						userId,
-					);
-					queuedJobs.push(job.id);
-				}
+		if (createDto.document_type === DocumentType.CRAWLED_URL) {
+			const queuedJobs = [];
+			for (const url of createDto.content) {
+				this.logger.log(`Creating placeholder and queuing URL for crawling: ${url}`);
 
-				this.logger.log(
-					`Successfully queued ${queuedJobs.length} URL(s) for crawling`,
+				const placeholderDoc = await this.prisma.document.create({
+					data: {
+						searchSpaceId: createDto.search_space_id,
+						title: url,
+						documentType: DocumentType.CRAWLED_URL,
+						documentMetadata: { url, source: 'url_crawl' },
+						content: null,
+						contentHash: null,
+						processingStatus: 'PROCESSING',
+						processingStartedAt: new Date(),
+					},
+				});
+
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'create', searchSpaceId: createDto.search_space_id, documentId: placeholderDoc.id },
+				});
+
+				const job = await this.queueService.processUrlDocument(
+					url,
+					createDto.search_space_id,
+					userId,
+					placeholderDoc.id,
 				);
-
-				return {
-					message: `${createDto.content.length} URL(s) queued for processing`,
-				};
+				queuedJobs.push(job.id);
 			}
-			if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
-				const queuedJobs = [];
-				for (const videoUrl of createDto.content) {
-					this.logger.log(`Queuing YouTube video for processing: ${videoUrl}`);
-					const job = await this.queueService.processYouTubeDocument(
-						videoUrl,
-						createDto.search_space_id,
-						userId,
-					);
-					queuedJobs.push(job.id);
-				}
 
-				this.logger.log(
-					`Successfully queued ${queuedJobs.length} YouTube video(s) for processing`,
+			this.logger.log(
+				`Successfully queued ${queuedJobs.length} URL(s) for crawling`,
+			);
+
+			return {
+				message: `${createDto.content.length} URL(s) queued for processing`,
+			};
+		}
+		if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
+			const queuedJobs = [];
+			for (const videoUrl of createDto.content) {
+				this.logger.log(`Creating placeholder and queuing YouTube video: ${videoUrl}`);
+
+				const placeholderDoc = await this.prisma.document.create({
+					data: {
+						searchSpaceId: createDto.search_space_id,
+						title: videoUrl,
+						documentType: DocumentType.YOUTUBE_VIDEO,
+						documentMetadata: { url: videoUrl, source: 'youtube_import' },
+						content: null,
+						contentHash: null,
+						processingStatus: 'PROCESSING',
+						processingStartedAt: new Date(),
+					},
+				});
+
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'create', searchSpaceId: createDto.search_space_id, documentId: placeholderDoc.id },
+				});
+
+				const job = await this.queueService.processYouTubeDocument(
+					videoUrl,
+					createDto.search_space_id,
+					userId,
+					placeholderDoc.id,
 				);
-
-				return {
-					message: `${createDto.content.length} YouTube video(s) queued for processing`,
-				};
+				queuedJobs.push(job.id);
 			}
+
+			this.logger.log(
+				`Successfully queued ${queuedJobs.length} YouTube video(s) for processing`,
+			);
+
+			return {
+				message: `${createDto.content.length} YouTube video(s) queued for processing`,
+			};
+		}
 			throw new BadRequestException("Invalid document type");
 		} catch (error) {
 			if (
@@ -107,14 +149,33 @@ export class DocumentsService {
 			const queuedJobs = [];
 			for (const file of files) {
 				this.logger.log(
-					`Queuing file for processing: ${file.originalname} (path: ${file.path})`,
+					`Creating placeholder and queuing file: ${file.originalname}`,
 				);
+
+				const placeholderDoc = await this.prisma.document.create({
+					data: {
+						searchSpaceId,
+						title: file.originalname,
+						documentType: DocumentType.FILE,
+						documentMetadata: { file_name: file.originalname, source: 'file_upload' },
+						content: null,
+						contentHash: null,
+						processingStatus: 'PROCESSING',
+						processingStartedAt: new Date(),
+					},
+				});
+
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'create', searchSpaceId, documentId: placeholderDoc.id },
+				});
 
 				const job = await this.queueService.processFileDocument(
 					file.path,
 					file.originalname,
 					searchSpaceId,
 					userId,
+					placeholderDoc.id,
 				);
 
 				queuedJobs.push(job.id);
@@ -536,6 +597,9 @@ export class DocumentsService {
 			created_at: document.createdAt,
 			search_space_id: document.searchSpaceId,
 			chunks_count: document?._count?.chunks ?? 0,
+			processing_status: document.processingStatus,
+			processing_started_at: document.processingStartedAt,
+			processing_completed_at: document.processingCompletedAt,
 		};
 	}
 
@@ -554,6 +618,9 @@ export class DocumentsService {
 				created_at: chunk.createdAt,
 				documentId: chunk.documentId,
 			})),
+			processing_status: document.processingStatus,
+			processing_started_at: document.processingStartedAt,
+			processing_completed_at: document.processingCompletedAt,
 		};
 	}
 

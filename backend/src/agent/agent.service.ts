@@ -119,6 +119,7 @@ export class AgentService {
 			searchSpaceId: number | null;
 			userId: string | undefined;
 			videoUrl: string | undefined;
+			documentId?: number;
 		},
 	): Promise<void> {
 		try {
@@ -165,6 +166,7 @@ export class AgentService {
 						`https://www.youtube.com/watch?v=${video_id}`,
 					searchSpaceId: context.searchSpaceId,
 					userId: context.userId,
+					documentId: context.documentId,
 				});
 
 				this.logger.log(

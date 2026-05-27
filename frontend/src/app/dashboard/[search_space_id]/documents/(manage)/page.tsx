@@ -2,13 +2,17 @@
 
 import { motion } from "motion/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocuments } from "@/hooks/use-documents";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useSSE } from "@/hooks/useSSE";
 import useBulkDeleteDocuments from "@/api/documents/hooks/useBulkDeleteDocuments";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import { useQueryClient } from "@tanstack/react-query";
+import { DOCUMENTS_SSE_TOPIC } from "@/shared/sseTopics";
+import { DOCUMENTS, DOCUMENT_TYPE_COUNTS } from "@/shared/queryKeys";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import {
@@ -51,6 +55,9 @@ export default function DocumentsTable() {
 	);
 
 	const { mutateAsync: bulkDeleteDocuments } = useBulkDeleteDocuments();
+
+	const queryClient = useQueryClient();
+	const { lastEvent, isConnected } = useSSE({ topic: DOCUMENTS_SSE_TOPIC });
 
 	// Use server-side pagination, search, and filtering
 	const {
@@ -148,6 +155,26 @@ export default function DocumentsTable() {
 		searchDocuments,
 		fetchDocuments,
 	]);
+
+	useEffect(() => {
+		if (!lastEvent?.data) return;
+		const { searchSpaceId: eventSearchSpaceId } = lastEvent.data;
+		if (eventSearchSpaceId && eventSearchSpaceId !== searchSpaceId) return;
+		queryClient.invalidateQueries({ queryKey: [DOCUMENTS, searchSpaceId] });
+		queryClient.invalidateQueries({ queryKey: [DOCUMENT_TYPE_COUNTS, searchSpaceId] });
+		refreshCurrentView();
+	}, [lastEvent, queryClient, searchSpaceId, refreshCurrentView]);
+
+	const connectionCountRef = useRef(0);
+	useEffect(() => {
+		if (isConnected) {
+			connectionCountRef.current++;
+			if (connectionCountRef.current > 1) {
+				queryClient.invalidateQueries({ queryKey: [DOCUMENTS, searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: [DOCUMENT_TYPE_COUNTS, searchSpaceId] });
+			}
+		}
+	}, [isConnected, queryClient, searchSpaceId]);
 
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {

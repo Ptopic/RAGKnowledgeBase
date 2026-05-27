@@ -74,6 +74,9 @@ export interface Document {
 	created_at: string;
 	search_space_id: number;
 	chunks_count?: number;
+	processing_status?: "PROCESSING" | "COMPLETED" | "FAILED";
+	processing_started_at?: string;
+	processing_completed_at?: string;
 }
 
 export interface GetDocumentsParams {

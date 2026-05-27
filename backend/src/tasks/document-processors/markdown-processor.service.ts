@@ -163,6 +163,7 @@ export class MarkdownProcessorService {
 		fileInMarkdown: string,
 		searchSpaceId: number,
 		userId: string,
+		documentId?: number,
 	): Promise<Document | null> {
 		const taskLogger = TaskLoggingService.forSearchSpace(
 			this.prisma,
@@ -197,14 +198,18 @@ export class MarkdownProcessorService {
 			);
 
 			// Check if document with this unique identifier already exists
-			const existingDocument =
-				await this.baseService.checkDocumentByUniqueIdentifier(
-					uniqueIdentifierHash,
-				);
+		let existingDocument: any = null;
+			if (documentId) {
+				existingDocument = await this.prisma.document.findUnique({
+					where: { id: documentId },
+				});
+			} else {
+				existingDocument =
+					await this.baseService.checkDocumentByUniqueIdentifier(
+						uniqueIdentifierHash,
+					);
 
-			if (existingDocument) {
-				// Document exists - check if content has changed
-				if (existingDocument.contentHash === contentHash) {
+				if (existingDocument && existingDocument.contentHash === contentHash) {
 					await taskLogger.logTaskSuccess(
 						logEntry,
 						`Markdown file document unchanged: ${fileName}`,
@@ -218,10 +223,11 @@ export class MarkdownProcessorService {
 					);
 					return existingDocument;
 				}
-				// Content has changed - update the existing document
-				this.logger.log(
-					`Content changed for markdown file ${fileName}. Updating document.`,
-				);
+				if (existingDocument) {
+					this.logger.log(
+						`Content changed for markdown file ${fileName}. Updating document.`,
+					);
+				}
 			}
 
 			// Generate summary with metadata
@@ -251,29 +257,42 @@ export class MarkdownProcessorService {
 			// Update or create document
 			let document: Document;
 			if (existingDocument) {
-				// Delete old chunks first
 				await this.prisma.chunk.deleteMany({
 					where: { documentId: existingDocument.id },
 				});
 
-				// Update existing document
-				document = await this.prisma.document.update({
-					where: { id: existingDocument.id },
-					data: {
-						title: fileName,
-						content: summaryContent,
-						contentHash,
-						documentMetadata: {
-							FILE_NAME: fileName,
+				if (documentId) {
+					document = await this.prisma.document.update({
+						where: { id: documentId },
+						data: {
+							title: fileName,
+							content: summaryContent,
+							contentHash,
+							uniqueIdentifierHash,
+							documentMetadata: {
+								FILE_NAME: fileName,
+							},
+							processingStatus: 'COMPLETED',
+							processingCompletedAt: new Date(),
 						},
-					},
-					include: { chunks: true },
-				});
+						include: { chunks: true },
+					});
+				} else {
+					document = await this.prisma.document.update({
+						where: { id: existingDocument.id },
+						data: {
+							title: fileName,
+							content: summaryContent,
+							contentHash,
+							documentMetadata: {
+								FILE_NAME: fileName,
+							},
+						},
+						include: { chunks: true },
+					});
+				}
 
-				// Update document embedding using raw SQL
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
-
-				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
 				await this.enqueueImageAnalysisJob(
 					document.id,
@@ -282,7 +301,6 @@ export class MarkdownProcessorService {
 					"markdown",
 				);
 			} else {
-				// Create new document
 				document = await this.prisma.document.create({
 					data: {
 						searchSpaceId,
@@ -298,10 +316,7 @@ export class MarkdownProcessorService {
 					include: { chunks: true },
 				});
 
-				// Update document embedding using raw SQL
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
-
-				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
 				await this.enqueueImageAnalysisJob(
 					document.id,
@@ -309,6 +324,13 @@ export class MarkdownProcessorService {
 					fileInMarkdown,
 					"markdown",
 				);
+			}
+
+			if (documentId) {
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId: document.id },
+				});
 			}
 
 			// Log success
@@ -325,6 +347,19 @@ export class MarkdownProcessorService {
 
 			return document;
 		} catch (error) {
+			if (documentId) {
+				await this.prisma.document.update({
+					where: { id: documentId },
+					data: {
+						processingStatus: 'FAILED',
+						processingCompletedAt: new Date(),
+					},
+				});
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId },
+				});
+			}
 			await taskLogger.logTaskFailure(
 				logEntry,
 				`Failed to process markdown file: ${fileName}`,

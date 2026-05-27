@@ -295,6 +295,7 @@ export class YoutubeProcessorService {
 		videoUrl: string,
 		searchSpaceId: number,
 		userId: string,
+		documentId?: number,
 	): Promise<string> {
 		if (!this.brightDataEnabled) {
 			throw new HttpException(
@@ -306,7 +307,7 @@ export class YoutubeProcessorService {
 		try {
 			// Pass context via webhook URL query parameters instead of in payload
 			// BrightData doesn't accept custom fields in the trigger payload
-			const webhookUrl = `${process.env.API_URL}/agent/webhook?search_space_id=${searchSpaceId}&user_id=${userId}&video_url=${encodeURIComponent(videoUrl)}`;
+			const webhookUrl = `${process.env.API_URL}/agent/webhook?search_space_id=${searchSpaceId}&user_id=${userId}&video_url=${encodeURIComponent(videoUrl)}&document_id=${documentId || ''}`;
 
 			// BrightData expects an array of input objects - only send the URL field
 			const payload = [
@@ -382,8 +383,9 @@ export class YoutubeProcessorService {
 		url: string;
 		searchSpaceId: number;
 		userId: string;
+		documentId?: number;
 	}): Promise<void> {
-		const { transcript, video_id, title, url, searchSpaceId, userId } =
+		const { transcript, video_id, title, url, searchSpaceId, userId, documentId } =
 			videoData;
 
 		const taskLogger = TaskLoggingService.forSearchSpace(
@@ -454,37 +456,42 @@ export class YoutubeProcessorService {
 				{ stage: "duplicate_check", video_id },
 			);
 
-			const existingDocument =
-				await this.baseService.checkDocumentByUniqueIdentifier(
-					uniqueIdentifierHash,
-				);
+			let existingDocument: any = null;
+			if (documentId) {
+				existingDocument = await this.prisma.document.findUnique({
+					where: { id: documentId },
+				});
+			} else {
+				existingDocument =
+					await this.baseService.checkDocumentByUniqueIdentifier(
+						uniqueIdentifierHash,
+					);
 
-			if (existingDocument) {
-				// Document exists - check if content has changed
-				if (existingDocument.contentHash === contentHash) {
-					await taskLogger.logTaskSuccess(
-						logEntry,
-						`YouTube video document unchanged: ${title}`,
-						{
-							duplicate_detected: true,
-							existing_document_id: existingDocument.id,
-							video_id,
-						},
-					);
+				if (existingDocument) {
+					if (existingDocument.contentHash === contentHash) {
+						await taskLogger.logTaskSuccess(
+							logEntry,
+							`YouTube video document unchanged: ${title}`,
+							{
+								duplicate_detected: true,
+								existing_document_id: existingDocument.id,
+								video_id,
+							},
+						);
+						this.logger.log(
+							`Document for YouTube video ${video_id} unchanged. Skipping.`,
+						);
+						return;
+					}
 					this.logger.log(
-						`Document for YouTube video ${video_id} unchanged. Skipping.`,
+						`Content changed for YouTube video ${video_id}. Updating document.`,
 					);
-					return;
+					await taskLogger.logTaskProgress(
+						logEntry,
+						`Updating YouTube video document: ${title}`,
+						{ stage: "document_update", video_id },
+					);
 				}
-				// Content has changed - update the existing document
-				this.logger.log(
-					`Content changed for YouTube video ${video_id}. Updating document.`,
-				);
-				await taskLogger.logTaskProgress(
-					logEntry,
-					`Updating YouTube video document: ${title}`,
-					{ stage: "document_update", video_id },
-				);
 			}
 
 			// Generate summary with metadata
@@ -519,17 +526,59 @@ export class YoutubeProcessorService {
 
 			// Update or create document
 			if (existingDocument) {
-				// Delete old chunks first
 				await this.prisma.chunk.deleteMany({
 					where: { documentId: existingDocument.id },
 				});
 
-				// Update existing document
 				await taskLogger.logTaskProgress(
 					logEntry,
 					`Updating YouTube video document in database: ${title}`,
 					{ stage: "database_update", chunks_count: chunks.length },
 				);
+
+				if (documentId) {
+					const updatedDocument = await this.prisma.document.update({
+						where: { id: documentId },
+						data: {
+							title,
+							content: summaryContent,
+							contentHash,
+							uniqueIdentifierHash,
+							documentMetadata: {
+								url,
+								video_id,
+								video_title: title,
+							} as any,
+							processingStatus: 'COMPLETED',
+							processingCompletedAt: new Date(),
+						},
+						include: { chunks: true },
+					});
+
+					await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
+					await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
+					await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, combinedDocumentString, "youtube");
+
+					this.sseService.broadcastEvent({
+						topic: 'documents',
+						data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+					});
+
+					await taskLogger.logTaskSuccess(
+						logEntry,
+						`Successfully processed YouTube video from webhook: ${title}`,
+						{
+							document_id: updatedDocument.id,
+							video_id,
+							title: updatedDocument.title,
+							content_hash: contentHash,
+							chunks_count: chunks.length,
+							summary_length: summaryContent.length,
+						},
+					);
+
+					return;
+				}
 
 				const updatedDocument = await this.prisma.document.update({
 					where: { id: existingDocument.id },
@@ -546,20 +595,9 @@ export class YoutubeProcessorService {
 					include: { chunks: true },
 				});
 
-				// Update document embedding using raw SQL
-				await this.updateDocumentEmbedding(
-					updatedDocument.id,
-					summaryEmbedding,
-				);
-
-				// Insert chunks with embeddings using raw SQL
+				await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
-				await this.enqueueImageAnalysisJob(
-					updatedDocument.id,
-					searchSpaceId,
-					combinedDocumentString,
-					"youtube",
-				);
+				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, combinedDocumentString, "youtube");
 
 				await taskLogger.logTaskSuccess(
 					logEntry,
@@ -626,6 +664,19 @@ export class YoutubeProcessorService {
 				},
 			);
 		} catch (error) {
+			if (documentId) {
+				await this.prisma.document.update({
+					where: { id: documentId },
+					data: {
+						processingStatus: 'FAILED',
+						processingCompletedAt: new Date(),
+					},
+				});
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId },
+				});
+			}
 			if (logEntry) {
 				await taskLogger.logTaskFailure(
 					logEntry,

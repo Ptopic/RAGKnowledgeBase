@@ -37,20 +37,21 @@ export class DocumentsProcessor {
 			url: string;
 			searchSpaceId: number;
 			userId: string;
+			documentId: number;
 		}>,
 	) {
-		const { url, searchSpaceId, userId } = job.data;
+		const { url, searchSpaceId, userId, documentId } = job.data;
 
 		try {
 			this.logger.log(
 				`Processing URL document: ${url} for search space ${searchSpaceId}`,
 			);
 
-			// Call UrlCrawlerService to handle the actual URL processing
 			await this.urlCrawlerService.addCrawledUrlDocument(
 				url,
 				searchSpaceId,
 				userId,
+				documentId,
 			);
 
 			this.logger.log(`Successfully processed URL document: ${url}`);
@@ -73,21 +74,22 @@ export class DocumentsProcessor {
 			videoUrl: string;
 			searchSpaceId: number;
 			userId: string;
+			documentId: number;
 		}>,
 	) {
-		const { videoUrl, searchSpaceId, userId } = job.data;
+		const { videoUrl, searchSpaceId, userId, documentId } = job.data;
 
 		try {
 			this.logger.log(
 				`Triggering BrightData scrape for YouTube video: ${videoUrl} (search space ${searchSpaceId})`,
 			);
 
-			// Use BrightData webhook approach for async transcript extraction
 			const snapshotId =
 				await this.youtubeProcessorService.triggerYoutubeVideoScrape(
 					videoUrl,
 					searchSpaceId,
 					userId,
+					documentId,
 				);
 
 			this.logger.log(
@@ -113,21 +115,22 @@ export class DocumentsProcessor {
 			fileName: string;
 			searchSpaceId: number;
 			userId: string;
+			documentId: number;
 		}>,
 	) {
-		const { filePath, fileName, searchSpaceId, userId } = job.data;
+		const { filePath, fileName, searchSpaceId, userId, documentId } = job.data;
 
 		try {
 			this.logger.log(
 				`Processing file document: ${fileName} for search space ${searchSpaceId}`,
 			);
 
-			// Call FileProcessorsService to handle the actual file processing
 			await this.fileProcessorsService.processFileInBackground(
 				filePath,
 				fileName,
 				searchSpaceId,
 				userId,
+				documentId,
 			);
 
 			this.logger.log(`Successfully processed file document: ${fileName}`);

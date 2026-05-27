@@ -168,6 +168,7 @@ export class UrlCrawlerService {
     url: string,
     searchSpaceId: number,
     userId: string,
+    documentId?: number,
   ): Promise<Document | null> {
     const taskLogger = TaskLoggingService.forSearchSpace(
       this.prisma,
@@ -281,12 +282,19 @@ export class UrlCrawlerService {
         { stage: 'duplicate_check', url },
       );
 
-      const existingDocument =
-        await this.baseService.checkDocumentByUniqueIdentifier(
-          uniqueIdentifierHash,
-        );
+      let existingDocument: any = null;
+      if (documentId) {
+        existingDocument = await this.prisma.document.findUnique({
+          where: { id: documentId },
+        });
+      } else {
+        existingDocument =
+          await this.baseService.checkDocumentByUniqueIdentifier(
+            uniqueIdentifierHash,
+          );
+      }
 
-      if (existingDocument) {
+      if (existingDocument && !documentId) {
         // Document exists - check if content has changed
         if (existingDocument.contentHash === contentHash) {
           await taskLogger.logTaskSuccess(
@@ -354,16 +362,32 @@ export class UrlCrawlerService {
           { stage: 'document_update', chunks_count: chunks.length },
         );
 
-        document = await this.prisma.document.update({
-          where: { id: existingDocument.id },
-          data: {
-            title: crawledMetadata.title || url,
-            content: summaryContent,
-            contentHash,
-            documentMetadata: crawledMetadata as any,
-          },
-          include: { chunks: true },
-        });
+        if (documentId) {
+          document = await this.prisma.document.update({
+            where: { id: documentId },
+            data: {
+              title: crawledMetadata.title || url,
+              content: summaryContent,
+              contentHash,
+              uniqueIdentifierHash,
+              documentMetadata: crawledMetadata as any,
+              processingStatus: 'COMPLETED',
+              processingCompletedAt: new Date(),
+            },
+            include: { chunks: true },
+          });
+        } else {
+          document = await this.prisma.document.update({
+            where: { id: existingDocument.id },
+            data: {
+              title: crawledMetadata.title || url,
+              content: summaryContent,
+              contentHash,
+              documentMetadata: crawledMetadata as any,
+            },
+            include: { chunks: true },
+          });
+        }
 
         // Update document embedding using raw SQL
         await this.updateDocumentEmbedding(document.id, summaryEmbedding);
@@ -410,6 +434,12 @@ export class UrlCrawlerService {
         );
       }
 
+      // Emit SSE event for document update
+      this.sseService.broadcastEvent({
+        topic: 'documents',
+        data: { action: 'update', searchSpaceId, documentId: document.id },
+      });
+
       // Log success
       await taskLogger.logTaskSuccess(
         logEntry,
@@ -425,6 +455,20 @@ export class UrlCrawlerService {
 
       return document;
     } catch (error) {
+      if (documentId) {
+        await this.prisma.document.update({
+          where: { id: documentId },
+          data: {
+            processingStatus: 'FAILED',
+            processingCompletedAt: new Date(),
+          },
+        });
+        this.sseService.broadcastEvent({
+          topic: 'documents',
+          data: { action: 'update', searchSpaceId, documentId },
+        });
+      }
+
       await taskLogger.logTaskFailure(
         logEntry,
         `Failed to crawl URL: ${url}`,

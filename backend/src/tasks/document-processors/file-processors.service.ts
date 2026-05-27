@@ -173,48 +173,49 @@ export class FileProcessorsService {
 	/**
 	 * Process and store document content parsed by LlamaCloud.
 	 */
-	async addReceivedFileDocumentUsingLlamacloud(
+		async addReceivedFileDocumentUsingLlamacloud(
 		fileName: string,
 		llamacloudMarkdownDocument: string,
 		searchSpaceId: number,
-		_userId: string, // Reserved for future LLM service integration
+		_userId: string,
+		documentId?: number,
 	): Promise<Document | null> {
 		try {
 			const fileInMarkdown = llamacloudMarkdownDocument;
 
-			// Generate unique identifier hash for this file
 			const uniqueIdentifierHash = this.generateUniqueIdentifierHash(
 				DocumentType.FILE,
 				fileName,
 				searchSpaceId,
 			);
 
-			// Generate content hash
 			const contentHash = this.generateContentHash(
 				fileInMarkdown,
 				searchSpaceId,
 			);
 
-			// Check if document with this unique identifier already exists
-			const existingDocument =
-				await this.baseService.checkDocumentByUniqueIdentifier(
-					uniqueIdentifierHash,
-				);
+			let existingDocument: any = null;
+			if (documentId) {
+				existingDocument = await this.prisma.document.findUnique({
+					where: { id: documentId },
+				});
+			} else {
+				existingDocument =
+					await this.baseService.checkDocumentByUniqueIdentifier(
+						uniqueIdentifierHash,
+					);
 
-			if (existingDocument) {
-				// Document exists - check if content has changed
-				if (existingDocument.contentHash === contentHash) {
-					this.logger.log(`Document for file ${fileName} unchanged. Skipping.`);
-					return existingDocument;
-				} else {
-					// Content has changed - update the existing document
+				if (existingDocument) {
+					if (existingDocument.contentHash === contentHash) {
+						this.logger.log(`Document for file ${fileName} unchanged. Skipping.`);
+						return existingDocument;
+					}
 					this.logger.log(
 						`Content changed for file ${fileName}. Updating document.`,
 					);
 				}
 			}
 
-			// Generate summary with metadata
 			const documentMetadata = {
 				file_name: fileName,
 				etl_service: "LLAMACLOUD",
@@ -224,17 +225,43 @@ export class FileProcessorsService {
 			const { summaryContent, summaryEmbedding } =
 				await this.generateDocumentSummary(fileInMarkdown, documentMetadata);
 
-			// Process chunks
 			const chunks = await this.createDocumentChunks(fileInMarkdown);
 
-			// Update or create document
 			if (existingDocument) {
-				// Delete old chunks first
 				await this.prisma.chunk.deleteMany({
 					where: { documentId: existingDocument.id },
 				});
 
-				// Update existing document
+				if (documentId) {
+					const updatedDocument = await this.prisma.document.update({
+						where: { id: documentId },
+						data: {
+							title: fileName,
+							content: summaryContent,
+							contentHash,
+							uniqueIdentifierHash,
+							documentMetadata: {
+								FILE_NAME: fileName,
+								ETL_SERVICE: "LLAMACLOUD",
+							} as any,
+							processingStatus: 'COMPLETED',
+							processingCompletedAt: new Date(),
+						},
+						include: { chunks: true },
+					});
+
+					await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
+					await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
+					await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
+
+					this.sseService.broadcastEvent({
+						topic: 'documents',
+						data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+					});
+
+					return updatedDocument;
+				}
+
 				const updatedDocument = await this.prisma.document.update({
 					where: { id: existingDocument.id },
 					data: {
@@ -249,24 +276,12 @@ export class FileProcessorsService {
 					include: { chunks: true },
 				});
 
-				// Update document embedding using raw SQL
-				await this.updateDocumentEmbedding(
-					updatedDocument.id,
-					summaryEmbedding,
-				);
-
-				// Insert chunks with embeddings using raw SQL
+				await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
-				await this.enqueueImageAnalysisJob(
-					updatedDocument.id,
-					searchSpaceId,
-					fileInMarkdown,
-					"file",
-				);
+				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
 
 				return updatedDocument;
 			} else {
-				// Create new document
 				const document = await this.prisma.document.create({
 					data: {
 						searchSpaceId,
@@ -283,21 +298,26 @@ export class FileProcessorsService {
 					include: { chunks: true },
 				});
 
-				// Update document embedding using raw SQL
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
-
-				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
-				await this.enqueueImageAnalysisJob(
-					document.id,
-					searchSpaceId,
-					fileInMarkdown,
-					"file",
-				);
+				await this.enqueueImageAnalysisJob(document.id, searchSpaceId, fileInMarkdown, "file");
 
 				return document;
 			}
 		} catch (error) {
+			if (documentId) {
+				await this.prisma.document.update({
+					where: { id: documentId },
+					data: {
+						processingStatus: 'FAILED',
+						processingCompletedAt: new Date(),
+					},
+				});
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId },
+				});
+			}
 			this.logger.error(
 				`Failed to process file document using LlamaCloud: ${error.message}`,
 				error.stack,
@@ -315,45 +335,46 @@ export class FileProcessorsService {
 		fileName: string,
 		markdownDocument: string,
 		searchSpaceId: number,
-		_userId: string, // Reserved for future LLM service integration
+		_userId: string,
 		etlService = "DOCLING",
+		documentId?: number,
 	): Promise<Document | null> {
 		try {
 			const fileInMarkdown = markdownDocument;
 
-			// Generate unique identifier hash for this file
 			const uniqueIdentifierHash = this.generateUniqueIdentifierHash(
 				DocumentType.FILE,
 				fileName,
 				searchSpaceId,
 			);
 
-			// Generate content hash
 			const contentHash = this.generateContentHash(
 				fileInMarkdown,
 				searchSpaceId,
 			);
 
-			// Check if document with this unique identifier already exists
-			const existingDocument =
-				await this.baseService.checkDocumentByUniqueIdentifier(
-					uniqueIdentifierHash,
-				);
+			let existingDocument: any = null;
+			if (documentId) {
+				existingDocument = await this.prisma.document.findUnique({
+					where: { id: documentId },
+				});
+			} else {
+				existingDocument =
+					await this.baseService.checkDocumentByUniqueIdentifier(
+						uniqueIdentifierHash,
+					);
 
-			if (existingDocument) {
-				// Document exists - check if content has changed
-				if (existingDocument.contentHash === contentHash) {
-					this.logger.log(`Document for file ${fileName} unchanged. Skipping.`);
-					return existingDocument;
-				} else {
-					// Content has changed - update the existing document
+				if (existingDocument) {
+					if (existingDocument.contentHash === contentHash) {
+						this.logger.log(`Document for file ${fileName} unchanged. Skipping.`);
+						return existingDocument;
+					}
 					this.logger.log(
 						`Content changed for file ${fileName}. Updating document.`,
 					);
 				}
 			}
 
-			// Generate summary with metadata
 			const documentMetadata = {
 				file_name: fileName,
 				etl_service: etlService.toUpperCase(),
@@ -363,17 +384,43 @@ export class FileProcessorsService {
 			const { summaryContent, summaryEmbedding } =
 				await this.generateDocumentSummary(fileInMarkdown, documentMetadata);
 
-			// Process chunks
 			const chunks = await this.createDocumentChunks(fileInMarkdown);
 
-			// Update or create document
 			if (existingDocument) {
-				// Delete old chunks first
 				await this.prisma.chunk.deleteMany({
 					where: { documentId: existingDocument.id },
 				});
 
-				// Update existing document
+				if (documentId) {
+					const updatedDocument = await this.prisma.document.update({
+						where: { id: documentId },
+						data: {
+							title: fileName,
+							content: summaryContent,
+							contentHash,
+							uniqueIdentifierHash,
+							documentMetadata: {
+								FILE_NAME: fileName,
+								ETL_SERVICE: etlService.toUpperCase(),
+							} as any,
+							processingStatus: 'COMPLETED',
+							processingCompletedAt: new Date(),
+						},
+						include: { chunks: true },
+					});
+
+					await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
+					await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
+					await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
+
+					this.sseService.broadcastEvent({
+						topic: 'documents',
+						data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+					});
+
+					return updatedDocument;
+				}
+
 				const updatedDocument = await this.prisma.document.update({
 					where: { id: existingDocument.id },
 					data: {
@@ -388,24 +435,12 @@ export class FileProcessorsService {
 					include: { chunks: true },
 				});
 
-				// Update document embedding using raw SQL
-				await this.updateDocumentEmbedding(
-					updatedDocument.id,
-					summaryEmbedding,
-				);
-
-				// Insert chunks with embeddings using raw SQL
+				await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
-				await this.enqueueImageAnalysisJob(
-					updatedDocument.id,
-					searchSpaceId,
-					fileInMarkdown,
-					"file",
-				);
+				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
 
 				return updatedDocument;
 			} else {
-				// Create new document
 				const document = await this.prisma.document.create({
 					data: {
 						searchSpaceId,
@@ -422,21 +457,26 @@ export class FileProcessorsService {
 					include: { chunks: true },
 				});
 
-				// Update document embedding using raw SQL
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
-
-				// Insert chunks with embeddings using raw SQL
 				await this.insertChunksWithEmbeddings(document.id, chunks);
-				await this.enqueueImageAnalysisJob(
-					document.id,
-					searchSpaceId,
-					fileInMarkdown,
-					"file",
-				);
+				await this.enqueueImageAnalysisJob(document.id, searchSpaceId, fileInMarkdown, "file");
 
 				return document;
 			}
 		} catch (error) {
+			if (documentId) {
+				await this.prisma.document.update({
+					where: { id: documentId },
+					data: {
+						processingStatus: 'FAILED',
+						processingCompletedAt: new Date(),
+					},
+				});
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId },
+				});
+			}
 			this.logger.error(
 				`Failed to process file document using Docling: ${error.message}`,
 				error.stack,
@@ -455,6 +495,7 @@ export class FileProcessorsService {
 		filename: string,
 		searchSpaceId: number,
 		userId: string,
+		documentId?: number,
 	): Promise<void> {
 		const taskLogger = TaskLoggingService.forSearchSpace(
 			this.prisma,
@@ -481,10 +522,8 @@ export class FileProcessorsService {
 					{ file_type: "markdown", processing_stage: "reading_file" },
 				);
 
-				// For markdown files, read the content directly
 				const markdownContent = fs.readFileSync(filePath, "utf-8");
 
-				// Clean up the temp file
 				try {
 					fs.unlinkSync(filePath);
 				} catch (e) {
@@ -500,16 +539,29 @@ export class FileProcessorsService {
 					},
 				);
 
-				// Process markdown directly through specialized function
 				const result =
 					await this.markdownProcessor.addReceivedMarkdownFileDocument(
 						filename,
 						markdownContent,
 						searchSpaceId,
 						userId,
+						documentId,
 					);
 
 				if (result) {
+					if (documentId) {
+						await this.prisma.document.update({
+							where: { id: documentId },
+							data: {
+								processingStatus: 'COMPLETED',
+								processingCompletedAt: new Date(),
+							},
+						});
+						this.sseService.broadcastEvent({
+							topic: 'documents',
+							data: { action: 'update', searchSpaceId, documentId: result.id },
+						});
+					}
 					await taskLogger.logTaskSuccess(
 						logEntry,
 						`Successfully processed markdown file: ${filename}`,
@@ -576,16 +628,29 @@ export class FileProcessorsService {
 						},
 					);
 
-					// Process transcript as markdown
 					const result =
 						await this.markdownProcessor.addReceivedMarkdownFileDocument(
 							filename,
 							transcription.text,
 							searchSpaceId,
 							userId,
+							documentId,
 						);
 
 					if (result) {
+						if (documentId) {
+							await this.prisma.document.update({
+								where: { id: documentId },
+								data: {
+									processingStatus: 'COMPLETED',
+									processingCompletedAt: new Date(),
+								},
+							});
+							this.sseService.broadcastEvent({
+								topic: 'documents',
+								data: { action: 'update', searchSpaceId, documentId: result.id },
+							});
+						}
 						await taskLogger.logTaskSuccess(
 							logEntry,
 							`Successfully processed audio file: ${filename}`,
@@ -725,6 +790,7 @@ export class FileProcessorsService {
 						searchSpaceId,
 						userId,
 						serviceName,
+						documentId,
 					);
 
 					if (result) {
@@ -757,6 +823,19 @@ export class FileProcessorsService {
 				}
 			}
 		} catch (error) {
+			if (documentId) {
+				await this.prisma.document.update({
+					where: { id: documentId },
+					data: {
+						processingStatus: 'FAILED',
+						processingCompletedAt: new Date(),
+					},
+				});
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId },
+				});
+			}
 			if (logEntry) {
 				await taskLogger.logTaskFailure(
 					logEntry,

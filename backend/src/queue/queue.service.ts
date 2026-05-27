@@ -59,11 +59,12 @@ export class QueueService implements OnModuleInit {
 	/**
 	 * Add URL document processing job
 	 */
-	async processUrlDocument(url: string, searchSpaceId: number, userId: string) {
+	async processUrlDocument(url: string, searchSpaceId: number, userId: string, documentId: number) {
 		return this.documentsQueue.add("process-url-document", {
 			url,
 			searchSpaceId,
 			userId,
+			documentId,
 		});
 	}
 
@@ -74,11 +75,13 @@ export class QueueService implements OnModuleInit {
 		videoUrl: string,
 		searchSpaceId: number,
 		userId: string,
+		documentId: number,
 	) {
 		return this.documentsQueue.add("process-youtube-document", {
 			videoUrl,
 			searchSpaceId,
 			userId,
+			documentId,
 		});
 	}
 
@@ -90,12 +93,14 @@ export class QueueService implements OnModuleInit {
 		fileName: string,
 		searchSpaceId: number,
 		userId: string,
+		documentId: number,
 	) {
 		return this.documentsQueue.add("process-file-document", {
 			filePath,
 			fileName,
 			searchSpaceId,
 			userId,
+			documentId,
 		});
 	}
 
