@@ -64,10 +64,6 @@ export class DocumentsProcessor {
 		}
 	}
 
-	/**
-	 * Process YouTube video document using BrightData webhook approach.
-	 * This triggers async scraping - the webhook will process results when ready.
-	 */
 	@Process("process-youtube-document")
 	async processYouTubeDocument(
 		job: Job<{
@@ -81,23 +77,26 @@ export class DocumentsProcessor {
 
 		try {
 			this.logger.log(
-				`Triggering BrightData scrape for YouTube video: ${videoUrl} (search space ${searchSpaceId})`,
+				`Processing YouTube video: ${videoUrl} (search space ${searchSpaceId})`,
 			);
 
-			const snapshotId =
-				await this.youtubeProcessorService.triggerYoutubeVideoScrape(
-					videoUrl,
-					searchSpaceId,
-					userId,
-					documentId,
-				);
+			const result = await this.youtubeProcessorService.process(
+				videoUrl,
+				searchSpaceId,
+				userId,
+				documentId,
+			);
+
+			if (!result.success) {
+				throw new Error(result.error || "YouTube processing failed");
+			}
 
 			this.logger.log(
-				`BrightData scrape triggered for ${videoUrl}. Snapshot ID: ${snapshotId}. Webhook will process results.`,
+				`YouTube video processing initiated for ${videoUrl}`,
 			);
 		} catch (error) {
 			this.logger.error(
-				`Failed to trigger BrightData scrape for ${videoUrl}: ${error.message}`,
+				`Failed to process YouTube video ${videoUrl}: ${error.message}`,
 				error.stack,
 			);
 			throw error;

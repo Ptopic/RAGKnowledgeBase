@@ -1,19 +1,8 @@
-/**
- * Document processors module for background tasks.
- *
- * This module provides a collection of document processors for different content types
- * and sources. Each processor is responsible for handling a specific type of document
- * processing task in the background.
- *
- * Available processors:
- * - URL crawler: Process web pages from URLs
- * - Markdown processor: Process markdown files
- * - File processors: Handle files using different ETL services (Unstructured, LlamaCloud, Docling)
- * - YouTube processor: Process YouTube videos and extract transcripts
- */
-
+export { BrightdataYoutubeStrategy } from "./brightdata-youtube-strategy.service";
 export { DocumentProcessorBaseService } from "./base.service";
 export { FileProcessorsService } from "./file-processors.service";
+export { LocalYoutubeStrategy } from "./local-youtube-strategy.service";
 export { MarkdownProcessorService } from "./markdown-processor.service";
 export { UrlCrawlerService } from "./url-crawler.service";
 export { YoutubeProcessorService } from "./youtube-processor.service";
+export type { YoutubeProcessingResult, YoutubeProcessingStrategy } from "./youtube-processing-strategy.interface";

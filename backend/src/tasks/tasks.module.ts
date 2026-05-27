@@ -27,8 +27,10 @@ import {
 } from "./connector-indexers";
 // Document Processors
 import {
+	BrightdataYoutubeStrategy,
 	DocumentProcessorBaseService,
 	FileProcessorsService,
+	LocalYoutubeStrategy,
 	MarkdownProcessorService,
 	UrlCrawlerService,
 	YoutubeProcessorService,
@@ -69,6 +71,8 @@ import {
 		ImageAnalysisService,
 		UrlCrawlerService,
 		YoutubeProcessorService,
+		BrightdataYoutubeStrategy,
+		LocalYoutubeStrategy,
 		MarkdownProcessorService,
 		FileProcessorsService,
 
@@ -94,6 +98,8 @@ import {
 		ImageAnalysisService,
 		UrlCrawlerService,
 		YoutubeProcessorService,
+		BrightdataYoutubeStrategy,
+		LocalYoutubeStrategy,
 		MarkdownProcessorService,
 		FileProcessorsService,
 
