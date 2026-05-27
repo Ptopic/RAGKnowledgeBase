@@ -27,6 +27,12 @@ enum DocumentType {
   NOTEBOOK
 }
 
+enum DocumentProcessingStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum SearchSourceConnectorType {
   SLACK_CONNECTOR
   NOTION_CONNECTOR
@@ -204,9 +210,14 @@ model Document {
   title                String       @db.VarChar(255)
   documentType         DocumentType @map("document_type")
   documentMetadata     Json?        @map("document_metadata")
-  content              String       @db.Text
-  contentHash          String       @unique @map("content_hash")
+  content              String?      @db.Text
+  contentHash          String?      @unique @map("content_hash")
   uniqueIdentifierHash String?      @unique @map("unique_identifier_hash")
+
+  // Processing status tracking
+  processingStatus      DocumentProcessingStatus @default(COMPLETED) @map("processing_status")
+  processingStartedAt   DateTime?                @map("processing_started_at")
+  processingCompletedAt DateTime?                @map("processing_completed_at")
 
   // pgvector embedding - stored as Unsupported type
   // Vector dimension depends on embedding model (e.g., 384, 768, 1536)
@@ -227,6 +238,7 @@ model Document {
   @@index([uniqueIdentifierHash])
   @@index([searchSpaceId])
   @@index([notebookId])
+  @@index([processingStatus])
   @@map("documents")
 }
 

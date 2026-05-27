@@ -28,7 +28,7 @@ export class UpdateDocumentDto {
 
 	@IsString()
 	@IsOptional()
-	content?: string;
+	content?: string | null;
 
 	@IsObject()
 	@IsOptional()
@@ -49,7 +49,8 @@ export class DocumentDto {
 	document_metadata: any;
 
 	@IsString()
-	content: string;
+	@IsOptional()
+	content?: string | null;
 
 	@Type(() => Date)
 	created_at: Date;
@@ -60,6 +61,18 @@ export class DocumentDto {
 	@IsInt()
 	@IsOptional()
 	chunks_count?: number;
+
+	@IsString()
+	@IsOptional()
+	processing_status?: string;
+
+	@Type(() => Date)
+	@IsOptional()
+	processing_started_at?: Date;
+
+	@Type(() => Date)
+	@IsOptional()
+	processing_completed_at?: Date;
 }
 
 export class DocumentChunkDto {

@@ -255,10 +255,11 @@ export class AgentController {
 		@Query("search_space_id") searchSpaceId?: string,
 		@Query("user_id") userId?: string,
 		@Query("video_url") videoUrl?: string,
+		@Query("document_id") documentId?: string,
 	) {
 		this.logger.log("BrightData webhook triggered");
 		this.logger.debug(
-			`Context - searchSpaceId: ${searchSpaceId}, userId: ${userId}, videoUrl: ${videoUrl}`,
+			`Context - searchSpaceId: ${searchSpaceId}, userId: ${userId}, videoUrl: ${videoUrl}, documentId: ${documentId}`,
 		);
 		this.logger.debug(`Webhook payload: ${JSON.stringify(body)}`);
 
@@ -269,6 +270,9 @@ export class AgentController {
 					: null,
 				userId,
 				videoUrl,
+				documentId: documentId
+					? Number.parseInt(documentId, 10)
+					: undefined,
 			});
 
 			return { message: "Webhook processed successfully" };
