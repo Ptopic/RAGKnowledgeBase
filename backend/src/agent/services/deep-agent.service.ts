@@ -2,7 +2,13 @@ import { BaseMessage, HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
-import { Injectable, Logger } from "@nestjs/common";
+import {
+	forwardRef,
+	Inject,
+	Injectable,
+	Logger,
+	Optional,
+} from "@nestjs/common";
 import { ChatType } from "@prisma/client";
 import { createDeepAgent } from "deepagents";
 import { ChatsService } from "src/chats/chats.service";
@@ -102,9 +108,17 @@ export class DeepAgentService {
 		private readonly conversationMemoryService: ConversationMemoryService,
 		private readonly prisma: PrismaService,
 		private readonly checkpointerService: CheckpointerService,
+		@Optional()
+		@Inject(forwardRef(() => QueueService))
 		private readonly queueService: QueueService,
+		@Optional()
+		@Inject(forwardRef(() => DocumentsService))
 		private readonly documentsService: DocumentsService,
+		@Optional()
+		@Inject(forwardRef(() => ImageAnalysisService))
 		private readonly imageAnalysisService: ImageAnalysisService,
+		@Optional()
+		@Inject(forwardRef(() => SseService))
 		private readonly sseService: SseService,
 	) {}
 

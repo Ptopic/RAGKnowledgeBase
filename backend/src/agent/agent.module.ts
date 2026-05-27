@@ -6,7 +6,6 @@ import { PermissionsModule } from "src/permissions/permissions.module";
 import { PrismaModule } from "src/prisma/prisma.module";
 import { QueueModule } from "src/queue/queue.module";
 import { RetrieverModule } from "src/retriever/retriever.module";
-import { SseModule } from "src/sse/sse.module";
 import { TasksModule } from "src/tasks/tasks.module";
 import { AgentController } from "./agent.controller";
 import { AgentService } from "./agent.service";
@@ -29,8 +28,7 @@ import { StreamingService } from "./streaming.service";
 		forwardRef(() => TasksModule),
 		forwardRef(() => ChatsModule),
 		forwardRef(() => QueueModule),
-		DocumentsModule,
-		SseModule,
+		forwardRef(() => DocumentsModule),
 		CheckpointerModule,
 	],
 	providers: [
