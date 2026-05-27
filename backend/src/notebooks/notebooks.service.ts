@@ -12,6 +12,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 import { EmbeddingService } from "../retriever/embedding.service";
 import { ImageAnalysisService } from "../services/image-analysis.service";
+import { SseService } from "../sse/sse.service";
 import { UploadService } from "../upload";
 import {
 	chunkMarkdownContent,
@@ -39,6 +40,7 @@ export class NotebooksService {
 		private uploadService: UploadService,
 		private embeddingService: EmbeddingService,
 		private imageAnalysisService: ImageAnalysisService,
+		private sseService: SseService,
 	) {}
 
 	private async generateSlug(title: string, attempt = 0): Promise<string> {
@@ -643,6 +645,11 @@ export class NotebooksService {
 				this.logger.log(
 					`Re-indexed notebook ${notebook.id}: ${chunksWithEmbeddings.length} chunks`,
 				);
+
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId: notebook.searchSpaceId, documentId: existingDocument.id },
+				});
 			} else {
 				const document = await this.prisma.document.create({
 					data: {
@@ -667,6 +674,11 @@ export class NotebooksService {
 				this.logger.log(
 					`Indexed notebook ${notebook.id}: document ${document.id}, ${chunksWithEmbeddings.length} chunks`,
 				);
+
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'create', searchSpaceId: notebook.searchSpaceId, documentId: document.id },
+				});
 			}
 
 			await this.enqueueImageAnalysis(

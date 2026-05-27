@@ -3,6 +3,7 @@ import axios from "axios";
 import { createHash } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmbeddingService } from "../retriever/embedding.service";
+import { SseService } from "../sse/sse.service";
 import { ImageCandidate } from "../utils/image-markdown";
 
 type SourceType = "file" | "web" | "markdown" | "youtube";
@@ -37,6 +38,7 @@ export class ImageAnalysisService {
 	constructor(
 		private prisma: PrismaService,
 		private embeddingService: EmbeddingService,
+		private sseService: SseService,
 	) {}
 
 	/**
@@ -196,6 +198,11 @@ export class ImageAnalysisService {
 		await this.prisma.document.update({
 			where: { id: job.documentId },
 			data: { documentMetadata: updatedMeta as any },
+		});
+
+		this.sseService.broadcastEvent({
+			topic: 'documents',
+			data: { action: 'update', searchSpaceId: job.searchSpaceId, documentId: job.documentId },
 		});
 
 		this.logger.log(

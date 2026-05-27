@@ -1,6 +1,7 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { RetrieverModule } from "../retriever/retriever.module";
+import { SseModule } from "../sse/sse.module";
 import { TasksModule } from "../tasks/tasks.module";
 import { UploadModule } from "../upload";
 import { NotebooksController } from "./notebooks.controller";
@@ -9,7 +10,7 @@ import { PublicNotebooksController } from "./public/public-notebooks.controller"
 import { PermissionsModule } from "../permissions/permissions.module";
 
 @Module({
-	imports: [UploadModule, RetrieverModule, forwardRef(() => TasksModule), PermissionsModule],
+	imports: [UploadModule, RetrieverModule, SseModule, forwardRef(() => TasksModule), PermissionsModule],
 	controllers: [NotebooksController, PublicNotebooksController],
 	providers: [NotebooksService, PrismaService],
 	exports: [NotebooksService],
