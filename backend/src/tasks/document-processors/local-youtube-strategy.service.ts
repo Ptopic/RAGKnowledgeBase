@@ -36,13 +36,32 @@ const YOUTUBE_URL_PATTERN = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/i;
 export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 	private readonly logger = new Logger(LocalYoutubeStrategy.name);
 	private readonly textSplitter = createMarkdownAwareSplitter();
+	private readonly cookiesFile: string | undefined;
 
 	constructor(
 		private prisma: PrismaService,
 		private embeddingService: EmbeddingService,
 		private imageAnalysisService: ImageAnalysisService,
 		private sseService: SseService,
-	) {}
+	) {
+		this.cookiesFile = process.env.YT_DLP_COOKIES_FILE;
+		if (this.cookiesFile) {
+			this.logger.log(`yt-dlp cookies file configured: ${this.cookiesFile}`);
+		} else {
+			this.logger.warn(
+				"YT_DLP_COOKIES_FILE is not set. YouTube may block yt-dlp requests with bot detection. " +
+				"Export your browser cookies to a Netscape-format file and set YT_DLP_COOKIES_FILE to its path.",
+			);
+		}
+	}
+
+	private buildYtDlpArgs(baseArgs: string[]): string[] {
+		const args = ["--js-runtimes", "nodejs", ...baseArgs];
+		if (this.cookiesFile) {
+			args.push("--cookies", this.cookiesFile);
+		}
+		return args;
+	}
 
 	async process(
 		videoUrl: string,
@@ -322,11 +341,11 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 		url: string;
 	}> {
 		try {
-			const { stdout } = await execFileAsync("yt-dlp", [
+			const { stdout } = await execFileAsync("yt-dlp", this.buildYtDlpArgs([
 				"--dump-json",
 				"--no-playlist",
 				videoUrl,
-			], { timeout: YT_DLP_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
+			]), { timeout: YT_DLP_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
 
 			const data = JSON.parse(stdout);
 
@@ -344,7 +363,19 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 					"yt-dlp is not installed. Please install it to use local YouTube processing: https://github.com/yt-dlp/yt-dlp",
 				);
 			}
-			throw new Error(`Failed to fetch video metadata with yt-dlp: ${error.message}`);
+			const errMsg = error.stderr || error.message || String(error);
+			if (errMsg.includes("Sign in to confirm") || errMsg.includes("bot")) {
+				throw new Error(
+					"YouTube blocked yt-dlp as a bot. Set YT_DLP_COOKIES_FILE env var to a Netscape-format cookies.txt file. " +
+					"See: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies",
+				);
+			}
+			if (errMsg.includes("JavaScript runtime")) {
+				throw new Error(
+					"yt-dlp requires a JavaScript runtime but none was found. Ensure Node.js is accessible to yt-dlp, or install deno.",
+				);
+			}
+			throw new Error(`Failed to fetch video metadata with yt-dlp: ${errMsg}`);
 		}
 	}
 
@@ -353,7 +384,7 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 		const outputPath = `/tmp/${tempId}.opus`;
 
 		try {
-			await execFileAsync("yt-dlp", [
+			await execFileAsync("yt-dlp", this.buildYtDlpArgs([
 				"--no-playlist",
 				"-x",
 				"--audio-format",
@@ -361,7 +392,7 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 				"-o",
 				outputPath,
 				videoUrl,
-			], { timeout: YT_DLP_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
+			]), { timeout: YT_DLP_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
 
 			if (!fs.existsSync(outputPath)) {
 				throw new Error("Audio file was not created after yt-dlp download");
@@ -374,12 +405,18 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 					"yt-dlp is not installed. Please install it to use local YouTube processing: https://github.com/yt-dlp/yt-dlp",
 				);
 			}
-			if (error.message?.includes("ffmpeg")) {
+			const errMsg = error.stderr || error.message || String(error);
+			if (errMsg.includes("ffmpeg")) {
 				throw new Error(
 					"ffmpeg is not installed. It is required for audio extraction by yt-dlp. Please install ffmpeg.",
 				);
 			}
-			throw new Error(`Failed to download audio with yt-dlp: ${error.message}`);
+			if (errMsg.includes("Sign in to confirm") || errMsg.includes("bot")) {
+				throw new Error(
+					"YouTube blocked yt-dlp as a bot. Set YT_DLP_COOKIES_FILE env var to a Netscape-format cookies.txt file.",
+				);
+			}
+			throw new Error(`Failed to download audio with yt-dlp: ${errMsg}`);
 		}
 	}
 
