@@ -28,7 +28,7 @@ export class UpdateDocumentDto {
 
 	@IsString()
 	@IsOptional()
-	content?: string;
+	content?: string | null;
 
 	@IsObject()
 	@IsOptional()
@@ -50,7 +50,7 @@ export class DocumentDto {
 
 	@IsString()
 	@IsOptional()
-	content?: string;
+	content?: string | null;
 
 	@Type(() => Date)
 	created_at: Date;

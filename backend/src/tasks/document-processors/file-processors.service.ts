@@ -677,6 +677,9 @@ export class FileProcessorsService {
 						error.message,
 						{ error_type: error.name, file_type: "audio" },
 					);
+
+					// Re-throw so outer catch handles FAILED status + SSE for placeholder docs
+					throw error;
 				}
 			} else {
 				await taskLogger.logTaskProgress(
@@ -820,6 +823,8 @@ export class FileProcessorsService {
 						error.message,
 						{ error_type: error.name, file_type: "document" },
 					);
+
+					throw error;
 				}
 			}
 		} catch (error) {
