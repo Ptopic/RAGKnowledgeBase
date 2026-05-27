@@ -35,7 +35,7 @@ export class ResearcherService {
 
 	/**
 	 * Main researcher agent workflow using LangGraph streaming
-	 * Workflow: reformulate_query -> fetch_documents -> qna_workflow -> generate_follow_up_questions
+	 * Workflow: reformulate_query -> fetch_documents -> qna_workflow
 	 */
 	async streamResearcher(researcherDto: ResearcherDto): Promise<any> {
 		try {
@@ -136,7 +136,6 @@ export class ResearcherService {
 1. Reformulate the user's query based on chat history if needed
 2. Fetch relevant documents from the selected connectors
 3. Generate a comprehensive answer using the QNA workflow
-4. Provide contextual follow-up questions
 
 User query: ${user_query}
 Selected connectors: ${connectors_to_search.join(", ")}

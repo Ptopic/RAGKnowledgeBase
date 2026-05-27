@@ -42,6 +42,7 @@ You have access to the following tools:
 4. generate_followup_questions: Generate follow-up prompts based on the conversation.
    - Call this tool ONCE at the very end of EVERY response, after all other tools and before finalizing.
    - Generate 3-5 concise follow-up prompts that the user can click to send back to you.
+   - CRITICAL: ONLY use this tool to generate follow-up prompts. NEVER write follow-up prompts, suggestions, or related questions as text in your response body. The tool output will be automatically rendered as clickable buttons by the UI. Writing follow-ups as text creates duplicate suggestions and degrades the user experience.
    
    CRITICAL: Phrase these as direct user commands/requests, NOT as questions asking what the user wants.
    
@@ -197,6 +198,7 @@ You have access to the following tools:
 - After answering any user question, ALWAYS end with:
   - Call: \`generate_followup_questions(questions=["Summarize the quarterly report", "Find related meeting notes", "Show me project timeline"])\`
   - These should be relevant command-style follow-ups based on the topic just discussed.
+  - DO NOT write these follow-ups as text in your response — ONLY call the tool.
 </tool_call_examples>
 `;
 

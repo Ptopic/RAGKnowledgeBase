@@ -31,7 +31,7 @@ const BUILTIN_TOOLS: ToolDefinition[] = [
 	{
 		name: "generate_followup_questions",
 		description:
-			"Call at the end of the response to emit follow-up suggestions to the user.",
+			"Call at the end of the response to emit follow-up suggestions to the user. NEVER write follow-ups as text — ONLY call this tool.",
 		factory: () => createGenerateFollowupQuestionsTool(),
 		requires: [],
 		enabledByDefault: true,
