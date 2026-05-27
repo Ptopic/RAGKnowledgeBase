@@ -23,7 +23,9 @@ RUN npm run build
 
 # ─── Stage 3: Production runtime ─────────────────────────────
 FROM node:20-alpine AS runtime
-RUN apk add --no-cache dumb-init openssl
+RUN apk add --no-cache dumb-init openssl python3 py3-pip && \
+    pip3 install --no-cache-dir --break-system-packages yt-dlp && \
+    apk add --no-cache ffmpeg
 WORKDIR /app
 
 # Install only production dependencies

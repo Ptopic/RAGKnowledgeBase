@@ -444,13 +444,19 @@ export class BrightdataYoutubeStrategy implements YoutubeProcessingStrategy {
 			);
 		} catch (error) {
 			if (documentId) {
-				await this.prisma.document.update({
-					where: { id: documentId },
-					data: {
-						processingStatus: "FAILED",
-						processingCompletedAt: new Date(),
-					},
-				});
+				try {
+					await this.prisma.document.update({
+						where: { id: documentId },
+						data: {
+							processingStatus: "FAILED",
+							processingCompletedAt: new Date(),
+						},
+					});
+				} catch (dbError) {
+					this.logger.warn(
+						`Failed to mark document ${documentId} as FAILED: ${dbError.message}`,
+					);
+				}
 				this.sseService.broadcastEvent({
 					topic: "documents",
 					data: { action: "update", searchSpaceId, documentId },

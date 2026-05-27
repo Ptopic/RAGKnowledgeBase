@@ -28,6 +28,9 @@ import {
 const execFileAsync = promisify(execFile);
 
 const YT_DLP_TIMEOUT_MS = 300000;
+const WHISPER_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+
+const YOUTUBE_URL_PATTERN = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/i;
 
 @Injectable()
 export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
@@ -47,6 +50,40 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 		userId: string,
 		documentId: number,
 	): Promise<YoutubeProcessingResult> {
+		if (!process.env.OPENAI_API_KEY) {
+			const errorMsg = "OPENAI_API_KEY is not set. Local YouTube processing requires it for Whisper transcription.";
+			this.logger.error(errorMsg);
+
+			await this.prisma.document.update({
+				where: { id: documentId },
+				data: { processingStatus: "FAILED", processingCompletedAt: new Date() },
+			}).catch(() => {});
+
+			this.sseService.broadcastEvent({
+				topic: "documents",
+				data: { action: "update", searchSpaceId, documentId },
+			});
+
+			return { success: false, error: errorMsg, documentId };
+		}
+
+		if (!YOUTUBE_URL_PATTERN.test(videoUrl)) {
+			const errorMsg = `Invalid YouTube URL: ${videoUrl}`;
+			this.logger.error(errorMsg);
+
+			await this.prisma.document.update({
+				where: { id: documentId },
+				data: { processingStatus: "FAILED", processingCompletedAt: new Date() },
+			}).catch(() => {});
+
+			this.sseService.broadcastEvent({
+				topic: "documents",
+				data: { action: "update", searchSpaceId, documentId },
+			});
+
+			return { success: false, error: errorMsg, documentId };
+		}
+
 		const taskLogger = TaskLoggingService.forSearchSpace(
 			this.prisma,
 			searchSpaceId,
@@ -192,7 +229,8 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 						url: videoUrl,
 						video_id: videoId,
 						video_title: metadata.title,
-					} as any, // biome-ignore lint/suspicious/noExplicitAny: Prisma documentMetadata accepts arbitrary shape
+					// biome-ignore lint/suspicious/noExplicitAny: Prisma documentMetadata accepts arbitrary shape
+					} as any,
 					processingStatus: "COMPLETED",
 					processingCompletedAt: new Date(),
 				},
@@ -233,13 +271,19 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 				error.stack,
 			);
 
-			await this.prisma.document.update({
-				where: { id: documentId },
-				data: {
-					processingStatus: "FAILED",
-					processingCompletedAt: new Date(),
-				},
-			});
+			try {
+				await this.prisma.document.update({
+					where: { id: documentId },
+					data: {
+						processingStatus: "FAILED",
+						processingCompletedAt: new Date(),
+					},
+				});
+			} catch (dbError) {
+				this.logger.warn(
+					`Failed to mark document ${documentId} as FAILED: ${dbError.message}`,
+				);
+			}
 
 			this.sseService.broadcastEvent({
 				topic: "documents",
@@ -341,6 +385,13 @@ export class LocalYoutubeStrategy implements YoutubeProcessingStrategy {
 
 	private async transcribeAudio(audioFilePath: string): Promise<string> {
 		try {
+			const fileStats = fs.statSync(audioFilePath);
+			if (fileStats.size > WHISPER_MAX_FILE_SIZE_BYTES) {
+				throw new Error(
+					`Audio file exceeds Whisper API 25MB limit (${(fileStats.size / 1024 / 1024).toFixed(1)}MB). Consider using a shorter video or the BrightData processor.`,
+				);
+			}
+
 			const formData = new FormData();
 			formData.append("file", fs.createReadStream(audioFilePath), {
 				filename: path.basename(audioFilePath),
