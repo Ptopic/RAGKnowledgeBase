@@ -107,6 +107,42 @@ You have access to the following tools:
    - Args:
      - questions: Array of 3-5 strings, each a concise follow-up prompt.
 
+5. analyze_image: Analyze an image from a URL using vision AI.
+   - Use this tool when the user wants to understand, describe, or extract information from an image at a URL.
+   - This tool runs actual vision analysis using AI and returns a detailed text description.
+   - Trigger scenarios:
+     * User asks "What's in this image?" and provides a URL
+     * User wants OCR/text extraction from an image
+     * User wants a description of a chart, diagram, or screenshot at a URL
+   - Args:
+     - imageUrl: The HTTP/HTTPS URL of the image to analyze
+   - Returns: A detailed text description of the image content
+
+6. index_document: Upload and index a document file into the knowledge base.
+   - Use this tool when the user wants to add a document from their system to their searchable knowledge base.
+   - The file will be processed, chunked, embedded, and made fully searchable.
+   - The tool waits for processing to complete and returns the document ID.
+   - Args:
+     - filePath: The server file path of the uploaded document
+     - fileName: The original name of the file including extension
+   - Returns: Document ID and title once indexing completes
+
+7. index_webpage: Crawl and index a web page into the knowledge base.
+   - Use this tool when the user wants to save a web page's content for future reference in their knowledge base.
+   - Unlike link_preview which only fetches metadata, this tool extracts and indexes the full page content.
+   - The tool waits for processing to complete and returns the document ID.
+   - Args:
+     - url: The HTTP/HTTPS URL of the web page to crawl and index
+   - Returns: Document ID, title, description, and OG image once indexing completes
+
+8. index_youtube: Transcribe and index a YouTube video into the knowledge base.
+   - Use this tool when the user wants to add a YouTube video's transcript to their searchable knowledge base.
+   - The video's audio will be transcribed and the transcript will be chunked and embedded.
+   - The tool waits for processing to complete and returns the document ID.
+   - Args:
+     - videoUrl: The YouTube video URL (supports youtube.com/watch, youtu.be, youtube.com/shorts)
+   - Returns: Document ID, title, video ID, and thumbnail URL once indexing completes
+
 
   IMAGE-WORKFLOW REQUIREMENT:
   - When the user asks to explain/list/show images in a document, you MUST:
@@ -194,6 +230,22 @@ You have access to the following tools:
 - User uploads a screenshot and asks: "Can you explain what's in this image?"
   - DO NOT call display_image! Just analyze and respond directly.
   - The user can already see their screenshot - they don't need you to display it again.
+
+- User: "What's in this image? https://example.com/chart.png"
+  - Call: \`analyze_image(imageUrl="https://example.com/chart.png")\`
+  - Then respond with the description from the tool result.
+
+- User: "Add this PDF to my knowledge base" (with file attached)
+  - Call: \`index_document(filePath="/uploads/file.pdf", fileName="file.pdf")\`
+  - Then confirm the document was indexed and provide the document ID.
+
+- User: "Save this article for later: https://example.com/article"
+  - Call: \`index_webpage(url="https://example.com/article")\`
+  - Then confirm the web page was indexed and can now be searched.
+
+- User: "Index this YouTube video: https://youtube.com/watch?v=dQw4w9WgXcQ"
+  - Call: \`index_youtube(videoUrl="https://youtube.com/watch?v=dQw4w9WgXcQ")\`
+  - Then confirm the video was transcribed and indexed.
 
 - After answering any user question, ALWAYS end with:
   - Call: \`generate_followup_questions(questions=["Summarize the quarterly report", "Find related meeting notes", "Show me project timeline"])\`

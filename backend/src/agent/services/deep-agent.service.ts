@@ -1,28 +1,27 @@
-import {
-	AIMessage,
-	BaseMessage,
-	HumanMessage,
-	SystemMessage,
-} from "@langchain/core/messages";
+import { BaseMessage, HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
+import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
 import { Injectable, Logger } from "@nestjs/common";
 import { ChatType } from "@prisma/client";
+import { createDeepAgent } from "deepagents";
 import { ChatsService } from "src/chats/chats.service";
+import { DocumentsService } from "src/documents/documents.service";
 import { PrismaService } from "src/prisma/prisma.service";
+import { QueueService } from "src/queue/queue.service";
+import { ImageAnalysisService } from "src/services/image-analysis.service";
+import { SseService } from "src/sse/sse.service";
+import { CheckpointerService } from "../checkpointer/checkpointer.service";
+import { buildSystemPrompt } from "../prompts/system-prompt";
 import { buildTools } from "../tools/registry";
 import type {
 	DeepAgentStreamResult,
 	StreamDeepAgentParams,
 	ToolDependencies,
 } from "../types/agent-types";
+import { ThinkingStepCallbackHandler } from "../utils/custom-event-handler";
 import { ConnectorService } from "./connector.service";
 import { ConversationMemoryService } from "./conversation-memory.service";
-import { buildSystemPrompt } from "../prompts/system-prompt";
-import { CheckpointerService } from "../checkpointer/checkpointer.service";
-import type { BaseCheckpointSaver } from "@langchain/langgraph";
-import { ThinkingStepCallbackHandler } from "../utils/custom-event-handler";
-import { createDeepAgent } from "deepagents";
 
 interface SelectedDocument {
 	id: number;
@@ -41,7 +40,9 @@ function escapeXml(input: string): string {
 		.replace(/'/g, "&apos;");
 }
 
-function formatSelectedDocumentsAsContext(documents: SelectedDocument[]): string {
+function formatSelectedDocumentsAsContext(
+	documents: SelectedDocument[],
+): string {
 	if (!documents.length) {
 		return "";
 	}
@@ -49,8 +50,8 @@ function formatSelectedDocumentsAsContext(documents: SelectedDocument[]): string
 	const contextParts: string[] = ["<mentioned_documents>"];
 	contextParts.push(
 		"The user has explicitly selected the following documents from their knowledge base. " +
-		"These documents are directly relevant to the query and should be prioritized as primary sources. " +
-		"Use [citation:CHUNK_ID] format for citations (e.g., [citation:123]).",
+			"These documents are directly relevant to the query and should be prioritized as primary sources. " +
+			"Use [citation:CHUNK_ID] format for citations (e.g., [citation:123]).",
 	);
 	contextParts.push("");
 
@@ -62,17 +63,23 @@ function formatSelectedDocumentsAsContext(documents: SelectedDocument[]): string
 		contextParts.push("<document>");
 		contextParts.push("<document_metadata>");
 		contextParts.push(`  <document_id>${doc.id}</document_id>`);
-		contextParts.push(`  <document_type>${escapeXml(doc.documentType)}</document_type>`);
+		contextParts.push(
+			`  <document_type>${escapeXml(doc.documentType)}</document_type>`,
+		);
 		contextParts.push(`  <title><![CDATA[${doc.title}]]></title>`);
 		contextParts.push(`  <url><![CDATA[${url}]]></url>`);
-		contextParts.push(`  <metadata_json><![CDATA[${metadataJson}]]></metadata_json>`);
+		contextParts.push(
+			`  <metadata_json><![CDATA[${metadataJson}]]></metadata_json>`,
+		);
 		contextParts.push("</document_metadata>");
 		contextParts.push("");
 		contextParts.push("<document_content>");
 
 		if (doc.chunks && doc.chunks.length > 0) {
 			for (const chunk of doc.chunks) {
-				contextParts.push(`  <chunk id='${chunk.id}'><![CDATA[${chunk.content}]]></chunk>`);
+				contextParts.push(
+					`  <chunk id='${chunk.id}'><![CDATA[${chunk.content}]]></chunk>`,
+				);
 			}
 		}
 
@@ -95,6 +102,10 @@ export class DeepAgentService {
 		private readonly conversationMemoryService: ConversationMemoryService,
 		private readonly prisma: PrismaService,
 		private readonly checkpointerService: CheckpointerService,
+		private readonly queueService: QueueService,
+		private readonly documentsService: DocumentsService,
+		private readonly imageAnalysisService: ImageAnalysisService,
+		private readonly sseService: SseService,
 	) {}
 
 	private createAgent(
@@ -148,6 +159,10 @@ export class DeepAgentService {
 			prisma: this.prisma,
 			defaultConnectors: params.selectedConnectors,
 			documentIdsToAddInContext: params.documentIdsToAddInContext,
+			queueService: this.queueService,
+			documentsService: this.documentsService,
+			imageAnalysisService: this.imageAnalysisService,
+			sseService: this.sseService,
 		};
 
 		const checkpointer = this.checkpointerService.isReady()
@@ -160,14 +175,15 @@ export class DeepAgentService {
 		);
 
 		const streamConfig: RunnableConfig = {
-			configurable: checkpointer
-				? { thread_id: String(currentChatId) }
-				: {},
+			configurable: checkpointer ? { thread_id: String(currentChatId) } : {},
 		};
 
 		let finalQuery = params.userQuery;
 
-		if (params.documentIdsToAddInContext && params.documentIdsToAddInContext.length > 0) {
+		if (
+			params.documentIdsToAddInContext &&
+			params.documentIdsToAddInContext.length > 0
+		) {
 			const documents = await this.prisma.document.findMany({
 				where: {
 					id: { in: params.documentIdsToAddInContext },
@@ -186,7 +202,8 @@ export class DeepAgentService {
 				id: doc.id,
 				title: doc.title,
 				documentType: doc.documentType,
-				documentMetadata: (doc.documentMetadata as Record<string, unknown>) || {},
+				documentMetadata:
+					(doc.documentMetadata as Record<string, unknown>) || {},
 				chunks: doc.chunks.map((chunk) => ({
 					id: chunk.id,
 					content: chunk.content,
@@ -196,7 +213,9 @@ export class DeepAgentService {
 			if (selectedDocs.length > 0) {
 				const documentContext = formatSelectedDocumentsAsContext(selectedDocs);
 				finalQuery = `${documentContext}\n\n<user_query>${params.userQuery}</user_query>`;
-				this.logger.log(`Injected ${selectedDocs.length} selected documents into context`);
+				this.logger.log(
+					`Injected ${selectedDocs.length} selected documents into context`,
+				);
 			}
 		}
 

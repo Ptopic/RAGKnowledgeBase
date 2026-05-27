@@ -1,5 +1,9 @@
 import type { BaseTool } from "@langchain/core/tools";
+import type { DocumentsService } from "src/documents/documents.service";
 import type { PrismaService } from "src/prisma/prisma.service";
+import type { QueueService } from "src/queue/queue.service";
+import type { ImageAnalysisService } from "src/services/image-analysis.service";
+import type { SseService } from "src/sse/sse.service";
 import type { ConnectorService } from "../services/connector.service";
 
 export interface StreamDeepAgentParams {
@@ -25,6 +29,10 @@ export interface ToolDependencies {
 	prisma: PrismaService;
 	defaultConnectors?: string[];
 	documentIdsToAddInContext?: number[];
+	queueService?: QueueService;
+	documentsService?: DocumentsService;
+	imageAnalysisService?: ImageAnalysisService;
+	sseService?: SseService;
 }
 
 export interface ToolDefinition {

@@ -1,9 +1,13 @@
 import { BaseTool } from "@langchain/core/tools";
 import type { ToolDefinition, ToolDependencies } from "../types/agent-types";
+import { createAnalyzeImageTool } from "./analyze-image.tool";
 import { createDisplayImageTool } from "./display-image.tool";
+import { createGenerateFollowupQuestionsTool } from "./generate-followup-questions.tool";
+import { createIndexDocumentTool } from "./index-document.tool";
+import { createIndexWebpageTool } from "./index-webpage.tool";
+import { createIndexYouTubeTool } from "./index-youtube.tool";
 import { createSearchKnowledgeBaseTool } from "./knowledge-base.tool";
 import { createLinkPreviewTool } from "./link-preview.tool";
-import { createGenerateFollowupQuestionsTool } from "./generate-followup-questions.tool";
 
 const BUILTIN_TOOLS: ToolDefinition[] = [
 	{
@@ -26,6 +30,38 @@ const BUILTIN_TOOLS: ToolDefinition[] = [
 		description: "Display an image in the chat with metadata",
 		factory: () => createDisplayImageTool(),
 		requires: [],
+		enabledByDefault: true,
+	},
+	{
+		name: "analyze_image",
+		description:
+			"Analyze an image from a URL using vision AI and return a detailed text description",
+		factory: (deps) => createAnalyzeImageTool(deps),
+		requires: ["imageAnalysisService"],
+		enabledByDefault: true,
+	},
+	{
+		name: "index_document",
+		description:
+			"Upload and index a document file into the user's knowledge base",
+		factory: (deps) => createIndexDocumentTool(deps),
+		requires: ["queueService", "prisma"],
+		enabledByDefault: true,
+	},
+	{
+		name: "index_webpage",
+		description:
+			"Crawl and index a web page URL into the user's knowledge base",
+		factory: (deps) => createIndexWebpageTool(deps),
+		requires: ["queueService", "prisma"],
+		enabledByDefault: true,
+	},
+	{
+		name: "index_youtube",
+		description:
+			"Transcribe and index a YouTube video into the user's knowledge base",
+		factory: (deps) => createIndexYouTubeTool(deps),
+		requires: ["queueService", "prisma"],
 		enabledByDefault: true,
 	},
 	{
