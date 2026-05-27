@@ -134,12 +134,12 @@ export function DocumentsTableShell({
 		React.useState<DocumentWithChunks | null>(null);
 	const [activeChunksTitle, setActiveChunksTitle] = React.useState<string>("");
 
-	const openChunksModal = async (documentId: number, title: string) => {
+	const openChunksModal = async (documentId: number, searchSpaceId: number, title: string) => {
 		setActiveChunksTitle(title);
 		setChunksOpen(true);
 		setChunksLoading(true);
 		try {
-			const data = await documentsClientRequests.getDocumentWithChunks(documentId);
+			const data = await documentsClientRequests.getDocumentWithChunks(documentId, searchSpaceId);
 			setActiveChunksDocument(data);
 		} catch (error) {
 			console.error("Error loading chunks:", error);
@@ -410,7 +410,7 @@ export function DocumentsTableShell({
 																variant="ghost"
 																size="sm"
 																className="h-7 px-2 text-xs"
-																onClick={() => openChunksModal(doc.id, doc.title)}
+																onClick={() => openChunksModal(doc.id, doc.search_space_id, doc.title)}
 															>
 																View
 															</Button>
@@ -562,7 +562,7 @@ export function DocumentsTableShell({
 																variant="ghost"
 																size="sm"
 																className="w-fit text-xs p-0 h-auto"
-																onClick={() => openChunksModal(doc.id, doc.title)}
+																onClick={() => openChunksModal(doc.id, doc.search_space_id, doc.title)}
 															>
 																Chunks ({doc.chunks_count ?? 0})
 															</Button>

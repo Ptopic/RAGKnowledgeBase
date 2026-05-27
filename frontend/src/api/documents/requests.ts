@@ -28,7 +28,7 @@ export const uploadDocuments =
 		formData.append("search_space_id", data.search_space_id);
 
 		return request.call(
-			`${config.apiUrl}/documents/fileupload`,
+			`${config.apiUrl}/documents/fileupload?search_space_id=${data.search_space_id}`,
 			(init) => {
 				// For FormData, don't set Content-Type - browser will set it automatically with boundary
 				const headers = new Headers(init.headers);

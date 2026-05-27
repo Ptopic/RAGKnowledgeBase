@@ -86,7 +86,7 @@ export class DocumentChunkDto {
 	created_at: Date;
 
 	@IsInt()
-	documentId: number;
+	document_id: number;
 }
 
 export class DocumentWithChunksDto extends DocumentDto {

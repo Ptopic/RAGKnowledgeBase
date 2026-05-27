@@ -651,7 +651,7 @@ export class DocumentsService {
 				id: chunk.id,
 				content: chunk.content,
 				created_at: chunk.createdAt,
-				documentId: chunk.documentId,
+				document_id: chunk.documentId,
 			})),
 			processing_status: document.processingStatus,
 			processing_started_at: document.processingStartedAt,
