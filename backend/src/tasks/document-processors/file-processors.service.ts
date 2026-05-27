@@ -280,6 +280,11 @@ export class FileProcessorsService {
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
 				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
 
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+				});
+
 				return updatedDocument;
 			} else {
 				const document = await this.prisma.document.create({
@@ -301,6 +306,11 @@ export class FileProcessorsService {
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
 				await this.insertChunksWithEmbeddings(document.id, chunks);
 				await this.enqueueImageAnalysisJob(document.id, searchSpaceId, fileInMarkdown, "file");
+
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'create', searchSpaceId, documentId: document.id },
+				});
 
 				return document;
 			}
@@ -439,6 +449,11 @@ export class FileProcessorsService {
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
 				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
 
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+				});
+
 				return updatedDocument;
 			} else {
 				const document = await this.prisma.document.create({
@@ -460,6 +475,11 @@ export class FileProcessorsService {
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
 				await this.insertChunksWithEmbeddings(document.id, chunks);
 				await this.enqueueImageAnalysisJob(document.id, searchSpaceId, fileInMarkdown, "file");
+
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'create', searchSpaceId, documentId: document.id },
+				});
 
 				return document;
 			}

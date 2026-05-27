@@ -599,6 +599,11 @@ export class YoutubeProcessorService {
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
 				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, combinedDocumentString, "youtube");
 
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+				});
+
 				await taskLogger.logTaskSuccess(
 					logEntry,
 					`Successfully processed YouTube video from webhook: ${title}`,
@@ -650,6 +655,11 @@ export class YoutubeProcessorService {
 				combinedDocumentString,
 				"youtube",
 			);
+
+			this.sseService.broadcastEvent({
+				topic: 'documents',
+				data: { action: 'create', searchSpaceId, documentId: document.id },
+			});
 
 			await taskLogger.logTaskSuccess(
 				logEntry,

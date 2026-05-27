@@ -331,6 +331,16 @@ export class MarkdownProcessorService {
 					topic: 'documents',
 					data: { action: 'update', searchSpaceId, documentId: document.id },
 				});
+			} else if (existingDocument) {
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'update', searchSpaceId, documentId: document.id },
+				});
+			} else {
+				this.sseService.broadcastEvent({
+					topic: 'documents',
+					data: { action: 'create', searchSpaceId, documentId: document.id },
+				});
 			}
 
 			// Log success
