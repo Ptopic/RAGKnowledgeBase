@@ -365,6 +365,14 @@ Do NOT respond in English unless the question is in English.
 				),
 			);
 
+			// Strip any "Follow-ups:" or "Follow-up questions:" sections the LLM may have
+			// generated despite instructions. The frontend handles follow-up suggestions
+			// via a separate tool call mechanism, not inline text.
+			completeContent = completeContent.replace(
+				/\n*\*{0,2}Follow-?ups?\s*(Questions?)?\s*[:：]\*{0,2}[\s\S]*$/i,
+				"",
+			).trimEnd();
+
 			return (
 				completeContent || "I couldn't generate an answer to this question."
 			);
@@ -439,6 +447,7 @@ Absolute Mode:
 • Use blunt, directive phrasing; no mirroring, no softening.
 • Suppress sentiment-boosting, engagement, or satisfaction metrics.
 • No questions, offers, suggestions, or motivational content.
+• NEVER include a "Follow-ups:", "Follow-up questions:", or similar section at the end of your response. The frontend handles follow-up suggestions separately — do NOT generate them in the response text.
 • Deliver info only; end immediately after.
 
 ${chatHistory ? `Previous conversation:\n${chatHistory}` : ""}
@@ -512,6 +521,7 @@ Absolute Mode:
 • Use blunt, directive phrasing; no mirroring, no softening.
 • Suppress sentiment-boosting, engagement, or satisfaction metrics.
 • No questions, offers, suggestions, or motivational content.
+• NEVER include a "Follow-ups:", "Follow-up questions:", or similar section at the end of your response. The frontend handles follow-up suggestions separately — do NOT generate them in the response text.
 • Deliver info only; end immediately after.
 
 ${chatHistory ? `Previous conversation:\n${chatHistory}` : ""}
