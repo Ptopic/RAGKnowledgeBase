@@ -156,7 +156,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				},
 				onRequest: async (_url: string, init: RequestInit) => {
 					const langchainBody = JSON.parse(init.body as string) || {};
-					const messages = langchainBody.input?.messages || [];
+					const messages = langchainBody.messages || langchainBody.input?.messages || [];
 					const lastMessage = messages[messages.length - 1];
 					const messageContent = lastMessage?.content || "";
 
