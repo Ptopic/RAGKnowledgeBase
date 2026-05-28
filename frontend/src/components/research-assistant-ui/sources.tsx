@@ -220,7 +220,7 @@ function SourceHoverCard({
 	const thumbnailUrl = url ? getYouTubeThumbnail(url) : null;
 
 	return (
-		<div data-slot="source-hover-card" className="w-72 overflow-hidden space-y-2.5">
+		<div data-slot="source-hover-card" className="w-72 space-y-2.5">
 			{thumbnailUrl && (
 				<div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
 					<img
@@ -240,17 +240,17 @@ function SourceHoverCard({
 				</div>
 			)}
 
-			<p className="truncate text-sm font-semibold leading-snug">
+			<p className="text-sm font-semibold leading-snug">
 				{displayTitle}
 			</p>
 
 			{domain && kind !== "document" && (
-				<p className="truncate text-xs text-muted-foreground">
+				<p className="break-words text-xs text-muted-foreground">
 					{domain}
 				</p>
 			)}
 
-			<div className="flex items-center gap-2 overflow-hidden">
+			<div className="flex items-center gap-2">
 				<span
 					className={cn(
 						"inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none",
@@ -264,7 +264,7 @@ function SourceHoverCard({
 				{url && (
 					<span className="inline-flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
 						<ExternalLinkIcon className="size-2.5 shrink-0" />
-						<span className="truncate">{domain}</span>
+						<span className="break-words">{domain}</span>
 					</span>
 				)}
 			</div>
@@ -342,7 +342,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 				sideOffset={6}
 				onMouseEnter={handleOpen}
 				onMouseLeave={handleClose}
-				className="w-72 overflow-hidden p-3"
+				className="w-72 p-3"
 			>
 				<SourceHoverCard
 					url={url}
