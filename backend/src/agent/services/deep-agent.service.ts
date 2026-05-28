@@ -198,6 +198,11 @@ export class DeepAgentService {
 
 		let humanMessageContent: string | Array<Record<string, unknown>> = params.userQuery;
 
+		this.logger.log(`[IMG_DEBUG][deepAgent] humanMessageContent type: ${typeof humanMessageContent}, isArray: ${Array.isArray(humanMessageContent)}`);
+		if (Array.isArray(humanMessageContent)) {
+			this.logger.log(`[IMG_DEBUG][deepAgent] content parts: ${JSON.stringify(humanMessageContent.map((p) => ({ type: p.type, hasImageUrl: !!(p as any).image_url, imageUrlType: typeof (p as any).image_url, hasUrl: !!((p as any).image_url?.url), urlLen: ((p as any).image_url?.url || "").length })))}`);
+		}
+
 		// Pre-analyze uploaded images so the LLM gets descriptions without
 		// needing to extract long data URLs and pass them to analyze_image.
 		if (Array.isArray(humanMessageContent)) {
@@ -208,6 +213,11 @@ export class DeepAgentService {
 					b.image_url !== null &&
 					typeof (b.image_url as Record<string, unknown>).url === "string",
 			);
+
+			this.logger.log(`[IMG_DEBUG][deepAgent] Found ${imageBlocks.length} image_url blocks`);
+			if (imageBlocks.length > 0) {
+				this.logger.log(`[IMG_DEBUG][deepAgent] imageAnalysisService available: ${!!this.imageAnalysisService}`);
+			}
 
 			if (imageBlocks.length > 0 && this.imageAnalysisService) {
 				const imageDescriptions: string[] = [];

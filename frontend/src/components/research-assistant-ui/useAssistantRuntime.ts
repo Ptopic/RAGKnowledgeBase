@@ -160,6 +160,13 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 					const lastMessage = messages[messages.length - 1];
 					const messageContent = lastMessage?.content || "";
 
+					console.log("[IMG_DEBUG][onRequest] langchainBody keys:", Object.keys(langchainBody));
+					console.log("[IMG_DEBUG][onRequest] messages count:", messages.length);
+					console.log("[IMG_DEBUG][onRequest] lastMessage type:", typeof messageContent, Array.isArray(messageContent) ? `array[${messageContent.length}]` : "");
+					if (Array.isArray(messageContent)) {
+						console.log("[IMG_DEBUG][onRequest] content parts:", messageContent.map((p: any) => ({ type: p.type, hasUrl: !!(p.image_url?.url || p.image_url), urlLen: (p.image_url?.url || (typeof p.image_url === "string" ? p.image_url : "")).length })));
+					}
+
 					lastUserMessageRef.current = typeof messageContent === "string"
 						? messageContent
 						: (Array.isArray(messageContent)
@@ -766,7 +773,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			return;
 		}
 
-		const content = toLangGraphMessageContent(
+			const content = toLangGraphMessageContent(
 			message.content as readonly {
 				type: string;
 				text?: string;
@@ -776,6 +783,12 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		if (!content) return;
 
 		const messageToSend = content;
+
+		console.log("[IMG_DEBUG][onNew] message.content parts:", message.content.map((p: any) => ({ type: p.type, hasText: !!p.text, hasImage: !!p.image, imageLen: p.image?.length ?? 0 })));
+		console.log("[IMG_DEBUG][onNew] toLangGraphMessageContent result:", typeof messageToSend === "string" ? `string(${messageToSend.length})` : `array[${Array.isArray(messageToSend) ? messageToSend.length : 0}]`);
+		if (Array.isArray(messageToSend)) {
+			console.log("[IMG_DEBUG][onNew] messageToSend parts:", messageToSend.map((p: any) => ({ type: p.type, hasImageUrl: !!(p.image_url), imageUrlType: typeof p.image_url, hasUrl: !!(p.image_url?.url), urlLen: (p.image_url?.url || (typeof p.image_url === "string" ? p.image_url : "")).length })));
+		}
 
 		setAccumulatedMessages((prev) => [
 			...prev,

@@ -70,6 +70,13 @@ export class AgentController {
 
 			const userContent = messages[messages.length - 1].content;
 			const requestData = request.data || {};
+
+			this.logger.log(`[IMG_DEBUG][chatWithDeepAgent] userContent type: ${typeof userContent}, isArray: ${Array.isArray(userContent)}`);
+			if (Array.isArray(userContent)) {
+				this.logger.log(`[IMG_DEBUG][chatWithDeepAgent] content parts: ${JSON.stringify(userContent.map((p: any) => ({ type: p.type, hasImageUrl: !!p.image_url, imageUrlType: typeof p.image_url, hasUrl: !!(p.image_url?.url), urlLen: (p.image_url?.url || "").length })))}`);
+			} else if (typeof userContent === "string") {
+				this.logger.log(`[IMG_DEBUG][chatWithDeepAgent] string content length: ${userContent.length}, startsWithData: ${userContent.startsWith("data:")}`);
+			}
 			const searchSpaceId = Number(requestData.search_space_id);
 
 			if (!searchSpaceId) {

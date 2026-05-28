@@ -13,6 +13,9 @@ import type { ToolDependencies } from "../types/agent-types";
 				.describe("The URL of the image to analyze. Can be an HTTP/HTTPS URL or a data:image/ URL from an uploaded attachment."),
 		}),
 		func: async ({ imageUrl }) => {
+			console.log(`[IMG_DEBUG][analyze_image] Called with imageUrl type: ${typeof imageUrl}, length: ${imageUrl?.length}, startsWithData: ${imageUrl?.startsWith("data:")}, startsWithHttp: ${imageUrl?.startsWith("http")}`);
+			console.log(`[IMG_DEBUG][analyze_image] imageUrl prefix: ${imageUrl?.substring(0, 80)}...`);
+
 			const isDataUrl = imageUrl.startsWith("data:image/");
 			const isHttpUrl = /^https?:\/\//i.test(imageUrl);
 
