@@ -297,14 +297,19 @@ const SourcesImpl: SourceMessagePartComponent = ({
 		}
 	}, []);
 
-	const handleOpen = useCallback(() => {
+	const handleOpenDelayed = useCallback(() => {
 		clearTimers();
 		openTimerRef.current = setTimeout(() => setOpen(true), 300);
 	}, [clearTimers]);
 
+	const handleOpenImmediate = useCallback(() => {
+		clearTimers();
+		setOpen(true);
+	}, [clearTimers]);
+
 	const handleClose = useCallback(() => {
 		clearTimers();
-		closeTimerRef.current = setTimeout(() => setOpen(false), 200);
+		closeTimerRef.current = setTimeout(() => setOpen(false), 150);
 	}, [clearTimers]);
 
 	if (sourceType !== "url" && sourceType !== "document") return null;
@@ -319,9 +324,9 @@ const SourcesImpl: SourceMessagePartComponent = ({
 			<PopoverTrigger asChild>
 				<button
 					type="button"
-					onMouseEnter={handleOpen}
+					onMouseEnter={handleOpenDelayed}
 					onMouseLeave={handleClose}
-					onFocus={handleOpen}
+					onFocus={handleOpenDelayed}
 					onBlur={handleClose}
 					className="inline-flex appearance-none border-none bg-transparent p-0"
 				>
@@ -340,7 +345,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 				align="start"
 				side="top"
 				sideOffset={6}
-				onMouseEnter={handleOpen}
+				onMouseEnter={handleOpenImmediate}
 				onMouseLeave={handleClose}
 				className="w-72 p-3"
 			>
