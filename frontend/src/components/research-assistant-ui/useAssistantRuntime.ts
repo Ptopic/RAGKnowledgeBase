@@ -9,7 +9,6 @@ import {
 	CompositeAttachmentAdapter,
 	ExportedMessageRepository,
 	SimpleImageAttachmentAdapter,
-	SimpleTextAttachmentAdapter,
 	type ThreadMessageLike,
 	useExternalStoreRuntime,
 	WebSpeechDictationAdapter,
@@ -79,7 +78,6 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		() =>
 			new CompositeAttachmentAdapter([
 				new SimpleImageAttachmentAdapter(),
-				new SimpleTextAttachmentAdapter(),
 				new SimpleFileAttachmentAdapter({
 					token: options.token,
 					searchSpaceId: options.searchSpaceId,

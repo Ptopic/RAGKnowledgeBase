@@ -6,9 +6,9 @@ import type {
 	PendingAttachment,
 } from "@assistant-ui/react";
 import { config } from "@/shared/config/config";
+import { getChatAcceptString } from "@/lib/accepted-file-types";
 
-const DOCUMENT_ACCEPT =
-	"application/pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls,.pptx,.ppt,.rtf,.odt,.epub";
+const DOCUMENT_ACCEPT = getChatAcceptString().replace("image/*,", "").replace("image/*", "");
 
 interface ChatFileUploadResult {
 	filePath: string;
