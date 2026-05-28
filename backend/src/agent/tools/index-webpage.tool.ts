@@ -1,10 +1,78 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { DocumentType } from "@prisma/client";
+import axios from "axios";
 import { z } from "zod";
 import type { ToolDependencies } from "../types/agent-types";
 
 const POLL_INTERVAL_MS = 2000;
 const TIMEOUT_MS = 300000;
+
+function extractMeta(html: string, key: string): string {
+	const patterns = [
+		new RegExp(
+			`<meta[^>]*property=["']og:${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+			"i",
+		),
+		new RegExp(
+			`<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:${key}["'][^>]*>`,
+			"i",
+		),
+		new RegExp(
+			`<meta[^>]*name=["']${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+			"i",
+		),
+		new RegExp(
+			`<meta[^>]*content=["']([^"']*)["'][^>]*name=["']${key}["'][^>]*>`,
+			"i",
+		),
+	];
+
+	for (const pattern of patterns) {
+		const match = html.match(pattern);
+		if (match?.[1]) {
+			return match[1];
+		}
+	}
+
+	return "";
+}
+
+function resolveImageUrl(rawUrl: string, pageUrl: string): string {
+	if (!rawUrl) return rawUrl;
+	try {
+		return new URL(rawUrl, pageUrl).href;
+	} catch {
+		return rawUrl;
+	}
+}
+
+async function fetchOgMetadata(
+	url: string,
+): Promise<{ title: string; description: string; ogImage: string }> {
+	try {
+		const response = await axios.get<string>(url, {
+			timeout: 10000,
+			responseType: "text",
+			headers: {
+				"User-Agent":
+					"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+			},
+		});
+
+		const html = response.data || "";
+		const ogTitle = extractMeta(html, "title");
+		const ogDescription = extractMeta(html, "description");
+		const ogImage = resolveImageUrl(extractMeta(html, "image"), url);
+
+		return {
+			title: ogTitle || "",
+			description: ogDescription || "",
+			ogImage: ogImage || "",
+		};
+	} catch {
+		return { title: "", description: "", ogImage: "" };
+	}
+}
 
 export function createIndexWebpageTool(deps: ToolDependencies) {
 	return new DynamicStructuredTool({
@@ -36,6 +104,8 @@ export function createIndexWebpageTool(deps: ToolDependencies) {
 			}
 
 			try {
+			const ogMetadataPromise = fetchOgMetadata(url);
+
 				const placeholderDoc = await prisma.document.create({
 					data: {
 						searchSpaceId,
@@ -121,8 +191,25 @@ export function createIndexWebpageTool(deps: ToolDependencies) {
 							unknown
 						>;
 						const title = doc.title || url;
-						const description = (metadata.description as string) || "";
-						const ogImage = (metadata.ogImage as string) || "";
+						const ogData = await ogMetadataPromise;
+						const description =
+							(metadata.description as string) || ogData.description || "";
+						const ogImage =
+							(metadata.ogImage as string) || ogData.ogImage || "";
+
+						if (ogImage && !metadata.ogImage) {
+							await prisma.document.update({
+								where: { id: placeholderDoc.id },
+								data: {
+									documentMetadata: {
+										...metadata,
+										ogImage,
+										description: description || undefined,
+									},
+								},
+							}).catch(() => {});
+						}
+
 						return JSON.stringify({
 							documentId: placeholderDoc.id,
 							title,

@@ -52,14 +52,41 @@ export function SearchKnowledgeBaseTool({
 	const toolArgs = args as SearchKnowledgeBaseArgs;
 
 	let toolResult: SearchKnowledgeBaseResult | undefined;
+	let sourceCount = 0;
 	try {
 		if (typeof result === "string") {
-			toolResult = JSON.parse(result) as SearchKnowledgeBaseResult;
-		} else {
-			toolResult = result as SearchKnowledgeBaseResult | undefined;
+			const parsed = JSON.parse(result);
+			if (parsed && typeof parsed === "object" && "sources" in parsed && "content" in parsed) {
+				sourceCount = Array.isArray(parsed.sources) ? parsed.sources.length : 0;
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: sourceCount,
+				};
+			} else {
+				toolResult = parsed as SearchKnowledgeBaseResult;
+			}
+		} else if (result && typeof result === "object") {
+			const parsed = result as Record<string, unknown>;
+			if ("sources" in parsed && "content" in parsed) {
+				sourceCount = Array.isArray(parsed.sources) ? (parsed.sources as unknown[]).length : 0;
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: sourceCount,
+				};
+			} else {
+				toolResult = result as SearchKnowledgeBaseResult;
+			}
 		}
 	} catch {
-		toolResult = undefined;
+		if (typeof result === "string" && result.startsWith("<documents>")) {
+			toolResult = {
+				query: toolArgs.query || "",
+				results: [],
+				total: 0,
+			};
+		}
 	}
 
 	if (isRunning) {
@@ -102,7 +129,11 @@ export function SearchKnowledgeBaseTool({
 				)}
 			</CardHeader>
 			<CardContent className="pt-0">
-				{!toolResult.results || toolResult.results.length === 0 ? (
+				{sourceCount > 0 ? (
+					<p className="text-sm text-muted-foreground pl-10">
+						Found {sourceCount} {sourceCount === 1 ? "source" : "sources"} in knowledge base
+					</p>
+				) : !toolResult.results || toolResult.results.length === 0 ? (
 					<p className="text-sm text-muted-foreground pl-10">
 						No results found
 					</p>
