@@ -457,6 +457,20 @@ function toAssistantThreadContent(
 		threadMessages: ThreadMessageLike[],
 		toolMessage: LangChainToolMessage,
 	) {
+	const msgToolName = (toolMessage as any).name;
+	const toolCallId = toolMessage.tool_call_id;
+
+	if (typeof window !== "undefined") {
+		console.log("[ATTACH_DEBUG] Looking for tool_call_id:", toolCallId, "toolName:", msgToolName);
+		for (let i = threadMessages.length - 1; i >= 0; i -= 1) {
+			const m = threadMessages[i];
+			if (m.role === "assistant" && Array.isArray(m.content)) {
+				const calls = m.content.filter((p: any) => p.type === "tool-call").map((p: any) => ({ toolCallId: p.toolCallId, toolName: p.toolName }));
+				console.log("[ATTACH_DEBUG]", `threadMessages[${i}]`, "id:", m.id, "tool-calls:", calls);
+			}
+		}
+	}
+
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
 		if (
