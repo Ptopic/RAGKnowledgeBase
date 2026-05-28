@@ -1,6 +1,6 @@
 "use client";
 
-import type { SourceMessagePartComponent } from "@assistant-ui/react";
+import { type SourceMessagePartComponent, useThread } from "@assistant-ui/react";
 import {
 	ExternalLinkIcon,
 	FileTextIcon,
@@ -281,6 +281,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	title,
 	sourceType,
 }) => {
+	const isRunning = useThread((s) => s.isRunning);
 	const [open, setOpen] = useState(false);
 	const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -308,6 +309,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 
 	if (sourceType !== "url" && sourceType !== "document") return null;
 	if (sourceType === "url" && !url) return null;
+	if (isRunning) return null;
 
 	const domain = url ? extractDomain(url) : null;
 	const displayTitle = title || domain || "Document";
