@@ -1,5 +1,6 @@
 "use client";
 
+import { useThread } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FC, memo, type ReactNode, useMemo, useState } from "react";
 import remarkGfm from "remark-gfm";
@@ -125,6 +126,7 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 		resetCitations();
 	}, []);
 
+	const isRunning = useThread((s) => s.isRunning);
 	const content = text || "";
 
 	return (
@@ -229,6 +231,25 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 
 						const language = match[1];
 						const code = String(children).replace(/\n$/, "");
+
+						// Skip expensive Prism syntax highlighting during streaming.
+						// Prism creates a <span> per token (thousands of DOM nodes for
+						// large code blocks) and re-tokenizes on every character change,
+						// which freezes the page. Use plain <pre> while streaming and
+						// apply full highlighting once the stream completes.
+						if (isRunning) {
+							return (
+								<>
+									<CodeHeader language={language} code={code} />
+									<div className="overflow-x-auto rounded-b-lg bg-black p-4">
+										<pre className="m-0 border-0 text-xs font-mono leading-6 text-white">
+											<code>{code}</code>
+										</pre>
+									</div>
+								</>
+							);
+						}
+
 						return (
 							<>
 								<CodeHeader language={language} code={code} />

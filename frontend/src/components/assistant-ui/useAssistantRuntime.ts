@@ -134,6 +134,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	const stream = useStream({
 		transport,
 		threadId,
+		throttle: 16,
 		onError: (error) => {
 			onStreamError?.(error instanceof Error ? error : new Error(String(error)));
 		},
