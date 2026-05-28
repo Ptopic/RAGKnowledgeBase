@@ -640,7 +640,19 @@ export function toThreadMessages(
 		});
 	}
 
-	return mergeConsecutiveAssistantMessages(threadMessages);
+	const result = mergeConsecutiveAssistantMessages(threadMessages);
+
+	if (typeof window !== "undefined") {
+		for (const msg of result) {
+			if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+			const sourceParts = msg.content.filter((p) => p.type === "source");
+			if (sourceParts.length > 0) {
+				console.log("[SOURCES_DEBUG]", msg.id, "sources:", sourceParts.map((s: any) => ({ id: s.id, title: s.title, sourceType: s.sourceType, url: s.url })));
+			}
+		}
+	}
+
+	return result;
 }
 
 function mergeConsecutiveAssistantMessages(
