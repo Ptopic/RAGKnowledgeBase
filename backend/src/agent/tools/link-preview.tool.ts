@@ -1,13 +1,25 @@
-import axios from "axios";
 import { DynamicStructuredTool } from "@langchain/core/tools";
+import axios from "axios";
 import { z } from "zod";
 
 function extractMeta(html: string, key: string): string {
 	const patterns = [
-		new RegExp(`<meta[^>]*property=["']og:${key}["'][^>]*content=["']([^"']*)["'][^>]*>`, "i"),
-		new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:${key}["'][^>]*>`, "i"),
-		new RegExp(`<meta[^>]*name=["']${key}["'][^>]*content=["']([^"']*)["'][^>]*>`, "i"),
-		new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*name=["']${key}["'][^>]*>`, "i"),
+		new RegExp(
+			`<meta[^>]*property=["']og:${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+			"i",
+		),
+		new RegExp(
+			`<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:${key}["'][^>]*>`,
+			"i",
+		),
+		new RegExp(
+			`<meta[^>]*name=["']${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+			"i",
+		),
+		new RegExp(
+			`<meta[^>]*content=["']([^"']*)["'][^>]*name=["']${key}["'][^>]*>`,
+			"i",
+		),
 	];
 
 	for (const pattern of patterns) {
@@ -29,11 +41,19 @@ function extractTitle(html: string): string {
 	return titleMatch?.[1]?.trim() || "Untitled";
 }
 
+function resolveImageUrl(rawUrl: string, pageUrl: string): string {
+	if (!rawUrl) return rawUrl;
+	try {
+		return new URL(rawUrl, pageUrl).href;
+	} catch {
+		return rawUrl;
+	}
+}
+
 export function createLinkPreviewTool() {
 	return new DynamicStructuredTool({
 		name: "link_preview",
-		description:
-			"Fetch metadata for a URL to display a rich preview card.",
+		description: "Fetch metadata for a URL to display a rich preview card.",
 		schema: z.object({
 			url: z.string().url(),
 		}),
@@ -50,15 +70,23 @@ export function createLinkPreviewTool() {
 				});
 
 				const html = response.data || "";
+				const domain = parsedUrl.hostname.replace("www.", "");
+				const thumb = resolveImageUrl(extractMeta(html, "image"), url);
+
+				const id = `link-${domain}-${url.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32)}`;
 				return {
+					id,
+					assetId: id,
+					kind: "link",
 					title: extractTitle(html),
-					description: extractMeta(html, "description"),
-					thumbnail: extractMeta(html, "image"),
-					domain: parsedUrl.hostname,
-					url,
+					description: extractMeta(html, "description") || undefined,
+					thumb: thumb || undefined,
+					href: url,
+					domain,
 				};
 			} catch (error) {
-				const message = error instanceof Error ? error.message : "Unknown error";
+				const message =
+					error instanceof Error ? error.message : "Unknown error";
 				return {
 					error: `Failed to load preview: ${message}`,
 					url,

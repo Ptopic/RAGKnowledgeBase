@@ -2,15 +2,12 @@
 
 import { AlertCircleIcon, GlobeIcon } from "lucide-react";
 import {
-	Article,
-	ArticleErrorBoundary,
-	ArticleLoading,
-	parseSerializableArticle,
-} from "@/components/tool-ui/article";
-
-// ============================================================================
-// Types
-// ============================================================================
+	MediaCard,
+	MediaCardErrorBoundary,
+	MediaCardLoading,
+	parseSerializableMediaCard,
+	type SerializableMediaCard,
+} from "@/components/tool-ui/media-card";
 
 interface IndexWebpageArgs {
 	url: string;
@@ -22,6 +19,7 @@ interface IndexWebpageResult {
 	title?: string;
 	description?: string;
 	url?: string;
+	ogImage?: string;
 	error?: string;
 	[key: string]: unknown;
 }
@@ -34,10 +32,6 @@ interface IndexWebpageToolProps {
 	status?: "success" | "error";
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
 function extractDomain(url: string): string {
 	try {
 		return new URL(url).hostname.replace("www.", "");
@@ -45,10 +39,6 @@ function extractDomain(url: string): string {
 		return "";
 	}
 }
-
-// ============================================================================
-// Sub-components
-// ============================================================================
 
 function IndexWebpageError({ url, error }: { url: string; error: string }) {
 	return (
@@ -67,26 +57,22 @@ function IndexWebpageError({ url, error }: { url: string; error: string }) {
 	);
 }
 
-function ParsedArticle({ result }: { result: unknown }) {
-	const article = parseSerializableArticle(result);
+function ParsedWebpageCard({ result }: { result: unknown }) {
+	const card = parseSerializableMediaCard(result);
 
 	return (
-		<Article
-			{...article}
-			maxWidth="480px"
+		<MediaCard
+			{...card}
+			maxWidth="420px"
 			responseActions={[{ id: "open", label: "Open Source", variant: "default" }]}
 			onResponseAction={(id) => {
-				if (id === "open" && article.href) {
-					window.open(article.href, "_blank", "noopener,noreferrer");
+				if (id === "open" && card.href) {
+					window.open(card.href, "_blank", "noopener,noreferrer");
 				}
 			}}
 		/>
 	);
 }
-
-// ============================================================================
-// Main Component
-// ============================================================================
 
 export function IndexWebpageTool({
 	args,
@@ -112,7 +98,7 @@ export function IndexWebpageTool({
 	if (isRunning) {
 		return (
 			<div className="my-4">
-				<ArticleLoading title={`Indexing ${url}...`} />
+				<MediaCardLoading title={`Indexing ${url}...`} />
 			</div>
 		);
 	}
@@ -145,28 +131,30 @@ export function IndexWebpageTool({
 	if (!toolResult) {
 		return (
 			<div className="my-4">
-				<ArticleLoading title={`Extracting content from ${url}...`} />
+				<MediaCardLoading title={`Extracting content from ${url}...`} />
 			</div>
 		);
 	}
 
 	const docId = String(toolResult.documentId || url.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32));
 	const domain = extractDomain(toolResult.url || url);
-	const serializableResult = {
+	const serializableResult: SerializableMediaCard = {
 		id: docId,
 		assetId: docId,
-		kind: "article" as const,
+		kind: "link",
 		title: toolResult.title || domain || url,
-		description: toolResult.description,
+		description: toolResult.description || "Webpage indexed and searchable",
 		href: toolResult.url || url,
 		domain: domain || undefined,
+		thumb: toolResult.ogImage || undefined,
+		ratio: "16:9",
 	};
 
 	return (
 		<div className="my-4">
-			<ArticleErrorBoundary>
-				<ParsedArticle result={serializableResult} />
-			</ArticleErrorBoundary>
+			<MediaCardErrorBoundary>
+				<ParsedWebpageCard result={serializableResult} />
+			</MediaCardErrorBoundary>
 		</div>
 	);
 }

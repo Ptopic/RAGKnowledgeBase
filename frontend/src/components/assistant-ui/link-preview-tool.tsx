@@ -1,26 +1,16 @@
 "use client";
 
-import { AlertCircleIcon, ExternalLinkIcon, LinkIcon } from "lucide-react";
-import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { AlertCircleIcon, LinkIcon } from "lucide-react";
+import {
+	MediaCard,
+	MediaCardErrorBoundary,
+	MediaCardLoading,
+	parseSerializableMediaCard,
+} from "@/components/tool-ui/media-card";
 
 interface LinkPreviewArgs {
 	url: string;
 	title?: string;
-}
-
-interface LinkPreviewResult {
-	id: string;
-	assetId: string;
-	kind: "link";
-	href: string;
-	title: string;
-	description?: string;
-	thumb?: string;
-	domain?: string;
-	error?: string;
 }
 
 interface LinkPreviewToolProps {
@@ -28,6 +18,41 @@ interface LinkPreviewToolProps {
 	result?: unknown;
 	errored?: boolean;
 	isRunning?: boolean;
+	status?: "success" | "error";
+}
+
+function LinkPreviewError({ url, error }: { url: string; error: string }) {
+	return (
+		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-4 max-w-md">
+			<div className="flex items-center gap-4">
+				<div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+					<AlertCircleIcon className="size-6 text-destructive" />
+				</div>
+				<div className="flex-1 min-w-0">
+					<p className="font-medium text-destructive text-sm">Failed to load preview</p>
+					<p className="text-muted-foreground text-xs mt-0.5 truncate">{url}</p>
+					<p className="text-muted-foreground text-xs mt-1">{error}</p>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function ParsedLinkCard({ result }: { result: unknown }) {
+	const card = parseSerializableMediaCard(result);
+
+	return (
+		<MediaCard
+			{...card}
+			maxWidth="420px"
+			responseActions={[{ id: "open", label: "Open", variant: "default" }]}
+			onResponseAction={(id) => {
+				if (id === "open" && card.href) {
+					window.open(card.href, "_blank", "noopener,noreferrer");
+				}
+			}}
+		/>
+	);
 }
 
 export function LinkPreviewTool({
@@ -35,127 +60,68 @@ export function LinkPreviewTool({
 	result,
 	errored = false,
 	isRunning = false,
+	status,
 }: LinkPreviewToolProps) {
 	const toolArgs = args as LinkPreviewArgs;
+	const url = toolArgs?.url || "Unknown URL";
 
-	let toolResult: LinkPreviewResult | undefined;
+	let toolResult: Record<string, unknown> | undefined;
 	try {
 		if (typeof result === "string") {
-			toolResult = JSON.parse(result) as LinkPreviewResult;
+			toolResult = JSON.parse(result) as Record<string, unknown>;
 		} else {
-			toolResult = result as LinkPreviewResult | undefined;
+			toolResult = result as Record<string, unknown> | undefined;
 		}
 	} catch {
 		toolResult = undefined;
 	}
 
 	if (isRunning) {
-		return <LinkPreviewLoading />;
+		return (
+			<div className="my-4">
+				<MediaCardLoading title="Generating link preview..." />
+			</div>
+		);
 	}
 
 	if (errored || toolResult?.error) {
 		return (
 			<LinkPreviewError
-				url={toolArgs.url}
-				error={toolResult?.error || "Failed to load preview"}
+				url={url}
+				error={String(toolResult?.error || "Failed to load preview")}
 			/>
 		);
 	}
 
+	if (status === "error" && !toolResult) {
+		return (
+			<div className="my-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 max-w-md">
+				<div className="flex items-center gap-3">
+					<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+						<LinkIcon className="size-4 text-amber-600" />
+					</div>
+					<div className="flex-1 min-w-0">
+						<p className="font-medium text-amber-600 text-sm">Link preview timed out</p>
+						<p className="text-muted-foreground text-xs mt-0.5 truncate">{url}</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	if (!toolResult) {
-		return null;
+		return (
+			<div className="my-4">
+				<MediaCardLoading title="Fetching link metadata..." />
+			</div>
+		);
 	}
 
 	return (
-		<Card className="max-w-md overflow-hidden">
-			<CardContent className="p-0">
-				<a
-					href={toolResult.href}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="block hover:bg-muted/50 transition-colors"
-				>
-					{toolResult.thumb && (
-						<div className="aspect-video w-full bg-muted relative overflow-hidden">
-							<Image
-								src={toolResult.thumb}
-								alt={toolResult.title}
-								fill
-								className="object-cover"
-								sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-							/>
-						</div>
-					)}
-					<div className="p-4">
-						<div className="flex items-start justify-between gap-2">
-							<div className="flex-1 min-w-0">
-								<h4 className="font-semibold text-sm leading-tight mb-1 line-clamp-2">
-									{toolResult.title}
-								</h4>
-								{toolResult.description && (
-									<p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-										{toolResult.description}
-									</p>
-								)}
-								<div className="flex items-center gap-1 text-xs text-muted-foreground">
-									<LinkIcon className="size-3" />
-									<span className="truncate">{toolResult.domain || toolResult.href}</span>
-								</div>
-							</div>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="shrink-0"
-								onClick={(e) => {
-									e.preventDefault();
-									window.open(toolResult.href, "_blank", "noopener,noreferrer");
-								}}
-							>
-								<ExternalLinkIcon className="size-4" />
-							</Button>
-						</div>
-					</div>
-				</a>
-			</CardContent>
-		</Card>
-	);
-}
-
-function LinkPreviewLoading(): React.ReactElement {
-	return (
-		<Card className="max-w-md">
-			<CardContent className="p-4">
-				<div className="flex items-center gap-3 mb-3">
-					<div className="size-10 rounded-lg bg-muted flex items-center justify-center">
-						<LinkIcon className="size-5 text-muted-foreground" />
-					</div>
-					<div className="flex-1 min-w-0">
-						<Skeleton className="h-4 w-3/4 mb-1" />
-						<Skeleton className="h-3 w-1/2" />
-					</div>
-				</div>
-				<Skeleton className="h-3 w-full mb-1" />
-				<Skeleton className="h-3 w-2/3" />
-			</CardContent>
-		</Card>
-	);
-}
-
-function LinkPreviewError({ url, error }: { url: string; error: string }) {
-	return (
-		<div className="max-w-md rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-			<div className="flex items-start gap-3">
-				<div className="size-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-					<AlertCircleIcon className="size-4 text-destructive" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<p className="text-sm font-medium text-destructive mb-1">
-						Failed to load preview
-					</p>
-					<p className="text-xs text-muted-foreground truncate mb-2">{url}</p>
-					<p className="text-xs text-destructive/70">{error}</p>
-				</div>
-			</div>
+		<div className="my-4">
+			<MediaCardErrorBoundary>
+				<ParsedLinkCard result={toolResult} />
+			</MediaCardErrorBoundary>
 		</div>
 	);
 }
