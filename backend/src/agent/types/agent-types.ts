@@ -6,8 +6,17 @@ import type { ImageAnalysisService } from "src/services/image-analysis.service";
 import type { SseService } from "src/sse/sse.service";
 import type { ConnectorService } from "../services/connector.service";
 
+type MultimodalContent =
+	| string
+	| Array<
+			| { type: "text"; text: string }
+			| { type: "image_url"; image_url: string }
+			| { type: "image_url"; image_url: { url: string } }
+			| Record<string, unknown>
+	  >;
+
 export interface StreamDeepAgentParams {
-	userQuery: string;
+	userQuery: MultimodalContent;
 	userId: string;
 	searchSpaceId: number;
 	selectedConnectors: string[];

@@ -95,16 +95,24 @@ You have access to the following tools:
    - Args:
      - questions: Array of 3-5 strings, each a concise follow-up prompt.
 
- 4. analyze_image: Analyze an image from a URL using vision AI.
-   - Use this tool when the user wants to understand, describe, or extract information from an image at a URL.
-   - This tool runs actual vision analysis using AI and returns a detailed text description.
-   - Trigger scenarios:
-     * User asks "What's in this image?" and provides a URL
-     * User wants OCR/text extraction from an image
-     * User wants a description of a chart, diagram, or screenshot at a URL
-   - Args:
-     - imageUrl: The HTTP/HTTPS URL of the image to analyze
-   - Returns: A detailed text description of the image content
+  4. analyze_image: Analyze an image from a URL or uploaded attachment using vision AI.
+    - Use this tool when the user wants to understand, describe, or extract information from an image.
+    - This tool runs actual vision analysis using AI and returns a detailed text description.
+    - Trigger scenarios:
+      * User asks "What's in this image?" and provides a URL
+      * User uploads/attaches an image and asks about its content
+      * User wants OCR/text extraction from an image
+      * User wants a description of a chart, diagram, or screenshot
+    - Args:
+      - imageUrl: The URL of the image to analyze. Can be an HTTP/HTTPS URL or a data:image/ URL from an uploaded attachment.
+    - Returns: A detailed text description of the image content
+
+  UPLOADED IMAGE HANDLING:
+    When the user uploads/attaches an image to their message, the image URL (data:image/...) will be included in the message content. You should:
+      1) Extract the image URL from the user's message content (it appears as an image_url block)
+      2) Call analyze_image(imageUrl="<the data:image URL>") to get a detailed description
+      3) Provide your analysis based on the tool result
+    Do NOT call display_image for uploaded images — the user already sees their attachment in the chat.
 
  5. index_document: Upload and index a document file into the knowledge base.
    - Use this tool when the user wants to add a document from their system to their searchable knowledge base.
@@ -181,13 +189,12 @@ You have access to the following tools:
   - Keep relevance-first behavior: include only images that materially improve the answer.
   - For each included image, provide concise explanation and citations.
   
-  CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
-  When a user uploads/attaches an image file to their message:
-    * The image is ALREADY VISIBLE in the chat UI as a thumbnail on their message
-    * You do NOT have a URL for their uploaded image - only extracted text/description
-    * Calling display_image will FAIL and show "Image not available" error
-    * Simply analyze the image content and respond with your analysis - DO NOT try to display it
-    * The user can already see their own uploaded image - they don't need you to show it again
+   CRITICAL - UPLOADED IMAGE HANDLING:
+   When a user uploads/attaches an image file to their message:
+     * The image data URL (data:image/...) is included in the message as an image_url content block
+     * To ANALYZE the image: Call analyze_image(imageUrl="<the data:image URL>") 
+     * Do NOT call display_image for uploaded images — the user already sees their attachment in the chat
+     * Simply provide your analysis based on the analyze_image result — do not try to re-display the image
   
   - Args:
     - src: The URL of the image (MUST be a valid public HTTP/HTTPS URL that you know exists)
@@ -241,14 +248,13 @@ You have access to the following tools:
   - Repeat for Image 2, Image 3, etc. (image+text together).
 
 - User uploads an image file and asks: "What is this image about?"
-  - DO NOT call display_image! The user's uploaded image is already visible in the chat.
-  - Simply analyze the image content (which you receive as extracted text/description) and respond.
-  - WRONG: \`display_image(src="...", ...)\` - This will fail with "Image not available"
-  - CORRECT: Just provide your analysis directly: "Based on the image you shared, this appears to be..."
+  - Call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
+  - Then respond with the description from the tool result.
+  - DO NOT call display_image — the user already sees their attachment in the chat.
 
 - User uploads a screenshot and asks: "Can you explain what's in this image?"
-  - DO NOT call display_image! Just analyze and respond directly.
-  - The user can already see their screenshot - they don't need you to display it again.
+  - Call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
+  - Provide analysis based on the tool result.
 
 - User: "What's in this image? https://example.com/chart.png"
   - Call: \`analyze_image(imageUrl="https://example.com/chart.png")\`

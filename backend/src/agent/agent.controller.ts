@@ -54,7 +54,7 @@ export class AgentController {
 				throw new BadRequestException("Last message must be a user message");
 			}
 
-			const userQuery = messages[messages.length - 1].content;
+			const userContent = messages[messages.length - 1].content;
 			const requestData = request.data || {};
 			const searchSpaceId = Number(requestData.search_space_id);
 
@@ -75,7 +75,7 @@ export class AgentController {
 
 			const { stream, chatId: createdChatId, chatWasCreated } =
 				await this.deepAgentService.streamDeepAgent({
-					userQuery,
+					userQuery: userContent,
 					userId: req.user.id,
 					searchSpaceId,
 					selectedConnectors,
@@ -137,7 +137,7 @@ export class AgentController {
 				throw new BadRequestException("Last message must be a user message");
 			}
 
-			const userQuery = messages[messages.length - 1].content;
+			const userContent = messages[messages.length - 1].content;
 			const requestData = request.data || {};
 
 			const searchSpaceId = Number(requestData.search_space_id);

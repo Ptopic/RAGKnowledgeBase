@@ -59,11 +59,43 @@ function toToolResult(content: unknown, artifact?: unknown): unknown {
 function toUserThreadContent(
 	content: string | ContentBlock[],
 ): ThreadUserMessagePart[] {
-	const text = getTextFromContent(content).trim();
-	if (text.length > 0) {
-		return [{ text, type: "text" as const }];
+	const parts: ThreadUserMessagePart[] = [];
+
+	if (typeof content === "string") {
+		const text = content.trim();
+		parts.push({ text: text || "", type: "text" as const });
+	} else if (Array.isArray(content)) {
+		for (const block of content) {
+			if (
+				typeof block === "object" &&
+				block !== null &&
+				"type" in block
+			) {
+				if (
+					block.type === "text" &&
+					"text" in block &&
+					typeof block.text === "string" &&
+					block.text.trim().length > 0
+				) {
+					parts.push({ text: block.text, type: "text" as const });
+				} else if (block.type === "image_url") {
+					const imageUrl =
+						typeof (block as Record<string, unknown>).image_url === "string"
+							? (block as Record<string, unknown>).image_url as string
+							: ((block as Record<string, unknown>).image_url as Record<string, unknown>)?.url;
+					if (typeof imageUrl === "string" && imageUrl.length > 0) {
+						parts.push({ type: "image" as const, image: imageUrl });
+					}
+				}
+			}
+		}
 	}
-	return [{ text: "", type: "text" as const }];
+
+	if (parts.length === 0) {
+		parts.push({ text: "", type: "text" as const });
+	}
+
+	return parts;
 }
 
 type LangChainToolCall = {

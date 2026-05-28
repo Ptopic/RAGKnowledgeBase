@@ -2,21 +2,23 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 import type { ToolDependencies } from "../types/agent-types";
 
-export function createAnalyzeImageTool(deps: ToolDependencies) {
+	export function createAnalyzeImageTool(deps: ToolDependencies) {
 	return new DynamicStructuredTool({
 		name: "analyze_image",
 		description:
-			"Analyze an image from a URL using vision AI. Returns a detailed text description of the image content including objects, text (OCR), charts, and other visual elements. Use this when the user wants to understand or extract information from an image.",
+			"Analyze an image from a URL or data URL using vision AI. Returns a detailed text description of the image content including objects, text (OCR), charts, and other visual elements. Use this when the user wants to understand or extract information from an image, including images they have uploaded or attached to their message.",
 		schema: z.object({
 			imageUrl: z
 				.string()
-				.url()
-				.describe("The HTTP/HTTPS URL of the image to analyze"),
+				.describe("The URL of the image to analyze. Can be an HTTP/HTTPS URL or a data:image/ URL from an uploaded attachment."),
 		}),
 		func: async ({ imageUrl }) => {
-			if (!/^https?:\/\//i.test(imageUrl)) {
+			const isDataUrl = imageUrl.startsWith("data:image/");
+			const isHttpUrl = /^https?:\/\//i.test(imageUrl);
+
+			if (!isDataUrl && !isHttpUrl) {
 				return JSON.stringify({
-					error: "Image URL must be HTTP or HTTPS",
+					error: "Image URL must be HTTP/HTTPS or a data:image/ URL",
 					imageUrl,
 					status: "error",
 				});

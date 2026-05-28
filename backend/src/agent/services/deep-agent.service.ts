@@ -150,8 +150,12 @@ export class DeepAgentService {
 		let currentChatId = params.chatId;
 		let chatWasCreated = false;
 
+		const userQueryText = typeof params.userQuery === "string"
+			? params.userQuery
+			: extractTextFromMultimodal(params.userQuery);
+
 		if (!currentChatId) {
-			const chatTitleSummary = params.userQuery.substring(0, 50);
+			const chatTitleSummary = userQueryText.substring(0, 50);
 			const newChat = await this.chatsService.create(
 				{
 					type: ChatType.QNA,
@@ -192,7 +196,7 @@ export class DeepAgentService {
 			configurable: checkpointer ? { thread_id: String(currentChatId) } : {},
 		};
 
-		let finalQuery = params.userQuery;
+		let humanMessageContent: string | Array<Record<string, unknown>> = params.userQuery;
 
 		if (
 			params.documentIdsToAddInContext &&
@@ -226,7 +230,21 @@ export class DeepAgentService {
 
 			if (selectedDocs.length > 0) {
 				const documentContext = formatSelectedDocumentsAsContext(selectedDocs);
-				finalQuery = `${documentContext}\n\n<user_query>${params.userQuery}</user_query>`;
+				if (typeof humanMessageContent === "string") {
+					humanMessageContent = `${documentContext}\n\n<user_query>${humanMessageContent}</user_query>`;
+				} else {
+					const textBlock = humanMessageContent.find(
+						(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
+					);
+					if (textBlock) {
+						(textBlock as { text: string }).text = `${documentContext}\n\n<user_query>${(textBlock as { text: string }).text}</user_query>`;
+					} else {
+						humanMessageContent = [
+							{ type: "text", text: `${documentContext}\n\n<user_query>${userQueryText}</user_query>` },
+							...humanMessageContent.filter((b) => b.type !== "text"),
+						];
+					}
+				}
 				this.logger.log(
 					`Injected ${selectedDocs.length} selected documents into context`,
 				);
@@ -234,7 +252,7 @@ export class DeepAgentService {
 		}
 
 		const inputState = {
-			messages: [new HumanMessage(finalQuery)] as BaseMessage[],
+			messages: [new HumanMessage({ content: humanMessageContent })] as BaseMessage[],
 		};
 
 		const stream = await graph.stream(inputState, {
@@ -250,4 +268,22 @@ export class DeepAgentService {
 			chatWasCreated,
 		};
 	}
+}
+
+function extractTextFromMultimodal(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+
+	return content
+		.filter(
+			(block): block is { type: "text"; text: string } =>
+				typeof block === "object" &&
+				block !== null &&
+				"type" in block &&
+				block.type === "text" &&
+				"text" in block &&
+				typeof block.text === "string",
+		)
+		.map((block) => block.text)
+		.join(" ");
 }

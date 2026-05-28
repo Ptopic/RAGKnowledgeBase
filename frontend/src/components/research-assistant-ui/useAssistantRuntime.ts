@@ -160,7 +160,14 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 					const lastMessage = messages[messages.length - 1];
 					const messageContent = lastMessage?.content || "";
 
-					lastUserMessageRef.current = messageContent;
+					lastUserMessageRef.current = typeof messageContent === "string"
+						? messageContent
+						: (Array.isArray(messageContent)
+								? messageContent
+										.filter((p: any) => p?.type === "text" && typeof p?.text === "string")
+										.map((p: any) => p.text as string)
+										.join(" ")
+								: String(messageContent));
 
 					const customBody = {
 						messages: [{ content: messageContent, role: "user" }],
