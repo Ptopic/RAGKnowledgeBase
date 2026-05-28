@@ -208,8 +208,9 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 			query: z.string(),
 			top_k: z.number().int().min(1).max(50).default(10),
 			connectors_to_search: z.array(z.string()).optional(),
+			title_filter: z.string().optional(),
 		}),
-		func: async ({ query, top_k, connectors_to_search }) => {
+		func: async ({ query, top_k, connectors_to_search, title_filter }) => {
 			const requestedConnectors = connectors_to_search?.length
 				? connectors_to_search
 				: deps.defaultConnectors?.length
@@ -237,6 +238,7 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 						deps.searchSpaceId,
 						top_k,
 						SearchMode.CHUNKS,
+						title_filter,
 					);
 
 					if (result?.chunks?.length) {
