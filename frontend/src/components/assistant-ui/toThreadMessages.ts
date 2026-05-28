@@ -398,11 +398,13 @@ export function toLangGraphMessageContent(
 ):
 	| string
 	| Array<
-			{ text: string; type: "text" } | { image_url: string; type: "image_url" }
+			| { text: string; type: "text" }
+			| { image_url: { url: string }; type: "image_url" }
 	  >
 	| null {
 	const content: Array<
-		{ text: string; type: "text" } | { image_url: string; type: "image_url" }
+		| { text: string; type: "text" }
+		| { image_url: { url: string }; type: "image_url" }
 	> = [];
 
 	for (const part of parts) {
@@ -412,7 +414,7 @@ export function toLangGraphMessageContent(
 		}
 
 		if (part.type === "image" && part.image) {
-			content.push({ image_url: part.image, type: "image_url" });
+			content.push({ image_url: { url: part.image }, type: "image_url" });
 		}
 	}
 
