@@ -779,12 +779,30 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			return;
 		}
 
-			const allContent = [
+		const attachmentContent = (message.attachments?.flatMap((a) => a.content) ?? []) as readonly { type: string; text?: string; image?: string }[];
+
+		// Separate image attachments from document markers.
+		// Image content becomes image_url blocks for the LLM.
+		// Document markers ([uploaded_document: ...]) are sent to the backend
+		// but hidden from the user message bubble.
+		const imageContent = attachmentContent.filter((c) => c.type === "image" && c.image);
+		const documentMarkers = attachmentContent.filter(
+			(c) => c.type === "text" && c.text && c.text.startsWith("[uploaded_document:"),
+		);
+
+		// Build visible content (user text + images)
+		const visibleContent = [
 			...message.content,
-			...(message.attachments?.flatMap((a) => a.content) ?? []),
+			...imageContent,
 		] as readonly { type: string; text?: string; image?: string }[];
 
-		const content = toLangGraphMessageContent(allContent);
+		// Build full content for backend (visible + hidden document markers)
+		const fullContent = [
+			...visibleContent,
+			...documentMarkers,
+		] as readonly { type: string; text?: string; image?: string }[];
+
+		const content = toLangGraphMessageContent(fullContent);
 		if (!content) return;
 
 		const messageToSend = content;
@@ -812,12 +830,24 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				stream.stop();
 			}
 
-		const allContent = [
+		const attachmentContent = (message.attachments?.flatMap((a) => a.content) ?? []) as readonly { type: string; text?: string; image?: string }[];
+
+		const imageContent = attachmentContent.filter((c) => c.type === "image" && c.image);
+		const documentMarkers = attachmentContent.filter(
+			(c) => c.type === "text" && c.text && c.text.startsWith("[uploaded_document:"),
+		);
+
+		const visibleContent = [
 			...message.content,
-			...(message.attachments?.flatMap((a) => a.content) ?? []),
+			...imageContent,
 		] as readonly { type: string; text?: string; image?: string }[];
 
-		const content = toLangGraphMessageContent(allContent);
+		const fullContent = [
+			...visibleContent,
+			...documentMarkers,
+		] as readonly { type: string; text?: string; image?: string }[];
+
+		const content = toLangGraphMessageContent(fullContent);
 		if (!content) return;
 
 		const messageToSend = content;
