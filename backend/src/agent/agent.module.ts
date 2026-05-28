@@ -7,6 +7,7 @@ import { PrismaModule } from "src/prisma/prisma.module";
 import { QueueModule } from "src/queue/queue.module";
 import { RetrieverModule } from "src/retriever/retriever.module";
 import { TasksModule } from "src/tasks/tasks.module";
+import { UploadModule } from "src/upload/upload.module";
 import { AgentController } from "./agent.controller";
 import { AgentService } from "./agent.service";
 import { CheckpointerModule } from "./checkpointer/checkpointer.module";
@@ -30,6 +31,7 @@ import { StreamingService } from "./streaming.service";
 		forwardRef(() => QueueModule),
 		forwardRef(() => DocumentsModule),
 		CheckpointerModule,
+		UploadModule,
 	],
 	providers: [
 		AgentService,

@@ -7,10 +7,17 @@ import {
 	Query,
 	Req,
 	Res,
+	UploadedFile,
 	UseGuards,
+	UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { MemberRole } from "@prisma/client";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import { Response as ExpressResponse } from "express";
+import { diskStorage } from "multer";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
 import { SearchSpaceAccessGuard } from "src/permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "src/permissions/decorators/require-search-space-role.decorator";
@@ -23,6 +30,23 @@ import {
 	getInitialThinkingStep,
 	resetThinkingStepCounter,
 } from "./utils/thinking-steps";
+
+const chatUploadsDir = path.join(process.cwd(), "uploads", "chat-files");
+if (!fs.existsSync(chatUploadsDir)) {
+	fs.mkdirSync(chatUploadsDir, { recursive: true });
+}
+
+const chatFileStorage = diskStorage({
+	destination: (_req, _file, cb) => {
+		cb(null, chatUploadsDir);
+	},
+	filename: (_req, file, cb) => {
+		const hash = crypto.randomBytes(8).toString("hex");
+		const ext = path.extname(file.originalname);
+		const name = path.basename(file.originalname, ext);
+		cb(null, `${name}-${hash}${ext}`);
+	},
+});
 
 function extractTextFromContent(content: unknown): string {
 	if (typeof content === "string") return content;
@@ -49,6 +73,26 @@ export class AgentController {
 		private readonly llmService: LLMService,
 	) {}
 
+	@Post("upload-chat-file")
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
+	@UseInterceptors(FileInterceptor("file", { storage: chatFileStorage }))
+	async uploadChatFile(
+		@UploadedFile() file: Express.Multer.File | undefined,
+		@Req() _req: any,
+	) {
+		if (!file) {
+			throw new BadRequestException("No file uploaded");
+		}
+
+		return {
+			filePath: file.path,
+			fileName: file.originalname,
+			mimetype: file.mimetype,
+			size: file.size,
+		};
+	}
+
 	@Post("chatWithDeepAgent")
 	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 	@RequireSearchSpaceRole(MemberRole.VIEWER)
@@ -71,12 +115,6 @@ export class AgentController {
 			const userContent = messages[messages.length - 1].content;
 			const requestData = request.data || {};
 
-			this.logger.log(`[IMG_DEBUG][chatWithDeepAgent] userContent type: ${typeof userContent}, isArray: ${Array.isArray(userContent)}`);
-			if (Array.isArray(userContent)) {
-				this.logger.log(`[IMG_DEBUG][chatWithDeepAgent] content parts: ${JSON.stringify(userContent.map((p: any) => ({ type: p.type, hasImageUrl: !!p.image_url, imageUrlType: typeof p.image_url, hasUrl: !!(p.image_url?.url), urlLen: (p.image_url?.url || "").length })))}`);
-			} else if (typeof userContent === "string") {
-				this.logger.log(`[IMG_DEBUG][chatWithDeepAgent] string content length: ${userContent.length}, startsWithData: ${userContent.startsWith("data:")}`);
-			}
 			const searchSpaceId = Number(requestData.search_space_id);
 
 			if (!searchSpaceId) {

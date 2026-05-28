@@ -2,6 +2,7 @@ import { BaseMessage, HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
+import { createHash } from "node:crypto";
 import {
 	forwardRef,
 	Inject,
@@ -17,6 +18,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { QueueService } from "src/queue/queue.service";
 import { ImageAnalysisService } from "src/services/image-analysis.service";
 import { SseService } from "src/sse/sse.service";
+import { UploadService } from "src/upload/upload.service";
 import { CheckpointerService } from "../checkpointer/checkpointer.service";
 import { buildSystemPrompt } from "../prompts/system-prompt";
 import { buildTools } from "../tools/registry";
@@ -24,6 +26,7 @@ import type {
 	DeepAgentStreamResult,
 	StreamDeepAgentParams,
 	ToolDependencies,
+	UploadedDocumentInfo,
 } from "../types/agent-types";
 import { ThinkingStepCallbackHandler } from "../utils/custom-event-handler";
 import { ConnectorService } from "./connector.service";
@@ -120,6 +123,9 @@ export class DeepAgentService {
 		@Optional()
 		@Inject(forwardRef(() => SseService))
 		private readonly sseService: SseService,
+		@Optional()
+		@Inject(forwardRef(() => UploadService))
+		private readonly uploadService: UploadService,
 	) {}
 
 	private createAgent(
@@ -170,6 +176,9 @@ export class DeepAgentService {
 			chatWasCreated = true;
 		}
 
+		const uploadedImageUrls = new Map<string, string>();
+		const uploadedDocuments: UploadedDocumentInfo[] = [];
+
 		const dependencies: ToolDependencies = {
 			searchSpaceId: params.searchSpaceId,
 			userId: params.userId,
@@ -181,6 +190,9 @@ export class DeepAgentService {
 			documentsService: this.documentsService,
 			imageAnalysisService: this.imageAnalysisService,
 			sseService: this.sseService,
+			uploadedImageUrls,
+			uploadedDocuments,
+			uploadService: this.uploadService,
 		};
 
 		const checkpointer = this.checkpointerService.isReady()
@@ -198,13 +210,6 @@ export class DeepAgentService {
 
 		let humanMessageContent: string | Array<Record<string, unknown>> = params.userQuery;
 
-		this.logger.log(`[IMG_DEBUG][deepAgent] humanMessageContent type: ${typeof humanMessageContent}, isArray: ${Array.isArray(humanMessageContent)}`);
-		if (Array.isArray(humanMessageContent)) {
-			this.logger.log(`[IMG_DEBUG][deepAgent] content parts: ${JSON.stringify(humanMessageContent.map((p) => ({ type: p.type, hasImageUrl: !!(p as any).image_url, imageUrlType: typeof (p as any).image_url, hasUrl: !!((p as any).image_url?.url), urlLen: ((p as any).image_url?.url || "").length })))}`);
-		}
-
-		// Pre-analyze uploaded images so the LLM gets descriptions without
-		// needing to extract long data URLs and pass them to analyze_image.
 		if (Array.isArray(humanMessageContent)) {
 			const imageBlocks = humanMessageContent.filter(
 				(b) =>
@@ -214,23 +219,35 @@ export class DeepAgentService {
 					typeof (b.image_url as Record<string, unknown>).url === "string",
 			);
 
-			this.logger.log(`[IMG_DEBUG][deepAgent] Found ${imageBlocks.length} image_url blocks`);
-			if (imageBlocks.length > 0) {
-				this.logger.log(`[IMG_DEBUG][deepAgent] imageAnalysisService available: ${!!this.imageAnalysisService}`);
-			}
-
 			if (imageBlocks.length > 0 && this.imageAnalysisService) {
 				const imageDescriptions: string[] = [];
 				for (let i = 0; i < imageBlocks.length; i++) {
 					const block = imageBlocks[i] as Record<string, unknown>;
 					const imageUrl = (block.image_url as Record<string, unknown>).url as string;
+					const refId = `uploaded://${i + 1}`;
+					uploadedImageUrls.set(refId, imageUrl);
+
+					// Upload to S3 so we have a persistent HTTP URL the LLM can
+					// reference across messages (data:image URLs only exist in
+					// the current request's HumanMessage).
+					let s3Url: string | undefined;
+					try {
+						s3Url = await this.uploadImageToS3(imageUrl);
+					} catch {
+						// Non-fatal: uploaded:// fallback still works for this request
+					}
+					if (s3Url) {
+						uploadedImageUrls.set(s3Url, imageUrl);
+					}
+
 					try {
 						const results = await this.imageAnalysisService.describeImages([
 							{ url: imageUrl },
 						]);
 						if (results.length > 0 && results[0].description) {
+							const ref = s3Url || refId;
 							imageDescriptions.push(
-								`[Uploaded Image ${i + 1}]: ${results[0].description}`,
+								`[Uploaded Image ${i + 1} (URL: ${ref})]: ${results[0].description}`,
 							);
 						}
 					} catch (error) {
@@ -242,7 +259,7 @@ export class DeepAgentService {
 				}
 
 				if (imageDescriptions.length > 0) {
-					const imageContext = `<uploaded_images>\nThe user has uploaded ${imageDescriptions.length} image(s). Pre-generated AI descriptions for reference:\n\n${imageDescriptions.join("\n\n")}\n\nThese descriptions are provided as reference context. If the user explicitly asks about an uploaded image, you MUST call analyze_image with the original data:image URL — do not just paraphrase these descriptions as your answer.\n</uploaded_images>`;
+					const imageContext = `<uploaded_images>\nThe user has uploaded ${imageDescriptions.length} image(s). Pre-generated AI descriptions for reference:\n\n${imageDescriptions.join("\n\n")}\n\nIf the user explicitly asks about an uploaded image, you MUST call analyze_image with the image URL shown above (e.g. imageUrl="https://..." if an HTTP URL is listed, or imageUrl="uploaded://N" as fallback). Do NOT just paraphrase these descriptions as your answer.\n</uploaded_images>`;
 
 					const textBlock = humanMessageContent.find(
 						(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
@@ -263,8 +280,56 @@ export class DeepAgentService {
 			}
 		}
 
+		const documentMarkerRegex = /\[uploaded_document:\s*(\{.*?\})\]/g;
+		const allTextBlocks = Array.isArray(humanMessageContent)
+			? humanMessageContent.filter(
+					(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
+				)
+			: [];
+
+		if (allTextBlocks.length > 0) {
+			const docEntries: UploadedDocumentInfo[] = [];
+			for (const block of allTextBlocks) {
+				const text = (block as Record<string, unknown>).text as string;
+				let match: RegExpExecArray | null;
+				// biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop pattern
+				while ((match = documentMarkerRegex.exec(text)) !== null) {
+					try {
+						const parsed = JSON.parse(match[1]);
+						if (parsed.filePath && parsed.fileName) {
+							docEntries.push({
+								filePath: parsed.filePath,
+								fileName: parsed.fileName,
+							});
+						}
+					} catch {
+						this.logger.warn(`Failed to parse uploaded_document metadata: ${match[1]}`);
+					}
+				}
+			}
+
+			if (docEntries.length > 0) {
+				uploadedDocuments.push(...docEntries);
+
+				for (const block of allTextBlocks) {
+					const textBlock = block as { text: string };
+					textBlock.text = textBlock.text.replace(documentMarkerRegex, "").trim();
+				}
+
+				const docContext = `<uploaded_documents>\nThe user has uploaded ${docEntries.length} document(s):\n\n${docEntries.map((d, i) => `[Document ${i + 1}: "${d.fileName}" (filePath: "${d.filePath}")]`).join("\n")}\n\nIf the user wants to index/add these documents to their knowledge base, call index_document with the filePath and fileName shown above. Always search the knowledge base first to avoid duplicates.\n</uploaded_documents>`;
+
+				const firstTextBlock = allTextBlocks[0] as { text: string };
+				if (firstTextBlock) {
+					firstTextBlock.text = `${docContext}\n\n${firstTextBlock.text}`;
+				}
+
+				this.logger.log(
+					`Detected ${docEntries.length} uploaded document(s)`,
+				);
+			}
+		}
+
 		if (
-			params.documentIdsToAddInContext &&
 			params.documentIdsToAddInContext.length > 0
 		) {
 			const documents = await this.prisma.document.findMany({
@@ -332,6 +397,27 @@ export class DeepAgentService {
 			chatId: currentChatId,
 			chatWasCreated,
 		};
+	}
+
+	private async uploadImageToS3(imageUrl: string): Promise<string | undefined> {
+		if (!this.uploadService) return undefined;
+
+		let buffer: Buffer;
+		let mimeType: string;
+
+		if (imageUrl.startsWith("data:image/")) {
+			const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+			if (!match) return undefined;
+			mimeType = match[1];
+			buffer = Buffer.from(match[2], "base64");
+		} else {
+			return undefined;
+		}
+
+		const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 16);
+		const ext = mimeType.split("/")[1] || "png";
+		const result = await this.uploadService.upload(buffer, `${hash}.${ext}`, "chat-images", mimeType);
+		return result.url;
 	}
 }
 
