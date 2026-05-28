@@ -445,23 +445,25 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 
 				const msgId = msg.id ?? `${msg.type}-${Date.now()}-${Math.random()}`;
 
-				// AI messages stream incrementally — same ID, growing content.
-				// Always update in-place, never skip via mergedStreamIdsRef.
-				if (msg.type === "ai") {
-					const existingIdx = updated.findIndex(
-						(m) => m.id === msg.id && m.id !== undefined,
+			// AI messages stream incrementally — same ID, growing content.
+			// Only merge with AI messages from the current turn to prevent
+			// cross-turn ID collisions (e.g., chatcmpl-* IDs reused across turns).
+			if (msg.type === "ai") {
+				const turnStart = turnStartIndexRef.current ?? 0;
+				const existingIdx = updated.findIndex(
+					(m, i) => i >= turnStart && m.id === msg.id && m.id !== undefined,
+				);
+				if (existingIdx !== -1) {
+					updated[existingIdx] = mergeStreamMessage(
+						updated[existingIdx] as BaseMessage,
+						msg,
 					);
-					if (existingIdx !== -1) {
-						updated[existingIdx] = mergeStreamMessage(
-							updated[existingIdx] as BaseMessage,
-							msg,
-						);
-					} else {
-						updated.push(msg);
-					}
-					mergedStreamIdsRef.current.add(msgId);
-					continue;
+				} else {
+					updated.push(msg);
 				}
+				mergedStreamIdsRef.current.add(msgId);
+				continue;
+			}
 
 				// Tool messages can be updated multiple times for the same tool_call_id.
 				// Keep the latest snapshot so persistence sees final content/status.

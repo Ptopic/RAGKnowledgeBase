@@ -68,6 +68,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		initialMessages ?? [],
 	);
 	const accumulatedMessagesRef = useRef<BaseMessage[]>(initialMessages ?? []);
+	const turnStartIndexRef = useRef<number>(0);
 
 	useEffect(() => {
 		accumulatedMessagesRef.current = accumulatedMessages;
@@ -170,8 +171,9 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 							: JSON.stringify(msg.content);
 					if (content.trim().startsWith("{")) continue;
 
+					const turnStart = turnStartIndexRef.current;
 					const existingIdx = updated.findIndex(
-						(m) => m.id === msg.id && m.id !== undefined,
+						(m, i) => i >= turnStart && m.id === msg.id && m.id !== undefined,
 					);
 					if (existingIdx !== -1) updated[existingIdx] = msg;
 					else updated.push(msg);
@@ -220,13 +222,16 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			);
 			if (!content) return;
 
-			setAccumulatedMessages((prev) => [
-				...prev,
-				new HumanMessage({
-					content,
-					id: `${Date.now()}_user`,
-				}),
-			]);
+			setAccumulatedMessages((prev) => {
+				turnStartIndexRef.current = prev.length + 1;
+				return [
+					...prev,
+					new HumanMessage({
+						content,
+						id: `${Date.now()}_user`,
+					}),
+				];
+			});
 
 			await stream.submit({
 				messages: [{ content, type: "human" }],
@@ -259,6 +264,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 						id: `${Date.now()}_user_edit`,
 					}),
 				);
+				turnStartIndexRef.current = truncated.length;
 				return truncated;
 			});
 

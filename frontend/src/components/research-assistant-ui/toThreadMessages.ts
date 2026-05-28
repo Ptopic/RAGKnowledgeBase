@@ -457,20 +457,6 @@ function toAssistantThreadContent(
 		threadMessages: ThreadMessageLike[],
 		toolMessage: LangChainToolMessage,
 	) {
-	const msgToolName = (toolMessage as any).name;
-	const toolCallId = toolMessage.tool_call_id;
-
-	if (typeof window !== "undefined") {
-		console.log("[ATTACH_DEBUG] Looking for tool_call_id:", toolCallId, "toolName:", msgToolName);
-		for (let i = threadMessages.length - 1; i >= 0; i -= 1) {
-			const m = threadMessages[i];
-			if (m.role === "assistant" && Array.isArray(m.content)) {
-				const calls = m.content.filter((p: any) => p.type === "tool-call").map((p: any) => ({ toolCallId: p.toolCallId, toolName: p.toolName }));
-				console.log("[ATTACH_DEBUG]", `threadMessages[${i}]`, "id:", m.id, "tool-calls:", calls);
-			}
-		}
-	}
-
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
 		if (
@@ -654,19 +640,7 @@ export function toThreadMessages(
 		});
 	}
 
-	const result = mergeConsecutiveAssistantMessages(threadMessages);
-
-	if (typeof window !== "undefined") {
-		for (const msg of result) {
-			if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
-			const sourceParts = msg.content.filter((p) => p.type === "source");
-			if (sourceParts.length > 0) {
-				console.log("[SOURCES_DEBUG]", msg.id, "sources:", sourceParts.map((s: any) => ({ id: s.id, title: s.title, sourceType: s.sourceType, url: s.url })));
-			}
-		}
-	}
-
-	return result;
+	return mergeConsecutiveAssistantMessages(threadMessages);
 }
 
 function mergeConsecutiveAssistantMessages(
