@@ -773,42 +773,17 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			return;
 		}
 
-			const content = toLangGraphMessageContent(
-			message.content as readonly {
-				type: string;
-				text?: string;
-				image?: string;
-			}[],
-		);
+			const allContent = [
+			...message.content,
+			...(message.attachments?.flatMap((a) => a.content) ?? []),
+		] as readonly { type: string; text?: string; image?: string }[];
 
-		// assistant-ui puts image data in message.attachments, not in message.content.
-		// We need to merge attachment content into the message for the backend.
-		const attachmentParts: Array<{ type: string; text?: string; image?: string }> = [];
-		if (message.attachments) {
-			for (const attachment of message.attachments) {
-				if (attachment.type === "image" && Array.isArray(attachment.content)) {
-					for (const part of attachment.content) {
-						if (part.type === "image" && typeof part.image === "string") {
-							attachmentParts.push({ type: "image", image: part.image });
-						}
-					}
-				}
-			}
-		}
+		const content = toLangGraphMessageContent(allContent);
+		if (!content) return;
 
-		let messageToSend = content;
-		if (attachmentParts.length > 0) {
-			const contentParts: Array<{ type: string; text?: string; image?: string }> =
-				typeof content === "string"
-					? [{ type: "text", text: content }]
-					: (content as Array<{ type: string; text?: string; image?: string }>) || [];
-			messageToSend = [...contentParts, ...attachmentParts];
-		}
+		const messageToSend = content;
 
-		if (!messageToSend) return;
-
-		console.log("[IMG_DEBUG][onNew] message.content parts:", message.content.map((p: any) => ({ type: p.type, hasText: !!p.text, hasImage: !!p.image, imageLen: p.image?.length ?? 0 })));
-		console.log("[IMG_DEBUG][onNew] attachment image parts:", attachmentParts.length, attachmentParts.map((p) => ({ imageLen: p.image?.length ?? 0 })));
+		console.log("[IMG_DEBUG][onNew] allContent parts:", allContent.map((p: any) => ({ type: p.type, hasText: !!p.text, hasImage: !!p.image, imageLen: p.image?.length ?? 0 })));
 		console.log("[IMG_DEBUG][onNew] toLangGraphMessageContent result:", typeof messageToSend === "string" ? `string(${messageToSend.length})` : `array[${Array.isArray(messageToSend) ? messageToSend.length : 0}]`);
 		if (Array.isArray(messageToSend)) {
 			console.log("[IMG_DEBUG][onNew] messageToSend parts:", messageToSend.map((p: any) => ({ type: p.type, hasImageUrl: !!(p.image_url), imageUrlType: typeof p.image_url, hasUrl: !!(p.image_url?.url), urlLen: (p.image_url?.url || (typeof p.image_url === "string" ? p.image_url : "")).length })));
@@ -837,38 +812,15 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				stream.stop();
 			}
 
-		const content = toLangGraphMessageContent(
-			message.content as readonly {
-				type: string;
-				text?: string;
-				image?: string;
-			}[],
-		);
+		const allContent = [
+			...message.content,
+			...(message.attachments?.flatMap((a) => a.content) ?? []),
+		] as readonly { type: string; text?: string; image?: string }[];
 
-		// assistant-ui puts image data in message.attachments, not in message.content.
-		const attachmentParts: Array<{ type: string; text?: string; image?: string }> = [];
-		if (message.attachments) {
-			for (const attachment of message.attachments) {
-				if (attachment.type === "image" && Array.isArray(attachment.content)) {
-					for (const part of attachment.content) {
-						if (part.type === "image" && typeof part.image === "string") {
-							attachmentParts.push({ type: "image", image: part.image });
-						}
-					}
-				}
-			}
-		}
+		const content = toLangGraphMessageContent(allContent);
+		if (!content) return;
 
-		let messageToSend = content;
-		if (attachmentParts.length > 0) {
-			const contentParts: Array<{ type: string; text?: string; image?: string }> =
-				typeof content === "string"
-					? [{ type: "text", text: content }]
-					: (content as Array<{ type: string; text?: string; image?: string }>) || [];
-			messageToSend = [...contentParts, ...attachmentParts];
-		}
-
-		if (!messageToSend) return;
+		const messageToSend = content;
 
 			setAccumulatedMessages((prev) => {
 				const lastUserIdx = prev.findLastIndex((m) => m.type === "human");
