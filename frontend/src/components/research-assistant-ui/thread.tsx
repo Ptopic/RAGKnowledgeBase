@@ -31,12 +31,16 @@ import {
 } from "lucide-react";
 import "@assistant-ui/react-markdown/styles/dot.css";
 import { createContext, useContext } from "react";
-
+import useGetSearchSpaceQueryTemplates from "@/api/query-templates/hooks/useGetSearchSpaceQueryTemplates";
+import type { QueryTemplate } from "@/api/query-templates/types";
+import { ToolPartAdapter } from "@/components/assistant-ui/tool-part-adapter";
+import { CustomChatInputOptions } from "@/components/chat/ChatInputGroup";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
 	UserMessageAttachments,
 } from "@/components/research-assistant-ui/attachment";
+import { ComposerQueryTemplateSelector } from "@/components/research-assistant-ui/composer-query-template-selector";
 import { MarkdownText } from "@/components/research-assistant-ui/markdown-text";
 import { QuestionContent } from "@/components/research-assistant-ui/question-content";
 import {
@@ -46,11 +50,7 @@ import {
 import { Sources } from "@/components/research-assistant-ui/sources";
 import { ToolFallback } from "@/components/research-assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/research-assistant-ui/tooltip-icon-button";
-import { ComposerQueryTemplateSelector } from "@/components/research-assistant-ui/composer-query-template-selector";
-import { CustomChatInputOptions } from "@/components/chat/ChatInputGroup";
 import { Button } from "@/components/ui/button";
-import useGetSearchSpaceQueryTemplates from "@/api/query-templates/hooks/useGetSearchSpaceQueryTemplates";
-import type { QueryTemplate } from "@/api/query-templates/types";
 import type { Document } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
 
@@ -118,67 +118,81 @@ export function Thread({
 	searchSpaceId?: number;
 }) {
 	return (
-		<UndoActionContext.Provider value={{ onDiscardUserMessage, followUpQuestions }}>
+		<UndoActionContext.Provider
+			value={{ onDiscardUserMessage, followUpQuestions }}
+		>
 			<ShareViewContext.Provider value={shareView ?? false}>
-			<ThreadPrimitive.Root
-				className="flex h-full flex-col bg-background text-sm"
-				style={
-					{
-						"--thread-max-width": "44rem",
-						"--accent-color": "#0ea5e9",
-						"--accent-foreground": "#000000",
-					} as React.CSSProperties
-				}
-			>
-				<ThreadPrimitive.Viewport
-					turnAnchor="top"
-					autoScroll
-					scrollToBottomOnRunStart
-					scrollToBottomOnInitialize
-					scrollToBottomOnThreadSwitch
-					className="relative flex flex-1 min-h-0 flex-col overflow-y-auto scroll-smooth px-4 pt-4"
-					style={{ scrollbarGutter: "stable" }}
-				>
-					<AuiIf condition={(s) => s.thread.isEmpty}>
-						<ThreadWelcome placeholder={emptyMessagesPlaceholder} searchSpaceId={searchSpaceId} />
-					</AuiIf>
-
-					<ThreadPrimitive.Messages
-						components={{
-							UserMessage,
-							EditComposer,
-							AssistantMessage,
-							AssistantAvatar: () => null,
-						}}
-					/>
-
-				<ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
-					<ThreadScrollToBottom />
-					{!shareView && <Composer />}
-					{!shareView && <CustomChatInputOptions
-						onDocumentSelectionChange={onDocumentSelectionChange}
-						selectedDocuments={selectedDocuments}
-						onConnectorSelectionChange={onConnectorSelectionChange}
-						selectedConnectors={selectedConnectors}
-						searchMode={searchMode}
-						onSearchModeChange={onSearchModeChange}
-					/>
+				<ThreadPrimitive.Root
+					className="flex h-full flex-col bg-background text-sm"
+					style={
+						{
+							"--thread-max-width": "44rem",
+							"--accent-color": "#0ea5e9",
+							"--accent-foreground": "#000000",
+						} as React.CSSProperties
 					}
-				</ThreadPrimitive.ViewportFooter>
-				</ThreadPrimitive.Viewport>
+				>
+					<ThreadPrimitive.Viewport
+						turnAnchor="top"
+						autoScroll
+						scrollToBottomOnRunStart
+						scrollToBottomOnInitialize
+						scrollToBottomOnThreadSwitch
+						className="relative flex flex-1 min-h-0 flex-col overflow-y-auto scroll-smooth px-4 pt-4"
+						style={{ scrollbarGutter: "stable" }}
+					>
+						<AuiIf condition={(s) => s.thread.isEmpty}>
+							<ThreadWelcome
+								placeholder={emptyMessagesPlaceholder}
+								searchSpaceId={searchSpaceId}
+							/>
+						</AuiIf>
+
+						<ThreadPrimitive.Messages
+							components={{
+								UserMessage,
+								EditComposer,
+								AssistantMessage,
+								AssistantAvatar: () => null,
+							}}
+						/>
+
+						<ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
+							<ThreadScrollToBottom />
+							{!shareView && <Composer />}
+							{!shareView && (
+								<CustomChatInputOptions
+									onDocumentSelectionChange={onDocumentSelectionChange}
+									selectedDocuments={selectedDocuments}
+									onConnectorSelectionChange={onConnectorSelectionChange}
+									selectedConnectors={selectedConnectors}
+									searchMode={searchMode}
+									onSearchModeChange={onSearchModeChange}
+								/>
+							)}
+						</ThreadPrimitive.ViewportFooter>
+					</ThreadPrimitive.Viewport>
 				</ThreadPrimitive.Root>
 			</ShareViewContext.Provider>
 		</UndoActionContext.Provider>
 	);
 }
 
-function ThreadWelcome({ placeholder, searchSpaceId }: { placeholder?: React.ReactNode; searchSpaceId?: number }) {
+function ThreadWelcome({
+	placeholder,
+	searchSpaceId,
+}: {
+	placeholder?: React.ReactNode;
+	searchSpaceId?: number;
+}) {
 	const { data } = useGetSearchSpaceQueryTemplates(
 		searchSpaceId ? { search_space_id: searchSpaceId, limit: 100 } : null,
 		{ enabled: !!searchSpaceId },
 	);
 
-	const pinnedTemplates = (data?.items ?? []).filter((t: QueryTemplate) => t.is_pinned);
+	const pinnedTemplates = (data?.items ?? []).filter(
+		(t: QueryTemplate) => t.is_pinned,
+	);
 
 	if (placeholder) return <>{placeholder}</>;
 
@@ -191,40 +205,43 @@ function ThreadWelcome({ placeholder, searchSpaceId }: { placeholder?: React.Rea
 				</div>
 			</div>
 			<div className="grid w-full gap-2 pb-4 md:grid-cols-2">
-				{pinnedTemplates.length > 0
-					? pinnedTemplates.map((template: QueryTemplate) => (
-							<SuggestionButton
-								key={template.id}
-								prompt={template.content}
-								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
-							>
-								<span className="font-medium flex items-center gap-1.5">
-									<Pin className="h-3.5 w-3.5 text-amber-500" />
-									{template.icon && <span className="mr-1">{template.icon}</span>}
-									{template.title}
+				{pinnedTemplates.length > 0 ? (
+					pinnedTemplates.map((template: QueryTemplate) => (
+						<SuggestionButton
+							key={template.id}
+							prompt={template.content}
+							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+						>
+							<span className="font-medium flex items-center gap-1.5">
+								<Pin className="h-3.5 w-3.5 text-amber-500" />
+								{template.icon && <span className="mr-1">{template.icon}</span>}
+								{template.title}
+							</span>
+							{template.description && (
+								<span className="text-muted-foreground">
+									{template.description}
 								</span>
-								{template.description && (
-									<span className="text-muted-foreground">{template.description}</span>
-								)}
-							</SuggestionButton>
-						))
-					: <>
-							<SuggestionButton
-								prompt="Summarize the key findings from my documents"
-								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
-							>
-								<span className="font-medium">Summarize key findings</span>
-								<span className="text-muted-foreground">from my documents</span>
-							</SuggestionButton>
-							<SuggestionButton
-								prompt="What are the main topics covered in my data?"
-								className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
-							>
-								<span className="font-medium">What are the main topics</span>
-								<span className="text-muted-foreground">covered in my data?</span>
-							</SuggestionButton>
-						</>
-				}
+							)}
+						</SuggestionButton>
+					))
+				) : (
+					<>
+						<SuggestionButton
+							prompt="Summarize the key findings from my documents"
+							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+						>
+							<span className="font-medium">Summarize key findings</span>
+							<span className="text-muted-foreground">from my documents</span>
+						</SuggestionButton>
+						<SuggestionButton
+							prompt="What are the main topics covered in my data?"
+							className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-5 py-4 text-left text-sm"
+						>
+							<span className="font-medium">What are the main topics</span>
+							<span className="text-muted-foreground">covered in my data?</span>
+						</SuggestionButton>
+					</>
+				)}
 			</div>
 		</div>
 	);
@@ -369,13 +386,15 @@ function UserMessage() {
 				<div className="rounded-2xl bg-muted px-4 py-2.5 break-words text-foreground">
 					<MessagePrimitive.Parts />
 				</div>
-				{!shareView && <div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
-				<UserActionBar
-					onDiscardUserMessage={onDiscardUserMessage}
-					messageIndex={messageIndex}
-					userMessageIndex={userMessageIndex}
-				/>
-				</div>}
+				{!shareView && (
+					<div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+						<UserActionBar
+							onDiscardUserMessage={onDiscardUserMessage}
+							messageIndex={messageIndex}
+							userMessageIndex={userMessageIndex}
+						/>
+					</div>
+				)}
 			</div>
 		</MessagePrimitive.Root>
 	);
@@ -472,6 +491,15 @@ function AssistantMessage() {
 						Text: MarkdownText,
 						tools: {
 							Fallback: ToolFallback,
+							by_name: {
+								link_preview: ToolPartAdapter,
+								display_image: ToolPartAdapter,
+								analyze_image: ToolPartAdapter,
+								search_knowledge_base: ToolPartAdapter,
+								index_document: ToolPartAdapter,
+								index_webpage: ToolPartAdapter,
+								index_youtube: ToolPartAdapter,
+							},
 						},
 						Reasoning,
 						ReasoningGroup,
@@ -530,41 +558,45 @@ function AssistantMessage() {
 				}
 			>
 				<div className="mt-1 ml-2 flex min-h-6 items-center">
-					{!shareView && <AuiIf condition={(s) => s.message.isLast}>
-						<BranchPicker />
-					</AuiIf>}
+					{!shareView && (
+						<AuiIf condition={(s) => s.message.isLast}>
+							<BranchPicker />
+						</AuiIf>
+					)}
 
 					<AssistantActionBar />
 				</div>
 			</AuiIf>
 
-			{!shareView && <AuiIf
-				condition={(s) =>
-					s.message.isLast &&
-					!s.thread.isRunning &&
-					s.message.status?.reason !== "error" &&
-					s.message.content.some((p) => p.type === "text")
-				}
-			>
-				<div className="mt-4 flex flex-wrap gap-2">
-					{followUpQuestions && followUpQuestions.length > 0 ? (
-						followUpQuestions.map((q) => (
-							<SuggestionButton key={q} prompt={q}>
-								{q}
-							</SuggestionButton>
-						))
-					) : (
-						<>
-							<SuggestionButton prompt="Tell me more">
-								Tell me more
-							</SuggestionButton>
-							<SuggestionButton prompt="Can you explain differently?">
-								Explain differently
-							</SuggestionButton>
-						</>
-					)}
-				</div>
-			</AuiIf>}
+			{!shareView && (
+				<AuiIf
+					condition={(s) =>
+						s.message.isLast &&
+						!s.thread.isRunning &&
+						s.message.status?.reason !== "error" &&
+						s.message.content.some((p) => p.type === "text")
+					}
+				>
+					<div className="mt-4 flex flex-wrap gap-2">
+						{followUpQuestions && followUpQuestions.length > 0 ? (
+							followUpQuestions.map((q) => (
+								<SuggestionButton key={q} prompt={q}>
+									{q}
+								</SuggestionButton>
+							))
+						) : (
+							<>
+								<SuggestionButton prompt="Tell me more">
+									Tell me more
+								</SuggestionButton>
+								<SuggestionButton prompt="Can you explain differently?">
+									Explain differently
+								</SuggestionButton>
+							</>
+						)}
+					</div>
+				</AuiIf>
+			)}
 		</MessagePrimitive.Root>
 	);
 }
@@ -609,16 +641,20 @@ function AssistantActionBar() {
 				</ActionBarPrimitive.Reload>
 			)} */}
 
-			{!shareView && <ActionBarPrimitive.FeedbackPositive asChild>
-				<TooltipIconButton tooltip="Good response">
-					<ThumbsUpIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.FeedbackPositive>}
-			{!shareView && <ActionBarPrimitive.FeedbackNegative asChild>
-				<TooltipIconButton tooltip="Bad response">
-					<ThumbsDownIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.FeedbackNegative>}
+			{!shareView && (
+				<ActionBarPrimitive.FeedbackPositive asChild>
+					<TooltipIconButton tooltip="Good response">
+						<ThumbsUpIcon />
+					</TooltipIconButton>
+				</ActionBarPrimitive.FeedbackPositive>
+			)}
+			{!shareView && (
+				<ActionBarPrimitive.FeedbackNegative asChild>
+					<TooltipIconButton tooltip="Bad response">
+						<ThumbsDownIcon />
+					</TooltipIconButton>
+				</ActionBarPrimitive.FeedbackNegative>
+			)}
 		</ActionBarPrimitive.Root>
 	);
 }
