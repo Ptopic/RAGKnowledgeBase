@@ -56,13 +56,39 @@ function toToolResult(content: unknown, artifact?: unknown): unknown {
 	}
 }
 
+const DOCUMENT_MARKER_REGEX = /\[uploaded_document:\s*\{.*?\}\]\s*/g;
+
+function stripDocumentMarkers(text: string): string {
+	return text.replace(DOCUMENT_MARKER_REGEX, "").trim();
+}
+
+function extractDocumentMarkers(text: string): Array<{ filePath: string; fileName: string }> {
+	const docs: Array<{ filePath: string; fileName: string }> = [];
+	let match: RegExpExecArray | null;
+	const regex = /\[uploaded_document:\s*(\{.*?\})\]/g;
+	// biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop pattern
+	while ((match = regex.exec(text)) !== null) {
+		try {
+			const parsed = JSON.parse(match[1]);
+			if (parsed.filePath && parsed.fileName) {
+				docs.push({ filePath: parsed.filePath, fileName: parsed.fileName });
+			}
+		} catch {
+			// skip malformed markers
+		}
+	}
+	return docs;
+}
+
 function toUserThreadContent(
 	content: string | ContentBlock[],
-): ThreadUserMessagePart[] {
+): { parts: ThreadUserMessagePart[]; documents: Array<{ filePath: string; fileName: string }> } {
 	const parts: ThreadUserMessagePart[] = [];
+	const documents: Array<{ filePath: string; fileName: string }> = [];
 
 	if (typeof content === "string") {
-		const text = content.trim();
+		const text = stripDocumentMarkers(content).trim();
+		documents.push(...extractDocumentMarkers(content));
 		parts.push({ text: text || "", type: "text" as const });
 	} else if (Array.isArray(content)) {
 		for (const block of content) {
@@ -77,7 +103,11 @@ function toUserThreadContent(
 					typeof block.text === "string" &&
 					block.text.trim().length > 0
 				) {
-					parts.push({ text: block.text, type: "text" as const });
+					const stripped = stripDocumentMarkers(block.text);
+					documents.push(...extractDocumentMarkers(block.text));
+					if (stripped.trim().length > 0) {
+						parts.push({ text: stripped, type: "text" as const });
+					}
 				} else if (block.type === "image_url") {
 					const imageUrl =
 						typeof (block as Record<string, unknown>).image_url === "string"
@@ -95,7 +125,7 @@ function toUserThreadContent(
 		parts.push({ text: "", type: "text" as const });
 	}
 
-	return parts;
+	return { parts, documents };
 }
 
 type LangChainToolCall = {
@@ -372,10 +402,18 @@ function toAssistantThreadContent(
 	return parts;
 }
 
-function attachToolResult(
+	function attachToolResult(
 	threadMessages: ThreadMessageLike[],
 	toolMessage: LangChainToolMessage,
 ) {
+	const allToolCallIds = threadMessages.flatMap((m) =>
+		m.role === "assistant" && Array.isArray(m.content)
+			? m.content
+					.filter((p): p is ToolCallMessagePart => p.type === "tool-call")
+					.map((p) => `${p.toolCallId}:${p.toolName}`)
+			: [],
+	);
+
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
 		if (
@@ -484,27 +522,46 @@ export function toThreadMessages(
 		const messageId = message.id ?? fallbackId;
 
 		if (message.type === "human") {
-			const allContent = toUserThreadContent(message.content);
+			const { parts: allContent, documents: docEntries } = toUserThreadContent(message.content);
 			const imageParts = allContent.filter(
 				(part): part is { type: "image"; image: string } =>
 					part.type === "image" && typeof part.image === "string",
 			);
-			// Images render via UserMessageAttachments only, not inline in the bubble
 			const content = allContent.filter((part) => part.type !== "image");
+
+			const attachments: Array<{
+				id: string;
+				type: "image" | "document";
+				name: string;
+				content: ThreadUserMessagePart[];
+				status: { type: "complete" };
+			}> = [];
+
+			for (let i = 0; i < imageParts.length; i++) {
+				attachments.push({
+					id: `${messageId}-attachment-img-${i}`,
+					type: "image",
+					name: `image-${i + 1}`,
+					content: [{ type: "image" as const, image: imageParts[i].image }],
+					status: { type: "complete" as const },
+				});
+			}
+
+			for (let i = 0; i < docEntries.length; i++) {
+				attachments.push({
+					id: `${messageId}-attachment-doc-${i}`,
+					type: "document",
+					name: docEntries[i].fileName,
+					content: [{ type: "text" as const, text: docEntries[i].fileName }],
+					status: { type: "complete" as const },
+				});
+			}
 
 			threadMessages.push({
 				content,
 				id: messageId,
 				role: "user",
-				...(imageParts.length > 0 && {
-					attachments: imageParts.map((part, i) => ({
-						id: `${messageId}-attachment-${i}`,
-						type: "image" as const,
-						name: `image-${i + 1}`,
-						content: [{ type: "image" as const, image: part.image }],
-						status: { type: "complete" as const },
-					})),
-				}),
+				...(attachments.length > 0 && { attachments }),
 			});
 			continue;
 		}

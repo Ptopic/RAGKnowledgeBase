@@ -108,6 +108,20 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 
 const AttachmentThumb: FC = () => {
 	const src = useAttachmentSrc();
+	const isDocument = useAuiState((s) => s.attachment.type === "document");
+	const name = useAuiState((s) => s.attachment.name);
+
+	if (isDocument) {
+		const ext = name.split(".").pop()?.toUpperCase() || "FILE";
+		return (
+			<div className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-muted">
+				<FileText className="size-6 text-muted-foreground" />
+				<span className="max-w-[90%] text-[8px] font-medium leading-none text-muted-foreground truncate">
+					{ext}
+				</span>
+			</div>
+		);
+	}
 
 	return (
 		<Avatar className="aui-attachment-tile-avatar h-full w-full rounded-none">
@@ -128,6 +142,7 @@ const AttachmentUI: FC = () => {
 	const isComposer = aui.attachment.source !== "message";
 
 	const isImage = useAuiState((s) => s.attachment.type === "image");
+	const isDocument = useAuiState((s) => s.attachment.type === "document");
 	const typeLabel = useAuiState((s) => {
 		const type = s.attachment.type;
 		switch (type) {
@@ -142,6 +157,16 @@ const AttachmentUI: FC = () => {
 		}
 	});
 
+	const thumbElement = (
+		<button
+			type="button"
+			className="aui-attachment-tile size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border bg-muted transition-opacity hover:opacity-75"
+			aria-label={`${typeLabel} attachment`}
+		>
+			<AttachmentThumb />
+		</button>
+	);
+
 	return (
 		<Tooltip>
 			<AttachmentPrimitive.Root
@@ -150,18 +175,17 @@ const AttachmentUI: FC = () => {
 					isImage && "aui-attachment-root-composer only:*:first:size-24",
 				)}
 			>
-				<AttachmentPreviewDialog>
+				{isImage ? (
+					<AttachmentPreviewDialog>
+						<TooltipTrigger asChild>
+							{thumbElement}
+						</TooltipTrigger>
+					</AttachmentPreviewDialog>
+				) : (
 					<TooltipTrigger asChild>
-						<div
-							className="aui-attachment-tile size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border bg-muted transition-opacity hover:opacity-75"
-							role="button"
-							tabIndex={0}
-							aria-label={`${typeLabel} attachment`}
-						>
-							<AttachmentThumb />
-						</div>
+						{thumbElement}
 					</TooltipTrigger>
-				</AttachmentPreviewDialog>
+				)}
 				{isComposer && <AttachmentRemove />}
 			</AttachmentPrimitive.Root>
 			<TooltipContent side="top">
