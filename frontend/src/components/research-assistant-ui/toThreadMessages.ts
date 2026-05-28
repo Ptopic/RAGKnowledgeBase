@@ -413,7 +413,6 @@ function toAssistantThreadContent(
 
 	function extractSourcesFromToolResult(
 		parsedResult: unknown,
-		seenSourceIds: Set<string>,
 	): ThreadAssistantMessagePart[] {
 		if (!parsedResult) return [];
 
@@ -440,8 +439,6 @@ function toAssistantThreadContent(
 			if (!src || typeof src !== "object") continue;
 			const s = src as SourceMetadataItem;
 			const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
-			if (seenSourceIds.has(sourceId)) continue;
-			seenSourceIds.add(sourceId);
 
 			const isDocument = s.type === "FILE" || !s.url;
 			sourceParts.push({
@@ -459,7 +456,6 @@ function toAssistantThreadContent(
 	function attachToolResult(
 		threadMessages: ThreadMessageLike[],
 		toolMessage: LangChainToolMessage,
-		seenSourceIds: Set<string>,
 	) {
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
@@ -485,7 +481,6 @@ function toAssistantThreadContent(
 
 		const sourceParts = extractSourcesFromToolResult(
 			parsedResult,
-			seenSourceIds,
 		);
 
 		const updatedContent = [
@@ -572,7 +567,6 @@ export function toThreadMessages(
 	messages: readonly BaseMessage[],
 ): ThreadMessageLike[] {
 	const threadMessages: ThreadMessageLike[] = [];
-	const seenSourceIds = new Set<string>();
 
 	for (const [index, message] of messages.entries()) {
 		const fallbackId = `${message.type}-${index}`;
@@ -624,7 +618,7 @@ export function toThreadMessages(
 		}
 
 		if (isLangChainToolMessage(message)) {
-			attachToolResult(threadMessages, message, seenSourceIds);
+			attachToolResult(threadMessages, message);
 			continue;
 		}
 
@@ -671,7 +665,13 @@ function mergeConsecutiveAssistantMessages(
 		);
 		if (sources.length === 0) continue;
 		const rest = msg.content.filter((p) => p.type !== "source");
-		msg.content = [...rest, ...sources];
+		const seenIds = new Set<string>();
+		const uniqueSources = sources.filter((s) => {
+			if (seenIds.has(s.id)) return false;
+			seenIds.add(s.id);
+			return true;
+		});
+		msg.content = [...rest, ...uniqueSources];
 	}
 
 	return merged;
