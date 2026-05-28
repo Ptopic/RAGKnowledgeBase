@@ -313,6 +313,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	const displayTitle = title || domain || "Document";
 
 	return (
+		<div className="mt-2 inline-flex">
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<button
@@ -349,6 +350,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 				/>
 			</PopoverContent>
 		</Popover>
+		</div>
 	);
 };
 
