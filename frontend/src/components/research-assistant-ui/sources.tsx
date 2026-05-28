@@ -308,7 +308,6 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	}, [clearTimers]);
 
 	if (sourceType !== "url" && sourceType !== "document") return null;
-	if (sourceType === "url" && !url) return null;
 	if (isRunning) return null;
 
 	const domain = url ? extractDomain(url) : null;

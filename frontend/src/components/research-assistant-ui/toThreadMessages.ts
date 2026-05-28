@@ -440,7 +440,7 @@ function toAssistantThreadContent(
 			const s = src as SourceMetadataItem;
 			const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
 
-			const isDocument = s.type === "FILE" || !s.url;
+			const isDocument = s.type === "FILE" || s.type === "UNKNOWN";
 			sourceParts.push({
 				type: "source",
 				sourceType: isDocument ? "document" : "url",
