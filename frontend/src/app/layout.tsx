@@ -16,6 +16,13 @@ export default async function RootLayout({
 }>) {
 	return (
 		<html lang="en" suppressHydrationWarning>
+			<head>
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `(function(){var k='chunk-load-retried';window.addEventListener('error',function(e){if(e.message&&/loading chunk/i.test(e.message)&&!sessionStorage.getItem(k)){sessionStorage.setItem(k,'1');window.location.reload()}});window.addEventListener('unhandledrejection',function(e){var m=e.reason&&(e.reason.message||e.reason.name||'');if(/loading chunk|ChunkLoadError/i.test(m)&&!sessionStorage.getItem(k)){sessionStorage.setItem(k,'1');window.location.reload()}}})();`,
+					}}
+				/>
+			</head>
 			<body
 				id="app"
 				className={twMerge(
