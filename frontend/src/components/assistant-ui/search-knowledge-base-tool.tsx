@@ -1,15 +1,15 @@
 "use client";
 
 import { AlertCircleIcon, FileTextIcon, SearchIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface SearchKnowledgeBaseArgs {
 	query: string;
@@ -47,7 +47,7 @@ export function SearchKnowledgeBaseTool({
 	result,
 	errored = false,
 	isRunning = false,
-	status = "success",
+	status: _status = "success",
 }: SearchKnowledgeBaseToolProps) {
 	const toolArgs = args as SearchKnowledgeBaseArgs;
 
@@ -79,12 +79,6 @@ export function SearchKnowledgeBaseTool({
 		return null;
 	}
 
-	// Hide search results card when tool is completed and loaded from database
-	// This prevents showing the full card on page reload
-	if (status === "success" && !isRunning) {
-		return null;
-	}
-
 	return (
 		<Card className="max-w-2xl">
 			<CardHeader className="pb-3">
@@ -109,11 +103,17 @@ export function SearchKnowledgeBaseTool({
 			</CardHeader>
 			<CardContent className="pt-0">
 				{!toolResult.results || toolResult.results.length === 0 ? (
-					<p className="text-sm text-muted-foreground pl-10">No results found</p>
+					<p className="text-sm text-muted-foreground pl-10">
+						No results found
+					</p>
 				) : (
 					<div className="space-y-2">
 						{toolResult.results.map((item, index) => (
-							<SearchResultItem key={item.id || index} item={item} index={index} />
+							<SearchResultItem
+								key={item.id || index}
+								item={item}
+								index={index}
+							/>
 						))}
 					</div>
 				)}
@@ -122,7 +122,13 @@ export function SearchKnowledgeBaseTool({
 	);
 }
 
-function SearchResultItem({ item, index }: { item: SearchResultItem; index: number }) {
+function SearchResultItem({
+	item,
+	index,
+}: {
+	item: SearchResultItem;
+	index: number;
+}) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (
@@ -161,14 +167,16 @@ function SearchResultItem({ item, index }: { item: SearchResultItem; index: numb
 						</p>
 						{item.metadata && Object.keys(item.metadata).length > 0 && (
 							<div className="mt-2 flex flex-wrap gap-2">
-								{Object.entries(item.metadata).slice(0, 3).map(([key, value]) => (
-									<span
-										key={key}
-										className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground"
-									>
-										{key}: {String(value)}
-									</span>
-								))}
+								{Object.entries(item.metadata)
+									.slice(0, 3)
+									.map(([key, value]) => (
+										<span
+											key={key}
+											className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground"
+										>
+											{key}: {String(value)}
+										</span>
+									))}
 							</div>
 						)}
 					</div>
@@ -205,7 +213,13 @@ function SearchKnowledgeBaseLoading(): React.ReactElement {
 	);
 }
 
-function SearchKnowledgeBaseError({ query, error }: { query: string; error: string }) {
+function SearchKnowledgeBaseError({
+	query,
+	error,
+}: {
+	query: string;
+	error: string;
+}) {
 	return (
 		<div className="max-w-2xl rounded-lg border border-destructive/20 bg-destructive/5 p-4">
 			<div className="flex items-start gap-3">
@@ -213,8 +227,12 @@ function SearchKnowledgeBaseError({ query, error }: { query: string; error: stri
 					<AlertCircleIcon className="size-4 text-destructive" />
 				</div>
 				<div className="flex-1 min-w-0">
-					<p className="text-sm font-medium text-destructive mb-1">Search failed</p>
-					<p className="text-xs text-muted-foreground mb-2">Query: &quot;{query}&quot;</p>
+					<p className="text-sm font-medium text-destructive mb-1">
+						Search failed
+					</p>
+					<p className="text-xs text-muted-foreground mb-2">
+						Query: &quot;{query}&quot;
+					</p>
 					<p className="text-xs text-destructive/70">{error}</p>
 				</div>
 			</div>
