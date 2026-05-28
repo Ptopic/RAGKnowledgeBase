@@ -305,6 +305,7 @@ function toAssistantThreadContent(
 function attachToolResult(
 	threadMessages: ThreadMessageLike[],
 	toolMessage: LangChainToolMessage,
+	seenSourceIds: Set<string>,
 ) {
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
@@ -463,7 +464,7 @@ export function toThreadMessages(
 		}
 
 		if (isLangChainToolMessage(message)) {
-			attachToolResult(threadMessages, message);
+			attachToolResult(threadMessages, message, seenSourceIds);
 			continue;
 		}
 

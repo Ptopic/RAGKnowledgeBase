@@ -457,17 +457,10 @@ function toAssistantThreadContent(
 	}
 
 	function attachToolResult(
-	threadMessages: ThreadMessageLike[],
-	toolMessage: LangChainToolMessage,
-) {
-	const allToolCallIds = threadMessages.flatMap((m) =>
-		m.role === "assistant" && Array.isArray(m.content)
-			? m.content
-					.filter((p): p is ToolCallMessagePart => p.type === "tool-call")
-					.map((p) => `${p.toolCallId}:${p.toolName}`)
-			: [],
-	);
-
+		threadMessages: ThreadMessageLike[],
+		toolMessage: LangChainToolMessage,
+		seenSourceIds: Set<string>,
+	) {
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
 		if (
@@ -488,12 +481,6 @@ function toAssistantThreadContent(
 		const parsedResult = toToolResult(
 			toolMessage.content,
 			toolMessage.artifact,
-		);
-
-		const matchingPart = message.content.find(
-			(p): p is ToolCallMessagePart =>
-				p.type === "tool-call" &&
-				p.toolCallId === toolMessage.tool_call_id,
 		);
 
 		const sourceParts = extractSourcesFromToolResult(
@@ -637,7 +624,7 @@ export function toThreadMessages(
 		}
 
 		if (isLangChainToolMessage(message)) {
-			attachToolResult(threadMessages, message);
+			attachToolResult(threadMessages, message, seenSourceIds);
 			continue;
 		}
 
