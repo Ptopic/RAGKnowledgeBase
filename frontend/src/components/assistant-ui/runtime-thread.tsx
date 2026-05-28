@@ -180,7 +180,7 @@ function AssistantMessage() {
 
 	return (
 		<MessagePrimitive.Root className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-3">
-			<div className="break-words px-2 leading-relaxed text-foreground">
+			<div className="mt-2 break-words px-2 leading-relaxed text-foreground">
 				<MessagePrimitive.Parts
 					components={{
 						tools: {

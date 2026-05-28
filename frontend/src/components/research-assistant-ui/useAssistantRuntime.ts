@@ -25,14 +25,10 @@ import {
 	toLangGraphMessageContent,
 	toThreadMessages,
 } from "@/components/research-assistant-ui/toThreadMessages";
+import { SimpleFileAttachmentAdapter } from "@/components/research-assistant-ui/file-attachment-adapter";
 import { getOrderedMessages } from "@/components/ui/Chat/utils";
 import { config } from "@/shared/config/config";
 import type { OrderedStreamMessage } from "@/types/chat.types";
-
-	const attachmentAdapter = new CompositeAttachmentAdapter([
-		new SimpleImageAttachmentAdapter(),
-		new SimpleTextAttachmentAdapter(),
-	]);
 
 export interface UseAssistantRuntimeOptions {
 	endpoint: string;
@@ -78,6 +74,19 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	const currentChatIdRef = useRef<number | undefined>(options.chatId);
 	const lastUserMessageRef = useRef<string>("");
 	const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+
+	const attachmentAdapter = useMemo(
+		() =>
+			new CompositeAttachmentAdapter([
+				new SimpleImageAttachmentAdapter(),
+				new SimpleTextAttachmentAdapter(),
+				new SimpleFileAttachmentAdapter({
+					token: options.token,
+					searchSpaceId: options.searchSpaceId,
+				}),
+			]),
+		[options.token, options.searchSpaceId],
+	);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only re-sync when chatId prop changes
 	useEffect(() => {
@@ -127,7 +136,10 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		completedToolCallIdsRef.current.clear();
 		setPendingQuestion(null);
 		setStreamError(null);
-		setFollowUpQuestions([]);
+
+		const lastFollowUps = extractFollowUpQuestions(initial);
+		setFollowUpQuestions(lastFollowUps);
+
 		turnStartIndexRef.current = null;
 	}, [options.resetVersion, options.initialMessages]);
 
@@ -159,13 +171,6 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 					const messages = langchainBody.messages || langchainBody.input?.messages || [];
 					const lastMessage = messages[messages.length - 1];
 					const messageContent = lastMessage?.content || "";
-
-					console.log("[IMG_DEBUG][onRequest] langchainBody keys:", Object.keys(langchainBody));
-					console.log("[IMG_DEBUG][onRequest] messages count:", messages.length);
-					console.log("[IMG_DEBUG][onRequest] lastMessage type:", typeof messageContent, Array.isArray(messageContent) ? `array[${messageContent.length}]` : "");
-					if (Array.isArray(messageContent)) {
-						console.log("[IMG_DEBUG][onRequest] content parts:", messageContent.map((p: any) => ({ type: p.type, hasUrl: !!(p.image_url?.url || p.image_url), urlLen: (p.image_url?.url || (typeof p.image_url === "string" ? p.image_url : "")).length })));
-					}
 
 					lastUserMessageRef.current = typeof messageContent === "string"
 						? messageContent
@@ -783,12 +788,6 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 
 		const messageToSend = content;
 
-		console.log("[IMG_DEBUG][onNew] allContent parts:", allContent.map((p: any) => ({ type: p.type, hasText: !!p.text, hasImage: !!p.image, imageLen: p.image?.length ?? 0 })));
-		console.log("[IMG_DEBUG][onNew] toLangGraphMessageContent result:", typeof messageToSend === "string" ? `string(${messageToSend.length})` : `array[${Array.isArray(messageToSend) ? messageToSend.length : 0}]`);
-		if (Array.isArray(messageToSend)) {
-			console.log("[IMG_DEBUG][onNew] messageToSend parts:", messageToSend.map((p: any) => ({ type: p.type, hasImageUrl: !!(p.image_url), imageUrlType: typeof p.image_url, hasUrl: !!(p.image_url?.url), urlLen: (p.image_url?.url || (typeof p.image_url === "string" ? p.image_url : "")).length })));
-		}
-
 		setAccumulatedMessages((prev) => [
 			...prev,
 			new HumanMessage({
@@ -896,6 +895,7 @@ async function saveMessagesToBackend(
 					kind: `tool_${msg.toolName}`,
 					toolName: msg.toolName,
 					runId: msg.runId,
+					args: msg.args,
 					data: msg.data,
 					status: msg.status,
 				},
@@ -936,4 +936,33 @@ function getTextFromContent(content: unknown): string {
 		)
 		.map((part) => part.text)
 		.join("");
+}
+
+function extractFollowUpQuestions(messages: BaseMessage[]): string[] {
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const msg = messages[i];
+		if (msg.type !== "tool") continue;
+
+		const toolMessage = msg as BaseMessage & {
+			name?: string;
+			content?: unknown;
+		};
+
+		if (toolMessage.name !== "generate_followup_questions") continue;
+
+		const content = getTextFromContent(toolMessage.content);
+		if (!content) continue;
+
+		try {
+			const parsed = JSON.parse(content);
+			if (
+				Array.isArray(parsed) &&
+				parsed.every((q: unknown) => typeof q === "string")
+			) {
+				return parsed.filter((q: string) => q.trim().length > 0);
+			}
+		} catch {
+		}
+	}
+	return [];
 }

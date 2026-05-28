@@ -128,7 +128,7 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 	const content = text || "";
 
 	return (
-		<div className={cn("aui-md", className)}>
+		<div className={cn("aui-md mt-2", className)}>
 			<Streamdown
 				remarkPlugins={[remarkGfm]}
 				rehypePlugins={[]}
