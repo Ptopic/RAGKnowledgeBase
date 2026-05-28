@@ -484,10 +484,25 @@ export function toThreadMessages(
 		const messageId = message.id ?? fallbackId;
 
 		if (message.type === "human") {
+			const content = toUserThreadContent(message.content);
+			const imageParts = content.filter(
+				(part): part is { type: "image"; image: string } =>
+					part.type === "image" && typeof part.image === "string",
+			);
+
 			threadMessages.push({
-				content: toUserThreadContent(message.content),
+				content,
 				id: messageId,
 				role: "user",
+				...(imageParts.length > 0 && {
+					attachments: imageParts.map((part, i) => ({
+						id: `${messageId}-attachment-${i}`,
+						type: "image" as const,
+						name: `image-${i + 1}`,
+						content: [{ type: "image" as const, image: part.image }],
+						status: { type: "complete" as const },
+					})),
+				}),
 			});
 			continue;
 		}

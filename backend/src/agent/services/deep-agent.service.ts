@@ -198,6 +198,61 @@ export class DeepAgentService {
 
 		let humanMessageContent: string | Array<Record<string, unknown>> = params.userQuery;
 
+		// Pre-analyze uploaded images so the LLM gets descriptions without
+		// needing to extract long data URLs and pass them to analyze_image.
+		if (Array.isArray(humanMessageContent)) {
+			const imageBlocks = humanMessageContent.filter(
+				(b) =>
+					b.type === "image_url" &&
+					typeof b.image_url === "object" &&
+					b.image_url !== null &&
+					typeof (b.image_url as Record<string, unknown>).url === "string",
+			);
+
+			if (imageBlocks.length > 0 && this.imageAnalysisService) {
+				const imageDescriptions: string[] = [];
+				for (let i = 0; i < imageBlocks.length; i++) {
+					const block = imageBlocks[i] as Record<string, unknown>;
+					const imageUrl = (block.image_url as Record<string, unknown>).url as string;
+					try {
+						const results = await this.imageAnalysisService.describeImages([
+							{ url: imageUrl },
+						]);
+						if (results.length > 0 && results[0].description) {
+							imageDescriptions.push(
+								`[Uploaded Image ${i + 1}]: ${results[0].description}`,
+							);
+						}
+					} catch (error) {
+						const msg = error instanceof Error ? error.message : "Unknown error";
+						this.logger.warn(
+							`Failed to pre-analyze uploaded image ${i + 1}: ${msg}`,
+						);
+					}
+				}
+
+				if (imageDescriptions.length > 0) {
+					const imageContext = `<uploaded_images>\nThe user has uploaded ${imageDescriptions.length} image(s). Here are the AI-generated descriptions:\n\n${imageDescriptions.join("\n\n")}\n\nUse these descriptions as context. You may still call analyze_image if you need more detail about a specific image (pass the original data:image URL).\n</uploaded_images>`;
+
+					const textBlock = humanMessageContent.find(
+						(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
+					);
+					if (textBlock) {
+						(textBlock as { text: string }).text = `${imageContext}\n\n${(textBlock as { text: string }).text}`;
+					} else {
+						humanMessageContent = [
+							{ type: "text", text: `${imageContext}\n\n${userQueryText}` },
+							...humanMessageContent.filter((b) => b.type !== "text"),
+						];
+					}
+
+					this.logger.log(
+						`Pre-analyzed ${imageDescriptions.length} uploaded image(s)`,
+					);
+				}
+			}
+		}
+
 		if (
 			params.documentIdsToAddInContext &&
 			params.documentIdsToAddInContext.length > 0

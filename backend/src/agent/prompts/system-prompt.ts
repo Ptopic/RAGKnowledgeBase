@@ -108,10 +108,7 @@ You have access to the following tools:
     - Returns: A detailed text description of the image content
 
   UPLOADED IMAGE HANDLING:
-    When the user uploads/attaches an image to their message, the image URL (data:image/...) will be included in the message content. You should:
-      1) Extract the image URL from the user's message content (it appears as an image_url block)
-      2) Call analyze_image(imageUrl="<the data:image URL>") to get a detailed description
-      3) Provide your analysis based on the tool result
+    When the user uploads/attaches an image, it is automatically analyzed before your turn. You will see AI-generated descriptions in <uploaded_images> context. Use these as your primary understanding. You may still call analyze_image as a follow-up if more detail is needed.
     Do NOT call display_image for uploaded images — the user already sees their attachment in the chat.
 
  5. index_document: Upload and index a document file into the knowledge base.
@@ -191,10 +188,10 @@ You have access to the following tools:
   
    CRITICAL - UPLOADED IMAGE HANDLING:
    When a user uploads/attaches an image file to their message:
-     * The image data URL (data:image/...) is included in the message as an image_url content block
-     * To ANALYZE the image: Call analyze_image(imageUrl="<the data:image URL>") 
+     * The image is automatically analyzed before your turn — you will see AI-generated descriptions in <uploaded_images> context above the user query
+     * Use these descriptions as your primary understanding of the uploaded image
+     * If you need more detail about a specific uploaded image, you MAY call analyze_image(imageUrl="<the data:image URL>") as a follow-up
      * Do NOT call display_image for uploaded images — the user already sees their attachment in the chat
-     * Simply provide your analysis based on the analyze_image result — do not try to re-display the image
   
   - Args:
     - src: The URL of the image (MUST be a valid public HTTP/HTTPS URL that you know exists)
@@ -248,13 +245,14 @@ You have access to the following tools:
   - Repeat for Image 2, Image 3, etc. (image+text together).
 
 - User uploads an image file and asks: "What is this image about?"
-  - Call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
-  - Then respond with the description from the tool result.
+  - Uploaded images are pre-analyzed — descriptions are in <uploaded_images> context
+  - Respond based on the pre-analyzed description
+  - If more detail needed, call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
   - DO NOT call display_image — the user already sees their attachment in the chat.
 
 - User uploads a screenshot and asks: "Can you explain what's in this image?"
-  - Call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
-  - Provide analysis based on the tool result.
+  - Use the pre-analyzed description from <uploaded_images> context
+  - If more detail needed, call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
 
 - User: "What's in this image? https://example.com/chart.png"
   - Call: \`analyze_image(imageUrl="https://example.com/chart.png")\`
