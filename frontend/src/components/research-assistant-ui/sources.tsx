@@ -220,7 +220,7 @@ function SourceHoverCard({
 	const thumbnailUrl = url ? getYouTubeThumbnail(url) : null;
 
 	return (
-		<div data-slot="source-hover-card" className="w-72 space-y-2.5">
+		<div data-slot="source-hover-card" className="space-y-2.5">
 			{thumbnailUrl && (
 				<div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
 					<img
