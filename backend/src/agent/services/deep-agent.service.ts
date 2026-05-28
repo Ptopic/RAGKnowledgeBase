@@ -258,7 +258,7 @@ export class DeepAgentService {
 					}
 				}
 
-				if (imageDescriptions.length > 0) {
+			if (imageDescriptions.length > 0) {
 					const imageContext = `<uploaded_images>\nThe user has uploaded ${imageDescriptions.length} image(s). Pre-generated AI descriptions for reference:\n\n${imageDescriptions.join("\n\n")}\n\nIf the user explicitly asks about an uploaded image, you MUST call analyze_image with the image URL shown above (e.g. imageUrl="https://..." if an HTTP URL is listed, or imageUrl="uploaded://N" as fallback). Do NOT just paraphrase these descriptions as your answer.\n</uploaded_images>`;
 
 					const textBlock = humanMessageContent.find(
@@ -277,6 +277,14 @@ export class DeepAgentService {
 						`Pre-analyzed ${imageDescriptions.length} uploaded image(s)`,
 					);
 				}
+
+				// Remove image_url blocks from the message content sent to OpenAI.
+				// Image analysis is handled by the analyze_image tool (Gemini API),
+				// not by GPT vision. The <uploaded_images> XML context above gives
+				// the agent enough info to decide when to call analyze_image.
+				humanMessageContent = (Array.isArray(humanMessageContent)
+					? humanMessageContent.filter((b) => b.type !== "image_url")
+					: humanMessageContent) as string | Array<Record<string, unknown>>;
 			}
 		}
 
