@@ -1,20 +1,26 @@
 "use client";
 
-import { AlertCircleIcon, EyeIcon, ImageIcon } from "lucide-react";
-import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircleIcon, EyeIcon } from "lucide-react";
+import {
+	Image,
+	ImageErrorBoundary,
+	ImageLoading,
+	parseSerializableImage,
+} from "@/components/tool-ui/image";
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface AnalyzeImageArgs {
 	imageUrl: string;
+	description?: string;
 }
 
 interface AnalyzeImageResult {
-	imageUrl: string;
 	description?: string;
-	status: "analyzing" | "done" | "error" | "timeout";
 	error?: string;
-	message?: string;
+	[key: string]: unknown;
 }
 
 interface AnalyzeImageToolProps {
@@ -25,13 +31,59 @@ interface AnalyzeImageToolProps {
 	status?: "success" | "error";
 }
 
+// ============================================================================
+// Helper
+// ============================================================================
+
+function extractDomain(url: string): string {
+	try {
+		const hostname = new URL(url).hostname.replace("www.", "");
+		return hostname;
+	} catch {
+		return "";
+	}
+}
+
+// ============================================================================
+// Sub-components
+// ============================================================================
+
+function AnalyzeImageError({ imageUrl, error }: { imageUrl: string; error: string }) {
+	return (
+		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-4 max-w-md">
+			<div className="flex items-center gap-4">
+				<div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+					<AlertCircleIcon className="size-6 text-destructive" />
+				</div>
+				<div className="flex-1 min-w-0">
+					<p className="font-medium text-destructive text-sm">Failed to analyze image</p>
+					<p className="text-muted-foreground text-xs mt-0.5 truncate">{imageUrl}</p>
+					<p className="text-muted-foreground text-xs mt-1">{error}</p>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function ParsedImage({ result }: { result: unknown }) {
+	const image = parseSerializableImage(result);
+
+	return <Image {...image} maxWidth="420px" />;
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export function AnalyzeImageTool({
 	args,
 	result,
 	errored = false,
 	isRunning = false,
+	status,
 }: AnalyzeImageToolProps) {
 	const toolArgs = args as AnalyzeImageArgs;
+	const imageUrl = toolArgs?.imageUrl || "Unknown";
 
 	let toolResult: AnalyzeImageResult | undefined;
 	try {
@@ -44,115 +96,69 @@ export function AnalyzeImageTool({
 		toolResult = undefined;
 	}
 
+	// Loading state
 	if (isRunning) {
-		return <AnalyzeImageLoading imageUrl={toolArgs.imageUrl} />;
+		return (
+			<div className="my-4">
+				<ImageLoading title="Analyzing image..." />
+			</div>
+		);
 	}
 
+	// Error state
 	if (errored || toolResult?.error) {
 		return (
 			<AnalyzeImageError
-				imageUrl={toolArgs.imageUrl}
+				imageUrl={imageUrl}
 				error={toolResult?.error || "Failed to analyze image"}
 			/>
 		);
 	}
 
-	if (!toolResult) {
-		return null;
-	}
-
-	if (toolResult.status === "timeout") {
+	// Timeout / incomplete state
+	if (status === "error" && !toolResult) {
 		return (
-			<Card className="max-w-md">
-				<CardContent className="p-4">
-					<div className="flex items-start gap-3">
-						<div className="size-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-							<ImageIcon className="size-5 text-amber-600 dark:text-amber-400" />
-						</div>
-						<div className="flex-1 min-w-0">
-							<h4 className="font-medium text-sm mb-1">Image Analysis In Progress</h4>
-							<p className="text-xs text-muted-foreground">
-								{toolResult.message || "Analysis is still running. You will be notified when it completes."}
-							</p>
-						</div>
+			<div className="my-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 max-w-md">
+				<div className="flex items-center gap-3">
+					<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+						<EyeIcon className="size-4 text-amber-600" />
 					</div>
-				</CardContent>
-			</Card>
+					<div className="flex-1 min-w-0">
+						<p className="font-medium text-amber-600 text-sm">Image analysis timed out</p>
+						<p className="text-muted-foreground text-xs mt-0.5 truncate">{imageUrl}</p>
+					</div>
+				</div>
+			</div>
 		);
 	}
 
-	return (
-		<Card className="max-w-md overflow-hidden">
-			<CardContent className="p-0">
-				<div className="aspect-video w-full bg-muted relative overflow-hidden">
-					<Image
-						src={toolResult.imageUrl}
-						alt={toolResult.description || "Analyzed image"}
-						fill
-						className="object-cover"
-						sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-					/>
-					<div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs flex items-center gap-1">
-						<EyeIcon className="size-3" />
-						Analyzed
-					</div>
-				</div>
-				{toolResult.description && (
-					<div className="p-4">
-						<h4 className="font-semibold text-sm mb-1">Image Analysis</h4>
-						<p className="text-xs text-muted-foreground line-clamp-4">
-							{toolResult.description}
-						</p>
-					</div>
-				)}
-			</CardContent>
-		</Card>
-	);
-}
-
-function AnalyzeImageLoading({ imageUrl }: { imageUrl: string }): React.ReactElement {
-	return (
-		<Card className="max-w-md">
-			<CardContent className="p-0">
-				<div className="aspect-video w-full bg-muted relative overflow-hidden">
-					<Image
-						src={imageUrl}
-						alt="Analyzing..."
-						fill
-						className="object-cover opacity-60"
-						sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-					/>
-					<div className="absolute inset-0 flex items-center justify-center">
-						<div className="px-3 py-1.5 rounded-md bg-black/60 text-white text-xs flex items-center gap-1.5">
-							<EyeIcon className="size-3.5 animate-pulse" />
-							Analyzing...
-						</div>
-					</div>
-				</div>
-				<div className="p-4">
-					<Skeleton className="h-4 w-3/4 mb-2" />
-					<Skeleton className="h-3 w-1/2" />
-				</div>
-			</CardContent>
-		</Card>
-	);
-}
-
-function AnalyzeImageError({ imageUrl, error }: { imageUrl: string; error: string }) {
-	return (
-		<div className="max-w-md rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-			<div className="flex items-start gap-3">
-				<div className="size-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-					<AlertCircleIcon className="size-4 text-destructive" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<p className="text-sm font-medium text-destructive mb-1">
-						Image analysis failed
-					</p>
-					<p className="text-xs text-muted-foreground truncate mb-2">{imageUrl}</p>
-					<p className="text-xs text-destructive/70">{error}</p>
-				</div>
+	// No result yet
+	if (!toolResult) {
+		return (
+			<div className="my-4">
+				<ImageLoading title="Preparing image analysis..." />
 			</div>
+		);
+	}
+
+	// Build the serializable image data for the shared Image component
+	const serializableResult = {
+		id: `analyze-img-${imageUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32)}`,
+		assetId: `analyze-img-${imageUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32)}`,
+		src: imageUrl,
+		alt: toolResult.description || "Analyzed image",
+		title: "Image Analysis",
+		description: toolResult.description,
+		domain: extractDomain(imageUrl) || undefined,
+		ratio: "16:9" as const,
+	};
+
+	// Success - render the image with error boundary
+	return (
+		<div className="my-4">
+			<ImageErrorBoundary>
+				<ParsedImage result={serializableResult} />
+			</ImageErrorBoundary>
 		</div>
 	);
 }

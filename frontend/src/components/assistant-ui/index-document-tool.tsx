@@ -1,42 +1,30 @@
 "use client";
 
 import { AlertCircleIcon, FileIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+	MediaCard,
+	MediaCardErrorBoundary,
+	MediaCardLoading,
+	parseSerializableMediaCard,
+	type SerializableMediaCard,
+} from "@/components/tool-ui/media-card";
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface IndexDocumentArgs {
-	filePath: string;
 	fileName: string;
+	fileUrl?: string;
+	mimeType?: string;
 }
 
 interface IndexDocumentResult {
-	documentId?: number;
+	documentId?: string | number;
 	title?: string;
-	fileName: string;
-	status: "uploading" | "processing" | "done" | "error" | "timeout";
+	fileName?: string;
 	error?: string;
-	message?: string;
-}
-
-function getMimeIcon(fileName: string): string {
-	const ext = fileName.split(".").pop()?.toLowerCase() || "";
-	const mimeMap: Record<string, string> = {
-		pdf: "📄",
-		doc: "📝",
-		docx: "📝",
-		txt: "📃",
-		md: "📋",
-		csv: "📊",
-		xls: "📊",
-		xlsx: "📊",
-		ppt: "📊",
-		pptx: "📊",
-		png: "🖼️",
-		jpg: "🖼️",
-		jpeg: "🖼️",
-		gif: "🖼️",
-	};
-	return mimeMap[ext] || "📎";
+	[key: string]: unknown;
 }
 
 interface IndexDocumentToolProps {
@@ -47,13 +35,69 @@ interface IndexDocumentToolProps {
 	status?: "success" | "error";
 }
 
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function extractFileExtension(fileName: string): string {
+	const parts = fileName.split(".");
+	if (parts.length > 1) {
+		return parts[parts.length - 1].toUpperCase();
+	}
+	return "File";
+}
+
+// ============================================================================
+// Sub-components
+// ============================================================================
+
+function IndexDocumentError({ fileName, error }: { fileName: string; error: string }) {
+	return (
+		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-4 max-w-md">
+			<div className="flex items-center gap-4">
+				<div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+					<AlertCircleIcon className="size-6 text-destructive" />
+				</div>
+				<div className="flex-1 min-w-0">
+					<p className="font-medium text-destructive text-sm">Failed to index document</p>
+					<p className="text-muted-foreground text-xs mt-0.5 truncate">{fileName}</p>
+					<p className="text-muted-foreground text-xs mt-1">{error}</p>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function ParsedDocumentCard({ result }: { result: unknown }) {
+	const card = parseSerializableMediaCard(result);
+
+	return (
+		<MediaCard
+			{...card}
+			maxWidth="420px"
+			responseActions={[{ id: "open", label: "Open", variant: "default" }]}
+			onResponseAction={(id) => {
+				if (id === "open" && card.href) {
+					window.open(card.href, "_blank", "noopener,noreferrer");
+				}
+			}}
+		/>
+	);
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export function IndexDocumentTool({
 	args,
 	result,
 	errored = false,
 	isRunning = false,
+	status,
 }: IndexDocumentToolProps) {
 	const toolArgs = args as IndexDocumentArgs;
+	const fileName = toolArgs?.fileName || "Unknown file";
 
 	let toolResult: IndexDocumentResult | undefined;
 	try {
@@ -67,108 +111,64 @@ export function IndexDocumentTool({
 	}
 
 	if (isRunning) {
-		return <IndexDocumentLoading fileName={toolArgs.fileName} />;
+		return (
+			<div className="my-4">
+				<MediaCardLoading title={`Indexing ${fileName}...`} />
+			</div>
+		);
 	}
 
 	if (errored || toolResult?.error) {
 		return (
 			<IndexDocumentError
-				fileName={toolArgs.fileName}
+				fileName={fileName}
 				error={toolResult?.error || "Failed to index document"}
 			/>
 		);
 	}
 
-	if (!toolResult) {
-		return null;
-	}
-
-	if (toolResult.status === "timeout") {
+	if (status === "error" && !toolResult) {
 		return (
-			<Card className="max-w-md">
-				<CardContent className="p-4">
-					<div className="flex items-start gap-3">
-						<div className="size-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0 text-lg">
-							{getMimeIcon(toolResult.fileName)}
-						</div>
-						<div className="flex-1 min-w-0">
-							<h4 className="font-medium text-sm mb-1">Document Still Processing</h4>
-							<p className="text-xs text-muted-foreground">
-								{toolResult.message || "Indexing is still in progress. You will be notified when it completes."}
-							</p>
-						</div>
+			<div className="my-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 max-w-md">
+				<div className="flex items-center gap-3">
+					<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+						<FileIcon className="size-4 text-amber-600" />
 					</div>
-				</CardContent>
-			</Card>
+					<div className="flex-1 min-w-0">
+						<p className="font-medium text-amber-600 text-sm">Document indexing timed out</p>
+						<p className="text-muted-foreground text-xs mt-0.5 truncate">{fileName}</p>
+					</div>
+				</div>
+			</div>
 		);
 	}
 
-	return (
-		<Card className="max-w-md">
-			<CardContent className="p-4">
-				<div className="flex items-start gap-3">
-					<div className="size-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0 text-lg">
-						{getMimeIcon(toolResult.fileName)}
-					</div>
-					<div className="flex-1 min-w-0">
-						<h4 className="font-semibold text-sm mb-1 line-clamp-1">
-							{toolResult.title || toolResult.fileName}
-						</h4>
-						<p className="text-xs text-muted-foreground mb-2">
-							Document indexed and searchable
-						</p>
-						{toolResult.documentId && (
-							<span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-								ID: {toolResult.documentId}
-							</span>
-						)}
-					</div>
-				</div>
-			</CardContent>
-		</Card>
-	);
-}
-
-function IndexDocumentLoading({ fileName }: { fileName: string }): React.ReactElement {
-	return (
-		<Card className="max-w-md">
-			<CardContent className="p-4">
-				<div className="flex items-start gap-3">
-					<div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0 text-lg">
-						{getMimeIcon(fileName)}
-					</div>
-					<div className="flex-1 min-w-0">
-						<h4 className="font-medium text-sm mb-1 line-clamp-1">{fileName}</h4>
-						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-							<FileIcon className="size-3 animate-pulse" />
-							Processing document...
-						</div>
-					</div>
-				</div>
-				<div className="mt-3">
-					<Skeleton className="h-3 w-full mb-1" />
-					<Skeleton className="h-3 w-2/3" />
-				</div>
-			</CardContent>
-		</Card>
-	);
-}
-
-function IndexDocumentError({ fileName, error }: { fileName: string; error: string }) {
-	return (
-		<div className="max-w-md rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-			<div className="flex items-start gap-3">
-				<div className="size-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-					<AlertCircleIcon className="size-4 text-destructive" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<p className="text-sm font-medium text-destructive mb-1">
-						Failed to index document
-					</p>
-					<p className="text-xs text-muted-foreground truncate mb-2">{fileName}</p>
-					<p className="text-xs text-destructive/70">{error}</p>
-				</div>
+	if (!toolResult) {
+		return (
+			<div className="my-4">
+				<MediaCardLoading title={`Processing ${fileName}...`} />
 			</div>
+		);
+	}
+
+	const docId = String(toolResult.documentId || fileName.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32));
+	const serializableResult: SerializableMediaCard = {
+		id: docId,
+		assetId: docId,
+		kind: "link",
+		title: toolResult.title || toolResult.fileName || fileName,
+		description: "Document indexed and searchable",
+		domain: extractFileExtension(toolResult.fileName || fileName),
+		href: toolArgs?.fileUrl || undefined,
+		thumb: undefined,
+		ratio: undefined,
+	};
+
+	return (
+		<div className="my-4">
+			<MediaCardErrorBoundary>
+				<ParsedDocumentCard result={serializableResult} />
+			</MediaCardErrorBoundary>
 		</div>
 	);
 }
