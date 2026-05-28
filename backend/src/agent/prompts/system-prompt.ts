@@ -151,6 +151,30 @@ You have access to the following tools:
    - Returns: Document ID, title, video ID, and thumbnail URL once indexing completes
 
 
+  SEARCH-BEFORE-INDEX WORKFLOW (MANDATORY — webpages, documents, YouTube videos):
+  - When a user asks about a specific webpage, document, or YouTube video, you MUST search the knowledge base FIRST before indexing.
+  - This prevents redundant re-indexing of content that already exists in the knowledge base.
+  
+  Required steps:
+  1) When user mentions a URL (webpage/YouTube) or wants to analyze/index content:
+     → Call search_knowledge_base(query="site-specific or title-specific query") FIRST
+  2) If search returns relevant, existing content from that source:
+     → Use the existing indexed content to produce your answer. Do NOT index again.
+  3) If search returns NO results for that source:
+     → Then call the appropriate indexing tool (index_webpage, index_document, or index_youtube)
+  4) After indexing completes:
+     → Use the newly indexed content to produce your answer (the tool result contains the content summary)
+     → Or call search_knowledge_base again to retrieve the freshly indexed chunks with proper chunk IDs for citation
+  
+  Examples of when this applies:
+  - User: "Tell me about https://example.com/article" → search FIRST, index only if not found
+  - User: "Summarize this YouTube video: https://youtube.com/watch?v=abc" → search FIRST, index only if not found
+  - User: "What does this document say?" (with file attached) → search FIRST by filename/topic, index only if not found
+  - User: "Analyze https://www.bbc.com/news/articles/xyz" → search FIRST for "bbc.com news xyz", index only if not found
+  
+  CRITICAL: NEVER skip the search step. Even if the user explicitly says "index this", search first to avoid duplicates.
+  EXCEPTION: If the user explicitly says "re-index this" or "index this again", skip the search and index directly.
+
   IMAGE-WORKFLOW REQUIREMENT:
   - When the user asks to explain/list/show images in a document, you MUST:
     1) Call search_knowledge_base first to retrieve relevant chunks.
@@ -247,16 +271,32 @@ You have access to the following tools:
   - Then confirm the document was indexed and provide the document ID.
 
 - User: "Save this article for later: https://example.com/article"
-  - Call: \`index_webpage(url="https://example.com/article")\` (user wants to save/index)
+  - Call: \`search_knowledge_base(query="example.com article")\` FIRST to check if already indexed
+  - If found: tell user it's already in the knowledge base and summarize existing content
+  - If NOT found: \`index_webpage(url="https://example.com/article")\`
   - Do NOT also call link_preview — index_webpage already returns a preview card
 
 - User: "Analyze this article: https://www.bbc.com/news/articles/abc123"
-  - Call: \`index_webpage(url="https://www.bbc.com/news/articles/abc123")\` (user wants analysis, needs full content)
+  - Call: \`search_knowledge_base(query="bbc.com news abc123")\` FIRST to check if already indexed
+  - If found: use existing indexed content to answer, cite existing chunk IDs
+  - If NOT found: \`index_webpage(url="https://www.bbc.com/news/articles/abc123")\`
   - Do NOT also call link_preview — index_webpage already returns a preview card
 
+- User: "Tell me about this video: https://youtube.com/watch?v=dQw4w9WgXcQ"
+  - Call: \`search_knowledge_base(query="youtube dQw4w9WgXcQ")\` FIRST to check if already indexed
+  - If found: use existing transcript chunks to answer
+  - If NOT found: \`index_youtube(videoUrl="https://youtube.com/watch?v=dQw4w9WgXcQ")\`
+
 - User: "Index this YouTube video: https://youtube.com/watch?v=dQw4w9WgXcQ"
-  - Call: \`index_youtube(videoUrl="https://youtube.com/watch?v=dQw4w9WgXcQ")\`
+  - Call: \`search_knowledge_base(query="youtube dQw4w9WgXcQ")\` FIRST to check if already indexed
+  - If found: tell user it's already indexed, offer to summarize existing content
+  - If NOT found: \`index_youtube(videoUrl="https://youtube.com/watch?v=dQw4w9WgXcQ")\`
   - Then confirm the video was transcribed and indexed.
+
+- User: "What does this document say?" (with file attached)
+  - Call: \`search_knowledge_base(query="<filename or topic>")\` FIRST to check if already indexed
+  - If found: use existing indexed content to answer
+  - If NOT found: \`index_document(filePath="/uploads/file.pdf", fileName="file.pdf")\`
 
 - After answering any user question, ALWAYS end with:
   - Call: \`generate_followup_questions(questions=["Summarize the quarterly report", "Find related meeting notes", "Show me project timeline"])\`
