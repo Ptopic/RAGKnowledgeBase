@@ -16,26 +16,6 @@ const nextConfig = {
 			},
 		],
 	},
-	headers: async () => [
-		{
-			source: "/:path*",
-			headers: [
-				{
-					key: "Cache-Control",
-					value: "public, max-age=0, must-revalidate",
-				},
-			],
-		},
-		{
-			source: "/_next/static/:path*",
-			headers: [
-				{
-					key: "Cache-Control",
-					value: "public, max-age=31536000, immutable",
-				},
-			],
-		},
-	],
   webpack: (config, { webpack }) => {
     config.plugins.push(
       new webpack.IgnorePlugin({ resourceRegExp: /^electron$/ }),
