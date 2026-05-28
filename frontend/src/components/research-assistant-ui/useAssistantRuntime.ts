@@ -554,30 +554,9 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	const isRunning = stream.isLoading;
 
 	const messageRepository = useMemo(() => {
-		if (typeof window !== "undefined") {
-			console.log("[ACCUM_DEBUG] accumulatedMessages:", accumulatedMessages.map((m: any) => ({
-				id: m.id,
-				type: m.type,
-				toolCallId: m.tool_call_id,
-				name: m.name,
-				contentPreview: typeof m.content === "string" ? m.content.slice(0, 60) : `[${(m.content as any[])?.length ?? 0} blocks]`,
-				contentBlocks: Array.isArray((m as any).contentBlocks) ? (m as any).contentBlocks.map((b: any) => b.type) : undefined,
-				toolCalls: Array.isArray(m.tool_calls) ? m.tool_calls.map((tc: any) => ({ id: tc.id, name: tc.name })) : undefined,
-			})));
-		}
-
 		const threadMessages = toThreadMessages(
 			accumulatedMessages as unknown as readonly BaseMessage[],
 		);
-
-		if (typeof window !== "undefined") {
-			console.log("[THREAD_DEBUG] threadMessages:", threadMessages.map((m, i) => ({
-				idx: i,
-				role: m.role,
-				id: m.id,
-				contentTypes: Array.isArray(m.content) ? m.content.map((p: any) => p.type === "tool-call" ? `tool-call:${p.toolName}(${p.toolCallId})` : p.type === "source" ? `source:${p.title}` : p.type) : "string",
-			})));
-		}
 
 		if (streamError && threadMessages.length > 0) {
 			const lastIdx = threadMessages.findLastIndex(
