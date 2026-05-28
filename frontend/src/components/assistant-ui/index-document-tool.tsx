@@ -37,27 +37,7 @@ function extractFileExtension(fileName: string): string {
 	return "FILE";
 }
 
-function getExtensionColor(ext: string): string {
-	switch (ext) {
-		case "PDF":
-			return "bg-red-500/10 text-red-600";
-		case "DOC":
-		case "DOCX":
-			return "bg-blue-500/10 text-blue-600";
-		case "TXT":
-		case "MD":
-			return "bg-gray-500/10 text-gray-600";
-		case "CSV":
-		case "XLS":
-		case "XLSX":
-			return "bg-green-500/10 text-green-600";
-		case "PPT":
-		case "PPTX":
-			return "bg-orange-500/10 text-orange-600";
-		default:
-			return "bg-primary/10 text-primary";
-	}
-}
+const INDEX_DOC_COLOR = "bg-sky-500/10 text-sky-600";
 
 function IndexDocumentError({ fileName, error }: { fileName: string; error: string }) {
 	return (
@@ -86,17 +66,16 @@ function DocumentCard({
 	description?: string;
 }) {
 	const ext = extractFileExtension(fileName);
-	const colorClass = getExtensionColor(ext);
 
 	return (
 		<div className="my-4 max-w-md rounded-xl border bg-card transition-all hover:shadow-md hover:border-primary/20">
 			<div className="flex items-center gap-4 p-4">
-				<div className={`flex size-14 shrink-0 items-center justify-center rounded-xl ${colorClass}`}>
+				<div className={`flex size-14 shrink-0 items-center justify-center rounded-xl ${INDEX_DOC_COLOR}`}>
 					<FileTextIcon className="size-7" />
 				</div>
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-2 mb-1">
-						<span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider ${colorClass}`}>
+						<span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider ${INDEX_DOC_COLOR}`}>
 							{ext}
 						</span>
 						<span className="text-xs text-muted-foreground">Indexed</span>

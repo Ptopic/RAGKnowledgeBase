@@ -4,6 +4,7 @@ import { FileText, Paperclip, PlusIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { type FC, useMemo, useRef } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { getChatAcceptString } from "@/lib/accepted-file-types";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -35,14 +36,14 @@ export const ComposerAddAttachment: FC<ComposerAddAttachmentProps> = ({ onAdd })
 		if (files.length === 0) return;
 
 		const mapped: ChatAttachment[] = files.map((file) => {
-			const isImage = file.type.startsWith("image/");
-			return {
-				id: `${Date.now()}_${file.name}`,
-				name: file.name,
-				type: isImage ? "image" : "file",
-				file,
-				previewUrl: isImage ? URL.createObjectURL(file) : undefined,
-			};
+		const isImage = file.type.startsWith("image/");
+		return {
+			id: `${Date.now()}_${file.name}`,
+			name: file.name,
+			type: isImage ? "image" : "file",
+			file,
+			previewUrl: isImage ? URL.createObjectURL(file) : undefined,
+		};
 		});
 
 		onAdd(mapped);
@@ -75,7 +76,7 @@ export const ComposerAddAttachment: FC<ComposerAddAttachmentProps> = ({ onAdd })
 				type="file"
 				multiple
 				className="hidden"
-				accept="image/*,application/pdf,.doc,.docx,.txt"
+				accept={getChatAcceptString()}
 				onChange={handleChange}
 			/>
 		</>
