@@ -22,7 +22,6 @@ import type { ToolDependencies } from "../types/agent-types";
 			if (!isDataUrl && !isHttpUrl) {
 				return JSON.stringify({
 					error: "Image URL must be HTTP/HTTPS or a data:image/ URL",
-					imageUrl,
 					status: "error",
 				});
 			}
@@ -31,7 +30,6 @@ import type { ToolDependencies } from "../types/agent-types";
 			if (!imageAnalysisService) {
 				return JSON.stringify({
 					error: "Image analysis service is not available",
-					imageUrl,
 					status: "error",
 				});
 			}
@@ -44,13 +42,12 @@ import type { ToolDependencies } from "../types/agent-types";
 				if (!results.length || !results[0].description) {
 					return JSON.stringify({
 						error: "Vision analysis returned no description for this image",
-						imageUrl,
+						imageUrlPrefix: imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 30)}...` : imageUrl,
 						status: "error",
 					});
 				}
 
 				return JSON.stringify({
-					imageUrl,
 					description: results[0].description,
 					status: "done",
 				});
@@ -59,7 +56,6 @@ import type { ToolDependencies } from "../types/agent-types";
 					error instanceof Error ? error.message : "Unknown error";
 				return JSON.stringify({
 					error: `Failed to analyze image: ${message}`,
-					imageUrl,
 					status: "error",
 				});
 			}

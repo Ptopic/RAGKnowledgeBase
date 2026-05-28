@@ -422,16 +422,6 @@ function attachToolResult(
 	// (e.g., ID collision causing a later text-only AI message to replace
 	// the tool-calling AI message in the client-side accumulatedMessages).
 	const toolName = (toolMessage as any).name;
-	const allToolCallIds = threadMessages.flatMap((m) =>
-		m.role === "assistant" && Array.isArray(m.content)
-			? m.content
-					.filter((p): p is ToolCallMessagePart => p.type === "tool-call")
-					.map((p) => `${p.toolCallId}:${p.toolName}`)
-			: [],
-	);
-	console.warn(
-		`[attachToolResult] No match for tool_call_id="${toolMessage.tool_call_id}" name="${toolName}". Existing tool-call parts: [${allToolCallIds.join(", ")}]`,
-	);
 	if (typeof toolName === "string") {
 		const parsedResult = toToolResult(
 			toolMessage.content,
