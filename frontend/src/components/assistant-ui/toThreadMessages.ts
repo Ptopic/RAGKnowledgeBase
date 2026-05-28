@@ -1,4 +1,5 @@
 import type {
+	SourceMessagePart,
 	ThreadAssistantMessagePart,
 	ThreadMessageLike,
 	ThreadUserMessagePart,
@@ -248,6 +249,59 @@ function toAssistantThreadContent(
 	return parts;
 }
 
+	type SourceMetadataItem = {
+		id: string;
+		title: string;
+		url: string;
+		type: string;
+		ogImage?: string;
+	};
+
+	function extractSourcesFromToolResult(
+		parsedResult: unknown,
+		seenSourceIds: Set<string>,
+	): ThreadAssistantMessagePart[] {
+		if (!parsedResult) return [];
+
+		const resultObj =
+			typeof parsedResult === "string"
+				? (() => {
+						try {
+							return JSON.parse(parsedResult);
+						} catch {
+							return null;
+						}
+					})()
+				: parsedResult;
+
+		if (!resultObj || typeof resultObj !== "object" || !("sources" in resultObj))
+			return [];
+
+		const sources = (resultObj as { sources: unknown }).sources;
+		if (!Array.isArray(sources)) return [];
+
+		const sourceParts: ThreadAssistantMessagePart[] = [];
+
+		for (const src of sources) {
+			if (!src || typeof src !== "object") continue;
+			const s = src as SourceMetadataItem;
+			const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
+			if (seenSourceIds.has(sourceId)) continue;
+			seenSourceIds.add(sourceId);
+
+			const isDocument = s.type === "FILE" || !s.url;
+			sourceParts.push({
+				type: "source",
+				sourceType: isDocument ? "document" : "url",
+				id: sourceId,
+				url: s.url ?? "",
+				title: s.title,
+			} as ThreadAssistantMessagePart);
+		}
+
+		return sourceParts;
+	}
+
 function attachToolResult(
 	threadMessages: ThreadMessageLike[],
 	toolMessage: LangChainToolMessage,
@@ -274,20 +328,28 @@ function attachToolResult(
 			toolMessage.artifact,
 		);
 
-		const updatedContent = message.content.map((part): typeof part => {
-			if (
-				part.type !== "tool-call" ||
-				part.toolCallId !== toolMessage.tool_call_id
-			) {
-				return part;
-			}
+		const sourceParts = extractSourcesFromToolResult(
+			parsedResult,
+			seenSourceIds,
+		);
 
-			return {
-				...part,
-				isError: toolMessage.status === "error",
-				result: parsedResult,
-			};
-		});
+		const updatedContent = [
+			...message.content.map((part): typeof part => {
+				if (
+					part.type !== "tool-call" ||
+					part.toolCallId !== toolMessage.tool_call_id
+				) {
+					return part;
+				}
+
+				return {
+					...part,
+					isError: toolMessage.status === "error",
+					result: parsedResult,
+				};
+			}),
+			...sourceParts,
+		];
 
 		threadMessages[index] = { ...message, content: updatedContent };
 		return;
@@ -350,13 +412,24 @@ function mergeConsecutiveAssistantMessages(
 			}
 		}
 
-	return merged;
+		for (const msg of merged) {
+			if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+			const sources = msg.content.filter(
+				(p): p is SourceMessagePart => p.type === "source",
+			);
+			if (sources.length === 0) continue;
+			const rest = msg.content.filter((p) => p.type !== "source");
+			msg.content = [...rest, ...sources];
+		}
+
+		return merged;
 }
 
 export function toThreadMessages(
 	messages: readonly BaseMessage[],
 ): ThreadMessageLike[] {
 	const threadMessages: ThreadMessageLike[] = [];
+	const seenSourceIds = new Set<string>();
 
 	for (let index = 0; index < messages.length; index += 1) {
 		const message = messages[index] as BaseMessage;
