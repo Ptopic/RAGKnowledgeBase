@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
 interface SearchKnowledgeBaseArgs {
 	query: string;
 	search_space_id: string;
-	limit?: number;
+	top_k?: number;
+	title_filter?: string;
+	connectors_to_search?: string[];
 	filters?: Record<string, string | number | boolean>;
 }
 
@@ -80,12 +82,25 @@ export function SearchKnowledgeBaseTool({
 			}
 		}
 	} catch {
-		if (typeof result === "string" && result.startsWith("<documents>")) {
-			toolResult = {
-				query: toolArgs.query || "",
-				results: [],
-				total: 0,
-			};
+		if (typeof result === "string") {
+			if (result.startsWith("<documents>")) {
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: 0,
+				};
+			} else if (
+				result.toLowerCase().includes("no relevant") ||
+				result.toLowerCase().includes("no results") ||
+				result.toLowerCase().includes("not found") ||
+				result.toLowerCase().includes("no documents")
+			) {
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: 0,
+				};
+			}
 		}
 	}
 
@@ -106,17 +121,32 @@ export function SearchKnowledgeBaseTool({
 		return null;
 	}
 
+	const isTitleFilterCheck = Boolean(toolArgs?.title_filter);
+	const noResults = sourceCount === 0 && (!toolResult.results || toolResult.results.length === 0);
+
 	return (
 		<Card className="max-w-2xl">
 			<CardHeader className="pb-3">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						<div className="size-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-							<SearchIcon className="size-4 text-blue-600 dark:text-blue-400" />
+						<div className={cn(
+							"size-8 rounded-lg flex items-center justify-center",
+							isTitleFilterCheck && noResults
+								? "bg-amber-100 dark:bg-amber-900/30"
+								: "bg-blue-100 dark:bg-blue-900/30"
+						)}>
+							<SearchIcon className={cn(
+								"size-4",
+								isTitleFilterCheck && noResults
+									? "text-amber-600 dark:text-amber-400"
+									: "text-blue-600 dark:text-blue-400"
+							)} />
 						</div>
-						<CardTitle className="text-base">Search Results</CardTitle>
+						<CardTitle className="text-base">
+							{isTitleFilterCheck && noResults ? "Not Found in Knowledge Base" : "Search Results"}
+						</CardTitle>
 					</div>
-					{typeof toolResult.total === "number" && (
+					{typeof toolResult.total === "number" && !noResults && (
 						<span className="text-xs text-muted-foreground">
 							{toolResult.total} {toolResult.total === 1 ? "result" : "results"}
 						</span>
@@ -125,11 +155,20 @@ export function SearchKnowledgeBaseTool({
 				{toolResult.query && (
 					<p className="text-sm text-muted-foreground pl-10">
 						Query: &quot;{toolResult.query}&quot;
+						{toolArgs?.title_filter && (
+							<span className="text-xs ml-2 opacity-70">
+								(filtered by title: &quot;{toolArgs.title_filter}&quot;)
+							</span>
+						)}
 					</p>
 				)}
 			</CardHeader>
 			<CardContent className="pt-0">
-				{sourceCount > 0 ? (
+				{isTitleFilterCheck && noResults ? (
+					<p className="text-sm text-amber-600 dark:text-amber-400 pl-10">
+						No matching documents found
+					</p>
+				) : sourceCount > 0 ? (
 					<p className="text-sm text-muted-foreground pl-10">
 						Found {sourceCount} {sourceCount === 1 ? "source" : "sources"} in knowledge base
 					</p>

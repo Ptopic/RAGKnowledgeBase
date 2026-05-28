@@ -1,17 +1,10 @@
 "use client";
 
-import { AlertCircleIcon, FileIcon } from "lucide-react";
+import { AlertCircleIcon, FileTextIcon } from "lucide-react";
 import {
-	MediaCard,
 	MediaCardErrorBoundary,
 	MediaCardLoading,
-	parseSerializableMediaCard,
-	type SerializableMediaCard,
 } from "@/components/tool-ui/media-card";
-
-// ============================================================================
-// Types
-// ============================================================================
 
 interface IndexDocumentArgs {
 	fileName: string;
@@ -24,6 +17,7 @@ interface IndexDocumentResult {
 	title?: string;
 	fileName?: string;
 	error?: string;
+	sources?: Array<{ id: string; title: string; url: string; type: string }>;
 	[key: string]: unknown;
 }
 
@@ -35,21 +29,35 @@ interface IndexDocumentToolProps {
 	status?: "success" | "error";
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
 function extractFileExtension(fileName: string): string {
 	const parts = fileName.split(".");
 	if (parts.length > 1) {
 		return parts[parts.length - 1].toUpperCase();
 	}
-	return "File";
+	return "FILE";
 }
 
-// ============================================================================
-// Sub-components
-// ============================================================================
+function getExtensionColor(ext: string): string {
+	switch (ext) {
+		case "PDF":
+			return "bg-red-500/10 text-red-600";
+		case "DOC":
+		case "DOCX":
+			return "bg-blue-500/10 text-blue-600";
+		case "TXT":
+		case "MD":
+			return "bg-gray-500/10 text-gray-600";
+		case "CSV":
+		case "XLS":
+		case "XLSX":
+			return "bg-green-500/10 text-green-600";
+		case "PPT":
+		case "PPTX":
+			return "bg-orange-500/10 text-orange-600";
+		default:
+			return "bg-primary/10 text-primary";
+	}
+}
 
 function IndexDocumentError({ fileName, error }: { fileName: string; error: string }) {
 	return (
@@ -68,26 +76,44 @@ function IndexDocumentError({ fileName, error }: { fileName: string; error: stri
 	);
 }
 
-function ParsedDocumentCard({ result }: { result: unknown }) {
-	const card = parseSerializableMediaCard(result);
+function DocumentCard({
+	title,
+	fileName,
+	description,
+}: {
+	title: string;
+	fileName: string;
+	description?: string;
+}) {
+	const ext = extractFileExtension(fileName);
+	const colorClass = getExtensionColor(ext);
 
 	return (
-		<MediaCard
-			{...card}
-			maxWidth="420px"
-			responseActions={[{ id: "open", label: "Open", variant: "default" }]}
-			onResponseAction={(id) => {
-				if (id === "open" && card.href) {
-					window.open(card.href, "_blank", "noopener,noreferrer");
-				}
-			}}
-		/>
+		<div className="my-4 max-w-md rounded-xl border bg-card transition-all hover:shadow-md hover:border-primary/20">
+			<div className="flex items-center gap-4 p-4">
+				<div className={`flex size-14 shrink-0 items-center justify-center rounded-xl ${colorClass}`}>
+					<FileTextIcon className="size-7" />
+				</div>
+				<div className="flex-1 min-w-0">
+					<div className="flex items-center gap-2 mb-1">
+						<span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider ${colorClass}`}>
+							{ext}
+						</span>
+						<span className="text-xs text-muted-foreground">Indexed</span>
+					</div>
+					<h3 className="font-semibold text-foreground text-sm leading-tight truncate">
+						{title}
+					</h3>
+					{description && (
+						<p className="mt-1 text-muted-foreground text-xs leading-relaxed line-clamp-2">
+							{description}
+						</p>
+					)}
+				</div>
+			</div>
+		</div>
 	);
 }
-
-// ============================================================================
-// Main Component
-// ============================================================================
 
 export function IndexDocumentTool({
 	args,
@@ -132,7 +158,7 @@ export function IndexDocumentTool({
 			<div className="my-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 max-w-md">
 				<div className="flex items-center gap-3">
 					<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-						<FileIcon className="size-4 text-amber-600" />
+						<FileTextIcon className="size-4 text-amber-600" />
 					</div>
 					<div className="flex-1 min-w-0">
 						<p className="font-medium text-amber-600 text-sm">Document indexing timed out</p>
@@ -151,23 +177,14 @@ export function IndexDocumentTool({
 		);
 	}
 
-	const docId = String(toolResult.documentId || fileName.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32));
-	const serializableResult: SerializableMediaCard = {
-		id: docId,
-		assetId: docId,
-		kind: "link",
-		title: toolResult.title || toolResult.fileName || fileName,
-		description: "Document indexed and searchable",
-		domain: extractFileExtension(toolResult.fileName || fileName),
-		href: toolArgs?.fileUrl || undefined,
-		thumb: undefined,
-		ratio: undefined,
-	};
-
 	return (
 		<div className="my-4">
 			<MediaCardErrorBoundary>
-				<ParsedDocumentCard result={serializableResult} />
+				<DocumentCard
+					title={toolResult.title || toolResult.fileName || fileName}
+					fileName={toolResult.fileName || fileName}
+					description="Document indexed and searchable in your knowledge base"
+				/>
 			</MediaCardErrorBoundary>
 		</div>
 	);

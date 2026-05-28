@@ -19,6 +19,7 @@ interface AnalyzeImageArgs {
 
 interface AnalyzeImageResult {
 	description?: string;
+	previewUrl?: string;
 	error?: string;
 	[key: string]: unknown;
 }
@@ -141,24 +142,42 @@ export function AnalyzeImageTool({
 		);
 	}
 
-	// Build the serializable image data for the shared Image component
-	const serializableResult = {
-		id: `analyze-img-${imageUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32)}`,
-		assetId: `analyze-img-${imageUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32)}`,
-		src: imageUrl,
-		alt: toolResult.description || "Analyzed image",
-		title: "Image Analysis",
-		description: toolResult.description,
-		domain: extractDomain(imageUrl) || undefined,
-		ratio: "16:9" as const,
-	};
+	// Success - render image preview + analysis description
+	const displayUrl = toolResult.previewUrl || (imageUrl.startsWith("http") ? imageUrl : undefined);
 
-	// Success - render the image with error boundary
+	if (displayUrl) {
+		const serializableResult = {
+			id: `analyze-img-${displayUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32)}`,
+			assetId: `analyze-img-${displayUrl.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 32)}`,
+			src: displayUrl,
+			alt: toolResult.description || "Analyzed image",
+			title: "Image Analysis",
+			description: toolResult.description,
+			domain: extractDomain(displayUrl) || undefined,
+			ratio: "16:9" as const,
+		};
+
+		return (
+			<div className="my-4">
+				<ImageErrorBoundary>
+					<ParsedImage result={serializableResult} />
+				</ImageErrorBoundary>
+			</div>
+		);
+	}
+
+	// No preview URL available (uploaded:// ref without S3 upload) — text-only fallback
 	return (
-		<div className="my-4">
-			<ImageErrorBoundary>
-				<ParsedImage result={serializableResult} />
-			</ImageErrorBoundary>
+		<div className="my-4 max-w-md rounded-xl border border-border bg-muted/30 p-4">
+			<div className="flex items-center gap-3 mb-3">
+				<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
+					<EyeIcon className="size-4 text-blue-600" />
+				</div>
+				<p className="font-medium text-sm">Image Analysis</p>
+			</div>
+			<p className="text-sm text-muted-foreground leading-relaxed">
+				{toolResult.description}
+			</p>
 		</div>
 	);
 }
