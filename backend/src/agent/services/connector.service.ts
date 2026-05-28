@@ -286,7 +286,7 @@ export class ConnectorService {
 			// Transform results to Document format
 			const chunks: Document[] = results.map((result) => {
 				const document = result.document || result;
-				const metadata = document.documentMetadata || {};
+				const metadata = document.metadata || document.documentMetadata || {};
 
 				return {
 					chunk_id: result.chunk_id || this.getNextSourceId(),
