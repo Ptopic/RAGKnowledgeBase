@@ -577,22 +577,13 @@ function AssistantMessage() {
 					}
 				>
 					<div className="mt-4 flex flex-wrap gap-2">
-						{followUpQuestions && followUpQuestions.length > 0 ? (
+						{followUpQuestions &&
+							followUpQuestions.length > 0 &&
 							followUpQuestions.map((q) => (
 								<SuggestionButton key={q} prompt={q}>
 									{q}
 								</SuggestionButton>
-							))
-						) : (
-							<>
-								<SuggestionButton prompt="Tell me more">
-									Tell me more
-								</SuggestionButton>
-								<SuggestionButton prompt="Can you explain differently?">
-									Explain differently
-								</SuggestionButton>
-							</>
-						)}
+							))}
 					</div>
 				</AuiIf>
 			)}
