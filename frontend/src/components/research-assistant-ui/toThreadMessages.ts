@@ -484,11 +484,13 @@ export function toThreadMessages(
 		const messageId = message.id ?? fallbackId;
 
 		if (message.type === "human") {
-			const content = toUserThreadContent(message.content);
-			const imageParts = content.filter(
+			const allContent = toUserThreadContent(message.content);
+			const imageParts = allContent.filter(
 				(part): part is { type: "image"; image: string } =>
 					part.type === "image" && typeof part.image === "string",
 			);
+			// Images render via UserMessageAttachments only, not inline in the bubble
+			const content = allContent.filter((part) => part.type !== "image");
 
 			threadMessages.push({
 				content,

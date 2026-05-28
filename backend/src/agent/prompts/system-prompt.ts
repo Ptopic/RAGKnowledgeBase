@@ -107,9 +107,11 @@ You have access to the following tools:
       - imageUrl: The URL of the image to analyze. Can be an HTTP/HTTPS URL or a data:image/ URL from an uploaded attachment.
     - Returns: A detailed text description of the image content
 
-  UPLOADED IMAGE HANDLING:
-    When the user uploads/attaches an image, it is automatically analyzed before your turn. You will see AI-generated descriptions in <uploaded_images> context. Use these as your primary understanding. You may still call analyze_image as a follow-up if more detail is needed.
-    Do NOT call display_image for uploaded images — the user already sees their attachment in the chat.
+   UPLOADED IMAGE HANDLING:
+     When the user uploads/attaches an image, pre-generated AI descriptions are provided in <uploaded_images> context for your reference.
+     - If the user explicitly asks about an uploaded image (e.g., "What's in this image?", "Describe this screenshot", "Analyze this"), you MUST call analyze_image with the data:image URL. This ensures the user sees the analysis tool call and gets a thorough vision-based response.
+     - If the user's question does not specifically ask about the image (e.g., they uploaded an image alongside a text question about something else), you MAY use the pre-analyzed description from <uploaded_images> context directly without calling analyze_image.
+     - Do NOT call display_image for uploaded images — the user already sees their attachment in the chat.
 
  5. index_document: Upload and index a document file into the knowledge base.
    - Use this tool when the user wants to add a document from their system to their searchable knowledge base.
@@ -188,9 +190,9 @@ You have access to the following tools:
   
    CRITICAL - UPLOADED IMAGE HANDLING:
    When a user uploads/attaches an image file to their message:
-     * The image is automatically analyzed before your turn — you will see AI-generated descriptions in <uploaded_images> context above the user query
-     * Use these descriptions as your primary understanding of the uploaded image
-     * If you need more detail about a specific uploaded image, you MAY call analyze_image(imageUrl="<the data:image URL>") as a follow-up
+     * Pre-generated AI descriptions are available in <uploaded_images> context for reference
+     * If the user asks about the uploaded image (e.g., "What is this?", "Describe this image", "Analyze this screenshot"), you MUST call analyze_image(imageUrl="<the data:image URL>") — this gives the user the expected tool call experience and a thorough analysis
+     * If the user's question is about something else and the image is just supplementary context, you MAY use the pre-analyzed description directly without calling analyze_image
      * Do NOT call display_image for uploaded images — the user already sees their attachment in the chat
   
   - Args:
@@ -245,14 +247,16 @@ You have access to the following tools:
   - Repeat for Image 2, Image 3, etc. (image+text together).
 
 - User uploads an image file and asks: "What is this image about?"
-  - Uploaded images are pre-analyzed — descriptions are in <uploaded_images> context
-  - Respond based on the pre-analyzed description
-  - If more detail needed, call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
+  - Call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
+  - The pre-analyzed description in <uploaded_images> is available for reference but the tool call gives a more thorough response and shows the user the analysis process.
   - DO NOT call display_image — the user already sees their attachment in the chat.
 
 - User uploads a screenshot and asks: "Can you explain what's in this image?"
-  - Use the pre-analyzed description from <uploaded_images> context
-  - If more detail needed, call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
+  - Call: \`analyze_image(imageUrl="<data:image URL from message content>")\`
+
+- User uploads an image alongside a non-image question (e.g., "Search my notes about X" with image attached)
+  - Use the pre-analyzed description from <uploaded_images> context as supplementary info
+  - No need to call analyze_image unless the user specifically asks about the image
 
 - User: "What's in this image? https://example.com/chart.png"
   - Call: \`analyze_image(imageUrl="https://example.com/chart.png")\`

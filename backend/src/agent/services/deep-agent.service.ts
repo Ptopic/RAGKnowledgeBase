@@ -242,7 +242,7 @@ export class DeepAgentService {
 				}
 
 				if (imageDescriptions.length > 0) {
-					const imageContext = `<uploaded_images>\nThe user has uploaded ${imageDescriptions.length} image(s). Here are the AI-generated descriptions:\n\n${imageDescriptions.join("\n\n")}\n\nUse these descriptions as context. You may still call analyze_image if you need more detail about a specific image (pass the original data:image URL).\n</uploaded_images>`;
+					const imageContext = `<uploaded_images>\nThe user has uploaded ${imageDescriptions.length} image(s). Pre-generated AI descriptions for reference:\n\n${imageDescriptions.join("\n\n")}\n\nThese descriptions are provided as reference context. If the user explicitly asks about an uploaded image, you MUST call analyze_image with the original data:image URL — do not just paraphrase these descriptions as your answer.\n</uploaded_images>`;
 
 					const textBlock = humanMessageContent.find(
 						(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
