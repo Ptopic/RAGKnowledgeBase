@@ -1,8 +1,9 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { ToolDependencies } from "../types/agent-types";
 
-	export function createAnalyzeImageTool(deps: ToolDependencies) {
+export function createAnalyzeImageTool(deps: ToolDependencies) {
 	return new DynamicStructuredTool({
 		name: "analyze_image",
 		description:
@@ -10,18 +11,30 @@ import type { ToolDependencies } from "../types/agent-types";
 		schema: z.object({
 			imageUrl: z
 				.string()
-				.describe("The URL of the image to analyze. Can be an HTTP/HTTPS URL or a data:image/ URL from an uploaded attachment."),
+				.describe("The URL of the image to analyze. Can be an HTTP/HTTPS URL, a data:image/ URL, or an uploaded:// reference (e.g. uploaded://1 for the first uploaded image)."),
 		}),
 		func: async ({ imageUrl }) => {
-			console.log(`[IMG_DEBUG][analyze_image] Called with imageUrl type: ${typeof imageUrl}, length: ${imageUrl?.length}, startsWithData: ${imageUrl?.startsWith("data:")}, startsWithHttp: ${imageUrl?.startsWith("http")}`);
-			console.log(`[IMG_DEBUG][analyze_image] imageUrl prefix: ${imageUrl?.substring(0, 80)}...`);
+			// Resolve uploaded://N references to actual URLs
+			let resolvedUrl = imageUrl;
+			if (imageUrl.startsWith("uploaded://")) {
+				const uploadedMap = deps.uploadedImageUrls;
+				const resolved = uploadedMap?.get(imageUrl);
+				if (resolved) {
+					resolvedUrl = resolved;
+				} else {
+					return JSON.stringify({
+						error: `Unknown uploaded image reference: ${imageUrl}. Available: ${uploadedMap ? Array.from(uploadedMap.keys()).join(", ") : "none"}`,
+						status: "error",
+					});
+				}
+			}
 
-			const isDataUrl = imageUrl.startsWith("data:image/");
-			const isHttpUrl = /^https?:\/\//i.test(imageUrl);
+			const isDataUrl = resolvedUrl.startsWith("data:image/");
+			const isHttpUrl = /^https?:\/\//i.test(resolvedUrl);
 
 			if (!isDataUrl && !isHttpUrl) {
 				return JSON.stringify({
-					error: "Image URL must be HTTP/HTTPS or a data:image/ URL",
+					error: "Image URL must be HTTP/HTTPS, a data:image/ URL, or an uploaded:// reference",
 					status: "error",
 				});
 			}
@@ -34,21 +47,30 @@ import type { ToolDependencies } from "../types/agent-types";
 				});
 			}
 
+			// Upload image to S3 for a persistent preview URL
+			let previewUrl: string | undefined;
+			try {
+				previewUrl = await uploadToS3(resolvedUrl, deps);
+			} catch {
+				// Non-fatal: analysis still works, just no preview
+			}
+
 			try {
 				const results = await imageAnalysisService.describeImages([
-					{ url: imageUrl },
+					{ url: resolvedUrl },
 				]);
 
 				if (!results.length || !results[0].description) {
 					return JSON.stringify({
 						error: "Vision analysis returned no description for this image",
-						imageUrlPrefix: imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 30)}...` : imageUrl,
+						previewUrl,
 						status: "error",
 					});
 				}
 
 				return JSON.stringify({
 					description: results[0].description,
+					previewUrl,
 					status: "done",
 				});
 			} catch (error) {
@@ -56,9 +78,41 @@ import type { ToolDependencies } from "../types/agent-types";
 					error instanceof Error ? error.message : "Unknown error";
 				return JSON.stringify({
 					error: `Failed to analyze image: ${message}`,
+					previewUrl,
 					status: "error",
 				});
 			}
 		},
 	});
+}
+
+async function uploadToS3(
+	imageUrl: string,
+	deps: ToolDependencies,
+): Promise<string | undefined> {
+	const uploadService = deps.uploadService;
+	if (!uploadService) return undefined;
+
+	let buffer: Buffer;
+	let mimeType: string;
+
+	if (imageUrl.startsWith("data:image/")) {
+		const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+		if (!match) return undefined;
+		mimeType = match[1];
+		buffer = Buffer.from(match[2], "base64");
+	} else if (/^https?:\/\//i.test(imageUrl)) {
+		// For HTTP URLs, don't re-upload — the original URL is already public
+		return imageUrl;
+	} else {
+		return undefined;
+	}
+
+	// Content-addressed key for dedup
+	const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 16);
+	const ext = mimeType.split("/")[1] || "png";
+	const key = `chat-images/${hash}.${ext}`;
+
+	const result = await uploadService.upload(buffer, `${hash}.${ext}`, "chat-images", mimeType);
+	return result.url;
 }

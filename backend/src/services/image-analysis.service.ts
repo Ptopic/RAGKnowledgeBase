@@ -212,14 +212,11 @@ export class ImageAnalysisService {
 
 	private async fetchImageAsDataUrl(url: string, maxBytes: number, timeoutMs: number) {
 		if (url.startsWith("data:image/")) {
-			this.logger.log(`[IMG_DEBUG][fetchImageAsDataUrl] Data URL received, total length: ${url.length}, base64 length: ${url.split(",")[1]?.length ?? 0}`);
 			const [, meta, b64] = url.match(/^data:([^;]+);base64,(.+)$/) || [];
 			if (!meta || !b64) {
-				this.logger.warn(`[IMG_DEBUG][fetchImageAsDataUrl] Regex match failed: meta=${!!meta}, b64=${!!b64}, b64Len=${b64?.length ?? 0}`);
 				return null;
 			}
 			const bytes = Buffer.from(b64, "base64");
-			this.logger.log(`[IMG_DEBUG][fetchImageAsDataUrl] Decoded bytes: ${bytes.length}, mimeType: ${meta}`);
 			if (bytes.length > maxBytes) return null;
 			return { dataUrl: url, bytes, mimeType: meta };
 		}
