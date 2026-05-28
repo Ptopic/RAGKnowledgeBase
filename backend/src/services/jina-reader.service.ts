@@ -15,6 +15,7 @@ export interface JinaReaderResult {
     title: string;
     description?: string;
     url: string;
+    ogImage?: string;
     [key: string]: any;
   };
 }
@@ -174,8 +175,6 @@ export class JinaReaderService {
     try {
       this.logger.log(`Scraping URL with Jina Reader: ${url}`);
 
-      // Jina Reader API: https://r.jina.ai/{url}
-      // Keep raw URL format for parity with hegnar-journalist-boost
       const jinaUrl = `${this.jinaReaderBaseUrl}${url}`;
 
       const headers: Record<string, string> = {
@@ -191,9 +190,8 @@ export class JinaReaderService {
         headers['x-proxy-url'] = proxyUrl;
       }
 
-      // Fetch with timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       const response = await fetch(jinaUrl, {
         method: 'GET',
@@ -210,7 +208,6 @@ export class JinaReaderService {
         throw new Error(`Jina Reader API error: ${response.status} ${response.statusText}`);
       }
 
-      // Get the markdown content
       const markdownContent = await response.text();
 
       if (!markdownContent || markdownContent.trim().length === 0) {
@@ -219,15 +216,19 @@ export class JinaReaderService {
 
       const title = this.extractTitleFromJinaMarkdown(markdownContent, url);
 
+      const ogMetadata = await this.extractOgMetadata(url, proxyUrl);
+
       this.logger.log(`Successfully scraped ${url} - ${markdownContent.length} characters`);
 
       return {
         content: markdownContent,
         metadata: {
-          title,
+          title: ogMetadata.title || title,
+          description: ogMetadata.description || undefined,
           url,
           sourceURL: url,
           scraper: 'Jina Reader',
+          ogImage: ogMetadata.ogImage || undefined,
         },
       };
     } catch (error) {
@@ -267,5 +268,111 @@ export class JinaReaderService {
     }
 
     return fallbackUrl;
+  }
+
+  private extractMetaTag(html: string, key: string): string {
+    const patterns = [
+      new RegExp(
+        `<meta[^>]*property=["']og:${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+        'i',
+      ),
+      new RegExp(
+        `<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:${key}["'][^>]*>`,
+        'i',
+      ),
+      new RegExp(
+        `<meta[^>]*name=["']${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+        'i',
+      ),
+      new RegExp(
+        `<meta[^>]*content=["']([^"']*)["'][^>]*name=["']${key}["'][^>]*>`,
+        'i',
+      ),
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        return this.decodeHtmlEntities(match[1]);
+      }
+    }
+
+    return '';
+  }
+
+  private decodeHtmlEntities(text: string): string {
+    return text
+      .replace(/&#x27;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+
+  private resolveImageUrl(rawUrl: string, pageUrl: string): string {
+    if (!rawUrl) return rawUrl;
+    try {
+      return new URL(rawUrl, pageUrl).href;
+    } catch {
+      return rawUrl;
+    }
+  }
+
+  private async extractOgMetadata(
+    url: string,
+    proxyUrl: string | null,
+  ): Promise<{ title: string; description: string; ogImage: string }> {
+    try {
+      const headers: Record<string, string> = {
+        'X-Return-Format': 'html',
+      };
+
+      if (this.jinaApiKey) {
+        headers['Authorization'] = `Bearer ${this.jinaApiKey}`;
+      }
+
+      if (proxyUrl) {
+        headers['x-proxy-url'] = proxyUrl;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(`${this.jinaReaderBaseUrl}${url}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+
+      if (!response.ok) {
+        this.logger.warn(
+          `Jina Reader HTML fetch for OG metadata failed: ${response.status}`,
+        );
+        return { title: '', description: '', ogImage: '' };
+      }
+
+      const html = await response.text();
+
+      const ogTitle = this.extractMetaTag(html, 'title');
+      const ogDescription = this.extractMetaTag(html, 'description');
+      const rawOgImage = this.extractMetaTag(html, 'image');
+      const ogImage = this.resolveImageUrl(rawOgImage, url);
+
+      this.logger.log(
+        `OG metadata extracted for ${url}: title=${ogTitle ? 'yes' : 'no'}, description=${ogDescription ? 'yes' : 'no'}, ogImage=${ogImage ? 'yes' : 'no'}`,
+      );
+
+      return {
+        title: ogTitle || '',
+        description: ogDescription || '',
+        ogImage: ogImage || '',
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to extract OG metadata for ${url}: ${error.message}`,
+      );
+      return { title: '', description: '', ogImage: '' };
+    }
   }
 }
