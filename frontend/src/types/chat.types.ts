@@ -50,6 +50,7 @@ export type OrderedStreamMessage =
 			type: "tool";
 			toolName: string;
 			runId: string;
+			args?: Record<string, unknown>;
 			data: unknown;
 			content: string;
 			status: "success" | "error" | undefined;

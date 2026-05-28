@@ -100,6 +100,9 @@ export function convertToLangChainMessages(apiMessages: unknown[]): Message[] {
 				const metadata = msg.metadata;
 				const runId = metadata.runId || `${msg.timestamp}`;
 				const toolName = metadata.toolName || "unknown";
+				const toolArgs = metadata.args ?? {};
+				const toolResult = metadata.data;
+				const toolStatus = metadata.status as "success" | "error" | undefined;
 
 				reconstructed.push(
 					new AIMessage({
@@ -109,7 +112,7 @@ export function convertToLangChainMessages(apiMessages: unknown[]): Message[] {
 							{
 								id: runId,
 								name: toolName,
-								args: {},
+								args: toolArgs,
 							},
 						],
 					}),
@@ -118,8 +121,9 @@ export function convertToLangChainMessages(apiMessages: unknown[]): Message[] {
 				reconstructed.push(
 					new ToolMessage({
 						tool_call_id: runId,
-						content: JSON.stringify({ data: metadata.data }),
-						status: metadata.status,
+						content: typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult),
+						name: toolName,
+						status: toolStatus,
 					}),
 				);
 
