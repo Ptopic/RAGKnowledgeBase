@@ -24,6 +24,20 @@ import {
 	resetThinkingStepCounter,
 } from "./utils/thinking-steps";
 
+function extractTextFromContent(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.filter(
+			(part): part is Record<string, unknown> & { type: string } =>
+				typeof part === "object" && part !== null && "type" in part,
+		)
+		.filter((part) => part.type === "text" && typeof part.text === "string")
+		.map((part) => part.text as string)
+		.join("")
+		.trim();
+}
+
 @Controller("agent")
 export class AgentController {
 	private readonly logger = new Logger(AgentController.name);
@@ -94,7 +108,8 @@ export class AgentController {
 
 			resetThinkingStepCounter();
 
-			const initialStep = getInitialThinkingStep(userQuery);
+			const userQueryText = extractTextFromContent(userContent);
+			const initialStep = getInitialThinkingStep(userQueryText);
 			res.write("event: custom\n");
 			res.write(`data: ${JSON.stringify({ type: "thinking", ...initialStep })}\n\n`);
 
@@ -163,7 +178,7 @@ export class AgentController {
 				chatId: createdChatId,
 				chatWasCreated,
 			} = await this.agentService.streamConnectorSearchResults({
-				userQuery,
+				userQuery: extractTextFromContent(userContent),
 				userId: req.user.id,
 				searchSpaceId,
 				researchMode,
