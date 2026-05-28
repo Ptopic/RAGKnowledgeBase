@@ -7,7 +7,6 @@ import { createIndexDocumentTool } from "./index-document.tool";
 import { createIndexWebpageTool } from "./index-webpage.tool";
 import { createIndexYouTubeTool } from "./index-youtube.tool";
 import { createSearchKnowledgeBaseTool } from "./knowledge-base.tool";
-import { createLinkPreviewTool } from "./link-preview.tool";
 
 const BUILTIN_TOOLS: ToolDefinition[] = [
 	{
@@ -16,13 +15,6 @@ const BUILTIN_TOOLS: ToolDefinition[] = [
 			"Search the user's personal knowledge base for relevant information",
 		factory: (deps) => createSearchKnowledgeBaseTool(deps),
 		requires: ["searchSpaceId", "userId", "connectorService", "prisma"],
-		enabledByDefault: true,
-	},
-	{
-		name: "link_preview",
-		description: "Fetch metadata for a URL to display a rich preview card",
-		factory: () => createLinkPreviewTool(),
-		requires: [],
 		enabledByDefault: true,
 	},
 	{

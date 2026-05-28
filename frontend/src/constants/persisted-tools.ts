@@ -1,5 +1,4 @@
 export const PERSISTED_TOOLS = {
-	LINK_PREVIEW: ["link_preview", "multi_link_preview"],
 	DISPLAY_IMAGE: ["display_image"],
 	ANALYZE_IMAGE: ["analyze_image"],
 	SEARCH_KNOWLEDGE_BASE: ["search_knowledge_base"],

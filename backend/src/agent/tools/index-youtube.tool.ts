@@ -137,13 +137,24 @@ export function createIndexYouTubeTool(deps: ToolDependencies) {
 					}
 
 					if (doc.processingStatus === "COMPLETED") {
+						const title = doc.title || "YouTube Video";
+						const thumbnail = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
 						return JSON.stringify({
 							documentId: placeholderDoc.id,
-							title: doc.title,
+							title,
 							videoId,
 							videoUrl,
-							thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+							thumbnail,
 							status: "done",
+							sources: [
+								{
+									id: String(placeholderDoc.id),
+									title,
+									url: videoUrl,
+									type: "YOUTUBE_VIDEO",
+									ogImage: thumbnail,
+								},
+							],
 						});
 					}
 

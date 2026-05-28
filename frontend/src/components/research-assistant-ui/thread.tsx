@@ -492,7 +492,6 @@ function AssistantMessage() {
 						tools: {
 							Fallback: ToolFallback,
 							by_name: {
-								link_preview: ToolPartAdapter,
 								display_image: ToolPartAdapter,
 								analyze_image: ToolPartAdapter,
 								search_knowledge_base: ToolPartAdapter,

@@ -60,36 +60,6 @@ export function getToolThinkingInfo(
 				items: [`Query: ${truncatedQuery}`],
 			};
 		}
-		case "link_preview": {
-			const url = (toolInput?.url as string) || "";
-			const truncatedUrl = url.length > 80 ? `${url.substring(0, 80)}...` : url;
-			if (toolOutput) {
-				const title = (toolOutput as any).title || "Link";
-				const domain = (toolOutput as any).domain || "";
-				const hasError = "error" in (toolOutput as object);
-				if (hasError) {
-					return {
-						title: "Fetching link preview",
-						items: [
-							`URL: ${truncatedUrl}`,
-							`Error: ${(toolOutput as any).error || "Failed to fetch"}`,
-						],
-					};
-				}
-				return {
-					title: "Fetching link preview",
-					items: [
-						`URL: ${truncatedUrl}`,
-						`Title: ${title.substring(0, 60)}${title.length > 60 ? "..." : ""}`,
-						domain ? `Domain: ${domain}` : "Preview loaded",
-					],
-				};
-			}
-			return {
-				title: "Fetching link preview",
-				items: [`URL: ${truncatedUrl}`],
-			};
-		}
 		case "display_image": {
 			const src = (toolInput?.src as string) || "";
 			const title = (toolInput?.title as string) || "";

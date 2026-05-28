@@ -159,6 +159,46 @@ function formatDocumentsAsXml(documents: Document[]): string {
 	return xmlParts.join("\n");
 }
 
+function extractSourceMetadata(documents: Document[]): Array<{
+	id: string;
+	title: string;
+	url: string;
+	type: string;
+	ogImage?: string;
+}> {
+	const seen = new Set<string>();
+	const sources: Array<{
+		id: string;
+		title: string;
+		url: string;
+		type: string;
+		ogImage?: string;
+	}> = [];
+
+	for (const doc of documents) {
+		const docInfo = doc.document;
+		if (!docInfo) continue;
+		const key = String(docInfo.id);
+		if (seen.has(key)) continue;
+		seen.add(key);
+
+		const metadata = (docInfo.metadata || {}) as Record<string, unknown>;
+		const url = typeof metadata.url === "string" ? metadata.url : "";
+		const ogImage =
+			typeof metadata.ogImage === "string" ? metadata.ogImage : undefined;
+
+		sources.push({
+			id: key,
+			title: docInfo.title || "Untitled",
+			url,
+			type: docInfo.document_type || "UNKNOWN",
+			ogImage,
+		});
+	}
+
+	return sources;
+}
+
 export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 	return new DynamicStructuredTool({
 		name: "search_knowledge_base",
@@ -222,7 +262,18 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 				dedupedDocuments.push(doc);
 			}
 
-			return formatDocumentsAsXml(dedupedDocuments.slice(0, 150));
+			const topDocs = dedupedDocuments.slice(0, 150);
+			const xmlContent = formatDocumentsAsXml(topDocs);
+			const sourceMetadata = extractSourceMetadata(topDocs);
+
+			if (sourceMetadata.length === 0) {
+				return xmlContent;
+			}
+
+			return JSON.stringify({
+				sources: sourceMetadata,
+				content: xmlContent,
+			});
 		},
 	});
 }

@@ -120,13 +120,25 @@ export function createIndexWebpageTool(deps: ToolDependencies) {
 							string,
 							unknown
 						>;
+						const title = doc.title || url;
+						const description = (metadata.description as string) || "";
+						const ogImage = (metadata.ogImage as string) || "";
 						return JSON.stringify({
 							documentId: placeholderDoc.id,
-							title: doc.title,
+							title,
 							url,
-							description: metadata.description || "",
-							ogImage: metadata.ogImage || "",
+							description,
+							ogImage,
 							status: "done",
+							sources: [
+								{
+									id: String(placeholderDoc.id),
+									title,
+									url,
+									type: "CRAWLED_URL",
+									ogImage: ogImage || undefined,
+								},
+							],
 						});
 					}
 

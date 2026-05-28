@@ -115,11 +115,20 @@ export function createIndexDocumentTool(deps: ToolDependencies) {
 					}
 
 					if (doc.processingStatus === "COMPLETED") {
+						const title = doc.title || fileName;
 						return JSON.stringify({
 							documentId: placeholderDoc.id,
-							title: doc.title,
+							title,
 							fileName,
 							status: "done",
+							sources: [
+								{
+									id: String(placeholderDoc.id),
+									title,
+									url: "",
+									type: "FILE",
+								},
+							],
 						});
 					}
 

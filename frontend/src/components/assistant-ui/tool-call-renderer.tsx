@@ -8,7 +8,6 @@ import { DisplayImageTool } from "./display-image-tool";
 import { IndexDocumentTool } from "./index-document-tool";
 import { IndexWebpageTool } from "./index-webpage-tool";
 import { IndexYoutubeTool } from "./index-youtube-tool";
-import { LinkPreviewTool } from "./link-preview-tool";
 import { SearchKnowledgeBaseTool } from "./search-knowledge-base-tool";
 
 interface ToolCallRendererProps {
@@ -76,17 +75,6 @@ export function ToolCallRenderer({
 		case "index_youtube":
 			return (
 				<IndexYoutubeTool
-					args={args}
-					result={result}
-					errored={errored}
-					isRunning={isRunning}
-					status={status}
-				/>
-			);
-
-		case "link_preview":
-			return (
-				<LinkPreviewTool
 					args={args}
 					result={result}
 					errored={errored}

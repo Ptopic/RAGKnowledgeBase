@@ -17,6 +17,7 @@ import {
 import { ToolCallRenderer } from "@/components/assistant-ui/tool-call-renderer";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { ChatHeader } from "@/components/new-chat/chat-header";
+import { Sources } from "@/components/research-assistant-ui/sources";
 import { Button } from "@/components/ui/button";
 
 export function RuntimeThread() {
@@ -185,7 +186,6 @@ function AssistantMessage() {
 						tools: {
 							by_name: {
 								display_image: ToolPart,
-								link_preview: ToolPart,
 								search_knowledge_base: ToolPart,
 								analyze_image: ToolPart,
 								index_document: ToolPart,
@@ -193,6 +193,7 @@ function AssistantMessage() {
 								index_youtube: ToolPart,
 							},
 						},
+						Source: Sources,
 					}}
 				/>
 			</div>
