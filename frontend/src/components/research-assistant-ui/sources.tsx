@@ -10,8 +10,8 @@ import {
 import { type ComponentProps, memo, useCallback, useRef, useState } from "react";
 import {
 	Popover,
+	PopoverAnchor,
 	PopoverContent,
-	PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge, type BadgeProps, badgeVariants } from "./badge";
@@ -285,6 +285,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	const [open, setOpen] = useState(false);
 	const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const justClosedRef = useRef(false);
 
 	const clearTimers = useCallback(() => {
 		if (openTimerRef.current) {
@@ -298,18 +299,26 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	}, []);
 
 	const handleOpenDelayed = useCallback(() => {
+		if (justClosedRef.current) return;
 		clearTimers();
 		openTimerRef.current = setTimeout(() => setOpen(true), 300);
 	}, [clearTimers]);
 
 	const handleOpenImmediate = useCallback(() => {
+		justClosedRef.current = false;
 		clearTimers();
 		setOpen(true);
 	}, [clearTimers]);
 
 	const handleClose = useCallback(() => {
 		clearTimers();
-		closeTimerRef.current = setTimeout(() => setOpen(false), 150);
+		closeTimerRef.current = setTimeout(() => {
+			setOpen(false);
+			justClosedRef.current = true;
+			setTimeout(() => {
+				justClosedRef.current = false;
+			}, 200);
+		}, 150);
 	}, [clearTimers]);
 
 	if (sourceType !== "url" && sourceType !== "document") return null;
@@ -321,7 +330,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	return (
 		<div className="mt-2 mb-1 mr-2 inline-flex">
 		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
+			<PopoverAnchor asChild>
 				<button
 					type="button"
 					onMouseEnter={handleOpenDelayed}
@@ -340,7 +349,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 						<SourceTitle>{displayTitle}</SourceTitle>
 					</Source>
 				</button>
-			</PopoverTrigger>
+			</PopoverAnchor>
 			<PopoverContent
 				align="start"
 				side="top"

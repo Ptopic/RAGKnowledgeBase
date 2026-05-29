@@ -1,6 +1,7 @@
 import { Process, Processor } from "@nestjs/bull";
 import { Logger } from "@nestjs/common";
 import { Job } from "bull";
+import * as fs from "node:fs";
 import { PrismaService } from "src/prisma/prisma.service";
 import {
 	FileProcessorsService,
@@ -122,7 +123,7 @@ export class DocumentsProcessor {
 
 		try {
 			this.logger.log(
-				`Processing file document: ${fileName} for search space ${searchSpaceId}`,
+				`Processing file document: ${fileName} for search space ${searchSpaceId} (attempt ${job.attemptsMade + 1})`,
 			);
 
 			await this.fileProcessorsService.processFileInBackground(
@@ -139,6 +140,16 @@ export class DocumentsProcessor {
 				`Failed to process file document ${fileName}: ${error.message}`,
 				error.stack,
 			);
+
+			// On the final failed attempt, clean up the temp file to prevent
+			// disk accumulation. Earlier attempts keep the file for retries.
+			const maxAttempts = job.opts?.attempts ?? 3;
+			if (job.attemptsMade + 1 >= maxAttempts) {
+				try {
+					fs.unlinkSync(filePath);
+				} catch {}
+			}
+
 			throw error;
 		}
 	}

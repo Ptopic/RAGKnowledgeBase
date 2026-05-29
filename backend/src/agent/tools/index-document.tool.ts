@@ -107,6 +107,35 @@ export function createIndexDocumentTool(deps: ToolDependencies) {
 					});
 
 					if (!doc) {
+						// Placeholder may have been deleted because a document with
+						// the same content already existed. Look it up by name.
+						const existingDoc = await prisma.document.findFirst({
+							where: {
+								title: fileName,
+								searchSpaceId,
+								processingStatus: "COMPLETED",
+							},
+							orderBy: { id: "desc" },
+							select: { id: true, title: true },
+						});
+
+						if (existingDoc) {
+							return JSON.stringify({
+								documentId: existingDoc.id,
+								title: existingDoc.title,
+								fileName,
+								status: "done",
+								sources: [
+									{
+										id: String(existingDoc.id),
+										title: existingDoc.title,
+										url: "",
+										type: "FILE",
+									},
+								],
+							});
+						}
+
 						return JSON.stringify({
 							error: "Document was deleted during processing",
 							fileName,

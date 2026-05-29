@@ -324,7 +324,7 @@ export class DeepAgentService {
 					textBlock.text = textBlock.text.replace(documentMarkerRegex, "").trim();
 				}
 
-				const docContext = `<uploaded_documents>\nThe user has uploaded ${docEntries.length} document(s):\n\n${docEntries.map((d, i) => `[Document ${i + 1}: "${d.fileName}" (filePath: "${d.filePath}")]`).join("\n")}\n\nIf the user wants to index/add these documents to their knowledge base, call index_document with the filePath and fileName shown above. Always search the knowledge base first to avoid duplicates.\n</uploaded_documents>`;
+				const docContext = `<uploaded_documents>\nThe user has uploaded ${docEntries.length} document(s):\n\n${docEntries.map((d, i) => `[Document ${i + 1}: "${d.fileName}" (filePath: "${d.filePath}")]`).join("\n")}\n\nIf the user wants to index/add these documents to their knowledge base, call index_document with the filePath and fileName shown above.\n</uploaded_documents>`;
 
 				const firstTextBlock = allTextBlocks[0] as { text: string };
 				if (firstTextBlock) {

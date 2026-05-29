@@ -203,6 +203,28 @@ export class MarkdownProcessorService {
 				existingDocument = await this.prisma.document.findUnique({
 					where: { id: documentId },
 				});
+
+				if (existingDocument && !existingDocument.contentHash) {
+					const duplicateDoc = await this.prisma.document.findUnique({
+						where: { contentHash },
+					});
+					if (duplicateDoc && duplicateDoc.id !== documentId) {
+						this.logger.log(
+							`Document with same content already exists (id=${duplicateDoc.id}). Deleting placeholder ${documentId} and updating existing.`,
+						);
+
+						await this.prisma.chunk.deleteMany({
+							where: { documentId: duplicateDoc.id },
+						});
+
+						await this.prisma.document.delete({
+							where: { id: documentId },
+						});
+
+						existingDocument = duplicateDoc;
+						documentId = undefined;
+					}
+				}
 			} else {
 				existingDocument =
 					await this.baseService.checkDocumentByUniqueIdentifier(
