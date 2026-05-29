@@ -7,7 +7,7 @@ import {
 	GlobeIcon,
 	VideoIcon,
 } from "lucide-react";
-import { type ComponentProps, memo, useCallback, useRef, useState } from "react";
+import { type ComponentProps, memo, useCallback, useEffect, useRef, useState } from "react";
 import {
 	Popover,
 	PopoverAnchor,
@@ -174,9 +174,9 @@ function Source({
 	className,
 	variant,
 	size,
-	asChild = false,
 	target = "_blank",
 	rel = "noopener noreferrer",
+	children,
 	...props
 }: SourceProps) {
 	return (
@@ -194,7 +194,9 @@ function Source({
 				target={target}
 				rel={rel}
 				{...(props as ComponentProps<"a">)}
-			/>
+			>
+				{children}
+			</a>
 		</Badge>
 	);
 }
@@ -285,7 +287,6 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	const [open, setOpen] = useState(false);
 	const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const justClosedRef = useRef(false);
 
 	const clearTimers = useCallback(() => {
 		if (openTimerRef.current) {
@@ -299,13 +300,11 @@ const SourcesImpl: SourceMessagePartComponent = ({
 	}, []);
 
 	const handleOpenDelayed = useCallback(() => {
-		if (justClosedRef.current) return;
 		clearTimers();
 		openTimerRef.current = setTimeout(() => setOpen(true), 300);
 	}, [clearTimers]);
 
 	const handleOpenImmediate = useCallback(() => {
-		justClosedRef.current = false;
 		clearTimers();
 		setOpen(true);
 	}, [clearTimers]);
@@ -314,11 +313,13 @@ const SourcesImpl: SourceMessagePartComponent = ({
 		clearTimers();
 		closeTimerRef.current = setTimeout(() => {
 			setOpen(false);
-			justClosedRef.current = true;
-			setTimeout(() => {
-				justClosedRef.current = false;
-			}, 200);
 		}, 150);
+	}, [clearTimers]);
+
+	useEffect(() => {
+		return () => {
+			clearTimers();
+		};
 	}, [clearTimers]);
 
 	if (sourceType !== "url" && sourceType !== "document") return null;
@@ -331,24 +332,19 @@ const SourcesImpl: SourceMessagePartComponent = ({
 		<div className="mt-2 mb-1 mr-2 inline-flex">
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverAnchor asChild>
-				<button
-					type="button"
+				<Source
+					href={url || "#"}
 					onMouseEnter={handleOpenDelayed}
 					onMouseLeave={handleClose}
 					onFocus={handleOpenDelayed}
 					onBlur={handleClose}
-					className="inline-flex appearance-none border-none bg-transparent p-0"
+					onClick={(e) => {
+						if (sourceType === "document" && !url) e.preventDefault();
+					}}
 				>
-					<Source
-						href={url || "#"}
-						onClick={(e) => {
-							if (sourceType === "document" && !url) e.preventDefault();
-						}}
-					>
-						<SourceIcon url={url} sourceType={sourceType} />
-						<SourceTitle>{displayTitle}</SourceTitle>
-					</Source>
-				</button>
+					<SourceIcon url={url} sourceType={sourceType} />
+					<SourceTitle>{displayTitle}</SourceTitle>
+				</Source>
 			</PopoverAnchor>
 			<PopoverContent
 				align="start"
