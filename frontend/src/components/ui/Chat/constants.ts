@@ -2,25 +2,34 @@
  * Tool display names for the assistant UI.
  * Maps backend tool names to human-readable labels.
  *
- * Our backend (backend/src/agent/tools/registry.ts) defines exactly 3 tools:
+ * Our backend (backend/src/agent/tools/registry.ts) defines these tools:
  * - search_knowledge_base
- * - link_preview
  * - display_image
+ * - analyze_image
+ * - index_document
+ * - index_webpage
+ * - index_youtube
+ * - generate_followup_questions
  */
 export const TOOL_MESSAGES = {
 	search_knowledge_base: "Searching knowledge base",
-	link_preview: "Generating link preview",
 	display_image: "Rendering image",
+	analyze_image: "Analyzing image",
+	index_document: "Indexing document",
+	index_webpage: "Indexing web page",
+	index_youtube: "Indexing YouTube video",
 	generate_followup_questions: "Generating follow-up questions",
 } as const;
 
 /**
  * Error messages for tool calls.
- * Kept minimal since only our 3 active tools are represented.
  */
 export const TOOL_ERROR_MESSAGES = {
 	search_knowledge_base: "Failed to search knowledge base.",
-	link_preview: "Failed to load link preview.",
 	display_image: "Failed to render image.",
+	analyze_image: "Failed to analyze image.",
+	index_document: "Failed to index document.",
+	index_webpage: "Failed to index web page.",
+	index_youtube: "Failed to index YouTube video.",
 	generate_followup_questions: "Failed to generate follow-up questions.",
 } as const;

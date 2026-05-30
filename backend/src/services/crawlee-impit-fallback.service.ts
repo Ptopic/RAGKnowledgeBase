@@ -8,6 +8,7 @@ export interface CrawleeImpitResult {
     title: string;
     description?: string;
     url: string;
+    ogImage?: string;
     [key: string]: any;
   };
 }
@@ -58,6 +59,8 @@ export class CrawleeImpitFallbackService {
 
     let extractedTitle = url;
     let extractedContent = '';
+    let extractedOgImage = '';
+    let extractedDescription = '';
     let crawlError: Error | null = null;
     const turndownService = this.turndownService;
 
@@ -92,6 +95,14 @@ export class CrawleeImpitFallbackService {
           }
 
           extractedTitle = extractTitle(html) || request.url;
+          extractedOgImage = extractMetaTag(html, 'image') || '';
+          extractedDescription = extractMetaTag(html, 'description') || '';
+
+          if (extractedOgImage) {
+            try {
+              extractedOgImage = new URL(extractedOgImage, request.url).href;
+            } catch {}
+          }
 
           const markdownBody = convertHtmlToMarkdown(turndownService, html);
           extractedContent = ensureMarkdownTitle(markdownBody, extractedTitle);
@@ -124,9 +135,11 @@ export class CrawleeImpitFallbackService {
       content: extractedContent,
       metadata: {
         title: extractedTitle,
+        description: extractedDescription || undefined,
         url,
         sourceURL: url,
         scraper: 'Crawlee Impit Fallback',
+        ogImage: extractedOgImage || undefined,
       },
     };
   }
@@ -139,6 +152,36 @@ function extractTitle(html: string): string | null {
   }
 
   return decodeHtmlEntities(titleMatch[1]).replace(/\s+/g, ' ').trim() || null;
+}
+
+function extractMetaTag(html: string, key: string): string {
+  const patterns = [
+    new RegExp(
+      `<meta[^>]*property=["']og:${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+      'i',
+    ),
+    new RegExp(
+      `<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:${key}["'][^>]*>`,
+      'i',
+    ),
+    new RegExp(
+      `<meta[^>]*name=["']${key}["'][^>]*content=["']([^"']*)["'][^>]*>`,
+      'i',
+    ),
+    new RegExp(
+      `<meta[^>]*content=["']([^"']*)["'][^>]*name=["']${key}["'][^>]*>`,
+      'i',
+    ),
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) {
+      return decodeHtmlEntities(match[1]);
+    }
+  }
+
+  return '';
 }
 
 function convertHtmlToMarkdown(turndownService: TurndownService, html: string): string {

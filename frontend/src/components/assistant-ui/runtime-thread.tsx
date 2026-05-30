@@ -14,10 +14,11 @@ import {
 	PencilIcon,
 	SquareIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { ToolCallRenderer } from "@/components/assistant-ui/tool-call-renderer";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { ChatHeader } from "@/components/new-chat/chat-header";
+import { Sources } from "@/components/research-assistant-ui/sources";
+import { Button } from "@/components/ui/button";
 
 export function RuntimeThread() {
 	return (
@@ -119,7 +120,11 @@ function UserMessage() {
 					<MessagePrimitive.Parts />
 				</div>
 				<div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
-					<ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="flex flex-row items-center gap-1">
+					<ActionBarPrimitive.Root
+						hideWhenRunning
+						autohide="not-last"
+						className="flex flex-row items-center gap-1"
+					>
 						<ActionBarPrimitive.Edit asChild>
 							<TooltipIconButton tooltip="Edit" className="p-4">
 								<PencilIcon />
@@ -136,9 +141,7 @@ function EditComposer() {
 	return (
 		<MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
 			<ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
-				<ComposerPrimitive.Input
-					className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
-				/>
+				<ComposerPrimitive.Input className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none" />
 				<div className="mx-3 mb-3 flex items-center gap-2 self-end">
 					<ComposerPrimitive.Cancel asChild>
 						<Button variant="ghost" size="sm">
@@ -177,16 +180,20 @@ function AssistantMessage() {
 
 	return (
 		<MessagePrimitive.Root className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-3">
-			<div className="break-words px-2 leading-relaxed text-foreground">
+			<div className="mt-2 break-words px-2 leading-relaxed text-foreground">
 				<MessagePrimitive.Parts
 					components={{
 						tools: {
 							by_name: {
 								display_image: ToolPart,
-								link_preview: ToolPart,
 								search_knowledge_base: ToolPart,
+								analyze_image: ToolPart,
+								index_document: ToolPart,
+								index_webpage: ToolPart,
+								index_youtube: ToolPart,
 							},
 						},
+						Source: Sources,
 					}}
 				/>
 			</div>

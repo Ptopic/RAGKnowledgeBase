@@ -60,36 +60,6 @@ export function getToolThinkingInfo(
 				items: [`Query: ${truncatedQuery}`],
 			};
 		}
-		case "link_preview": {
-			const url = (toolInput?.url as string) || "";
-			const truncatedUrl = url.length > 80 ? `${url.substring(0, 80)}...` : url;
-			if (toolOutput) {
-				const title = (toolOutput as any).title || "Link";
-				const domain = (toolOutput as any).domain || "";
-				const hasError = "error" in (toolOutput as object);
-				if (hasError) {
-					return {
-						title: "Fetching link preview",
-						items: [
-							`URL: ${truncatedUrl}`,
-							`Error: ${(toolOutput as any).error || "Failed to fetch"}`,
-						],
-					};
-				}
-				return {
-					title: "Fetching link preview",
-					items: [
-						`URL: ${truncatedUrl}`,
-						`Title: ${title.substring(0, 60)}${title.length > 60 ? "..." : ""}`,
-						domain ? `Domain: ${domain}` : "Preview loaded",
-					],
-				};
-			}
-			return {
-				title: "Fetching link preview",
-				items: [`URL: ${truncatedUrl}`],
-			};
-		}
 		case "display_image": {
 			const src = (toolInput?.src as string) || "";
 			const title = (toolInput?.title as string) || "";
@@ -108,6 +78,89 @@ export function getToolThinkingInfo(
 			return {
 				title: "Displaying image",
 				items: [`Loading: ${truncatedName}`],
+			};
+		}
+		case "analyze_image": {
+			const imageUrl = (toolInput?.imageUrl as string) || "";
+			const truncatedUrl = imageUrl.length > 60 ? `${imageUrl.substring(0, 60)}...` : imageUrl;
+			if (toolOutput) {
+				const hasError = typeof toolOutput === "object" && "error" in (toolOutput as object);
+				if (hasError) {
+					return {
+						title: "Analyzing image",
+						items: [`URL: ${truncatedUrl}`, `Error: ${(toolOutput as any).error}`],
+					};
+				}
+				return {
+					title: "Analyzing image",
+					items: [`URL: ${truncatedUrl}`, "Vision analysis complete"],
+				};
+			}
+			return {
+				title: "Analyzing image",
+				items: [`URL: ${truncatedUrl}`],
+			};
+		}
+		case "index_document": {
+			const fileName = (toolInput?.fileName as string) || "";
+			if (toolOutput) {
+				const hasError = typeof toolOutput === "object" && "error" in (toolOutput as object);
+				if (hasError) {
+					return {
+						title: "Indexing document",
+						items: [`File: ${fileName}`, `Error: ${(toolOutput as any).error}`],
+					};
+				}
+				return {
+					title: "Indexing document",
+					items: [`File: ${fileName}`, "Document indexed successfully"],
+				};
+			}
+			return {
+				title: "Indexing document",
+				items: [`File: ${fileName}`, "Processing..."],
+			};
+		}
+		case "index_webpage": {
+			const url = (toolInput?.url as string) || "";
+			const truncatedUrl = url.length > 60 ? `${url.substring(0, 60)}...` : url;
+			if (toolOutput) {
+				const hasError = typeof toolOutput === "object" && "error" in (toolOutput as object);
+				if (hasError) {
+					return {
+						title: "Indexing web page",
+						items: [`URL: ${truncatedUrl}`, `Error: ${(toolOutput as any).error}`],
+					};
+				}
+				return {
+					title: "Indexing web page",
+					items: [`URL: ${truncatedUrl}`, "Page indexed successfully"],
+				};
+			}
+			return {
+				title: "Indexing web page",
+				items: [`URL: ${truncatedUrl}`, "Crawling..."],
+			};
+		}
+		case "index_youtube": {
+			const videoUrl = (toolInput?.videoUrl as string) || "";
+			const truncatedUrl = videoUrl.length > 60 ? `${videoUrl.substring(0, 60)}...` : videoUrl;
+			if (toolOutput) {
+				const hasError = typeof toolOutput === "object" && "error" in (toolOutput as object);
+				if (hasError) {
+					return {
+						title: "Indexing YouTube video",
+						items: [`URL: ${truncatedUrl}`, `Error: ${(toolOutput as any).error}`],
+					};
+				}
+				return {
+					title: "Indexing YouTube video",
+					items: [`URL: ${truncatedUrl}`, "Video indexed successfully"],
+				};
+			}
+			return {
+				title: "Indexing YouTube video",
+				items: [`URL: ${truncatedUrl}`, "Transcribing..."],
 			};
 		}
 		default:

@@ -7,6 +7,20 @@ export function getOrderedMessages(
 ): OrderedStreamMessage[] {
 	const ordered: OrderedStreamMessage[] = [];
 
+	const toolCallIdToArgs = new Map<string, Record<string, unknown>>();
+	for (const msg of messages) {
+		if (msg.type === "ai") {
+			const aiMsg = msg as AIMessage;
+			if (Array.isArray(aiMsg.tool_calls)) {
+				for (const tc of aiMsg.tool_calls) {
+					if (tc.id && tc.args && typeof tc.args === "object") {
+						toolCallIdToArgs.set(tc.id, tc.args as Record<string, unknown>);
+					}
+				}
+			}
+		}
+	}
+
 	for (const msg of messages) {
 		// Skip system and human messages (handled separately)
 		if (msg.type === "system" || msg.type === "human") {
@@ -58,6 +72,7 @@ export function getOrderedMessages(
 				type: "tool",
 				toolName: toolMsg.name || "unknown",
 				runId: toolMsg.tool_call_id,
+				args: toolCallIdToArgs.get(toolMsg.tool_call_id) ?? {},
 				data: toolData,
 				content:
 					typeof toolDataRecord?.summary === "string"

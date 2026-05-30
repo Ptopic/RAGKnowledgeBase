@@ -13,7 +13,7 @@ import {
 
 export interface ChatMessageDto {
 	role: string;
-	content: string | Record<string, unknown>;
+	content: string | Record<string, unknown> | Array<Record<string, unknown>>;
 	metadata?: Record<string, unknown>;
 }
 

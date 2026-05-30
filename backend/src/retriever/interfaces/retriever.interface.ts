@@ -6,6 +6,7 @@ export interface SearchOptions {
   userId: string;
   searchSpaceId?: number;
   documentType?: DocumentType;
+  titleFilter?: string;
 }
 
 export interface ChunkSearchResult {

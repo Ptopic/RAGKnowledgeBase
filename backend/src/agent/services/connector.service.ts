@@ -245,6 +245,7 @@ export class ConnectorService {
 		searchSpaceId: number,
 		topK: number,
 		searchMode: SearchMode,
+		titleFilter?: string,
 	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
 		try {
 			let results: any[];
@@ -256,6 +257,7 @@ export class ConnectorService {
 					userId,
 					searchSpaceId,
 					documentType: documentType as DocumentType,
+					titleFilter,
 				});
 			} else {
 				results = await this.retrieverService.searchDocuments({
@@ -264,6 +266,7 @@ export class ConnectorService {
 					userId,
 					searchSpaceId,
 					documentType: documentType as DocumentType,
+					titleFilter,
 				});
 			}
 
@@ -283,7 +286,7 @@ export class ConnectorService {
 			// Transform results to Document format
 			const chunks: Document[] = results.map((result) => {
 				const document = result.document || result;
-				const metadata = document.documentMetadata || {};
+				const metadata = document.metadata || document.documentMetadata || {};
 
 				return {
 					chunk_id: result.chunk_id || this.getNextSourceId(),
@@ -826,6 +829,7 @@ export class ConnectorService {
 		searchSpaceId: number,
 		topK: number,
 		searchMode: SearchMode,
+		titleFilter?: string,
 	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
 		return this.searchDocumentType(
 			documentType,
@@ -835,6 +839,7 @@ export class ConnectorService {
 			searchSpaceId,
 			topK,
 			searchMode,
+			titleFilter,
 		);
 	}
 }

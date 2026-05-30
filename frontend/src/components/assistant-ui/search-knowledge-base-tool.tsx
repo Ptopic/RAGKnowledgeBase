@@ -1,20 +1,22 @@
 "use client";
 
 import { AlertCircleIcon, FileTextIcon, SearchIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface SearchKnowledgeBaseArgs {
 	query: string;
 	search_space_id: string;
-	limit?: number;
+	top_k?: number;
+	title_filter?: string;
+	connectors_to_search?: string[];
 	filters?: Record<string, string | number | boolean>;
 }
 
@@ -47,19 +49,59 @@ export function SearchKnowledgeBaseTool({
 	result,
 	errored = false,
 	isRunning = false,
-	status = "success",
+	status: _status = "success",
 }: SearchKnowledgeBaseToolProps) {
 	const toolArgs = args as SearchKnowledgeBaseArgs;
 
 	let toolResult: SearchKnowledgeBaseResult | undefined;
+	let sourceCount = 0;
 	try {
 		if (typeof result === "string") {
-			toolResult = JSON.parse(result) as SearchKnowledgeBaseResult;
-		} else {
-			toolResult = result as SearchKnowledgeBaseResult | undefined;
+			const parsed = JSON.parse(result);
+			if (parsed && typeof parsed === "object" && "sources" in parsed && "content" in parsed) {
+				sourceCount = Array.isArray(parsed.sources) ? parsed.sources.length : 0;
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: sourceCount,
+				};
+			} else {
+				toolResult = parsed as SearchKnowledgeBaseResult;
+			}
+		} else if (result && typeof result === "object") {
+			const parsed = result as Record<string, unknown>;
+			if ("sources" in parsed && "content" in parsed) {
+				sourceCount = Array.isArray(parsed.sources) ? (parsed.sources as unknown[]).length : 0;
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: sourceCount,
+				};
+			} else {
+				toolResult = result as SearchKnowledgeBaseResult;
+			}
 		}
 	} catch {
-		toolResult = undefined;
+		if (typeof result === "string") {
+			if (result.startsWith("<documents>")) {
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: 0,
+				};
+			} else if (
+				result.toLowerCase().includes("no relevant") ||
+				result.toLowerCase().includes("no results") ||
+				result.toLowerCase().includes("not found") ||
+				result.toLowerCase().includes("no documents")
+			) {
+				toolResult = {
+					query: toolArgs.query || "",
+					results: [],
+					total: 0,
+				};
+			}
+		}
 	}
 
 	if (isRunning) {
@@ -79,23 +121,32 @@ export function SearchKnowledgeBaseTool({
 		return null;
 	}
 
-	// Hide search results card when tool is completed and loaded from database
-	// This prevents showing the full card on page reload
-	if (status === "success" && !isRunning) {
-		return null;
-	}
+	const isTitleFilterCheck = Boolean(toolArgs?.title_filter);
+	const noResults = sourceCount === 0 && (!toolResult.results || toolResult.results.length === 0);
 
 	return (
 		<Card className="max-w-2xl">
 			<CardHeader className="pb-3">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						<div className="size-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-							<SearchIcon className="size-4 text-blue-600 dark:text-blue-400" />
+						<div className={cn(
+							"size-8 rounded-lg flex items-center justify-center",
+							isTitleFilterCheck && noResults
+								? "bg-amber-100 dark:bg-amber-900/30"
+								: "bg-blue-100 dark:bg-blue-900/30"
+						)}>
+							<SearchIcon className={cn(
+								"size-4",
+								isTitleFilterCheck && noResults
+									? "text-amber-600 dark:text-amber-400"
+									: "text-blue-600 dark:text-blue-400"
+							)} />
 						</div>
-						<CardTitle className="text-base">Search Results</CardTitle>
+						<CardTitle className="text-base">
+							{isTitleFilterCheck && noResults ? "Not Found in Knowledge Base" : "Search Results"}
+						</CardTitle>
 					</div>
-					{typeof toolResult.total === "number" && (
+					{typeof toolResult.total === "number" && !noResults && (
 						<span className="text-xs text-muted-foreground">
 							{toolResult.total} {toolResult.total === 1 ? "result" : "results"}
 						</span>
@@ -104,16 +155,35 @@ export function SearchKnowledgeBaseTool({
 				{toolResult.query && (
 					<p className="text-sm text-muted-foreground pl-10">
 						Query: &quot;{toolResult.query}&quot;
+						{toolArgs?.title_filter && (
+							<span className="text-xs ml-2 opacity-70">
+								(filtered by title: &quot;{toolArgs.title_filter}&quot;)
+							</span>
+						)}
 					</p>
 				)}
 			</CardHeader>
 			<CardContent className="pt-0">
-				{!toolResult.results || toolResult.results.length === 0 ? (
-					<p className="text-sm text-muted-foreground pl-10">No results found</p>
+				{isTitleFilterCheck && noResults ? (
+					<p className="text-sm text-amber-600 dark:text-amber-400 pl-10">
+						No matching documents found
+					</p>
+				) : sourceCount > 0 ? (
+					<p className="text-sm text-muted-foreground pl-10">
+						Found {sourceCount} {sourceCount === 1 ? "source" : "sources"} in knowledge base
+					</p>
+				) : !toolResult.results || toolResult.results.length === 0 ? (
+					<p className="text-sm text-muted-foreground pl-10">
+						No results found
+					</p>
 				) : (
 					<div className="space-y-2">
 						{toolResult.results.map((item, index) => (
-							<SearchResultItem key={item.id || index} item={item} index={index} />
+							<SearchResultItem
+								key={item.id || index}
+								item={item}
+								index={index}
+							/>
 						))}
 					</div>
 				)}
@@ -122,7 +192,13 @@ export function SearchKnowledgeBaseTool({
 	);
 }
 
-function SearchResultItem({ item, index }: { item: SearchResultItem; index: number }) {
+function SearchResultItem({
+	item,
+	index,
+}: {
+	item: SearchResultItem;
+	index: number;
+}) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (
@@ -161,14 +237,16 @@ function SearchResultItem({ item, index }: { item: SearchResultItem; index: numb
 						</p>
 						{item.metadata && Object.keys(item.metadata).length > 0 && (
 							<div className="mt-2 flex flex-wrap gap-2">
-								{Object.entries(item.metadata).slice(0, 3).map(([key, value]) => (
-									<span
-										key={key}
-										className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground"
-									>
-										{key}: {String(value)}
-									</span>
-								))}
+								{Object.entries(item.metadata)
+									.slice(0, 3)
+									.map(([key, value]) => (
+										<span
+											key={key}
+											className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground"
+										>
+											{key}: {String(value)}
+										</span>
+									))}
 							</div>
 						)}
 					</div>
@@ -205,7 +283,13 @@ function SearchKnowledgeBaseLoading(): React.ReactElement {
 	);
 }
 
-function SearchKnowledgeBaseError({ query, error }: { query: string; error: string }) {
+function SearchKnowledgeBaseError({
+	query,
+	error,
+}: {
+	query: string;
+	error: string;
+}) {
 	return (
 		<div className="max-w-2xl rounded-lg border border-destructive/20 bg-destructive/5 p-4">
 			<div className="flex items-start gap-3">
@@ -213,8 +297,12 @@ function SearchKnowledgeBaseError({ query, error }: { query: string; error: stri
 					<AlertCircleIcon className="size-4 text-destructive" />
 				</div>
 				<div className="flex-1 min-w-0">
-					<p className="text-sm font-medium text-destructive mb-1">Search failed</p>
-					<p className="text-xs text-muted-foreground mb-2">Query: &quot;{query}&quot;</p>
+					<p className="text-sm font-medium text-destructive mb-1">
+						Search failed
+					</p>
+					<p className="text-xs text-muted-foreground mb-2">
+						Query: &quot;{query}&quot;
+					</p>
 					<p className="text-xs text-destructive/70">{error}</p>
 				</div>
 			</div>

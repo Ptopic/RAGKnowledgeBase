@@ -64,6 +64,7 @@ export function getOrderedMessages(
 	const persistedAskUserRunIds = new Set<string>();
 
 	const toolCallIdToName = new Map<string, string>();
+	const toolCallIdToArgs = new Map<string, Record<string, unknown>>();
 	for (const msg of messages) {
 		if (msg.type === "ai" && isAIMessage(msg as AIMessage)) {
 			const aiMsg = msg as AIMessage;
@@ -72,6 +73,9 @@ export function getOrderedMessages(
 				for (const tc of aiMsg.tool_calls) {
 					if (tc.id && tc.name) {
 						toolCallIdToName.set(tc.id, tc.name);
+						if (tc.args && typeof tc.args === "object") {
+							toolCallIdToArgs.set(tc.id, tc.args as Record<string, unknown>);
+						}
 					}
 				}
 			}
@@ -210,6 +214,7 @@ export function getOrderedMessages(
 				type: "tool",
 				toolName,
 				runId: toolMsg.tool_call_id || "",
+				args: toolCallIdToArgs.get(toolMsg.tool_call_id) ?? {},
 				data,
 				content,
 				status: toolMsg.status || "success",

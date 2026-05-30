@@ -1,4 +1,5 @@
 import type {
+	SourceMessagePart,
 	ThreadAssistantMessagePart,
 	ThreadMessageLike,
 	ThreadUserMessagePart,
@@ -56,14 +57,76 @@ function toToolResult(content: unknown, artifact?: unknown): unknown {
 	}
 }
 
+const DOCUMENT_MARKER_REGEX = /\[uploaded_document:\s*\{.*?\}\]\s*/g;
+
+function stripDocumentMarkers(text: string): string {
+	return text.replace(DOCUMENT_MARKER_REGEX, "").trim();
+}
+
+function extractDocumentMarkers(text: string): Array<{ filePath: string; fileName: string }> {
+	const docs: Array<{ filePath: string; fileName: string }> = [];
+	let match: RegExpExecArray | null;
+	const regex = /\[uploaded_document:\s*(\{.*?\})\]/g;
+	// biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop pattern
+	while ((match = regex.exec(text)) !== null) {
+		try {
+			const parsed = JSON.parse(match[1]);
+			if (parsed.filePath && parsed.fileName) {
+				docs.push({ filePath: parsed.filePath, fileName: parsed.fileName });
+			}
+		} catch {
+			// skip malformed markers
+		}
+	}
+	return docs;
+}
+
 function toUserThreadContent(
 	content: string | ContentBlock[],
-): ThreadUserMessagePart[] {
-	const text = getTextFromContent(content).trim();
-	if (text.length > 0) {
-		return [{ text, type: "text" as const }];
+): { parts: ThreadUserMessagePart[]; documents: Array<{ filePath: string; fileName: string }> } {
+	const parts: ThreadUserMessagePart[] = [];
+	const documents: Array<{ filePath: string; fileName: string }> = [];
+
+	if (typeof content === "string") {
+		const text = stripDocumentMarkers(content).trim();
+		documents.push(...extractDocumentMarkers(content));
+		parts.push({ text: text || "", type: "text" as const });
+	} else if (Array.isArray(content)) {
+		for (const block of content) {
+			if (
+				typeof block === "object" &&
+				block !== null &&
+				"type" in block
+			) {
+				if (
+					block.type === "text" &&
+					"text" in block &&
+					typeof block.text === "string" &&
+					block.text.trim().length > 0
+				) {
+					const stripped = stripDocumentMarkers(block.text);
+					documents.push(...extractDocumentMarkers(block.text));
+					if (stripped.trim().length > 0) {
+						parts.push({ text: stripped, type: "text" as const });
+					}
+				} else if (block.type === "image_url") {
+					const imageUrl =
+						typeof (block as Record<string, unknown>).image_url === "string"
+							? (block as Record<string, unknown>).image_url as string
+							: ((block as Record<string, unknown>).image_url as Record<string, unknown>)?.url;
+					if (typeof imageUrl === "string" && imageUrl.length > 0) {
+						parts.push({ type: "image" as const, image: imageUrl });
+					}
+				}
+			}
+		}
 	}
-	return [{ text: "", type: "text" as const }];
+
+	if (parts.length === 0) {
+		parts.push({ text: "", type: "text" as const });
+	}
+
+	return { parts, documents };
 }
 
 type LangChainToolCall = {
@@ -340,10 +403,60 @@ function toAssistantThreadContent(
 	return parts;
 }
 
-function attachToolResult(
-	threadMessages: ThreadMessageLike[],
-	toolMessage: LangChainToolMessage,
-) {
+	type SourceMetadataItem = {
+		id: string;
+		title: string;
+		url: string;
+		type: string;
+		ogImage?: string;
+	};
+
+	function extractSourcesFromToolResult(
+		parsedResult: unknown,
+	): ThreadAssistantMessagePart[] {
+		if (!parsedResult) return [];
+
+		const resultObj =
+			typeof parsedResult === "string"
+				? (() => {
+						try {
+							return JSON.parse(parsedResult);
+						} catch {
+							return null;
+						}
+					})()
+				: parsedResult;
+
+		if (!resultObj || typeof resultObj !== "object" || !("sources" in resultObj))
+			return [];
+
+		const sources = (resultObj as { sources: unknown }).sources;
+		if (!Array.isArray(sources)) return [];
+
+		const sourceParts: ThreadAssistantMessagePart[] = [];
+
+		for (const src of sources) {
+			if (!src || typeof src !== "object") continue;
+			const s = src as SourceMetadataItem;
+			const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
+
+			const isDocument = s.type === "FILE" || s.type === "UNKNOWN";
+			sourceParts.push({
+				type: "source",
+				sourceType: isDocument ? "document" : "url",
+				id: sourceId,
+				url: s.url ?? "",
+				title: s.title,
+			} as ThreadAssistantMessagePart);
+		}
+
+		return sourceParts;
+	}
+
+	function attachToolResult(
+		threadMessages: ThreadMessageLike[],
+		toolMessage: LangChainToolMessage,
+	) {
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
 		if (
@@ -365,20 +478,28 @@ function attachToolResult(
 			toolMessage.content,
 			toolMessage.artifact,
 		);
-		const updatedContent = message.content.map((part): typeof part => {
-			if (
-				part.type !== "tool-call" ||
-				part.toolCallId !== toolMessage.tool_call_id
-			) {
-				return part;
-			}
 
-			return {
-				...part,
-				isError: toolMessage.status === "error",
-				result: parsedResult,
-			};
-		});
+		const sourceParts = extractSourcesFromToolResult(
+			parsedResult,
+		);
+
+		const updatedContent = [
+			...message.content.map((part): typeof part => {
+				if (
+					part.type !== "tool-call" ||
+					part.toolCallId !== toolMessage.tool_call_id
+				) {
+					return part;
+				}
+
+				return {
+					...part,
+					isError: toolMessage.status === "error",
+					result: parsedResult,
+				};
+			}),
+			...sourceParts,
+		];
 
 		threadMessages[index] = { ...message, content: updatedContent };
 		return;
@@ -452,10 +573,46 @@ export function toThreadMessages(
 		const messageId = message.id ?? fallbackId;
 
 		if (message.type === "human") {
+			const { parts: allContent, documents: docEntries } = toUserThreadContent(message.content);
+			const imageParts = allContent.filter(
+				(part): part is { type: "image"; image: string } =>
+					part.type === "image" && typeof part.image === "string",
+			);
+			const content = allContent.filter((part) => part.type !== "image");
+
+			const attachments: Array<{
+				id: string;
+				type: "image" | "document";
+				name: string;
+				content: ThreadUserMessagePart[];
+				status: { type: "complete" };
+			}> = [];
+
+			for (let i = 0; i < imageParts.length; i++) {
+				attachments.push({
+					id: `${messageId}-attachment-img-${i}`,
+					type: "image",
+					name: `image-${i + 1}`,
+					content: [{ type: "image" as const, image: imageParts[i].image }],
+					status: { type: "complete" as const },
+				});
+			}
+
+			for (let i = 0; i < docEntries.length; i++) {
+				attachments.push({
+					id: `${messageId}-attachment-doc-${i}`,
+					type: "document",
+					name: docEntries[i].fileName,
+					content: [{ type: "text" as const, text: docEntries[i].fileName }],
+					status: { type: "complete" as const },
+				});
+			}
+
 			threadMessages.push({
-				content: toUserThreadContent(message.content),
+				content,
 				id: messageId,
 				role: "user",
+				...(attachments.length > 0 && { attachments }),
 			});
 			continue;
 		}
@@ -501,6 +658,22 @@ function mergeConsecutiveAssistantMessages(
 		}
 	}
 
+	for (const msg of merged) {
+		if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+		const sources = msg.content.filter(
+			(p): p is SourceMessagePart => p.type === "source",
+		);
+		if (sources.length === 0) continue;
+		const rest = msg.content.filter((p) => p.type !== "source");
+		const seenIds = new Set<string>();
+		const uniqueSources = sources.filter((s) => {
+			if (seenIds.has(s.id)) return false;
+			seenIds.add(s.id);
+			return true;
+		});
+		msg.content = [...rest, ...uniqueSources];
+	}
+
 	return merged;
 }
 
@@ -509,11 +682,13 @@ export function toLangGraphMessageContent(
 ):
 	| string
 	| Array<
-			{ text: string; type: "text" } | { image_url: string; type: "image_url" }
+			| { text: string; type: "text" }
+			| { image_url: { url: string }; type: "image_url" }
 	  >
 	| null {
 	const content: Array<
-		{ text: string; type: "text" } | { image_url: string; type: "image_url" }
+		| { text: string; type: "text" }
+		| { image_url: { url: string }; type: "image_url" }
 	> = [];
 
 	for (const part of parts) {
@@ -523,7 +698,7 @@ export function toLangGraphMessageContent(
 		}
 
 		if (part.type === "image" && part.image) {
-			content.push({ image_url: part.image, type: "image_url" });
+			content.push({ image_url: { url: part.image }, type: "image_url" });
 		}
 	}
 

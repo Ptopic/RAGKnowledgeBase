@@ -213,7 +213,9 @@ export class ImageAnalysisService {
 	private async fetchImageAsDataUrl(url: string, maxBytes: number, timeoutMs: number) {
 		if (url.startsWith("data:image/")) {
 			const [, meta, b64] = url.match(/^data:([^;]+);base64,(.+)$/) || [];
-			if (!meta || !b64) return null;
+			if (!meta || !b64) {
+				return null;
+			}
 			const bytes = Buffer.from(b64, "base64");
 			if (bytes.length > maxBytes) return null;
 			return { dataUrl: url, bytes, mimeType: meta };

@@ -2,10 +2,13 @@
 
 import { BoxIcon, WrenchIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { LinkPreviewTool } from "./link-preview-tool";
-import { DisplayImageTool } from "./display-image-tool";
-import { SearchKnowledgeBaseTool } from "./search-knowledge-base-tool";
 import { formatToolName } from "@/lib/chat/format-utils";
+import { AnalyzeImageTool } from "./analyze-image-tool";
+import { DisplayImageTool } from "./display-image-tool";
+import { IndexDocumentTool } from "./index-document-tool";
+import { IndexWebpageTool } from "./index-webpage-tool";
+import { IndexYoutubeTool } from "./index-youtube-tool";
+import { SearchKnowledgeBaseTool } from "./search-knowledge-base-tool";
 
 interface ToolCallRendererProps {
 	toolName: string;
@@ -25,9 +28,9 @@ export function ToolCallRenderer({
 	status,
 }: ToolCallRendererProps) {
 	switch (toolName) {
-		case "link_preview":
+		case "analyze_image":
 			return (
-				<LinkPreviewTool
+				<AnalyzeImageTool
 					args={args}
 					result={result}
 					errored={errored}
@@ -39,6 +42,39 @@ export function ToolCallRenderer({
 		case "display_image":
 			return (
 				<DisplayImageTool
+					args={args}
+					result={result}
+					errored={errored}
+					isRunning={isRunning}
+					status={status}
+				/>
+			);
+
+		case "index_document":
+			return (
+				<IndexDocumentTool
+					args={args}
+					result={result}
+					errored={errored}
+					isRunning={isRunning}
+					status={status}
+				/>
+			);
+
+		case "index_webpage":
+			return (
+				<IndexWebpageTool
+					args={args}
+					result={result}
+					errored={errored}
+					isRunning={isRunning}
+					status={status}
+				/>
+			);
+
+		case "index_youtube":
+			return (
+				<IndexYoutubeTool
 					args={args}
 					result={result}
 					errored={errored}

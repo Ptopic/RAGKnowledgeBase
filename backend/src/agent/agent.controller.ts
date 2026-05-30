@@ -7,10 +7,17 @@ import {
 	Query,
 	Req,
 	Res,
+	UploadedFile,
 	UseGuards,
+	UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { MemberRole } from "@prisma/client";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import { Response as ExpressResponse } from "express";
+import { diskStorage } from "multer";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
 import { SearchSpaceAccessGuard } from "src/permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "src/permissions/decorators/require-search-space-role.decorator";
@@ -24,6 +31,37 @@ import {
 	resetThinkingStepCounter,
 } from "./utils/thinking-steps";
 
+const chatUploadsDir = path.join(process.cwd(), "uploads", "chat-files");
+if (!fs.existsSync(chatUploadsDir)) {
+	fs.mkdirSync(chatUploadsDir, { recursive: true });
+}
+
+const chatFileStorage = diskStorage({
+	destination: (_req, _file, cb) => {
+		cb(null, chatUploadsDir);
+	},
+	filename: (_req, file, cb) => {
+		const hash = crypto.randomBytes(8).toString("hex");
+		const ext = path.extname(file.originalname);
+		const name = path.basename(file.originalname, ext);
+		cb(null, `${name}-${hash}${ext}`);
+	},
+});
+
+function extractTextFromContent(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.filter(
+			(part): part is Record<string, unknown> & { type: string } =>
+				typeof part === "object" && part !== null && "type" in part,
+		)
+		.filter((part) => part.type === "text" && typeof part.text === "string")
+		.map((part) => part.text as string)
+		.join("")
+		.trim();
+}
+
 @Controller("agent")
 export class AgentController {
 	private readonly logger = new Logger(AgentController.name);
@@ -34,6 +72,26 @@ export class AgentController {
 		private readonly chatActionsService: ChatActionsService,
 		private readonly llmService: LLMService,
 	) {}
+
+	@Post("upload-chat-file")
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@RequireSearchSpaceRole(MemberRole.VIEWER)
+	@UseInterceptors(FileInterceptor("file", { storage: chatFileStorage }))
+	async uploadChatFile(
+		@UploadedFile() file: Express.Multer.File | undefined,
+		@Req() _req: any,
+	) {
+		if (!file) {
+			throw new BadRequestException("No file uploaded");
+		}
+
+		return {
+			filePath: file.path,
+			fileName: file.originalname,
+			mimetype: file.mimetype,
+			size: file.size,
+		};
+	}
 
 	@Post("chatWithDeepAgent")
 	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
@@ -54,8 +112,9 @@ export class AgentController {
 				throw new BadRequestException("Last message must be a user message");
 			}
 
-			const userQuery = messages[messages.length - 1].content;
+			const userContent = messages[messages.length - 1].content;
 			const requestData = request.data || {};
+
 			const searchSpaceId = Number(requestData.search_space_id);
 
 			if (!searchSpaceId) {
@@ -75,7 +134,7 @@ export class AgentController {
 
 			const { stream, chatId: createdChatId, chatWasCreated } =
 				await this.deepAgentService.streamDeepAgent({
-					userQuery,
+					userQuery: userContent,
 					userId: req.user.id,
 					searchSpaceId,
 					selectedConnectors,
@@ -94,7 +153,8 @@ export class AgentController {
 
 			resetThinkingStepCounter();
 
-			const initialStep = getInitialThinkingStep(userQuery);
+			const userQueryText = extractTextFromContent(userContent);
+			const initialStep = getInitialThinkingStep(userQueryText);
 			res.write("event: custom\n");
 			res.write(`data: ${JSON.stringify({ type: "thinking", ...initialStep })}\n\n`);
 
@@ -137,7 +197,7 @@ export class AgentController {
 				throw new BadRequestException("Last message must be a user message");
 			}
 
-			const userQuery = messages[messages.length - 1].content;
+			const userContent = messages[messages.length - 1].content;
 			const requestData = request.data || {};
 
 			const searchSpaceId = Number(requestData.search_space_id);
@@ -163,7 +223,7 @@ export class AgentController {
 				chatId: createdChatId,
 				chatWasCreated,
 			} = await this.agentService.streamConnectorSearchResults({
-				userQuery,
+				userQuery: extractTextFromContent(userContent),
 				userId: req.user.id,
 				searchSpaceId,
 				researchMode,

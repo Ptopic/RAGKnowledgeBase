@@ -199,6 +199,28 @@ export class FileProcessorsService {
 				existingDocument = await this.prisma.document.findUnique({
 					where: { id: documentId },
 				});
+
+				if (existingDocument && !existingDocument.contentHash) {
+					const duplicateDoc = await this.prisma.document.findUnique({
+						where: { contentHash },
+					});
+					if (duplicateDoc && duplicateDoc.id !== documentId) {
+						this.logger.log(
+							`Document with same content already exists (id=${duplicateDoc.id}). Deleting placeholder ${documentId} and updating existing.`,
+						);
+
+						await this.prisma.chunk.deleteMany({
+							where: { documentId: duplicateDoc.id },
+						});
+
+						await this.prisma.document.delete({
+							where: { id: documentId },
+						});
+
+						existingDocument = duplicateDoc;
+						documentId = undefined;
+					}
+				}
 			} else {
 				existingDocument =
 					await this.baseService.checkDocumentByUniqueIdentifier(
@@ -368,6 +390,31 @@ export class FileProcessorsService {
 				existingDocument = await this.prisma.document.findUnique({
 					where: { id: documentId },
 				});
+
+				// Placeholder docs (from chat upload) have contentHash=null.
+				// Before updating, check if another doc already owns this contentHash
+				// to avoid a unique constraint violation.
+				if (existingDocument && !existingDocument.contentHash) {
+					const duplicateDoc = await this.prisma.document.findUnique({
+						where: { contentHash },
+					});
+					if (duplicateDoc && duplicateDoc.id !== documentId) {
+						this.logger.log(
+							`Document with same content already exists (id=${duplicateDoc.id}). Deleting placeholder ${documentId} and updating existing.`,
+						);
+
+						await this.prisma.chunk.deleteMany({
+							where: { documentId: duplicateDoc.id },
+						});
+
+						await this.prisma.document.delete({
+							where: { id: documentId },
+						});
+
+						existingDocument = duplicateDoc;
+						documentId = undefined;
+					}
+				}
 			} else {
 				existingDocument =
 					await this.baseService.checkDocumentByUniqueIdentifier(
@@ -526,6 +573,12 @@ export class FileProcessorsService {
 		let logEntry: Log | null = null;
 
 		try {
+			if (!fs.existsSync(filePath)) {
+				throw new Error(
+					`Uploaded file not found at ${filePath}. It may have been deleted before processing started.`,
+				);
+			}
+
 			// Log task start
 			logEntry = await taskLogger.logTaskStart(
 				"file_upload_processing",
@@ -534,73 +587,8 @@ export class FileProcessorsService {
 				{ filename, user_id: userId, file_path: filePath },
 			);
 
-			// Check if the file is a markdown or text file
-			if (filename.toLowerCase().match(/\.(md|markdown|txt)$/)) {
-				await taskLogger.logTaskProgress(
-					logEntry,
-					`Processing markdown/text file: ${filename}`,
-					{ file_type: "markdown", processing_stage: "reading_file" },
-				);
-
-				const markdownContent = fs.readFileSync(filePath, "utf-8");
-
-				try {
-					fs.unlinkSync(filePath);
-				} catch (e) {
-					this.logger.error("Error deleting temp file", e);
-				}
-
-				await taskLogger.logTaskProgress(
-					logEntry,
-					`Creating document from markdown content: ${filename}`,
-					{
-						processing_stage: "creating_document",
-						content_length: markdownContent.length,
-					},
-				);
-
-				const result =
-					await this.markdownProcessor.addReceivedMarkdownFileDocument(
-						filename,
-						markdownContent,
-						searchSpaceId,
-						userId,
-						documentId,
-					);
-
-				if (result) {
-					if (documentId) {
-						await this.prisma.document.update({
-							where: { id: documentId },
-							data: {
-								processingStatus: 'COMPLETED',
-								processingCompletedAt: new Date(),
-							},
-						});
-						this.sseService.broadcastEvent({
-							topic: 'documents',
-							data: { action: 'update', searchSpaceId, documentId: result.id },
-						});
-					}
-					await taskLogger.logTaskSuccess(
-						logEntry,
-						`Successfully processed markdown file: ${filename}`,
-						{
-							document_id: result.id,
-							content_hash: result.contentHash,
-							file_type: "markdown",
-						},
-					);
-				} else {
-					await taskLogger.logTaskSuccess(
-						logEntry,
-						`Markdown file already exists (duplicate): ${filename}`,
-						{ duplicate_detected: true, file_type: "markdown" },
-					);
-				}
-			}
 			// Check if the file is an audio file
-			else if (
+			if (
 				filename.toLowerCase().match(/\.(mp3|mp4|mpeg|mpga|m4a|wav|webm)$/)
 			) {
 				await taskLogger.logTaskProgress(
@@ -629,13 +617,6 @@ export class FileProcessorsService {
 
 					const transcription =
 						await this.deepgramService.transcribeFile(filePath);
-
-					// Clean up the temp file
-					try {
-						fs.unlinkSync(filePath);
-					} catch (e) {
-						this.logger.error("Error deleting temp file", e);
-					}
 
 					// Create document from transcript
 					await taskLogger.logTaskProgress(
@@ -683,14 +664,14 @@ export class FileProcessorsService {
 							},
 						);
 					}
-				} catch (error) {
-					// Clean up the temp file on error
+
 					try {
 						fs.unlinkSync(filePath);
 					} catch (e) {
 						this.logger.error("Error deleting temp file", e);
 					}
-
+				} catch (error) {
+					// Do NOT delete the temp file on error — Bull may retry this job
 					await taskLogger.logTaskFailure(
 						logEntry,
 						`Failed to process audio file: ${filename}`,
@@ -789,13 +770,6 @@ export class FileProcessorsService {
 						);
 					}
 
-					// Clean up the temp file
-					try {
-						fs.unlinkSync(filePath);
-					} catch (e) {
-						this.logger.error("Error deleting temp file", e);
-					}
-
 					// Create document from markdown
 					await taskLogger.logTaskProgress(
 						logEntry,
@@ -829,13 +803,19 @@ export class FileProcessorsService {
 							},
 						);
 					}
-				} catch (error) {
-					// Clean up the temp file on error
+
 					try {
 						fs.unlinkSync(filePath);
 					} catch (e) {
 						this.logger.error("Error deleting temp file", e);
 					}
+				} catch (error) {
+					// Do NOT delete the temp file on error — Bull may retry this job
+					// (attempts: 3) and needs the file to still exist on disk.
+					// If the file was already deleted by an earlier attempt or is
+					// missing, the retry will fail fast with ENOENT and eventually
+					// exhaust retries, at which point the outer catch marks the
+					// document FAILED and we clean up there.
 
 					await taskLogger.logTaskFailure(
 						logEntry,

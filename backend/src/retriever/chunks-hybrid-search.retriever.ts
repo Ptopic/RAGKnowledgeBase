@@ -141,6 +141,12 @@ export class ChunksHybridSearchRetriever {
       paramIndex++;
     }
 
+    if (options.titleFilter !== undefined) {
+      conditions.push(`d.title ILIKE $${paramIndex}`);
+      params.push(`%${options.titleFilter}%`);
+      paramIndex++;
+    }
+
     const baseWhere = conditions.join(' AND ');
     const semanticWhere = baseWhere;
     const keywordWhere = `${baseWhere} AND to_tsvector('english', c.content) @@ plainto_tsquery('english', $${paramIndex})`;

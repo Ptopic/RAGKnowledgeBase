@@ -635,6 +635,7 @@ async function saveMessagesToBackend(
 					kind: `tool_${msg.toolName}`,
 					toolName: msg.toolName,
 					runId: msg.runId,
+					args: msg.args,
 					data: msg.data,
 					status: msg.status,
 				},

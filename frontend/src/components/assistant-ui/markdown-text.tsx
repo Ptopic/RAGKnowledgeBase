@@ -205,7 +205,7 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 					pre: ({ className: c, ...props }) => (
 						<pre
 							className={cn(
-								"overflow-x-auto rounded-t-none! rounded-b-lg bg-black p-4 text-white",
+								"overflow-x-auto rounded-t-none! rounded-b-lg",
 								c,
 							)}
 							{...props}
@@ -229,6 +229,7 @@ const MarkdownText: FC<MarkdownTextProps> = memo(({ text, className }) => {
 
 						const language = match[1];
 						const code = String(children).replace(/\n$/, "");
+
 						return (
 							<>
 								<CodeHeader language={language} code={code} />

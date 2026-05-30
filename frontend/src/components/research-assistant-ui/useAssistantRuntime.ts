@@ -9,7 +9,6 @@ import {
 	CompositeAttachmentAdapter,
 	ExportedMessageRepository,
 	SimpleImageAttachmentAdapter,
-	SimpleTextAttachmentAdapter,
 	type ThreadMessageLike,
 	useExternalStoreRuntime,
 	WebSpeechDictationAdapter,
@@ -25,14 +24,10 @@ import {
 	toLangGraphMessageContent,
 	toThreadMessages,
 } from "@/components/research-assistant-ui/toThreadMessages";
+import { SimpleFileAttachmentAdapter } from "@/components/research-assistant-ui/file-attachment-adapter";
 import { getOrderedMessages } from "@/components/ui/Chat/utils";
 import { config } from "@/shared/config/config";
 import type { OrderedStreamMessage } from "@/types/chat.types";
-
-	const attachmentAdapter = new CompositeAttachmentAdapter([
-		new SimpleImageAttachmentAdapter(),
-		new SimpleTextAttachmentAdapter(),
-	]);
 
 export interface UseAssistantRuntimeOptions {
 	endpoint: string;
@@ -78,6 +73,18 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	const currentChatIdRef = useRef<number | undefined>(options.chatId);
 	const lastUserMessageRef = useRef<string>("");
 	const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+
+	const attachmentAdapter = useMemo(
+		() =>
+			new CompositeAttachmentAdapter([
+				new SimpleImageAttachmentAdapter(),
+				new SimpleFileAttachmentAdapter({
+					token: options.token,
+					searchSpaceId: options.searchSpaceId,
+				}),
+			]),
+		[options.token, options.searchSpaceId],
+	);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only re-sync when chatId prop changes
 	useEffect(() => {
@@ -127,7 +134,10 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 		completedToolCallIdsRef.current.clear();
 		setPendingQuestion(null);
 		setStreamError(null);
-		setFollowUpQuestions([]);
+
+		const lastFollowUps = extractFollowUpQuestions(initial);
+		setFollowUpQuestions(lastFollowUps);
+
 		turnStartIndexRef.current = null;
 	}, [options.resetVersion, options.initialMessages]);
 
@@ -156,11 +166,18 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				},
 				onRequest: async (_url: string, init: RequestInit) => {
 					const langchainBody = JSON.parse(init.body as string) || {};
-					const messages = langchainBody.input?.messages || [];
+					const messages = langchainBody.messages || langchainBody.input?.messages || [];
 					const lastMessage = messages[messages.length - 1];
 					const messageContent = lastMessage?.content || "";
 
-					lastUserMessageRef.current = messageContent;
+					lastUserMessageRef.current = typeof messageContent === "string"
+						? messageContent
+						: (Array.isArray(messageContent)
+								? messageContent
+										.filter((p: any) => p?.type === "text" && typeof p?.text === "string")
+										.map((p: any) => p.text as string)
+										.join(" ")
+								: String(messageContent));
 
 					const customBody = {
 						messages: [{ content: messageContent, role: "user" }],
@@ -202,6 +219,7 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 	const stream = useStream({
 		transport,
 		threadId: options.threadId,
+		throttle: 16,
 		onError: (error) => {
 			setStreamError(error);
 			options.onStreamError?.(
@@ -425,23 +443,25 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 
 				const msgId = msg.id ?? `${msg.type}-${Date.now()}-${Math.random()}`;
 
-				// AI messages stream incrementally — same ID, growing content.
-				// Always update in-place, never skip via mergedStreamIdsRef.
-				if (msg.type === "ai") {
-					const existingIdx = updated.findIndex(
-						(m) => m.id === msg.id && m.id !== undefined,
+			// AI messages stream incrementally — same ID, growing content.
+			// Only merge with AI messages from the current turn to prevent
+			// cross-turn ID collisions (e.g., chatcmpl-* IDs reused across turns).
+			if (msg.type === "ai") {
+				const turnStart = turnStartIndexRef.current ?? 0;
+				const existingIdx = updated.findIndex(
+					(m, i) => i >= turnStart && m.id === msg.id && m.id !== undefined,
+				);
+				if (existingIdx !== -1) {
+					updated[existingIdx] = mergeStreamMessage(
+						updated[existingIdx] as BaseMessage,
+						msg,
 					);
-					if (existingIdx !== -1) {
-						updated[existingIdx] = mergeStreamMessage(
-							updated[existingIdx] as BaseMessage,
-							msg,
-						);
-					} else {
-						updated.push(msg);
-					}
-					mergedStreamIdsRef.current.add(msgId);
-					continue;
+				} else {
+					updated.push(msg);
 				}
+				mergedStreamIdsRef.current.add(msgId);
+				continue;
+			}
 
 				// Tool messages can be updated multiple times for the same tool_call_id.
 				// Keep the latest snapshot so persistence sees final content/status.
@@ -759,13 +779,30 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 			return;
 		}
 
-		const content = toLangGraphMessageContent(
-			message.content as readonly {
-				type: string;
-				text?: string;
-				image?: string;
-			}[],
+		const attachmentContent = (message.attachments?.flatMap((a) => a.content) ?? []) as readonly { type: string; text?: string; image?: string }[];
+
+		// Separate image attachments from document markers.
+		// Image content becomes image_url blocks for the LLM.
+		// Document markers ([uploaded_document: ...]) are sent to the backend
+		// but hidden from the user message bubble.
+		const imageContent = attachmentContent.filter((c) => c.type === "image" && c.image);
+		const documentMarkers = attachmentContent.filter(
+			(c) => c.type === "text" && c.text && c.text.startsWith("[uploaded_document:"),
 		);
+
+		// Build visible content (user text + images)
+		const visibleContent = [
+			...message.content,
+			...imageContent,
+		] as readonly { type: string; text?: string; image?: string }[];
+
+		// Build full content for backend (visible + hidden document markers)
+		const fullContent = [
+			...visibleContent,
+			...documentMarkers,
+		] as readonly { type: string; text?: string; image?: string }[];
+
+		const content = toLangGraphMessageContent(fullContent);
 		if (!content) return;
 
 		const messageToSend = content;
@@ -793,13 +830,24 @@ export function useAssistantRuntime(options: UseAssistantRuntimeOptions) {
 				stream.stop();
 			}
 
-		const content = toLangGraphMessageContent(
-			message.content as readonly {
-				type: string;
-				text?: string;
-				image?: string;
-			}[],
+		const attachmentContent = (message.attachments?.flatMap((a) => a.content) ?? []) as readonly { type: string; text?: string; image?: string }[];
+
+		const imageContent = attachmentContent.filter((c) => c.type === "image" && c.image);
+		const documentMarkers = attachmentContent.filter(
+			(c) => c.type === "text" && c.text && c.text.startsWith("[uploaded_document:"),
 		);
+
+		const visibleContent = [
+			...message.content,
+			...imageContent,
+		] as readonly { type: string; text?: string; image?: string }[];
+
+		const fullContent = [
+			...visibleContent,
+			...documentMarkers,
+		] as readonly { type: string; text?: string; image?: string }[];
+
+		const content = toLangGraphMessageContent(fullContent);
 		if (!content) return;
 
 		const messageToSend = content;
@@ -878,6 +926,7 @@ async function saveMessagesToBackend(
 					kind: `tool_${msg.toolName}`,
 					toolName: msg.toolName,
 					runId: msg.runId,
+					args: msg.args,
 					data: msg.data,
 					status: msg.status,
 				},
@@ -918,4 +967,33 @@ function getTextFromContent(content: unknown): string {
 		)
 		.map((part) => part.text)
 		.join("");
+}
+
+function extractFollowUpQuestions(messages: BaseMessage[]): string[] {
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const msg = messages[i];
+		if (msg.type !== "tool") continue;
+
+		const toolMessage = msg as BaseMessage & {
+			name?: string;
+			content?: unknown;
+		};
+
+		if (toolMessage.name !== "generate_followup_questions") continue;
+
+		const content = getTextFromContent(toolMessage.content);
+		if (!content) continue;
+
+		try {
+			const parsed = JSON.parse(content);
+			if (
+				Array.isArray(parsed) &&
+				parsed.every((q: unknown) => typeof q === "string")
+			) {
+				return parsed.filter((q: string) => q.trim().length > 0);
+			}
+		} catch {
+		}
+	}
+	return [];
 }
