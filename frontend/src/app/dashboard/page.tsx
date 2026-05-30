@@ -211,7 +211,7 @@ const DashboardPage = () => {
 					: "Unknown User"),
 		avatar: "/icon-128.png",
 	};
-	const isSuperuser = user?.is_superuser ?? false;
+	const isSuperuser = user?.isSuperuser ?? false;
 
 	if (loading && !searchSpaces) return <LoadingScreen />;
 	if (error && !searchSpaces) return <ErrorScreen message={error.toString()} />;

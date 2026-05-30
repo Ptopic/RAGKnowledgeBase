@@ -58,7 +58,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const { data: currentUser, isLoading: isLoadingUser } = useGetCurrentUser();
-	const isSuperuser = currentUser?.is_superuser ?? false;
+	const isSuperuser = currentUser?.isSuperuser ?? false;
 
 	const [open, setOpen] = useState<boolean>(() => {
 		try {
