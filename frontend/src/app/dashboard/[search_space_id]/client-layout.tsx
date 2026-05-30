@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 
 interface NavItem {
 	title: string;
@@ -74,10 +75,20 @@ export function DashboardClientLayout({
 
 	const isViewer = searchSpaceData?.role === "VIEWER" && !searchSpaceData?.is_owner;
 
-	const translatedNavMain = useMemo(() => {
-		if (!isViewer) return navMain;
+	const { data: currentUser } = useGetCurrentUser();
+	const isSuperuser = currentUser?.is_superuser ?? false;
 
-		return navMain
+	const translatedNavMain = useMemo(() => {
+		let filtered = navMain;
+
+		// Hide Admin section for non-superusers
+		if (!isSuperuser) {
+			filtered = filtered.filter((group) => group.title !== "Admin");
+		}
+
+		if (!isViewer) return filtered;
+
+		return filtered
 			.filter((group) => group.title !== "Connectors")
 			.map((group) => {
 				if (group.title !== "Documents" || !group.items?.length) return group;
@@ -91,7 +102,7 @@ export function DashboardClientLayout({
 					),
 				};
 			});
-	}, [navMain, isViewer]);
+	}, [navMain, isViewer, isSuperuser]);
 
 	const translatedNavSecondary = useMemo(() => {
 		return navSecondary;

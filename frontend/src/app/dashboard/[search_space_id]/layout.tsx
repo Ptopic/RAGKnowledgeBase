@@ -92,6 +92,25 @@ export default function DashboardLayout({
 			icon: "FileText",
 			items: [],
 		},
+		{
+			title: "Admin",
+			url: "#",
+			icon: "Shield",
+			items: [
+				{
+					title: "Users",
+					url: "/admin/users",
+				},
+				{
+					title: "System",
+					url: "/admin/system",
+				},
+				{
+					title: "Subscriptions",
+					url: "/admin/subscriptions",
+				},
+			],
+		},
 	];
 
 	return (

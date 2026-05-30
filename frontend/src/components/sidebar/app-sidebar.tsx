@@ -11,11 +11,13 @@ import {
 	type LucideIcon,
 	MessageCircleMore,
 	Settings2,
+	Shield,
 	SquareLibrary,
 	SquareTerminal,
 	Star,
 	Trash2,
 	Undo2,
+	Users,
 } from "lucide-react";
 import Link from "next/link";
 import { memo, useMemo } from "react";
@@ -41,6 +43,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	Undo2,
 	MessageCircleMore,
 	Settings2,
+	Shield,
 	SquareLibrary,
 	SquareTerminal,
 	AlertCircle,
@@ -49,6 +52,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	Trash2,
 	FileText,
 	Star,
+	Users,
 };
 
 const defaultData = {
