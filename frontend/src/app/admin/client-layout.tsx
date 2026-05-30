@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { AccessDeniedPage } from "@/components/access-denied-page";
+import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import {
@@ -16,14 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	SidebarHeader,
 	SidebarInset,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
 	SidebarProvider,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -119,6 +113,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 						<div className="flex items-center gap-2">
 							<SidebarTrigger className="-ml-1" />
 							<Separator orientation="vertical" className="h-6" />
+							<DashboardBreadcrumb />
 							<span className="text-sm font-medium text-muted-foreground">
 								Admin / {activePage}
 							</span>
