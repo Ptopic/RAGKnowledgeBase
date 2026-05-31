@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { AgentModule } from "./agent/agent.module";
 import { ApiKeysModule } from "./api-keys/api-keys.module";
@@ -24,6 +25,7 @@ import { ServicesModule } from "./services/services.module";
 import { RedisModule } from "./redis/redis.module";
 import { SseModule } from "./sse/sse.module";
 import { AdminModule } from "./admin/admin.module";
+import { SubscriptionModule } from "./subscription/subscription.module";
 
 @Module({
 	imports: [
@@ -31,6 +33,7 @@ import { AdminModule } from "./admin/admin.module";
 			isGlobal: true,
 			load: [configuration],
 		}),
+		ScheduleModule.forRoot(),
 		ThrottlerModule.forRoot([{
 			name: 'default',
 			limit: 10,
@@ -56,6 +59,7 @@ import { AdminModule } from "./admin/admin.module";
 		RedisModule,
 		SseModule,
 		AdminModule,
+		SubscriptionModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
