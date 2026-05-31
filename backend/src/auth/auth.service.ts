@@ -1,5 +1,6 @@
 import {
 	ConflictException,
+	ForbiddenException,
 	Injectable,
 	Logger,
 	NotFoundException,
@@ -98,6 +99,12 @@ export class AuthService {
 			);
 		}
 
+		if (!user.isActive) {
+			throw new ForbiddenException(
+				"Account has been disabled. Contact your administrator.",
+			);
+		}
+
 		if (!user.hashedPassword) {
 			throw new UnauthorizedException(
 				"This account was created via Google. Please use Google sign-in.",
@@ -151,6 +158,12 @@ export class AuthService {
 			return { message: "Password reset email sent" };
 		}
 
+		if (!user.isActive) {
+			throw new ForbiddenException(
+				"Account has been disabled. Contact your administrator.",
+			);
+		}
+
 		if (!user.hashedPassword) {
 			throw new UnauthorizedException(
 				"This account was created via Google. Please use Google sign-in.",
@@ -180,6 +193,12 @@ export class AuthService {
 
 		if (!user) {
 			throw new UnauthorizedException("Invalid or expired reset token");
+		}
+
+		if (!user.isActive) {
+			throw new ForbiddenException(
+				"Account has been disabled. Contact your administrator.",
+			);
 		}
 
 		if (!user.resetTokenExpires || user.resetTokenExpires < new Date()) {
@@ -250,6 +269,12 @@ export class AuthService {
 			} else {
 				userId = existingUser.id;
 
+				if (!existingUser.isActive) {
+					throw new ForbiddenException(
+						"Account has been disabled. Contact your administrator.",
+					);
+				}
+
 				if (!existingUser.fullName && name) {
 					await this.prisma.user.update({
 						where: { id: userId },
@@ -299,6 +324,12 @@ export class AuthService {
 				},
 			};
 		} catch (error) {
+			if (
+				error instanceof ForbiddenException ||
+				error instanceof UnauthorizedException
+			) {
+				throw error;
+			}
 			this.logger.error("Google token verification failed:", error);
 			throw new UnauthorizedException("Invalid Google access token");
 		}
@@ -325,6 +356,12 @@ export class AuthService {
 				},
 			},
 		});
+
+		if (user && !user.isActive) {
+			throw new ForbiddenException(
+				"Account has been disabled. Contact your administrator.",
+			);
+		}
 
 		return user;
 	}
