@@ -165,4 +165,14 @@ export default () => ({
   encryption: {
     apiKey: process.env.API_ENCRYPTION_KEY,
   },
+
+  // Stripe Configuration
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    prices: {
+      pro: process.env.STRIPE_PRO_PRICE_ID,
+      business: process.env.STRIPE_BUSINESS_PRICE_ID,
+    },
+  },
 });
