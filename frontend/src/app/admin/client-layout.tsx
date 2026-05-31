@@ -1,9 +1,10 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type React from "react";
 import { useMemo, useState } from "react";
+import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { AccessDeniedPage } from "@/components/access-denied-page";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
@@ -21,7 +22,7 @@ import {
 	SidebarProvider,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
-import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
+import { COOKIE_NAME } from "@/shared/constants/cookies";
 
 const adminNavMain = [
 	{
@@ -55,14 +56,16 @@ const adminNavSecondary = [
 ];
 
 export function AdminClientLayout({ children }: { children: React.ReactNode }) {
-	const router = useRouter();
 	const pathname = usePathname();
 	const { data: currentUser, isLoading: isLoadingUser } = useGetCurrentUser();
 	const isSuperuser = currentUser?.isSuperuser ?? false;
 
 	const [open, setOpen] = useState<boolean>(() => {
+		if (typeof document === "undefined") return true;
 		try {
-			const match = document.cookie.match(/(?:^|; )sidebar_state=([^;]+)/);
+			const match = document.cookie.match(
+				new RegExp(`(?:^|; )${COOKIE_NAME.SIDEBAR_STATE}=([^;]+)`),
+			);
 			if (match) return match[1] === "true";
 		} catch {
 			// ignore
@@ -96,7 +99,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 		);
 	}
 
-	// Non-admin users see AccessDeniedPage
+	// Client-side guard for UX — all admin API endpoints MUST validate isSuperuser server-side
 	if (!isSuperuser) {
 		return <AccessDeniedPage />;
 	}

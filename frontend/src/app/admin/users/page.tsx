@@ -26,7 +26,7 @@ export default function AdminUsersPage() {
 									Manage user accounts, permissions, and access levels.
 								</p>
 							</div>
-							<Button className="flex items-center gap-2">
+							<Button className="flex items-center gap-2" disabled>
 								<UserPlus className="h-4 w-4" />
 								Invite User
 							</Button>

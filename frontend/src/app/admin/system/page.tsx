@@ -1,6 +1,6 @@
 "use client";
 
-import { Monitor, Server } from "lucide-react";
+import { Server } from "lucide-react";
 import {
 	Card,
 	CardContent,
