@@ -3,6 +3,7 @@ import {
 	Body,
 	Controller,
 	Get,
+	Patch,
 	Post,
 	Req,
 } from "@nestjs/common";
@@ -17,6 +18,7 @@ import {
 	ResetPasswordDto,
 	SignupDto,
 } from "./dtos/auth.dto";
+import { UpdatePreferencesDto } from "./dtos/preferences.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -60,5 +62,22 @@ export class AuthController {
 	@JwtAuth()
 	me(@Req() req: Request) {
 		return this.authService.me(req.user.id);
+	}
+
+	@SkipThrottle()
+	@Get("preferences")
+	@JwtAuth()
+	async getPreferences(@Req() req: Request) {
+		return this.authService.getPreferences(req.user.id);
+	}
+
+	@SkipThrottle()
+	@Patch("preferences")
+	@JwtAuth()
+	async updatePreferences(
+		@Req() req: Request,
+		@Body() body: UpdatePreferencesDto,
+	) {
+		return this.authService.updatePreferences(req.user.id, body);
 	}
 }

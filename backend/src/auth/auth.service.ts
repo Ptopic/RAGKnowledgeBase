@@ -3,7 +3,6 @@ import {
 	ForbiddenException,
 	Injectable,
 	Logger,
-	NotFoundException,
 	UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -388,5 +387,29 @@ export class AuthService {
 		}
 
 		return user.pagesUsed >= user.pagesLimit;
+	}
+
+	async getPreferences(userId: string) {
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { preferredLanguage: true },
+		});
+		if (!user) throw new UnauthorizedException("User not found");
+		return { preferred_language: user.preferredLanguage };
+	}
+
+	async updatePreferences(userId: string, body: { preferred_language?: string }) {
+		const user = await this.prisma.user.findUnique({ where: { id: userId } });
+		if (!user) throw new UnauthorizedException("User not found");
+
+		const data: any = {};
+		if (body.preferred_language !== undefined) data.preferredLanguage = body.preferred_language;
+
+		const updated = await this.prisma.user.update({
+			where: { id: userId },
+			data,
+			select: { preferredLanguage: true },
+		});
+		return { preferred_language: updated.preferredLanguage };
 	}
 }
