@@ -20,16 +20,18 @@ interface NavSecondaryItem {
 
 export function NavSecondary({
 	items,
+	label = "Search Space",
 	...props
 }: {
 	items: NavSecondaryItem[];
+	label?: string;
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
 
 	return (
 		<SidebarGroup {...props}>
-			<SidebarGroupLabel>Search Space</SidebarGroupLabel>
+			<SidebarGroupLabel>{label}</SidebarGroupLabel>
 			<SidebarMenu>
 				{memoizedItems.map((item, index) => (
 					<SidebarMenuItem key={`${item.title}-${index}`}>

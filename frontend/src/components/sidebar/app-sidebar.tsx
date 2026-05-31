@@ -156,6 +156,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 		url: string;
 		icon: string;
 	}[];
+	navSecondaryLabel?: string;
 	RecentChats?: {
 		name: string;
 		url: string;
@@ -180,6 +181,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export const AppSidebar = memo(function AppSidebar({
 	navMain = defaultData.navMain,
 	navSecondary = defaultData.navSecondary,
+	navSecondaryLabel = "Search Space",
 	RecentChats = defaultData.RecentChats,
 	...props
 }: AppSidebarProps) {
@@ -240,7 +242,7 @@ export const AppSidebar = memo(function AppSidebar({
 				)}
 			</SidebarContent>
 			<SidebarFooter>
-				<NavSecondary items={processedNavSecondary} className="mt-auto" />
+				<NavSecondary items={processedNavSecondary} label={navSecondaryLabel} className="mt-auto" />
 			</SidebarFooter>
 		</Sidebar>
 	);

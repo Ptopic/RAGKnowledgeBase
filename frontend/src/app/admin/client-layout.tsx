@@ -99,6 +99,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 			<AppSidebar
 				navMain={adminNavMain}
 				navSecondary={adminNavSecondary}
+				navSecondaryLabel="Admin"
 				RecentChats={[]}
 			/>
 			<SidebarInset>
