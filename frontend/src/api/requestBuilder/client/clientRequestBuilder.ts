@@ -4,6 +4,8 @@ import { removeAuthTokens } from '@shared/utils/auth';
 import { getCookie } from 'cookies-next';
 import { RequestBuilder } from '../requestBuilder';
 
+const LOGIN_PATH = '/auth';
+
 export class ClientRequestBuilder<T> extends RequestBuilder<T> {
    constructor(url?: string);
    constructor(
@@ -35,6 +37,16 @@ export class ClientRequestBuilder<T> extends RequestBuilder<T> {
    ): Promise<T> {
       if (error instanceof Error) {
          const errorCause = (error as Error).cause as { status: number };
+         if (errorCause?.status === 403) {
+            if (error.message?.includes("disabled")) {
+               const hasAccessToken = !!getCookie(COOKIE_NAME.ACCESS_TOKEN);
+               if (hasAccessToken && typeof window !== "undefined" && !window.location.pathname.includes(LOGIN_PATH)) {
+                  await removeAuthTokens();
+                  window.location.href = `${LOGIN_PATH}?error=${encodeURIComponent(error.message)}`;
+               }
+            }
+            throw error;
+         }
          if (errorCause?.status === 401) {
             const refreshToken = await getCookie(COOKIE_NAME.REFRESH_TOKEN);
             if (refreshToken) {
@@ -42,7 +54,6 @@ export class ClientRequestBuilder<T> extends RequestBuilder<T> {
             }
 
             await removeAuthTokens();
-            // window.location.href = url.includes('admin') ? LOGIN : LOGIN;
          }
       }
       throw error;
