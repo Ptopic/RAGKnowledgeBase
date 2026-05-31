@@ -76,9 +76,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">
-							Loading
-						</CardTitle>
+						<CardTitle className="text-xl font-medium">Loading</CardTitle>
 						<CardDescription>Checking permissions...</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center py-6">
@@ -99,7 +97,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 			<AppSidebar
 				navMain={adminNavMain}
 				navSecondary={adminNavSecondary}
-				navSecondaryLabel="Admin"
+				navSecondaryLabel="Admin Dashboard"
 				RecentChats={[]}
 			/>
 			<SidebarInset>
