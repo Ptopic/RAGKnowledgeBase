@@ -24,6 +24,22 @@ export function DashboardBreadcrumb() {
 		const segments = path.split("/").filter(Boolean);
 		const breadcrumbs: BreadcrumbItemInterface[] = [];
 
+		if (segments[0] === "admin") {
+			breadcrumbs.push({ label: "Admin", href: "/admin/users" });
+
+			if (segments[1]) {
+				const adminSectionLabels: Record<string, string> = {
+					users: "Users",
+					system: "System",
+					subscriptions: "Subscriptions",
+				};
+				const label = adminSectionLabels[segments[1]] || segments[1].charAt(0).toUpperCase() + segments[1].slice(1);
+				breadcrumbs.push({ label });
+			}
+
+			return breadcrumbs;
+		}
+
 		// Always start with Dashboard
 		breadcrumbs.push({ label: "Dashboard", href: "/dashboard" });
 

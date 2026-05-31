@@ -5,6 +5,7 @@ export interface IUser {
 	lastName?: string;
 	fullName?: string;
 	picture?: string;
+	isSuperuser?: boolean;
 }
 
 export interface IAuthResponse {

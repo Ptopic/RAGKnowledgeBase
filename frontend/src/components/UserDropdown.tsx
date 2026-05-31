@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, LogOut } from "lucide-react";
+import { BadgeCheck, LogOut, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,14 @@ import { removeAuthToken } from "@/shared/utils/authClient";
 
 export function UserDropdown({
 	user,
+	isSuperuser = false,
 }: {
 	user: {
 		name: string;
 		email: string;
 		avatar: string;
 	};
+	isSuperuser?: boolean;
 }) {
 	const router = useRouter();
 
@@ -34,7 +36,6 @@ export function UserDropdown({
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
-			// Optionally, provide user feedback
 			if (typeof window !== "undefined") {
 				alert("Logout failed. Please try again.");
 				router.push("/");
@@ -61,6 +62,12 @@ export function UserDropdown({
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
+					{isSuperuser && (
+						<DropdownMenuItem onClick={() => router.push("/admin/users")}>
+							<Shield className="mr-2 h-4 w-4" />
+							Admin Dashboard
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem onClick={() => router.push(`/dashboard/api-key`)}>
 						<BadgeCheck className="mr-2 h-4 w-4" />
 						API Key

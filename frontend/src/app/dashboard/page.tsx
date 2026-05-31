@@ -211,6 +211,7 @@ const DashboardPage = () => {
 					: "Unknown User"),
 		avatar: "/icon-128.png",
 	};
+	const isSuperuser = user?.isSuperuser ?? false;
 
 	if (loading && !searchSpaces) return <LoadingScreen />;
 	if (error && !searchSpaces) return <ErrorScreen message={error.toString()} />;
@@ -401,7 +402,7 @@ const DashboardPage = () => {
 					</div>
 
 					<div className="flex items-center space-x-3">
-						<UserDropdown user={customUser} />
+						<UserDropdown user={customUser} isSuperuser={isSuperuser} />
 						<ThemeTogglerComponent />
 					</div>
 				</div>

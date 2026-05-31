@@ -11,11 +11,13 @@ import {
 	type LucideIcon,
 	MessageCircleMore,
 	Settings2,
+	Shield,
 	SquareLibrary,
 	SquareTerminal,
 	Star,
 	Trash2,
 	Undo2,
+	Users,
 } from "lucide-react";
 import Link from "next/link";
 import { memo, useMemo } from "react";
@@ -41,6 +43,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	Undo2,
 	MessageCircleMore,
 	Settings2,
+	Shield,
 	SquareLibrary,
 	SquareTerminal,
 	AlertCircle,
@@ -49,6 +52,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	Trash2,
 	FileText,
 	Star,
+	Users,
 };
 
 const defaultData = {
@@ -152,6 +156,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 		url: string;
 		icon: string;
 	}[];
+	navSecondaryLabel?: string;
 	RecentChats?: {
 		name: string;
 		url: string;
@@ -176,6 +181,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export const AppSidebar = memo(function AppSidebar({
 	navMain = defaultData.navMain,
 	navSecondary = defaultData.navSecondary,
+	navSecondaryLabel = "Search Space",
 	RecentChats = defaultData.RecentChats,
 	...props
 }: AppSidebarProps) {
@@ -236,7 +242,7 @@ export const AppSidebar = memo(function AppSidebar({
 				)}
 			</SidebarContent>
 			<SidebarFooter>
-				<NavSecondary items={processedNavSecondary} className="mt-auto" />
+				<NavSecondary items={processedNavSecondary} label={navSecondaryLabel} className="mt-auto" />
 			</SidebarFooter>
 		</Sidebar>
 	);

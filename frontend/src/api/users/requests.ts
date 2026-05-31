@@ -4,7 +4,7 @@ import type { User } from "./types";
 
 export const getCurrentUser =
 	(request: ICallableRequestBuilder<User>) => async (): Promise<User> =>
-		request.call(`${config.apiUrl}/users/me`, (init) => ({
+		request.call(`${config.apiUrl}/auth/me`, (init) => ({
 			...init,
 			method: "GET",
 		}));

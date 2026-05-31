@@ -1,7 +1,7 @@
 export interface User {
 	id: string;
 	email: string;
-	is_active: boolean;
-	is_superuser: boolean;
-	is_verified: boolean;
+	isActive: boolean;
+	isSuperuser: boolean;
+	isVerified: boolean;
 }
