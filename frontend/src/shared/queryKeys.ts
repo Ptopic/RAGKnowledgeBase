@@ -26,3 +26,5 @@ export const USER_API_KEYS = "userApiKeys";
 export const SHARE_LINKS = "shareLinks";
 export const SHARED_CHAT = "sharedChat";
 export const SEARCH_SPACE_PENDING_INVITATIONS = "searchSpacePendingInvitations";
+export const ADMIN_USERS = "adminUsers";
+export const ADMIN_METRICS = "adminMetrics";

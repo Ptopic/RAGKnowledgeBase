@@ -1,13 +1,12 @@
 "use client";
 
+import useResetPassword from "@api/auth/hooks/useResetPassword";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import useResetPassword from "@api/auth/hooks/useResetPassword";
 
 const ResetPasswordPage = () => {
 	const router = useRouter();
@@ -17,10 +16,11 @@ const ResetPasswordPage = () => {
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [success, setSuccess] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!token) {
-			toast.error(
+			setError(
 				"Invalid or missing reset token. Please request a new reset link.",
 			);
 		}
@@ -29,6 +29,7 @@ const ResetPasswordPage = () => {
 	const resetPasswordMutation = useResetPassword({
 		onSuccess: () => {
 			setSuccess(true);
+			setError(null);
 			toast.success(
 				"Password updated! You can now sign in with your new password.",
 			);
@@ -37,9 +38,7 @@ const ResetPasswordPage = () => {
 			}, 2000);
 		},
 		onError: (err: Error) => {
-			toast.error(
-				err.message || "Failed to reset password. Please try again.",
-			);
+			setError(err.message || "Failed to reset password. Please try again.");
 		},
 	});
 
@@ -47,17 +46,17 @@ const ResetPasswordPage = () => {
 		e.preventDefault();
 
 		if (!token) {
-			toast.error("Invalid or missing reset token.");
+			setError("Invalid or missing reset token.");
 			return;
 		}
 
 		if (newPassword.length < 6) {
-			toast.error("Password must be at least 6 characters");
+			setError("Password must be at least 6 characters");
 			return;
 		}
 
 		if (newPassword !== confirmPassword) {
-			toast.error("Passwords do not match");
+			setError("Passwords do not match");
 			return;
 		}
 
@@ -78,12 +77,15 @@ const ResetPasswordPage = () => {
 					</p>
 				</div>
 
+				{error && (
+					<div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
+						{error}
+					</div>
+				)}
+
 				{success ? (
 					<div className="text-center space-y-4">
-						<Button
-							onClick={() => router.push("/auth")}
-							className="w-full"
-						>
+						<Button onClick={() => router.push("/auth")} className="w-full">
 							Go to sign in
 						</Button>
 					</div>
@@ -96,22 +98,26 @@ const ResetPasswordPage = () => {
 								type="password"
 								placeholder="Min. 6 characters"
 								value={newPassword}
-								onChange={(e) => setNewPassword(e.target.value)}
+								onChange={(e) => {
+									setNewPassword(e.target.value);
+									setError(null);
+								}}
 								required
 								autoComplete="new-password"
 								minLength={6}
 							/>
 						</div>
 						<div className="space-y-2">
-							<Label htmlFor="confirm-password">
-								Confirm Password
-							</Label>
+							<Label htmlFor="confirm-password">Confirm Password</Label>
 							<Input
 								id="confirm-password"
 								type="password"
 								placeholder="Repeat your new password"
 								value={confirmPassword}
-								onChange={(e) => setConfirmPassword(e.target.value)}
+								onChange={(e) => {
+									setConfirmPassword(e.target.value);
+									setError(null);
+								}}
 								required
 								autoComplete="new-password"
 							/>

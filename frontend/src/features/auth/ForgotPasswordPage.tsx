@@ -1,31 +1,30 @@
 "use client";
 
+import useForgotPassword from "@api/auth/hooks/useForgotPassword";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import useForgotPassword from "@api/auth/hooks/useForgotPassword";
 
 const ForgotPasswordPage = () => {
 	const [email, setEmail] = useState("");
 	const [submitted, setSubmitted] = useState(false);
 	const [cooldownSeconds, setCooldownSeconds] = useState(0);
+	const [error, setError] = useState<string | null>(null);
 
 	const forgotPasswordMutation = useForgotPassword({
 		onSuccess: () => {
 			setSubmitted(true);
 			setCooldownSeconds(60);
+			setError(null);
 			toast.success(
 				"If an account exists, a reset link has been sent to your email. Check your inbox.",
 			);
 		},
 		onError: (err: Error) => {
-			toast.error(
-				err.message || "Something went wrong. Please try again.",
-			);
+			setError(err.message || "Something went wrong. Please try again.");
 		},
 	});
 
@@ -46,15 +45,19 @@ const ForgotPasswordPage = () => {
 		<div className="flex min-h-[100dvh] items-center justify-center bg-neutral1000 px-4">
 			<div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-surface p-8 shadow-lg">
 				<div className="text-center">
-					<h1 className="text-3xl font-bold text-text">
-						Reset your password
-					</h1>
+					<h1 className="text-3xl font-bold text-text">Reset your password</h1>
 					<p className="mt-2 text-text-secondary">
 						{submitted
 							? `Check ${email} for reset instructions`
 							: "Enter your email and we will send you a reset link"}
 					</p>
 				</div>
+
+				{error && (
+					<div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
+						{error}
+					</div>
+				)}
 
 				{submitted ? (
 					<div className="space-y-4 text-center">
@@ -74,7 +77,10 @@ const ForgotPasswordPage = () => {
 								type="email"
 								placeholder="you@example.com"
 								value={email}
-								onChange={(e) => setEmail(e.target.value)}
+								onChange={(e) => {
+									setEmail(e.target.value);
+									setError(null);
+								}}
 								required
 								autoComplete="email"
 							/>

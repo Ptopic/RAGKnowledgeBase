@@ -23,6 +23,7 @@ import { QueryTemplatesModule } from "./query-templates/query-templates.module";
 import { ServicesModule } from "./services/services.module";
 import { RedisModule } from "./redis/redis.module";
 import { SseModule } from "./sse/sse.module";
+import { AdminModule } from "./admin/admin.module";
 
 @Module({
 	imports: [
@@ -54,6 +55,7 @@ import { SseModule } from "./sse/sse.module";
 		GoogleAuthModule,
 		RedisModule,
 		SseModule,
+		AdminModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
