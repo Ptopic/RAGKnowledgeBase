@@ -1,9 +1,8 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { usePathname } from "next/navigation";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { AccessDeniedPage } from "@/components/access-denied-page";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
@@ -56,7 +55,6 @@ const adminNavSecondary = [
 ];
 
 export function AdminClientLayout({ children }: { children: React.ReactNode }) {
-	const pathname = usePathname();
 	const { data: currentUser, isLoading: isLoadingUser } = useGetCurrentUser();
 	const isSuperuser = currentUser?.isSuperuser ?? false;
 
@@ -73,14 +71,6 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 		return true;
 	});
 
-	const activePage = useMemo(() => {
-		if (pathname === "/admin/users") return "Users";
-		if (pathname === "/admin/system") return "System";
-		if (pathname === "/admin/subscriptions") return "Subscriptions";
-		return "Admin";
-	}, [pathname]);
-
-	// Show loading while checking user permissions
 	if (isLoadingUser) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
@@ -109,6 +99,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 			<AppSidebar
 				navMain={adminNavMain}
 				navSecondary={adminNavSecondary}
+				RecentChats={[]}
 			/>
 			<SidebarInset>
 				<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
@@ -117,9 +108,6 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
 							<SidebarTrigger className="-ml-1" />
 							<Separator orientation="vertical" className="h-6" />
 							<DashboardBreadcrumb />
-							<span className="text-sm font-medium text-muted-foreground">
-								Admin / {activePage}
-							</span>
 						</div>
 						<div className="flex items-center gap-2">
 							<ThemeTogglerComponent />
