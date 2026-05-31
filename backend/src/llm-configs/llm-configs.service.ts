@@ -29,31 +29,71 @@ export class LLMConfigsService {
 		private apiKeysService: ApiKeysService,
 	) {}
 
+	private async ensureSearchSpaceAccess(
+		searchSpaceId: number,
+		userId: string,
+	): Promise<void> {
+		const [user, membership] = await Promise.all([
+			this.prisma.user.findUnique({
+				where: { id: userId },
+				select: { isSuperuser: true },
+			}),
+			this.prisma.searchSpaceMember.findUnique({
+				where: {
+					uq_search_space_member: {
+						searchSpaceId,
+						userId,
+					},
+				},
+			}),
+		]);
+
+		if (!user?.isSuperuser && !membership) {
+			throw new ForbiddenException("You do not have access to this search space");
+		}
+	}
+
 	async create(
 		createDto: CreateLLMConfigDto,
 		userId: string,
 	): Promise<LLMConfigDto> {
 		try {
-			if (!createDto.api_key && !createDto.user_provider_key_id) {
+			await this.ensureSearchSpaceAccess(createDto.search_space_id, userId);
+
+			if (!createDto.is_platform_key && !createDto.api_key && !createDto.user_provider_key_id) {
 				throw new BadRequestException(
 					'Either api_key or user_provider_key_id must be provided',
 				);
 			}
 
-			let apiKeyToStore: string;
-			let apiKeyPreview: string;
-
-			if (createDto.user_provider_key_id) {
-				const decrypted = await this.apiKeysService.getDecryptedKey(
-					createDto.user_provider_key_id,
-					userId,
-				);
-				apiKeyToStore = encrypt(decrypted);
-				apiKeyPreview = maskApiKey(decrypted);
-			} else {
-				apiKeyToStore = encrypt(createDto.api_key!);
-				apiKeyPreview = maskApiKey(createDto.api_key!);
+			// Admin check: only admins can configure custom API keys
+			if (!createDto.is_platform_key && (createDto.api_key || createDto.user_provider_key_id)) {
+				const user = await this.prisma.user.findUnique({
+					where: { id: userId },
+					select: { isSuperuser: true },
+				});
+				if (!user?.isSuperuser) {
+					throw new ForbiddenException("Only admins can configure custom API keys");
+				}
 			}
+
+		let apiKeyToStore = "";
+		let apiKeyPreview = "";
+
+		if (createDto.is_platform_key) {
+			apiKeyToStore = "";
+			apiKeyPreview = "platform-key";
+		} else if (createDto.user_provider_key_id) {
+			const decrypted = await this.apiKeysService.getDecryptedKey(
+				createDto.user_provider_key_id,
+				userId,
+			);
+			apiKeyToStore = encrypt(decrypted);
+			apiKeyPreview = maskApiKey(decrypted);
+		} else if (createDto.api_key) {
+			apiKeyToStore = encrypt(createDto.api_key);
+			apiKeyPreview = maskApiKey(createDto.api_key);
+		}
 
 			const llmConfig = await this.prisma.lLMConfig.create({
 				data: {
@@ -64,7 +104,7 @@ export class LLMConfigsService {
 					apiKey: apiKeyToStore,
 					apiKeyPreview,
 					apiBase: createDto.api_base || null,
-					language: createDto.language || "English",
+					isPlatformKey: createDto.is_platform_key ?? false,
 					litellmParams: createDto.litellm_params || {},
 					searchSpaceId: createDto.search_space_id,
 					userProviderKeyId: createDto.user_provider_key_id || null,
@@ -89,6 +129,8 @@ export class LLMConfigsService {
 		limit: number = 200,
 	): Promise<LLMConfigDto[]> {
 		try {
+			await this.ensureSearchSpaceAccess(searchSpaceId, userId);
+
 			const llmConfigs = await this.prisma.lLMConfig.findMany({
 				where: { searchSpaceId },
 				skip,
@@ -116,6 +158,8 @@ export class LLMConfigsService {
 				throw new NotFoundException("LLM configuration not found");
 			}
 
+			await this.ensureSearchSpaceAccess(llmConfig.searchSpaceId, userId);
+
 			return this.toDto(llmConfig);
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -141,6 +185,19 @@ export class LLMConfigsService {
 				throw new NotFoundException("LLM configuration not found");
 			}
 
+			await this.ensureSearchSpaceAccess(llmConfig.searchSpaceId, userId);
+
+			// Admin check: only admins can configure custom API keys
+			if (updateDto.api_key || updateDto.user_provider_key_id) {
+				const user = await this.prisma.user.findUnique({
+					where: { id: userId },
+					select: { isSuperuser: true },
+				});
+				if (!user?.isSuperuser) {
+					throw new ForbiddenException("Only admins can configure custom API keys");
+				}
+			}
+
 			const selectiveData: {
 				name?: string;
 				provider?: LiteLLMProvider;
@@ -149,7 +206,7 @@ export class LLMConfigsService {
 				apiKey?: string;
 				apiKeyPreview?: string;
 				apiBase?: string | null;
-				language?: string;
+				isPlatformKey?: boolean;
 				litellmParams?: Record<string, unknown> | null;
 				userProviderKeyId?: string | null;
 			} = {};
@@ -159,7 +216,7 @@ export class LLMConfigsService {
 			if (updateDto.custom_provider !== undefined) selectiveData.customProvider = updateDto.custom_provider || null;
 			if (updateDto.model_name !== undefined) selectiveData.modelName = updateDto.model_name;
 			if (updateDto.api_base !== undefined) selectiveData.apiBase = updateDto.api_base || null;
-			if (updateDto.language !== undefined) selectiveData.language = updateDto.language;
+			if (updateDto.is_platform_key !== undefined) selectiveData.isPlatformKey = updateDto.is_platform_key;
 			if (updateDto.litellm_params !== undefined) selectiveData.litellmParams = updateDto.litellm_params;
 
 			if (updateDto.user_provider_key_id) {
@@ -204,6 +261,8 @@ export class LLMConfigsService {
 				throw new NotFoundException("LLM configuration not found");
 			}
 
+			await this.ensureSearchSpaceAccess(llmConfig.searchSpaceId, userId);
+
 			this.apiKeysService.invalidateConfigCache(id);
 
 			await this.prisma.lLMConfig.delete({
@@ -226,6 +285,8 @@ export class LLMConfigsService {
 		userId: string,
 	): Promise<LLMPreferencesDto> {
 		try {
+			await this.ensureSearchSpaceAccess(searchSpaceId, userId);
+
 			let preference = await this.prisma.userSearchSpacePreference.findFirst({
 				where: { userId, searchSpaceId },
 				include: {
@@ -276,6 +337,8 @@ export class LLMConfigsService {
 		userId: string,
 	): Promise<LLMPreferencesDto> {
 		try {
+			await this.ensureSearchSpaceAccess(searchSpaceId, userId);
+
 			let preference = await this.prisma.userSearchSpacePreference.findFirst({
 				where: { userId, searchSpaceId },
 			});
@@ -285,8 +348,6 @@ export class LLMConfigsService {
 					data: { userId, searchSpaceId },
 				});
 			}
-
-			const languages = new Set<string>();
 
 			for (const [, llmConfigId] of Object.entries(preferencesDto)) {
 				if (llmConfigId !== null && llmConfigId !== undefined) {
@@ -299,17 +360,7 @@ export class LLMConfigsService {
 							`LLM configuration ${llmConfigId} not found in this search space`,
 						);
 					}
-
-					if (llmConfig.language) {
-						languages.add(llmConfig.language);
-					}
 				}
-			}
-
-			if (languages.size > 1) {
-				throw new BadRequestException(
-					"All selected LLM configurations must have the same language setting",
-				);
 			}
 
 			const updated = await this.prisma.userSearchSpacePreference.update({
@@ -361,7 +412,7 @@ export class LLMConfigsService {
 		apiKey: string;
 		apiKeyPreview: string | null;
 		apiBase: string | null;
-		language: string | null;
+		isPlatformKey: boolean;
 		litellmParams: Record<string, unknown> | null;
 		searchSpaceId: number;
 		userProviderKeyId: string | null;
@@ -375,7 +426,7 @@ export class LLMConfigsService {
 			model_name: llmConfig.modelName,
 			api_key_preview: llmConfig.apiKeyPreview || '********',
 			api_base: llmConfig.apiBase,
-			language: llmConfig.language,
+			is_platform_key: llmConfig.isPlatformKey,
 			litellm_params: llmConfig.litellmParams,
 			search_space_id: llmConfig.searchSpaceId,
 			user_provider_key_id: llmConfig.userProviderKeyId,
