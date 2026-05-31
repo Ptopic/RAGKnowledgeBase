@@ -5,14 +5,32 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
+import { SubscriptionPlan } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import {
 	AdminMetricsDto,
+	AdminSubscriptionListDto,
+	AdminSubscriptionUserDto,
 	AdminUserDto,
 	AdminUserListDto,
 	CreateAdminUserDto,
 	UpdateAdminUserDto,
 } from "./dtos/admin.dto";
+
+const PLAN_CREDIT_LIMITS: Record<SubscriptionPlan, number> = {
+	FREE: 1000,
+	PRO: 10000,
+	BUSINESS: 100000,
+};
+
+const VALID_PLANS = new Set<string>(Object.keys(PLAN_CREDIT_LIMITS));
+
+function getCurrentMonthBounds(): { start: Date; end: Date } {
+	const now = new Date();
+	const start = new Date(now.getFullYear(), now.getMonth(), 1);
+	const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+	return { start, end };
+}
 
 @Injectable()
 export class AdminService {
@@ -247,5 +265,140 @@ export class AdminService {
 			userUsage: userUsage.map((u) => this.toDto(u)),
 			userUsageTotal,
 		};
+	}
+
+	async listSubscriptions(
+		skip = 0,
+		limit = 50,
+		search?: string,
+	): Promise<AdminSubscriptionListDto> {
+		const where = search
+			? {
+					OR: [
+						{ email: { contains: search, mode: "insensitive" as const } },
+						{ fullName: { contains: search, mode: "insensitive" as const } },
+					],
+				}
+			: {};
+
+		const [users, total] = await Promise.all([
+			this.prisma.user.findMany({
+				where,
+				skip,
+				take: limit,
+				orderBy: { createdAt: "desc" },
+				include: { subscription: true },
+			}),
+			this.prisma.user.count({ where }),
+		]);
+
+		const subscriptionUsers: AdminSubscriptionUserDto[] = users.map((u) => {
+			const sub = u.subscription;
+			return {
+				id: u.id,
+				email: u.email,
+				full_name: u.fullName,
+				plan: sub?.plan ?? "FREE",
+				status: sub?.status ?? "active",
+				credits_used: sub?.creditsUsed ?? 0,
+				monthly_credit_limit: sub?.monthlyCreditLimit ?? 1000,
+				stripe_customer_id: sub?.stripeCustomerId ?? null,
+			};
+		});
+
+		const allSubscriptions = await this.prisma.subscription.findMany({
+			select: { plan: true, status: true },
+		});
+
+		const activeSubscriptions = allSubscriptions.filter(
+			(s) => s.plan !== "FREE" && s.status === "active",
+		).length;
+		const freeTierCount = total - allSubscriptions.filter((s) => s.plan !== "FREE").length;
+
+		return {
+			users: subscriptionUsers,
+			total,
+			active_subscriptions: activeSubscriptions,
+			total_revenue: "N/A",
+			free_tier_count: freeTierCount,
+		};
+	}
+
+	async overrideUserSubscriptionPlan(
+		_adminId: string,
+		userId: string,
+		plan: string,
+	): Promise<{ message: string }> {
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+			include: { subscription: true },
+		});
+
+		if (!user) {
+			throw new NotFoundException("User not found");
+		}
+
+		if (!VALID_PLANS.has(plan)) {
+			throw new BadRequestException(`Invalid plan: ${plan}. Valid plans: FREE, PRO, BUSINESS`);
+		}
+
+		const creditLimit = PLAN_CREDIT_LIMITS[plan as SubscriptionPlan];
+
+		const { start, end } = getCurrentMonthBounds();
+		await this.prisma.subscription.upsert({
+			where: { userId },
+			update: {
+				plan: plan as SubscriptionPlan,
+				monthlyCreditLimit: creditLimit,
+				status: "active",
+			},
+			create: {
+				userId,
+				plan: plan as SubscriptionPlan,
+				monthlyCreditLimit: creditLimit,
+				creditsUsed: 0,
+				status: "active",
+				currentPeriodStart: start,
+				currentPeriodEnd: end,
+			},
+		});
+
+		return { message: "Subscription plan updated successfully" };
+	}
+
+	async resetUserCredits(
+		_adminId: string,
+		userId: string,
+	): Promise<{ message: string }> {
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+			include: { subscription: true },
+		});
+
+		if (!user) {
+			throw new NotFoundException("User not found");
+		}
+
+		const { start, end } = getCurrentMonthBounds();
+
+		await this.prisma.subscription.upsert({
+			where: { userId },
+			update: {
+				creditsUsed: 0,
+				currentPeriodStart: start,
+				currentPeriodEnd: end,
+			},
+			create: {
+				userId,
+				plan: SubscriptionPlan.FREE,
+				monthlyCreditLimit: 1000,
+				creditsUsed: 0,
+				status: "active",
+				currentPeriodStart: start,
+				currentPeriodEnd: end,
+			},
+		});
+
+		return { message: "Credits reset successfully" };
 	}
 }

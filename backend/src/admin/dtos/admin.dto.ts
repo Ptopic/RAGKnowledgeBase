@@ -90,3 +90,29 @@ export class AdminMetricsDto {
 	userUsage: AdminUserDto[];
 	userUsageTotal: number;
 }
+
+// Admin Subscription DTOs
+
+export class OverridePlanDto {
+	@IsString()
+	plan: string;
+}
+
+export class AdminSubscriptionUserDto {
+	id: string;
+	email: string;
+	full_name: string | null;
+	plan: string;
+	status: string;
+	credits_used: number;
+	monthly_credit_limit: number;
+	stripe_customer_id: string | null;
+}
+
+export class AdminSubscriptionListDto {
+	users: AdminSubscriptionUserDto[];
+	total: number;
+	active_subscriptions: number;
+	total_revenue: string;
+	free_tier_count: number;
+}
