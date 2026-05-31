@@ -26,6 +26,8 @@ import { AgentService } from "./agent.service";
 import { ChatActionsService } from "./services/chat-actions.service";
 import { DeepAgentService } from "./services/deep-agent.service";
 import { LLMService } from "./services/llm.service";
+import { SubscriptionService } from "../subscription/subscription.service";
+import { CreditsExceededError } from "../subscription/subscription.service";
 import {
 	getInitialThinkingStep,
 	resetThinkingStepCounter,
@@ -71,6 +73,7 @@ export class AgentController {
 		private readonly deepAgentService: DeepAgentService,
 		private readonly chatActionsService: ChatActionsService,
 		private readonly llmService: LLMService,
+		private readonly subscriptionService: SubscriptionService,
 	) {}
 
 	@Post("upload-chat-file")
@@ -119,6 +122,11 @@ export class AgentController {
 
 			if (!searchSpaceId) {
 				throw new BadRequestException("search_space_id is required");
+			}
+
+			const isUserKey = await this.subscriptionService.isUserKeyBilled(req.user.id, searchSpaceId);
+			if (!isUserKey) {
+				await this.subscriptionService.checkCredits(req.user.id, 1);
 			}
 
 			const selectedConnectors = requestData.selected_connectors || [];
@@ -170,7 +178,7 @@ export class AgentController {
 				res.end();
 			}
 		} catch (error) {
-			if (error instanceof BadRequestException) {
+			if (error instanceof CreditsExceededError || error instanceof BadRequestException) {
 				throw error;
 			}
 			this.logger.error(`Chat processing error: ${error.message}`, error.stack);
@@ -203,6 +211,11 @@ export class AgentController {
 			const searchSpaceId = Number(requestData.search_space_id);
 			if (!searchSpaceId) {
 				throw new BadRequestException("search_space_id is required");
+			}
+
+			const isUserKey = await this.subscriptionService.isUserKeyBilled(req.user.id, searchSpaceId);
+			if (!isUserKey) {
+				await this.subscriptionService.checkCredits(req.user.id, 1);
 			}
 
 			const researchMode = requestData.research_mode || "QNA";
@@ -275,7 +288,7 @@ export class AgentController {
 				res.end();
 			}
 		} catch (error) {
-			if (error instanceof BadRequestException) {
+			if (error instanceof CreditsExceededError || error instanceof BadRequestException) {
 				throw error;
 			}
 			this.logger.error(`Chat processing error: ${error.message}`, error.stack);
