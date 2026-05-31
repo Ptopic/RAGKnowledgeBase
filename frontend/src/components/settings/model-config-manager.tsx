@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { LLMConfigForm } from "@/components/llm-config-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ interface ModelConfigManagerProps {
 }
 
 export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
+	const { data: currentUser } = useGetCurrentUser();
 	const {
 		llmConfigs,
 		loading,
@@ -62,7 +64,12 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			return;
 		}
 
-		if (!editingConfig && !formData.api_key && !formData.user_provider_key_id) {
+		if (
+			!editingConfig &&
+			!formData.is_platform_key &&
+			!formData.api_key &&
+			!formData.user_provider_key_id
+		) {
 			toast.error("Please provide an API key or select a saved key");
 			return;
 		}
@@ -306,16 +313,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																	<p className="text-sm text-muted-foreground font-mono">
 																		{config.model_name}
 																	</p>
-																	{config.language && (
-																		<div className="flex items-center gap-2">
-																			<Badge
-																				variant="outline"
-																				className="text-xs"
-																			>
-																				{config.language}
-																			</Badge>
-																		</div>
-																	)}
 																</div>
 															</div>
 
@@ -449,6 +446,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						key={editingConfig?.id ?? "new"}
 						searchSpaceId={searchSpaceId}
 						editingConfig={editingConfig}
+						isSuperuser={currentUser?.isSuperuser}
 						onSubmit={handleSubmit}
 						onCancel={handleCancel}
 						isSubmitting={isSubmitting}

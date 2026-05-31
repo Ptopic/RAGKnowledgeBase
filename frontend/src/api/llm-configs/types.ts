@@ -6,8 +6,8 @@ export interface LLMConfig {
 	model_name: string;
 	api_key_preview: string;
 	api_base?: string;
-	language?: string;
-	litellm_params?: Record<string, any>;
+	is_platform_key?: boolean;
+	litellm_params?: Record<string, unknown>;
 	created_at: string;
 	search_space_id: number;
 	user_provider_key_id?: string;
@@ -29,8 +29,8 @@ export interface CreateLLMConfig {
 	model_name: string;
 	api_key?: string;
 	api_base?: string;
-	language?: string;
-	litellm_params?: Record<string, any>;
+	is_platform_key?: boolean;
+	litellm_params?: Record<string, unknown>;
 	search_space_id: number;
 	user_provider_key_id?: string;
 }
@@ -42,7 +42,8 @@ export interface UpdateLLMConfig {
 	model_name?: string;
 	api_key?: string;
 	api_base?: string;
-	litellm_params?: Record<string, any>;
+	is_platform_key?: boolean;
+	litellm_params?: Record<string, unknown>;
 	user_provider_key_id?: string;
 }
 

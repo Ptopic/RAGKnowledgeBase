@@ -4,6 +4,7 @@ import { AlertCircle, Bot, Plus, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { LLMConfigForm } from "@/components/llm-config-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -22,12 +23,18 @@ export function AddProviderStep({
 	onConfigCreated,
 	onConfigDeleted,
 }: AddProviderStepProps) {
+	const { data: currentUser } = useGetCurrentUser();
 	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const handleSubmit = async (formData: CreateLLMConfig) => {
-		if (!formData.name || !formData.provider || !formData.model_name || (!formData.api_key && !formData.user_provider_key_id)) {
+		if (
+			!formData.name ||
+			!formData.provider ||
+			!formData.model_name ||
+			(!formData.is_platform_key && !formData.api_key && !formData.user_provider_key_id)
+		) {
 			toast.error("Please fill in all required fields");
 			return;
 		}
@@ -69,11 +76,10 @@ export function AddProviderStep({
 													<h4 className="font-medium">{config.name}</h4>
 													<Badge variant="secondary">{config.provider}</Badge>
 												</div>
-												<p className="text-sm text-muted-foreground">
-													Model: {config.model_name}
-													{config.language && ` • Language: ${config.language}`}
-													{config.api_base && ` • Base: ${config.api_base}`}
-												</p>
+											<p className="text-sm text-muted-foreground">
+												Model: {config.model_name}
+												{config.api_base && ` • Base: ${config.api_base}`}
+											</p>
 											</div>
 											<Button
 												variant="ghost"
@@ -118,6 +124,7 @@ export function AddProviderStep({
 					<CardContent>
 						<LLMConfigForm
 							searchSpaceId={searchSpaceId}
+							isSuperuser={currentUser?.isSuperuser}
 							onSubmit={handleSubmit}
 							onCancel={() => setIsAddingNew(false)}
 							isSubmitting={isSubmitting}
