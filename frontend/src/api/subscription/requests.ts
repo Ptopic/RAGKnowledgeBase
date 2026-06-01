@@ -2,6 +2,7 @@ import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
 import config from "@shared/config";
 import type {
 	AdminSubscriptionList,
+	CancelSubscriptionResponse,
 	CheckoutSessionResponse,
 	OverridePlanResponse,
 	PlanInfo,
@@ -114,6 +115,14 @@ export const resumeSubscription =
 	(request: ICallableRequestBuilder<ResumeSubscriptionResponse>) =>
 	async (): Promise<ResumeSubscriptionResponse> =>
 		request.call(`${config.apiUrl}/subscription/resume`, (init) => ({
+			...init,
+			method: "POST",
+		}));
+
+export const cancelSubscription =
+	(request: ICallableRequestBuilder<CancelSubscriptionResponse>) =>
+	async (): Promise<CancelSubscriptionResponse> =>
+		request.call(`${config.apiUrl}/subscription/cancel`, (init) => ({
 			...init,
 			method: "POST",
 		}));

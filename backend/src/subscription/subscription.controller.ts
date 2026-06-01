@@ -52,6 +52,12 @@ export class SubscriptionController {
 		return this.subscriptionService.resumeSubscription(req.user.id);
 	}
 
+	@Post("cancel")
+	@JwtAuth()
+	async cancelSubscription(@Req() req: Request) {
+		return this.subscriptionService.cancelSubscription(req.user.id);
+	}
+
 	@Post("webhook")
 	async handleStripeWebhook(@Req() req: RawBodyRequest<Request>) {
 		const signature = req.headers["stripe-signature"] as string;

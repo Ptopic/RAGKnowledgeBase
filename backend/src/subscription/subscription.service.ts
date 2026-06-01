@@ -312,6 +312,47 @@ export class SubscriptionService {
 		return { message: "Subscription resumed successfully." };
 	}
 
+	async cancelSubscription(userId: string) {
+		if (!this.configService.get<string>("stripe.secretKey")) {
+			throw new BadRequestException("Stripe is not configured. Please set STRIPE_SECRET_KEY.");
+		}
+
+		const subscription = await this.prisma.subscription.findUnique({
+			where: { userId },
+		});
+
+		if (!subscription?.stripeSubscriptionId) {
+			throw new BadRequestException("No active Stripe subscription to cancel.");
+		}
+
+		if (subscription.cancelAt) {
+			throw new BadRequestException("Subscription is already scheduled for cancellation.");
+		}
+
+		if (subscription.plan === SubscriptionPlan.FREE) {
+			throw new BadRequestException("No active paid subscription to cancel.");
+		}
+
+		const updated = await this.stripe.subscriptions.update(
+			subscription.stripeSubscriptionId,
+			{ cancel_at_period_end: true },
+		);
+
+		this.logger.log(
+			`Subscription scheduled for cancellation at period end: ${subscription.stripeSubscriptionId}`,
+		);
+
+		const periodEndUnix = (updated as unknown as { current_period_end?: number }).current_period_end;
+		const cancelAt = typeof periodEndUnix === "number"
+			? new Date(periodEndUnix * 1000).toISOString()
+			: subscription.currentPeriodEnd.toISOString();
+
+		return {
+			message: "Subscription scheduled for cancellation.",
+			cancel_at: cancelAt,
+		};
+	}
+
 	async handleStripeWebhook(signature: string, rawBody: Buffer) {
 		const webhookSecret = this.configService.get<string>("stripe.webhookSecret");
 		if (!webhookSecret) {

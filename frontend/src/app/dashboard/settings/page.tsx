@@ -42,6 +42,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LANGUAGES } from "@/contracts/enums/languages";
+import { formatCredits } from "@/lib/subscription/format-utils";
+import CancelSubscriptionModal from "@/components/settings/cancel-subscription-modal";
 
 const PLAN_BADGE_COLORS: Record<string, string> = {
 	FREE: "bg-slate-500 text-white",
@@ -72,6 +74,7 @@ export default function SettingsPage() {
 	const [selectedLanguage, setSelectedLanguage] = useState<string>(
 		preferences?.preferred_language || "English",
 	);
+	const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
 	useEffect(() => {
 		if (preferences?.preferred_language) {
@@ -120,10 +123,6 @@ export default function SettingsPage() {
 	const creditsUsed = subscription?.credits_used || 0;
 	const creditLimit = subscription?.monthly_credit_limit || FREE_PLAN_CREDITS;
 	const creditPercent = creditLimit > 0 ? Math.min((creditsUsed / creditLimit) * 100, 100) : 0;
-
-	const availableUpgrades = plans
-		.filter((p: PlanInfo) => p.plan !== plan && p.plan !== "FREE")
-		.sort((a: PlanInfo, b: PlanInfo) => a.amount - b.amount);
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -252,7 +251,7 @@ export default function SettingsPage() {
 												<div className="flex items-center justify-between text-sm">
 													<span className="font-medium">Credit Usage</span>
 													<span className="text-muted-foreground">
-														{creditsUsed} / {creditLimit} credits
+														{formatCredits(creditsUsed)} / {formatCredits(creditLimit)} credits
 													</span>
 												</div>
 												<Progress value={creditPercent} className="h-2" />
@@ -291,102 +290,21 @@ export default function SettingsPage() {
 													</Button>
 												</div>
 											</div>
-										)}
-
-										{availableUpgrades.length > 0 && (
-												<div className="space-y-3 pt-2">
-													<div className="flex flex-wrap gap-3">
-														{availableUpgrades.map((upgradePlan: PlanInfo) => (
-															<Button
-																key={upgradePlan.plan}
-																variant={upgradePlan.plan === availableUpgrades[0]?.plan ? "default" : "outline"}
-																onClick={() => handleUpgrade(upgradePlan.plan)}
-															>
-																<Sparkles className="h-4 w-4 mr-2" />
-																Upgrade to {upgradePlan.name}
-															</Button>
-														))}
-													</div>
-												</div>
 											)}
 
 											{plan !== "FREE" && !subscription?.cancel_at && (
 												<div className="pt-2">
 													<Button
 														variant="outline"
-														onClick={handleManageBilling}
-														disabled={createPortalSession.isPending}
+														className="text-red-600 border-red-600/40 hover:bg-red-50 hover:text-red-700"
+														onClick={() => setIsCancelModalOpen(true)}
 													>
-														{createPortalSession.isPending && (
-															<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-														)}
-														Cancel or Change Plan
+														Cancel subscription
 													</Button>
-													<p className="text-xs text-muted-foreground mt-2">
-														You'll be redirected to the billing portal where you can cancel or change your subscription.
-													</p>
 												</div>
 											)}
 										</CardContent>
 									</Card>
-
-									{!plansLoading && plans.length > 0 && (
-										<Card>
-											<CardHeader>
-												<CardTitle className="text-lg font-medium">
-													Available Plans
-												</CardTitle>
-												<CardDescription>
-													Compare plans and choose the one that fits your needs.
-												</CardDescription>
-											</CardHeader>
-											<CardContent>
-												<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-													<Card className="border-2 border-muted">
-														<CardHeader className="pb-2">
-															<CardTitle className="text-base">Free</CardTitle>
-															<p className="text-2xl font-bold">$0<span className="text-sm font-normal text-muted-foreground">/month</span></p>
-														</CardHeader>
-														<CardContent>
-															<p className="text-sm text-muted-foreground">{FREE_PLAN_CREDITS.toLocaleString()} credits/month</p>
-														</CardContent>
-													</Card>
-													{plans.map((p: PlanInfo) => (
-														<Card key={p.plan} className={p.plan === plan ? "border-2 border-primary" : "border-2 border-muted"}>
-															<CardHeader className="pb-2">
-																<div className="flex items-center gap-2">
-																	<CardTitle className="text-base">{p.name}</CardTitle>
-																	{p.plan === plan && (
-																		<Badge variant="default" className="text-xs">Current</Badge>
-																	)}
-																</div>
-																<p className="text-2xl font-bold">
-																	{formatPrice(p.amount, p.currency)}
-																	<span className="text-sm font-normal text-muted-foreground">/{p.interval}</span>
-																</p>
-															</CardHeader>
-															<CardContent className="space-y-2">
-																<p className="text-sm text-muted-foreground">{p.credits.toLocaleString()} credits/month</p>
-																{p.description && (
-																	<p className="text-xs text-muted-foreground">{p.description}</p>
-																)}
-																{p.plan !== plan && (
-																	<Button
-																		size="sm"
-																		variant={p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "outline" : "default"}
-																		className="w-full"
-																		onClick={() => handleUpgrade(p.plan)}
-																	>
-																		{p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "Downgrade" : "Upgrade"}
-																	</Button>
-																)}
-															</CardContent>
-														</Card>
-													))}
-												</div>
-											</CardContent>
-										</Card>
-									)}
 
 									{subscription?.current_period_start && (
 										<Card>
@@ -417,6 +335,70 @@ export default function SettingsPage() {
 											</CardContent>
 										</Card>
 									)}
+
+									{!plansLoading && plans.length > 0 && (
+										<Card>
+											<CardHeader>
+												<CardTitle className="text-lg font-medium">
+													Available Plans
+												</CardTitle>
+												<CardDescription>
+													Compare plans and choose the one that fits your needs.
+												</CardDescription>
+											</CardHeader>
+											<CardContent>
+												<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+													<Card className="border-2 border-muted">
+														<CardHeader className="pb-2">
+															<CardTitle className="text-base">Free</CardTitle>
+															<p className="text-2xl font-bold">$0<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+														</CardHeader>
+														<CardContent>
+															<p className="text-sm text-muted-foreground">{formatCredits(FREE_PLAN_CREDITS)} credits/month</p>
+														</CardContent>
+													</Card>
+													{[...plans].sort((a, b) => a.amount - b.amount).map((p: PlanInfo) => (
+														<Card key={p.plan} className={p.plan === plan ? "border-2 border-primary" : "border-2 border-muted"}>
+															<CardHeader className="pb-2">
+																<div className="flex items-center gap-2">
+																	<CardTitle className="text-base">{p.name}</CardTitle>
+																	{p.plan === plan && (
+																		<Badge variant="default" className="text-xs">Current</Badge>
+																	)}
+																</div>
+																<p className="text-2xl font-bold">
+																	{formatPrice(p.amount, p.currency)}
+																	<span className="text-sm font-normal text-muted-foreground">/{p.interval}</span>
+																</p>
+															</CardHeader>
+															<CardContent className="space-y-2">
+																<p className="text-sm text-muted-foreground">{formatCredits(p.credits)} credits/month</p>
+																{p.description && (
+																	<p className="text-xs text-muted-foreground">{p.description}</p>
+																)}
+																{p.plan !== plan && (
+																	<Button
+																		size="sm"
+																		variant={p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "outline" : "default"}
+																		className="w-full"
+																		onClick={() => handleUpgrade(p.plan)}
+																	>
+																		Change plan
+																	</Button>
+																)}
+															</CardContent>
+														</Card>
+													))}
+												</div>
+											</CardContent>
+										</Card>
+									)}
+
+									<CancelSubscriptionModal
+										open={isCancelModalOpen}
+										onOpenChange={setIsCancelModalOpen}
+										periodEnd={subscription?.current_period_end ?? new Date().toISOString()}
+									/>
 								</>
 							)}
 						</TabsContent>

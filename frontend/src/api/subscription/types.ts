@@ -35,6 +35,11 @@ export interface ResumeSubscriptionResponse {
 	message: string;
 }
 
+export interface CancelSubscriptionResponse {
+	message: string;
+	cancel_at: string;
+}
+
 export interface AdminSubscriptionUser {
 	id: string;
 	email: string;

@@ -1,5 +1,6 @@
 import { withAuthenticatedClientRequest } from "@api/requestBuilder/client/withClientRequest";
 import {
+	cancelSubscription,
 	createCheckoutSession,
 	createPortalSession,
 	getAdminSubscriptions,
@@ -20,6 +21,7 @@ const subscriptionClientRequests = {
 	createCheckoutSession: withAuthenticatedClientRequest(createCheckoutSession),
 	createPortalSession: withAuthenticatedClientRequest(createPortalSession),
 	resumeSubscription: withAuthenticatedClientRequest(resumeSubscription),
+	cancelSubscription: withAuthenticatedClientRequest(cancelSubscription),
 	getAdminSubscriptions: withAuthenticatedClientRequest(getAdminSubscriptions),
 	adminOverridePlan: withAuthenticatedClientRequest(adminOverridePlan),
 	adminResetCredits: withAuthenticatedClientRequest(adminResetCredits),
