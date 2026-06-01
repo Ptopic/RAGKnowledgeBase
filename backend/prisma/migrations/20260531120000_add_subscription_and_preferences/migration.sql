@@ -6,8 +6,8 @@ ALTER TABLE "user" ADD COLUMN "preferred_language" VARCHAR(50) NOT NULL DEFAULT 
 
 -- CreateTable: subscriptions
 CREATE TABLE "subscriptions" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "user_id" UUID NOT NULL,
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
     "plan" "SubscriptionPlan" NOT NULL DEFAULT 'FREE',
     "status" VARCHAR NOT NULL DEFAULT 'active',
     "stripe_customer_id" VARCHAR,
@@ -27,7 +27,7 @@ CREATE TABLE "subscriptions" (
 CREATE TABLE "usage_records" (
     "id" SERIAL NOT NULL,
     "created_at" TIMESTAMP NOT NULL DEFAULT now(),
-    "user_id" UUID NOT NULL,
+    "user_id" TEXT NOT NULL,
     "search_space_id" INTEGER NOT NULL,
     "operation_type" VARCHAR NOT NULL,
     "credits" INTEGER NOT NULL,

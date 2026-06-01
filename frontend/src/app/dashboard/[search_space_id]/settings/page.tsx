@@ -1,7 +1,17 @@
 "use client";
 
-import { ArrowLeft, Bot, Brain, Edit3, Key, Settings, Users } from "lucide-react";
+import {
+	ArrowLeft,
+	Bot,
+	Brain,
+	Edit3,
+	Key,
+	Settings,
+	Users,
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
+import useGetCurrentUser from "@/api/users/hooks/useGetCurrentUser";
 import { ApiKeysManager } from "@/components/settings/api-keys-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { MembersManager } from "@/components/settings/members-manager";
@@ -9,14 +19,15 @@ import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { QueryTemplateManager } from "@/components/settings/query-template-manager";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 
 export default function SettingsPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 	const { data: searchSpace } = useGetSearchSpace(searchSpaceId);
+	const { data: currentUser } = useGetCurrentUser();
 	const isOwner = searchSpace?.is_owner ?? false;
+	const isSuperuser = currentUser?.isSuperuser ?? false;
 	const canModifyTemplates = isOwner || searchSpace?.role === "EDITOR";
 
 	return (
@@ -41,7 +52,8 @@ export default function SettingsPage() {
 							<div className="space-y-1">
 								<h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 								<p className="text-lg text-muted-foreground">
-									Manage your LLM configurations, role assignments, and query templates for this search space.
+									Manage your LLM configurations, role assignments, and query
+									templates for this search space.
 								</p>
 							</div>
 						</div>
@@ -49,35 +61,53 @@ export default function SettingsPage() {
 					</div>
 
 					{/* Settings Content */}
-					<Tabs defaultValue={isOwner ? "models" : "templates"} className="space-y-8">
+					<Tabs
+						defaultValue={isOwner ? "models" : "templates"}
+						className="space-y-8"
+					>
 						<TabsList className="inline-flex h-auto flex-wrap gap-1">
 							{isOwner && (
-								<TabsTrigger value="models" className="flex items-center gap-2 text-sm">
+								<TabsTrigger
+									value="models"
+									className="flex items-center gap-2 text-sm"
+								>
 									<Bot className="h-4 w-4" />
 									<span className="hidden sm:inline">Model Configs</span>
 									<span className="sm:hidden">Models</span>
 								</TabsTrigger>
 							)}
 							{isOwner && (
-								<TabsTrigger value="roles" className="flex items-center gap-2 text-sm">
+								<TabsTrigger
+									value="roles"
+									className="flex items-center gap-2 text-sm"
+								>
 									<Brain className="h-4 w-4" />
 									<span className="hidden sm:inline">LLM Roles</span>
 									<span className="sm:hidden">Roles</span>
 								</TabsTrigger>
 							)}
-							{isOwner && (
-								<TabsTrigger value="api-keys" className="flex items-center gap-2 text-sm">
+							{isSuperuser && isOwner && (
+								<TabsTrigger
+									value="api-keys"
+									className="flex items-center gap-2 text-sm"
+								>
 									<Key className="h-4 w-4" />
 									<span className="hidden sm:inline">API Keys</span>
 									<span className="sm:hidden">Keys</span>
 								</TabsTrigger>
 							)}
-							<TabsTrigger value="templates" className="flex items-center gap-2 text-sm">
+							<TabsTrigger
+								value="templates"
+								className="flex items-center gap-2 text-sm"
+							>
 								<Edit3 className="h-4 w-4" />
 								<span className="hidden sm:inline">Query Templates</span>
 								<span className="sm:hidden">Templates</span>
 							</TabsTrigger>
-							<TabsTrigger value="members" className="flex items-center gap-2 text-sm">
+							<TabsTrigger
+								value="members"
+								className="flex items-center gap-2 text-sm"
+							>
 								<Users className="h-4 w-4" />
 								<span className="hidden sm:inline">Members</span>
 								<span className="sm:hidden">Members</span>
@@ -96,14 +126,17 @@ export default function SettingsPage() {
 							</TabsContent>
 						)}
 
-						{isOwner && (
+						{isSuperuser && isOwner && (
 							<TabsContent value="api-keys" className="space-y-6">
 								<ApiKeysManager />
 							</TabsContent>
 						)}
 
 						<TabsContent value="templates" className="space-y-6">
-							<QueryTemplateManager searchSpaceId={searchSpaceId} canModify={canModifyTemplates} />
+							<QueryTemplateManager
+								searchSpaceId={searchSpaceId}
+								canModify={canModifyTemplates}
+							/>
 						</TabsContent>
 
 						<TabsContent value="members" className="space-y-6">

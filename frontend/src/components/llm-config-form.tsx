@@ -1,10 +1,8 @@
 "use client";
 
-import { AlertCircle, CheckCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import useGetApiKeys from "@/api/api-keys/hooks/useGetApiKeys";
 import type { CreateLLMConfig, LLMConfig } from "@/api/llm-configs/types";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +14,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { LLM_PROVIDERS, OPENAI_MODELS } from "@/contracts/enums/llm-providers";
 import InferenceParamsEditor from "./inference-params-editor";
 
@@ -68,12 +65,41 @@ export function LLMConfigForm({
 		return { ...DEFAULT_FORM_DATA, search_space_id: searchSpaceId };
 	});
 
-	const [useSavedKey, setUseSavedKey] = useState(
-		!!editingConfig?.user_provider_key_id,
-	);
-	const [draftApiKey, setDraftApiKey] = useState(
-		"",
-	);
+	const [draftApiKey, setDraftApiKey] = useState("");
+
+	type KeyMode = "platform" | "saved" | "custom";
+	const [keyMode, setKeyMode] = useState<KeyMode>(() => {
+		if (!isSuperuser) return "platform";
+		if (editingConfig?.is_platform_key) return "platform";
+		if (editingConfig?.user_provider_key_id) return "saved";
+		return "custom";
+	});
+
+	const handleKeyModeChange = (mode: KeyMode) => {
+		if (mode === "platform") {
+			setFormData((prev) => ({
+				...prev,
+				is_platform_key: true,
+				api_key: "",
+				user_provider_key_id: "",
+			}));
+		} else if (mode === "saved") {
+			setDraftApiKey(formData.api_key || "");
+			setFormData((prev) => ({
+				...prev,
+				is_platform_key: false,
+				api_key: "",
+			}));
+		} else {
+			setFormData((prev) => ({
+				...prev,
+				is_platform_key: false,
+				user_provider_key_id: "",
+				api_key: draftApiKey,
+			}));
+		}
+		setKeyMode(mode);
+	};
 
 	useEffect(() => {
 		if (editingConfig) {
@@ -89,16 +115,22 @@ export function LLMConfigForm({
 				search_space_id: searchSpaceId,
 				user_provider_key_id: editingConfig.user_provider_key_id || "",
 			});
-			setUseSavedKey(!!editingConfig.user_provider_key_id);
 			setDraftApiKey("");
+			if (editingConfig.is_platform_key) {
+				setKeyMode("platform");
+			} else if (editingConfig.user_provider_key_id) {
+				setKeyMode("saved");
+			} else {
+				setKeyMode("custom");
+			}
 		} else {
 			setFormData({
 				...DEFAULT_FORM_DATA,
 				search_space_id: searchSpaceId,
 				is_platform_key: !isSuperuser,
 			});
-			setUseSavedKey(false);
 			setDraftApiKey("");
+			setKeyMode(isSuperuser ? "custom" : "platform");
 		}
 	}, [editingConfig, isSuperuser, searchSpaceId]);
 
@@ -132,12 +164,7 @@ export function LLMConfigForm({
 					<Label htmlFor="provider">Provider *</Label>
 					<Select
 						value={formData.provider}
-						onValueChange={(value) => {
-							handleInputChange("provider", value);
-							if (value !== "OPENAI") {
-								handleInputChange("api_base", "");
-							}
-						}}
+						onValueChange={(value) => handleInputChange("provider", value)}
 					>
 						<SelectTrigger>
 							<SelectValue placeholder="Select a provider" />
@@ -145,10 +172,7 @@ export function LLMConfigForm({
 						<SelectContent>
 							{LLM_PROVIDERS.map((provider) => (
 								<SelectItem key={provider.value} value={provider.value}>
-									<div className="space-y-1 py-1">
-										<div className="font-medium">{provider.label}</div>
-										<div className="text-xs text-muted-foreground">{provider.example}</div>
-									</div>
+									{provider.label}
 								</SelectItem>
 							))}
 						</SelectContent>
@@ -157,62 +181,47 @@ export function LLMConfigForm({
 
 				<div className="space-y-2">
 					<Label htmlFor="model_name">Model *</Label>
-					{formData.provider === "OPENAI" ? (
-						<Select value={formData.model_name} onValueChange={(value) => handleInputChange("model_name", value)}>
-							<SelectTrigger>
-								<SelectValue placeholder="Select a model" />
-							</SelectTrigger>
-							<SelectContent>
-								{OPENAI_MODELS.map((model) => (
-									<SelectItem key={model.value} value={model.value}>
-										<div className="space-y-1 py-1">
-											<div className="font-medium">{model.label}</div>
-											<div className="text-xs text-muted-foreground">{model.costEstimate}</div>
-										</div>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					) : (
-						<Input
-							id="model_name"
-							placeholder="Model name"
-							value={formData.model_name}
-							onChange={(e) => handleInputChange("model_name", e.target.value)}
-						/>
-					)}
+					<Select value={formData.model_name} onValueChange={(value) => handleInputChange("model_name", value)}>
+						<SelectTrigger>
+							<SelectValue placeholder="Select a model" />
+						</SelectTrigger>
+						<SelectContent>
+							{OPENAI_MODELS.map((model) => (
+								<SelectItem key={model.value} value={model.value}>
+									<div className="space-y-1 py-1">
+										<div className="font-medium">{model.label}</div>
+										<div className="text-xs text-muted-foreground">{model.costEstimate}</div>
+									</div>
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 			</div>
 
 			{isSuperuser ? (
 				<>
-					<div className="flex items-center justify-between rounded-lg border p-3">
-						<div className="space-y-0.5">
-							<Label className="text-sm font-medium">Use Saved Key</Label>
-							<p className="text-xs text-muted-foreground">
-								{useSavedKey
-									? "Select a previously saved provider key"
-									: "Enter an API key directly"}
-							</p>
-						</div>
-						<Switch
-							checked={useSavedKey}
-							onCheckedChange={(checked) => {
-								if (checked) {
-									setDraftApiKey(formData.api_key || "");
-								} else {
-									setFormData((prev) => ({
-										...prev,
-										api_key: draftApiKey,
-										user_provider_key_id: "",
-									}));
-								}
-								setUseSavedKey(checked);
-							}}
-						/>
+					<div className="space-y-2">
+						<Label>API Key Source</Label>
+						<Select value={keyMode} onValueChange={(v) => handleKeyModeChange(v as KeyMode)}>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="platform">Platform Key (admin-managed)</SelectItem>
+								<SelectItem value="custom">Custom API Key</SelectItem>
+								<SelectItem value="saved">Saved Provider Key</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 
-					{useSavedKey ? (
+					{keyMode === "platform" && (
+						<p className="text-sm text-muted-foreground">
+							Platform API key will be used. No key entry needed — managed by admin.
+						</p>
+					)}
+
+					{keyMode === "saved" && (
 						<div className="space-y-2">
 							<Label htmlFor="saved_key">Saved API Key *</Label>
 							<Select
@@ -245,7 +254,9 @@ export function LLMConfigForm({
 								</SelectContent>
 							</Select>
 						</div>
-					) : (
+					)}
+
+					{keyMode === "custom" && (
 						<div className="space-y-2">
 							<Label htmlFor="api_key">API Key *</Label>
 							<Input
@@ -275,9 +286,6 @@ export function LLMConfigForm({
 			<div className="space-y-2">
 				<Label htmlFor="api_base">
 					API Base URL
-					<span className="text-xs font-normal text-muted-foreground ml-2">
-						(Auto-filled for OpenAI)
-					</span>
 				</Label>
 				<Input
 					id="api_base"
@@ -285,27 +293,6 @@ export function LLMConfigForm({
 					value={formData.api_base}
 					onChange={(e) => handleInputChange("api_base", e.target.value)}
 				/>
-				{formData.api_base === "https://api.openai.com/v1" && (
-					<p className="text-xs text-green-600 flex items-center gap-1">
-						<CheckCircle className="h-3 w-3" />
-						Using recommended API endpoint for OpenAI
-					</p>
-				)}
-				{!formData.api_base && (
-					<Alert variant="destructive" className="py-2">
-						<AlertCircle className="h-3 w-3" />
-						<AlertDescription className="text-xs">
-							API Base URL is recommended for OpenAI.{" "}
-							<button
-								type="button"
-								className="underline font-medium"
-								onClick={() => handleInputChange("api_base", "https://api.openai.com/v1")}
-							>
-								Click to auto-fill: https://api.openai.com/v1
-							</button>
-						</AlertDescription>
-					</Alert>
-				)}
 			</div>
 
 			<div className="pt-4">

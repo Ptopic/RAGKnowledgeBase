@@ -29,5 +29,6 @@ export const SEARCH_SPACE_PENDING_INVITATIONS = "searchSpacePendingInvitations";
 export const ADMIN_USERS = "adminUsers";
 export const ADMIN_METRICS = "adminMetrics";
 export const SUBSCRIPTION = "subscription";
+export const SUBSCRIPTION_PLANS = "subscriptionPlans";
 export const PREFERENCES = "preferences";
 export const ADMIN_SUBSCRIPTIONS = "adminSubscriptions";

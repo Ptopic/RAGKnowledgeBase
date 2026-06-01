@@ -1,19 +1,26 @@
 "use client";
 
 import {
+	ArrowLeft,
 	CreditCard,
 	Globe,
 	Loader2,
 	Settings,
 	Sparkles,
+	AlertTriangle,
+	RotateCcw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import useGetSubscription from "@/api/subscription/hooks/useGetSubscription";
+import useGetPlans from "@/api/subscription/hooks/useGetPlans";
 import useGetPreferences from "@/api/subscription/hooks/useGetPreferences";
 import useUpdatePreferences from "@/api/subscription/hooks/useUpdatePreferences";
 import useCreatePortalSession from "@/api/subscription/hooks/useCreatePortalSession";
 import useCreateCheckoutSession from "@/api/subscription/hooks/useCreateCheckoutSession";
+import useResumeSubscription from "@/api/subscription/hooks/useResumeSubscription";
+import type { PlanInfo } from "@/api/subscription/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,18 +49,25 @@ const PLAN_BADGE_COLORS: Record<string, string> = {
 	BUSINESS: "bg-purple-600 text-white",
 };
 
-const PLAN_UPGRADE_MAP: Record<string, { plan: string; label: string } | null> = {
-	FREE: { plan: "PRO", label: "Upgrade to Pro" },
-	PRO: { plan: "BUSINESS", label: "Upgrade to Business" },
-	BUSINESS: null,
-};
+const FREE_PLAN_CREDITS = 1000;
+
+function formatPrice(amount: number, currency: string): string {
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: currency.toUpperCase(),
+		minimumFractionDigits: 0,
+	}).format(amount / 100);
+}
 
 export default function SettingsPage() {
+	const router = useRouter();
 	const { data: subscription, isLoading: subLoading } = useGetSubscription();
+	const { data: plans = [], isLoading: plansLoading } = useGetPlans();
 	const { data: preferences, isLoading: prefLoading } = useGetPreferences();
 	const updatePreferences = useUpdatePreferences();
 	const createPortalSession = useCreatePortalSession();
 	const createCheckout = useCreateCheckoutSession();
+	const resumeSubscription = useResumeSubscription();
 
 	const [selectedLanguage, setSelectedLanguage] = useState<string>(
 		preferences?.preferred_language || "English",
@@ -93,11 +107,23 @@ export default function SettingsPage() {
 		}
 	};
 
+	const handleResume = async () => {
+		try {
+			await resumeSubscription.mutateAsync();
+			toast.success("Subscription resumed successfully");
+		} catch {
+			toast.error("Failed to resume subscription");
+		}
+	};
+
 	const plan = subscription?.plan || "FREE";
 	const creditsUsed = subscription?.credits_used || 0;
-	const creditLimit = subscription?.monthly_credit_limit || 100;
+	const creditLimit = subscription?.monthly_credit_limit || FREE_PLAN_CREDITS;
 	const creditPercent = creditLimit > 0 ? Math.min((creditsUsed / creditLimit) * 100, 100) : 0;
-	const upgrade = PLAN_UPGRADE_MAP[plan];
+
+	const availableUpgrades = plans
+		.filter((p: PlanInfo) => p.plan !== plan && p.plan !== "FREE")
+		.sort((a: PlanInfo, b: PlanInfo) => a.amount - b.amount);
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -105,6 +131,14 @@ export default function SettingsPage() {
 				<div className="space-y-8">
 					<div className="space-y-4">
 						<div className="flex items-center space-x-4">
+							<button
+								onClick={() => router.push("/dashboard")}
+								className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+								aria-label="Back to Dashboard"
+								type="button"
+							>
+								<ArrowLeft className="h-5 w-5 text-primary" />
+							</button>
 							<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
 								<Settings className="h-6 w-6 text-primary" />
 							</div>
@@ -227,16 +261,132 @@ export default function SettingsPage() {
 												</p>
 											</div>
 
-											{upgrade && (
-												<div className="pt-2">
-													<Button onClick={() => handleUpgrade(upgrade.plan)}>
-														<Sparkles className="h-4 w-4 mr-2" />
-														{upgrade.label}
+											{subscription?.cancel_at && subscription.status === "active" && (
+											<div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4">
+												<AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+												<div className="space-y-2 flex-1">
+													<p className="text-sm font-medium text-yellow-600">
+														Subscription scheduled for cancellation
+													</p>
+													<p className="text-sm text-muted-foreground">
+														Your {plan} plan will revert to Free on{" "}
+														{new Date(subscription.cancel_at).toLocaleDateString("en-US", {
+															month: "long",
+															day: "numeric",
+															year: "numeric",
+														})}
+														. You can continue using all features until then.
+													</p>
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={handleResume}
+														disabled={resumeSubscription.isPending}
+													>
+														{resumeSubscription.isPending && (
+															<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+														)}
+														<RotateCcw className="h-4 w-4 mr-2" />
+														Resume Subscription
 													</Button>
+												</div>
+											</div>
+										)}
+
+										{availableUpgrades.length > 0 && (
+												<div className="space-y-3 pt-2">
+													<div className="flex flex-wrap gap-3">
+														{availableUpgrades.map((upgradePlan: PlanInfo) => (
+															<Button
+																key={upgradePlan.plan}
+																variant={upgradePlan.plan === availableUpgrades[0]?.plan ? "default" : "outline"}
+																onClick={() => handleUpgrade(upgradePlan.plan)}
+															>
+																<Sparkles className="h-4 w-4 mr-2" />
+																Upgrade to {upgradePlan.name}
+															</Button>
+														))}
+													</div>
+												</div>
+											)}
+
+											{plan !== "FREE" && !subscription?.cancel_at && (
+												<div className="pt-2">
+													<Button
+														variant="outline"
+														onClick={handleManageBilling}
+														disabled={createPortalSession.isPending}
+													>
+														{createPortalSession.isPending && (
+															<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+														)}
+														Cancel or Change Plan
+													</Button>
+													<p className="text-xs text-muted-foreground mt-2">
+														You'll be redirected to the billing portal where you can cancel or change your subscription.
+													</p>
 												</div>
 											)}
 										</CardContent>
 									</Card>
+
+									{!plansLoading && plans.length > 0 && (
+										<Card>
+											<CardHeader>
+												<CardTitle className="text-lg font-medium">
+													Available Plans
+												</CardTitle>
+												<CardDescription>
+													Compare plans and choose the one that fits your needs.
+												</CardDescription>
+											</CardHeader>
+											<CardContent>
+												<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+													<Card className="border-2 border-muted">
+														<CardHeader className="pb-2">
+															<CardTitle className="text-base">Free</CardTitle>
+															<p className="text-2xl font-bold">$0<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+														</CardHeader>
+														<CardContent>
+															<p className="text-sm text-muted-foreground">{FREE_PLAN_CREDITS.toLocaleString()} credits/month</p>
+														</CardContent>
+													</Card>
+													{plans.map((p: PlanInfo) => (
+														<Card key={p.plan} className={p.plan === plan ? "border-2 border-primary" : "border-2 border-muted"}>
+															<CardHeader className="pb-2">
+																<div className="flex items-center gap-2">
+																	<CardTitle className="text-base">{p.name}</CardTitle>
+																	{p.plan === plan && (
+																		<Badge variant="default" className="text-xs">Current</Badge>
+																	)}
+																</div>
+																<p className="text-2xl font-bold">
+																	{formatPrice(p.amount, p.currency)}
+																	<span className="text-sm font-normal text-muted-foreground">/{p.interval}</span>
+																</p>
+															</CardHeader>
+															<CardContent className="space-y-2">
+																<p className="text-sm text-muted-foreground">{p.credits.toLocaleString()} credits/month</p>
+																{p.description && (
+																	<p className="text-xs text-muted-foreground">{p.description}</p>
+																)}
+																{p.plan !== plan && (
+																	<Button
+																		size="sm"
+																		variant={p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "outline" : "default"}
+																		className="w-full"
+																		onClick={() => handleUpgrade(p.plan)}
+																	>
+																		{p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "Downgrade" : "Upgrade"}
+																	</Button>
+																)}
+															</CardContent>
+														</Card>
+													))}
+												</div>
+											</CardContent>
+										</Card>
+									)}
 
 									{subscription?.current_period_start && (
 										<Card>

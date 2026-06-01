@@ -1,35 +1,12 @@
 export interface LLMProvider {
 	value: string;
 	label: string;
-	example: string;
-	description: string;
-	apiBase?: string;
 }
 
 export const LLM_PROVIDERS: LLMProvider[] = [
 	{
 		value: "OPENAI",
 		label: "OpenAI",
-		example: "gpt-4.1, gpt-4.1-mini, gpt-5.2",
-		description: "Industry-leading GPT models with broad capabilities",
-	},
-	{
-		value: "ANTHROPIC",
-		label: "Anthropic",
-		example: "claude-3-5-sonnet, claude-3-haiku",
-		description: "Claude models for reasoning and long-form tasks",
-	},
-	{
-		value: "GROQ",
-		label: "Groq",
-		example: "llama-3.1-70b-versatile",
-		description: "Fast inference for supported open-weight models",
-	},
-	{
-		value: "CUSTOM",
-		label: "Custom / OpenAI Compatible",
-		example: "custom-model",
-		description: "Custom OpenAI-compatible provider using your own API base URL",
 	},
 ];
 

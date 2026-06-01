@@ -58,7 +58,6 @@ export class SseService implements OnModuleInit {
 
 	addConnection(connectionId: string, client$: Subject<{ data: string }>): void {
 		this.connections.set(connectionId, client$);
-		this.logger.log(`SSE client connected: ${connectionId} (total: ${this.connections.size})`);
 	}
 
 	removeConnection(connectionId: string): void {
@@ -67,7 +66,6 @@ export class SseService implements OnModuleInit {
 			client$.complete();
 			this.connections.delete(connectionId);
 		}
-		this.logger.log(`SSE client disconnected: ${connectionId} (total: ${this.connections.size})`);
 	}
 
 	closeExistingConnection(connectionId: string): void {

@@ -33,7 +33,7 @@ interface AuthenticatedRequest extends Request {
 export class QueryTemplatesController {
 	constructor(private readonly queryTemplatesService: QueryTemplatesService) {}
 
-	@Post("admin/query-templates")
+	@Post("user/query-templates")
 	async createGlobal(
 		@Body() createDto: CreateQueryTemplateDto,
 		@Req() req: AuthenticatedRequest,
@@ -41,18 +41,19 @@ export class QueryTemplatesController {
 		return this.queryTemplatesService.createGlobal(createDto, req.user.id);
 	}
 
-	@Get("admin/query-templates")
+	@Get("user/query-templates")
 	async findAllGlobal(
+		@Req() req: AuthenticatedRequest,
 		@Query("search") search?: string,
 		@Query("skip") skip?: string,
 		@Query("limit") limit?: string,
 	): Promise<PaginatedQueryTemplatesResponseDto> {
 		const skipNum = skip !== undefined ? parseInt(skip, 10) : 0;
 		const limitNum = limit !== undefined ? parseInt(limit, 10) : 100;
-		return this.queryTemplatesService.findAllGlobal(search, skipNum, limitNum);
+		return this.queryTemplatesService.findAllGlobal(req.user.id, search, skipNum, limitNum);
 	}
 
-	@Put("admin/query-templates/:id")
+	@Put("user/query-templates/:id")
 	async updateGlobal(
 		@Param("id", ParseIntPipe) id: number,
 		@Body() updateDto: UpdateQueryTemplateDto,
@@ -61,7 +62,7 @@ export class QueryTemplatesController {
 		return this.queryTemplatesService.updateGlobal(id, updateDto, req.user.id);
 	}
 
-	@Delete("admin/query-templates/:id")
+	@Delete("user/query-templates/:id")
 	async removeGlobal(
 		@Param("id", ParseIntPipe) id: number,
 		@Req() req: AuthenticatedRequest,

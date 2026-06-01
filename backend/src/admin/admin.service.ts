@@ -7,6 +7,7 @@ import {
 import * as bcrypt from "bcrypt";
 import { SubscriptionPlan } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { SubscriptionService } from "../subscription/subscription.service";
 import {
 	AdminMetricsDto,
 	AdminSubscriptionListDto,
@@ -17,14 +18,6 @@ import {
 	UpdateAdminUserDto,
 } from "./dtos/admin.dto";
 
-const PLAN_CREDIT_LIMITS: Record<SubscriptionPlan, number> = {
-	FREE: 1000,
-	PRO: 10000,
-	BUSINESS: 100000,
-};
-
-const VALID_PLANS = new Set<string>(Object.keys(PLAN_CREDIT_LIMITS));
-
 function getCurrentMonthBounds(): { start: Date; end: Date } {
 	const now = new Date();
 	const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -34,7 +27,10 @@ function getCurrentMonthBounds(): { start: Date; end: Date } {
 
 @Injectable()
 export class AdminService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private subscriptionService: SubscriptionService,
+	) {}
 
 	private toDto(user: { id: string; email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean; pagesUsed: number; pagesLimit: number; failedLoginAttempts: number; lockedUntil: Date | null; createdAt: Date; updatedAt: Date }): AdminUserDto {
 		return {
@@ -338,11 +334,16 @@ export class AdminService {
 			throw new NotFoundException("User not found");
 		}
 
-		if (!VALID_PLANS.has(plan)) {
-			throw new BadRequestException(`Invalid plan: ${plan}. Valid plans: FREE, PRO, BUSINESS`);
+		const plans = await this.subscriptionService.getPlans();
+		const validPlanNames = new Set(plans.map((p) => p.plan));
+		validPlanNames.add("FREE");
+
+		if (!validPlanNames.has(plan)) {
+			const validList = [...validPlanNames].sort().join(", ");
+			throw new BadRequestException(`Invalid plan: ${plan}. Valid plans: ${validList}`);
 		}
 
-		const creditLimit = PLAN_CREDIT_LIMITS[plan as SubscriptionPlan];
+		const creditLimit = await this.subscriptionService.getCreditLimitForPlan(plan);
 
 		const { start, end } = getCurrentMonthBounds();
 		await this.prisma.subscription.upsert({
@@ -391,7 +392,7 @@ export class AdminService {
 			create: {
 				userId,
 				plan: SubscriptionPlan.FREE,
-				monthlyCreditLimit: 1000,
+				monthlyCreditLimit: await this.subscriptionService.getCreditLimitForPlan("FREE"),
 				creditsUsed: 0,
 				status: "active",
 				currentPeriodStart: start,

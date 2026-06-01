@@ -16,6 +16,12 @@ import { CreateCheckoutSessionDto } from "./dtos/subscription.dto";
 export class SubscriptionController {
 	constructor(private readonly subscriptionService: SubscriptionService) {}
 
+	@Get("plans")
+	@JwtAuth()
+	async getPlans() {
+		return this.subscriptionService.getPlans();
+	}
+
 	@Get()
 	@JwtAuth()
 	async getSubscription(@Req() req: Request) {
@@ -40,6 +46,12 @@ export class SubscriptionController {
 		return this.subscriptionService.createCustomerPortalSession(req.user.id);
 	}
 
+	@Post("resume")
+	@JwtAuth()
+	async resumeSubscription(@Req() req: Request) {
+		return this.subscriptionService.resumeSubscription(req.user.id);
+	}
+
 	@Post("webhook")
 	async handleStripeWebhook(@Req() req: RawBodyRequest<Request>) {
 		const signature = req.headers["stripe-signature"] as string;
@@ -47,11 +59,11 @@ export class SubscriptionController {
 			throw new BadRequestException("Missing stripe-signature header");
 		}
 
-		const rawBody = req.rawBody;
+		const rawBody = (req.body as Buffer)?.toString?.() ?? req.rawBody?.toString?.() ?? "";
 		if (!rawBody) {
 			throw new BadRequestException("Missing raw body for webhook verification");
 		}
 
-		return this.subscriptionService.handleStripeWebhook(signature, rawBody);
+		return this.subscriptionService.handleStripeWebhook(signature, Buffer.from(rawBody));
 	}
 }

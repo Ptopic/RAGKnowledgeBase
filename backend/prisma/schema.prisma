@@ -175,6 +175,7 @@ model Subscription {
   lastProcessedInvoiceId String?          @map("last_processed_invoice_id") @db.VarChar(255)
   monthlyCreditLimit    Int               @default(1000) @map("monthly_credit_limit")
   creditsUsed           Int               @default(0) @map("credits_used")
+  cancelAt              DateTime?         @map("cancel_at")
   currentPeriodStart    DateTime          @map("current_period_start")
   currentPeriodEnd      DateTime          @map("current_period_end")
   createdAt             DateTime          @default(now()) @map("created_at")

@@ -5,6 +5,17 @@ import { Prisma, SubscriptionPlan } from "@prisma/client";
 import Stripe from "stripe";
 import { Cron } from "@nestjs/schedule";
 
+export interface PlanInfo {
+	plan: string;
+	name: string;
+	description: string | null;
+	credits: number;
+	price_id: string;
+	amount: number;
+	currency: string;
+	interval: string;
+}
+
 export class CreditsExceededError extends BadRequestException {
 	public readonly creditsUsed: number;
 	public readonly monthlyCreditLimit: number;
@@ -24,17 +35,84 @@ export class CreditsExceededError extends BadRequestException {
 	}
 }
 
+const FREE_PLAN_CREDITS = 1000;
+const PLANS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 @Injectable()
 export class SubscriptionService {
 	private readonly logger = new Logger(SubscriptionService.name);
 	private readonly stripe: InstanceType<typeof Stripe>;
+	private plansCache: PlanInfo[] | null = null;
+	private plansCacheExpiry = 0;
 
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly configService: ConfigService,
 	) {
 		const secretKey = this.configService.get<string>("stripe.secretKey");
-		this.stripe = new Stripe(secretKey || "");
+		if (!secretKey) {
+			this.logger.warn("STRIPE_SECRET_KEY is not configured. Stripe features will be disabled.");
+		}
+		this.stripe = new Stripe(secretKey || "sk_test_disabled");
+	}
+
+	/**
+	 * Fetch available subscription plans from Stripe.
+	 * Products must have metadata.plan and metadata.credits set in the Stripe Dashboard.
+	 * Results are cached for 1 hour.
+	 */
+	async getPlans(): Promise<PlanInfo[]> {
+		if (this.plansCache && Date.now() < this.plansCacheExpiry) {
+			return this.plansCache;
+		}
+
+		const secretKey = this.configService.get<string>("stripe.secretKey");
+		if (!secretKey) {
+			this.logger.warn("Cannot fetch plans: STRIPE_SECRET_KEY not configured");
+			return [];
+		}
+
+		try {
+			const products = await this.stripe.products.list({
+				active: true,
+				expand: ["data.default_price"],
+			});
+
+			this.logger.log(`Fetched ${products.data.length} active products from Stripe`);
+
+			const plans: PlanInfo[] = products.data
+				.filter((p) => p.metadata.plan)
+				.map((product) => {
+					const price = typeof product.default_price === "object"
+						? (product.default_price as Stripe.Price)
+						: null;
+
+					if (!price) {
+						this.logger.warn(`Product "${product.name}" (${product.id}) has no default_price`);
+					}
+
+					return {
+						plan: product.metadata.plan,
+						name: product.name,
+						description: product.description,
+						credits: parseInt(product.metadata.credits || "0", 10),
+						price_id: price?.id ?? "",
+						amount: price?.unit_amount ?? 0,
+						currency: price?.currency ?? "usd",
+						interval: price?.recurring?.interval ?? "month",
+					};
+				});
+
+			this.logger.log(`Mapped ${plans.length} plans from Stripe products`);
+
+			this.plansCache = plans;
+			this.plansCacheExpiry = Date.now() + PLANS_CACHE_TTL_MS;
+
+			return plans;
+		} catch (error) {
+			this.logger.error(`Failed to fetch plans from Stripe: ${error.message}`);
+			return this.plansCache ?? [];
+		}
 	}
 
 	async getSubscription(userId: string) {
@@ -49,6 +127,7 @@ export class SubscriptionService {
 			current_period_end: subscription.currentPeriodEnd,
 			stripe_customer_id: subscription.stripeCustomerId,
 			stripe_subscription_id: subscription.stripeSubscriptionId,
+			cancel_at: subscription.cancelAt,
 		};
 	}
 
@@ -138,6 +217,10 @@ export class SubscriptionService {
 	}
 
 	async createCheckoutSession(userId: string, plan: string) {
+		if (!this.configService.get<string>("stripe.secretKey")) {
+			throw new BadRequestException("Stripe is not configured. Please set STRIPE_SECRET_KEY.");
+		}
+
 		const subscription = await this.ensureSubscription(userId);
 
 		let customerId = subscription.stripeCustomerId;
@@ -158,9 +241,9 @@ export class SubscriptionService {
 
 		const frontendUrl = this.configService.get<string>("frontend.url") || "http://localhost:3000";
 
-		const priceId = this.getPriceIdForPlan(plan);
+		const priceId = await this.getPriceIdForPlan(plan);
 		if (!priceId) {
-			throw new BadRequestException(`No price ID configured for plan: ${plan}`);
+			throw new BadRequestException(`No price ID found for plan: ${plan}`);
 		}
 
 		const session = await this.stripe.checkout.sessions.create({
@@ -176,6 +259,10 @@ export class SubscriptionService {
 	}
 
 	async createCustomerPortalSession(userId: string) {
+		if (!this.configService.get<string>("stripe.secretKey")) {
+			throw new BadRequestException("Stripe is not configured. Please set STRIPE_SECRET_KEY.");
+		}
+
 		const subscription = await this.prisma.subscription.findUnique({
 			where: { userId },
 		});
@@ -194,6 +281,37 @@ export class SubscriptionService {
 		return { url: session.url };
 	}
 
+	async resumeSubscription(userId: string) {
+		if (!this.configService.get<string>("stripe.secretKey")) {
+			throw new BadRequestException("Stripe is not configured. Please set STRIPE_SECRET_KEY.");
+		}
+
+		const subscription = await this.prisma.subscription.findUnique({
+			where: { userId },
+		});
+
+		if (!subscription?.stripeSubscriptionId) {
+			throw new BadRequestException("No active subscription to resume.");
+		}
+
+		if (!subscription.cancelAt) {
+			throw new BadRequestException("Subscription is not scheduled for cancellation.");
+		}
+
+		await this.stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+			cancel_at_period_end: false,
+		});
+
+		await this.prisma.subscription.update({
+			where: { id: subscription.id },
+			data: { cancelAt: null },
+		});
+
+		this.logger.log(`Subscription resumed: ${subscription.stripeSubscriptionId}`);
+
+		return { message: "Subscription resumed successfully." };
+	}
+
 	async handleStripeWebhook(signature: string, rawBody: Buffer) {
 		const webhookSecret = this.configService.get<string>("stripe.webhookSecret");
 		if (!webhookSecret) {
@@ -207,6 +325,8 @@ export class SubscriptionService {
 			this.logger.error(`Webhook signature verification failed: ${err.message}`);
 			throw new BadRequestException(`Webhook Error: ${err.message}`);
 		}
+
+		this.logger.log(`Stripe webhook received: ${event.type}`);
 
 		switch (event.type) {
 			case "checkout.session.completed": {
@@ -240,16 +360,24 @@ export class SubscriptionService {
 		const customerId = session.customer as string;
 		const subscriptionId = session.subscription as string;
 
+		this.logger.log(`Checkout completed: customer=${customerId}, subscription=${subscriptionId}`);
+
 		const subscription = await this.prisma.subscription.findFirst({
 			where: { stripeCustomerId: customerId },
 		});
 
-		if (!subscription) return;
+		if (!subscription) {
+			this.logger.warn(`No subscription found for Stripe customer ${customerId} — checkout session ignored`);
+			return;
+		}
 
 		const stripeSubscription = await this.stripe.subscriptions.retrieve(subscriptionId);
 		const priceId = stripeSubscription.items.data[0]?.price.id;
 
-		const plan = this.getPlanFromPriceId(priceId);
+		const plan = await this.getPlanFromPriceId(priceId);
+
+		const periodStart = new Date(stripeSubscription.start_date * 1000);
+		const periodEnd = this.derivePeriodEnd(stripeSubscription);
 
 		await this.prisma.subscription.update({
 			where: { id: subscription.id },
@@ -258,24 +386,37 @@ export class SubscriptionService {
 				status: "active",
 				stripeSubscriptionId: subscriptionId,
 				stripePriceId: priceId,
-				monthlyCreditLimit: this.getCreditLimitForPlan(plan),
-				currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-				currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+				monthlyCreditLimit: await this.getCreditLimitForPlan(plan),
+				currentPeriodStart: periodStart,
+				currentPeriodEnd: periodEnd,
+				cancelAt: null,
 			},
 		});
+
+		this.logger.log(`Subscription updated to ${plan} via checkout`);
 	}
 
 	private async handleSubscriptionUpdated(stripeSubscriptionData: Record<string, unknown>) {
 		const subscriptionId = stripeSubscriptionData.id as string;
+
+		this.logger.log(`Subscription updated: ${subscriptionId}`);
+
 		const subscription = await this.prisma.subscription.findFirst({
 			where: { stripeSubscriptionId: subscriptionId },
 		});
 
-		if (!subscription) return;
+		if (!subscription) {
+			this.logger.warn(`No subscription found for Stripe subscription ${subscriptionId} — update ignored`);
+			return;
+		}
 
 		const stripeSubscription = await this.stripe.subscriptions.retrieve(subscriptionId);
 		const priceId = stripeSubscription.items.data[0]?.price.id;
-		const plan = this.getPlanFromPriceId(priceId);
+		const plan = await this.getPlanFromPriceId(priceId);
+
+		const periodStart = new Date(stripeSubscription.start_date * 1000);
+		const periodEnd = this.derivePeriodEnd(stripeSubscription);
+		const cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end === true;
 
 		await this.prisma.subscription.update({
 			where: { id: subscription.id },
@@ -283,20 +424,31 @@ export class SubscriptionService {
 				plan: plan as SubscriptionPlan,
 				status: stripeSubscription.status === "active" ? "active" : stripeSubscription.status,
 				stripePriceId: priceId,
-				monthlyCreditLimit: this.getCreditLimitForPlan(plan),
-				currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-				currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+				monthlyCreditLimit: await this.getCreditLimitForPlan(plan),
+				currentPeriodStart: periodStart,
+				currentPeriodEnd: periodEnd,
+				cancelAt: cancelAtPeriodEnd ? periodEnd : null,
 			},
 		});
+
+		if (cancelAtPeriodEnd) {
+			this.logger.log(`Subscription scheduled for cancellation at period end: ${subscriptionId}`);
+		}
 	}
 
 	private async handleSubscriptionDeleted(stripeSubscriptionData: Record<string, unknown>) {
 		const subscriptionId = stripeSubscriptionData.id as string;
+
+		this.logger.log(`Subscription deleted: ${subscriptionId}`);
+
 		const subscription = await this.prisma.subscription.findFirst({
 			where: { stripeSubscriptionId: subscriptionId },
 		});
 
-		if (!subscription) return;
+		if (!subscription) {
+			this.logger.warn(`No subscription found for Stripe subscription ${subscriptionId} — delete ignored`);
+			return;
+		}
 
 		await this.prisma.subscription.update({
 			where: { id: subscription.id },
@@ -305,7 +457,8 @@ export class SubscriptionService {
 				status: "canceled",
 				stripeSubscriptionId: null,
 				stripePriceId: null,
-				monthlyCreditLimit: this.getCreditLimitForPlan("FREE"),
+				monthlyCreditLimit: FREE_PLAN_CREDITS,
+				cancelAt: null,
 			},
 		});
 	}
@@ -315,29 +468,54 @@ export class SubscriptionService {
 		eventId: string,
 	) {
 		const customerId = invoice.customer as string;
+		const rawSubscriptionId = invoice.subscription ?? (invoice as Record<string, unknown>).subscription_details
+			? ((invoice as Record<string, Record<string, unknown>>).subscription_details?.subscription as string | undefined)
+			: undefined;
+		const subscriptionId = typeof rawSubscriptionId === "string" ? rawSubscriptionId : undefined;
+
+		this.logger.log(`Invoice payment succeeded: customer=${customerId}, subscription=${subscriptionId}`);
 
 		const subscription = await this.prisma.subscription.findFirst({
 			where: { stripeCustomerId: customerId },
 		});
 
-		if (!subscription) return;
+		if (!subscription) {
+			this.logger.warn(`No subscription found for Stripe customer ${customerId} — invoice ignored`);
+			return;
+		}
 
 		if (subscription.lastProcessedInvoiceId === eventId) {
 			this.logger.log("Duplicate invoice.payment_succeeded event, skipping");
 			return;
 		}
 
-		const invoicePeriodStart = new Date((invoice.period_start as number) * 1000);
+		const periodStart = this.parseStripeDate(invoice.period_start as number | string);
+		const periodEnd = this.parseStripeDate(invoice.period_end as number | string);
 
-		await this.prisma.subscription.update({
-			where: { id: subscription.id },
-			data: {
-				creditsUsed: 0,
-				currentPeriodStart: invoicePeriodStart,
-				currentPeriodEnd: new Date((invoice.period_end as number) * 1000),
-				lastProcessedInvoiceId: eventId,
-			},
-		});
+		if (subscriptionId) {
+			await this.prisma.subscription.update({
+				where: { id: subscription.id },
+				data: {
+					stripeSubscriptionId: subscriptionId,
+					creditsUsed: 0,
+					currentPeriodStart: periodStart,
+					currentPeriodEnd: periodEnd,
+					lastProcessedInvoiceId: eventId,
+				},
+			});
+		} else {
+			await this.prisma.subscription.update({
+				where: { id: subscription.id },
+				data: {
+					creditsUsed: 0,
+					currentPeriodStart: periodStart,
+					currentPeriodEnd: periodEnd,
+					lastProcessedInvoiceId: eventId,
+				},
+			});
+		}
+
+		this.logger.log(`Invoice processed: credits reset, period updated`);
 	}
 
 	private async ensureSubscription(
@@ -355,7 +533,7 @@ export class SubscriptionService {
 				userId,
 				plan: SubscriptionPlan.FREE,
 				status: "active",
-				monthlyCreditLimit: this.getCreditLimitForPlan("FREE"),
+				monthlyCreditLimit: FREE_PLAN_CREDITS,
 				creditsUsed: 0,
 				currentPeriodStart: now,
 				currentPeriodEnd: periodEnd,
@@ -385,28 +563,47 @@ export class SubscriptionService {
 		this.logger.log(`Reset credits for ${result.count} subscriptions`);
 	}
 
-	private getPlanFromPriceId(priceId: string | undefined): string {
+	private async getPlanFromPriceId(priceId: string | undefined): Promise<string> {
 		if (!priceId) return "FREE";
-		const proPriceId = this.configService.get<string>("stripe.prices.pro");
-		const businessPriceId = this.configService.get<string>("stripe.prices.business");
-
-		if (priceId === proPriceId) return "PRO";
-		if (priceId === businessPriceId) return "BUSINESS";
-		return "FREE";
+		const plans = await this.getPlans();
+		const match = plans.find((p) => p.price_id === priceId);
+		return match?.plan ?? "FREE";
 	}
 
-	private getPriceIdForPlan(plan: string): string | undefined {
-		if (plan === "PRO") return this.configService.get<string>("stripe.prices.pro");
-		if (plan === "BUSINESS") return this.configService.get<string>("stripe.prices.business");
-		return undefined;
+	private async getPriceIdForPlan(plan: string): Promise<string | undefined> {
+		const plans = await this.getPlans();
+		const match = plans.find((p) => p.plan === plan);
+		return match?.price_id;
 	}
 
-	private getCreditLimitForPlan(plan: string): number {
-		const limits: Record<string, number> = {
-			FREE: 1000,
-			PRO: 10000,
-			BUSINESS: 100000,
-		};
-		return limits[plan] || 1000;
+	async getCreditLimitForPlan(plan: string): Promise<number> {
+		if (plan === "FREE") return FREE_PLAN_CREDITS;
+		const plans = await this.getPlans();
+		const match = plans.find((p) => p.plan === plan);
+		return match?.credits ?? FREE_PLAN_CREDITS;
+	}
+
+	/**
+	 * Parse Stripe date fields which may be Unix timestamps (number)
+	 * or ISO 8601 strings (newer API versions).
+	 */
+	private parseStripeDate(value: number | string): Date {
+		if (typeof value === "number") {
+			return new Date(value * 1000);
+		}
+		return new Date(value);
+	}
+
+	private derivePeriodEnd(stripeSubscription: Record<string, unknown>): Date {
+		const price = (stripeSubscription.items as Record<string, { data: Array<{ price: Record<string, unknown> }> }>)?.data?.[0]?.price;
+		const interval = price?.recurring?.interval as string | undefined;
+		const startDate = new Date((stripeSubscription.start_date as number) * 1000);
+		const periodEnd = new Date(startDate);
+		if (interval === "year") {
+			periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+		} else {
+			periodEnd.setMonth(periodEnd.getMonth() + 1);
+		}
+		return periodEnd;
 	}
 }

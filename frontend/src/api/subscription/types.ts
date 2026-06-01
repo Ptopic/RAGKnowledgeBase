@@ -5,6 +5,18 @@ export interface SubscriptionInfo {
 	monthly_credit_limit: number;
 	current_period_start: string;
 	current_period_end: string;
+	cancel_at: string | null;
+}
+
+export interface PlanInfo {
+	plan: string;
+	name: string;
+	description: string | null;
+	credits: number;
+	price_id: string;
+	amount: number;
+	currency: string;
+	interval: string;
 }
 
 export interface PreferencesInfo {
@@ -17,6 +29,10 @@ export interface CheckoutSessionResponse {
 
 export interface PortalSessionResponse {
 	url: string;
+}
+
+export interface ResumeSubscriptionResponse {
+	message: string;
 }
 
 export interface AdminSubscriptionUser {

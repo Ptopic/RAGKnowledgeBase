@@ -40,7 +40,7 @@ export class LLMConfigsService {
 			}),
 			this.prisma.searchSpaceMember.findUnique({
 				where: {
-					uq_search_space_member: {
+					searchSpaceId_userId: {
 						searchSpaceId,
 						userId,
 					},

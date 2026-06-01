@@ -4,11 +4,21 @@ import type {
 	AdminSubscriptionList,
 	CheckoutSessionResponse,
 	OverridePlanResponse,
+	PlanInfo,
 	PortalSessionResponse,
 	PreferencesInfo,
 	ResetCreditsResponse,
+	ResumeSubscriptionResponse,
 	SubscriptionInfo,
 } from "./types";
+
+export const getPlans =
+	(request: ICallableRequestBuilder<PlanInfo[]>) =>
+	async (): Promise<PlanInfo[]> =>
+		request.call(`${config.apiUrl}/subscription/plans`, (init) => ({
+			...init,
+			method: "GET",
+		}));
 
 export const getSubscription =
 	(request: ICallableRequestBuilder<SubscriptionInfo>) =>
@@ -96,6 +106,14 @@ export const adminResetCredits =
 	(request: ICallableRequestBuilder<ResetCreditsResponse>) =>
 	async ({ userId }: { userId: string }): Promise<ResetCreditsResponse> =>
 		request.call(`${config.apiUrl}/admin/subscriptions/${userId}/reset-credits`, (init) => ({
+			...init,
+			method: "POST",
+		}));
+
+export const resumeSubscription =
+	(request: ICallableRequestBuilder<ResumeSubscriptionResponse>) =>
+	async (): Promise<ResumeSubscriptionResponse> =>
+		request.call(`${config.apiUrl}/subscription/resume`, (init) => ({
 			...init,
 			method: "POST",
 		}));
