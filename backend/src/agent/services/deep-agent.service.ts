@@ -157,23 +157,26 @@ export class DeepAgentService {
 	private async resolveAgentLLM(
 		userId: string,
 		searchSpaceId: number,
-	): Promise<BaseChatModel> {
+	): Promise<{ llm: BaseChatModel; usedUserConfig: boolean }> {
 		const userLlm = await this.llmService.getUserFastLLM(userId, searchSpaceId);
 		if (userLlm) {
 			this.logger.log(
 				`Deep agent using user-configured fast LLM: ${this.llmService.getModelName(userLlm)}`,
 			);
-			return userLlm;
+			return { llm: userLlm, usedUserConfig: true };
 		}
 		this.logger.warn(
 			`No user-configured fast LLM for user ${userId} in search space ${searchSpaceId}; ` +
 				`falling back to platform default gpt-4.1-mini (env OPENAI_API_KEY).`,
 		);
-		return new ChatOpenAI({
-			modelName: "gpt-4.1-mini",
-			streaming: true,
-			temperature: 0.4,
-		});
+		return {
+			llm: new ChatOpenAI({
+				modelName: "gpt-4.1-mini",
+				streaming: true,
+				temperature: 0.4,
+			}),
+			usedUserConfig: false,
+		};
 	}
 
 	async streamDeepAgent(
@@ -226,7 +229,10 @@ export class DeepAgentService {
 			? this.checkpointerService.getCheckpointer()
 			: undefined;
 
-		const llm = await this.resolveAgentLLM(params.userId, params.searchSpaceId);
+		const { llm, usedUserConfig } = await this.resolveAgentLLM(
+			params.userId,
+			params.searchSpaceId,
+		);
 		const graph = this.createAgent(
 			dependencies,
 			params.language,
@@ -457,6 +463,7 @@ export class DeepAgentService {
 			stream,
 			chatId: currentChatId,
 			chatWasCreated,
+			billedToUserKey: usedUserConfig,
 		};
 	}
 

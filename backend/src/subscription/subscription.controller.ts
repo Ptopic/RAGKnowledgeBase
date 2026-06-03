@@ -65,11 +65,16 @@ export class SubscriptionController {
 			throw new BadRequestException("Missing stripe-signature header");
 		}
 
-		const rawBody = (req.body as Buffer)?.toString?.() ?? req.rawBody?.toString?.() ?? "";
-		if (!rawBody) {
+		// Stripe signature verification requires the original bytes
+		// preserved verbatim. bodyParser.raw (configured in main.ts)
+		// keeps the body as a Buffer on req.body.
+		const rawBody: Buffer | undefined = Buffer.isBuffer(req.body)
+			? (req.body as Buffer)
+			: (req.rawBody as Buffer | undefined);
+		if (!rawBody || rawBody.length === 0) {
 			throw new BadRequestException("Missing raw body for webhook verification");
 		}
 
-		return this.subscriptionService.handleStripeWebhook(signature, Buffer.from(rawBody));
+		return this.subscriptionService.handleStripeWebhook(signature, rawBody);
 	}
 }

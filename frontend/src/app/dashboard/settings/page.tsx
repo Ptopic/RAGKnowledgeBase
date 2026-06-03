@@ -20,6 +20,7 @@ import useUpdatePreferences from "@/api/subscription/hooks/useUpdatePreferences"
 import useCreatePortalSession from "@/api/subscription/hooks/useCreatePortalSession";
 import useCreateCheckoutSession from "@/api/subscription/hooks/useCreateCheckoutSession";
 import useResumeSubscription from "@/api/subscription/hooks/useResumeSubscription";
+import { useSearchParams } from "next/navigation";
 import type { PlanInfo } from "@/api/subscription/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,27 @@ function formatPrice(amount: number, currency: string): string {
 
 export default function SettingsPage() {
 	const router = useRouter();
-	const { data: subscription, isLoading: subLoading } = useGetSubscription();
+	const searchParams = useSearchParams();
+	const { data: subscription, isLoading: subLoading, refetch: refetchSubscription } =
+		useGetSubscription();
+
+	// When the user returns from Stripe Checkout, the URL has
+	// ?session_id=… but the webhook may not have fired yet (Stripe can
+	// take a few seconds). Refetch a few times so the UI picks up the
+	// new plan as soon as the webhook processes.
+	const returningFromCheckout = searchParams?.get("session_id");
+	useEffect(() => {
+		if (!returningFromCheckout) return;
+		const delays = [500, 1500, 3000, 6000];
+		const timers = delays.map((d) =>
+			setTimeout(() => {
+				refetchSubscription();
+			}, d),
+		);
+		return () => {
+			for (const t of timers) clearTimeout(t);
+		};
+	}, [returningFromCheckout, refetchSubscription]);
 	const { data: plans = [], isLoading: plansLoading } = useGetPlans();
 	const { data: preferences, isLoading: prefLoading } = useGetPreferences();
 	const updatePreferences = useUpdatePreferences();

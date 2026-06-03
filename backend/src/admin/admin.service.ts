@@ -267,7 +267,7 @@ export class AdminService {
 				}
 			: {};
 
-		const [users, total] = await Promise.all([
+		const [users, total, activeSubscriptions, paidSubscriptions] = await Promise.all([
 			this.prisma.user.findMany({
 				where,
 				skip,
@@ -276,6 +276,12 @@ export class AdminService {
 				include: { subscription: true },
 			}),
 			this.prisma.user.count({ where }),
+			this.prisma.subscription.count({
+				where: { plan: { not: "FREE" }, status: "active" },
+			}),
+			this.prisma.subscription.count({
+				where: { plan: { not: "FREE" } },
+			}),
 		]);
 
 		const subscriptionUsers: AdminSubscriptionUserDto[] = users.map((u) => {
@@ -292,14 +298,7 @@ export class AdminService {
 			};
 		});
 
-		const allSubscriptions = await this.prisma.subscription.findMany({
-			select: { plan: true, status: true },
-		});
-
-		const activeSubscriptions = allSubscriptions.filter(
-			(s) => s.plan !== "FREE" && s.status === "active",
-		).length;
-		const freeTierCount = total - allSubscriptions.filter((s) => s.plan !== "FREE").length;
+		const freeTierCount = total - paidSubscriptions;
 
 		return {
 			users: subscriptionUsers,

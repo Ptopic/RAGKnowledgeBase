@@ -952,6 +952,33 @@ export class FileProcessorsService {
 				);
 			}
 
+			// Refund pre-deducted credits when the job fails — actual
+			// page count is unknown, so we refund the full estimate.
+			// Without this the user is permanently charged for a file
+			// that never made it through indexing.
+			if (
+				typeof estimatedPages === "number" &&
+				estimatedPages > 0 &&
+				!(await this.subscriptionService.isSuperuserBypass(userId))
+			) {
+				try {
+					await this.subscriptionService.adjustCreditsForIndexedPages(
+						userId,
+						searchSpaceId,
+						0,
+						estimatedPages,
+					);
+					this.logger.log(
+						`Refunded ${estimatedPages} page credits for failed file ${filename} (user ${userId})`,
+					);
+				} catch (refundErr) {
+					this.logger.error(
+						`Failed to refund credits for failed file ${filename} (user ${userId}): ${(refundErr as Error).message}`,
+						(refundErr as Error).stack,
+					);
+				}
+			}
+
 			this.logger.error(
 				`Error processing file in background: ${error.message}`,
 				error.stack,

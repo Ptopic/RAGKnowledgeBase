@@ -1,11 +1,13 @@
 import {
 	IsBoolean,
 	IsEmail,
+	IsIn,
 	IsOptional,
 	IsString,
 	MaxLength,
 	MinLength,
 } from "class-validator";
+import { SubscriptionPlan } from "@prisma/client";
 
 export class CreateAdminUserDto {
 	@IsEmail()
@@ -81,8 +83,10 @@ export class AdminMetricsDto {
 // Admin Subscription DTOs
 
 export class OverridePlanDto {
-	@IsString()
-	plan: string;
+	@IsIn(Object.values(SubscriptionPlan), {
+		message: `plan must be one of: ${Object.values(SubscriptionPlan).join(", ")}`,
+	})
+	plan: SubscriptionPlan;
 }
 
 export class AdminSubscriptionUserDto {

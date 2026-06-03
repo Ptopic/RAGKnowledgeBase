@@ -150,6 +150,7 @@ export class AgentController {
 				stream,
 				chatId: createdChatId,
 				chatWasCreated,
+				billedToUserKey,
 			} = await this.deepAgentService.streamDeepAgent({
 				userQuery: userContent,
 				userId: req.user.id,
@@ -178,11 +179,13 @@ export class AgentController {
 				`data: ${JSON.stringify({ type: "thinking", ...initialStep })}\n\n`,
 			);
 
+			let streamSucceeded = false;
 			try {
 				for await (const chunk of stream) {
 					res.write(chunk);
 				}
 				res.end();
+				streamSucceeded = true;
 			} catch (error) {
 				this.logger.error(`Streaming error: ${error.message}`, error.stack);
 				res.write("event: error\n");
@@ -190,13 +193,15 @@ export class AgentController {
 				res.end();
 			}
 
-			// Async credit deduction with the actual tokens used.
-			this.recordUsage(
-				req.user.id,
-				searchSpaceId,
-				creditHandler,
-				UsageOperation.DEEP_AGENT_MSG,
-			);
+			if (streamSucceeded) {
+				await this.recordUsage(
+					req.user.id,
+					searchSpaceId,
+					creditHandler,
+					UsageOperation.DEEP_AGENT_MSG,
+					billedToUserKey,
+				);
+			}
 		} catch (error) {
 			if (
 				error instanceof CreditsExceededError ||
@@ -260,6 +265,7 @@ export class AgentController {
 				stream,
 				chatId: createdChatId,
 				chatWasCreated,
+				billedToUserKey,
 			} = await this.agentService.streamConnectorSearchResults({
 				userQuery: extractTextFromContent(userContent),
 				userId: req.user.id,
@@ -281,6 +287,7 @@ export class AgentController {
 				res.setHeader("X-Chat-Id", createdChatId.toString());
 			}
 
+			let streamSucceeded = false;
 			try {
 				for await (const chunk of stream) {
 					let eventType = "data";
@@ -307,6 +314,7 @@ export class AgentController {
 					res.write(`data: ${JSON.stringify(dataToSend)}\n\n`);
 				}
 				res.end();
+				streamSucceeded = true;
 			} catch (error) {
 				this.logger.error(`Streaming error: ${error.message}`, error.stack);
 				res.write("event: error\n");
@@ -314,13 +322,15 @@ export class AgentController {
 				res.end();
 			}
 
-			// Async credit deduction with the actual tokens used.
-			this.recordUsage(
-				req.user.id,
-				searchSpaceId,
-				creditHandler,
-				UsageOperation.RESEARCHER_MSG,
-			);
+			if (streamSucceeded) {
+				await this.recordUsage(
+					req.user.id,
+					searchSpaceId,
+					creditHandler,
+					UsageOperation.RESEARCHER_MSG,
+					billedToUserKey,
+				);
+			}
 		} catch (error) {
 			if (
 				error instanceof CreditsExceededError ||
@@ -333,22 +343,31 @@ export class AgentController {
 		}
 	}
 
-	private recordUsage(
+	private async recordUsage(
 		userId: string,
 		searchSpaceId: number,
 		tracker: CreditTrackingHandler,
 		operationType: string,
-	): void {
+		billedToUserKey: boolean,
+	): Promise<void> {
 		tracker.reportCaptureOutcome(operationType);
 		const totals = tracker.totals();
-		this.subscriptionService.enqueueDeduction({
-			userId,
-			searchSpaceId,
-			operationType,
-			tokensIn: totals.tokensIn,
-			tokensOut: totals.tokensOut,
-			modelName: totals.modelName,
-		});
+		try {
+			await this.subscriptionService.enqueueDeduction({
+				userId,
+				searchSpaceId,
+				operationType,
+				tokensIn: totals.tokensIn,
+				tokensOut: totals.tokensOut,
+				modelName: totals.modelName,
+				billedToUserKey,
+			});
+		} catch (err) {
+			this.logger.error(
+				`Failed to enqueue credit deduction for user ${userId} (${operationType}): ${(err as Error).message}`,
+				(err as Error).stack,
+			);
+		}
 	}
 
 	@Post("save-messages")

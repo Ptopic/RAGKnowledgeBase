@@ -1,11 +1,18 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+	BadRequestException,
+	forwardRef,
+	Inject,
+	Injectable,
+	Logger,
+	Optional,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
 import { Prisma, SubscriptionPlan } from "@prisma/client";
 import Stripe from "stripe";
 import { PrismaService } from "../prisma/prisma.service";
+import { QueueService } from "../queue/queue.service";
 import type { UsageOperationType } from "./credit-cost";
-import { calculateCreditCost } from "./credit-cost";
 
 export interface PlanInfo {
 	plan: string;
@@ -50,14 +57,38 @@ export class SubscriptionService {
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly configService: ConfigService,
+		@Optional()
+		@Inject(forwardRef(() => QueueService))
+		private readonly queueService?: QueueService,
 	) {
 		const secretKey = this.configService.get<string>("stripe.secretKey");
+		const webhookSecret = this.configService.get<string>("stripe.webhookSecret");
+		const isProduction = process.env.NODE_ENV === "production";
+
 		if (!secretKey) {
+			if (isProduction) {
+				throw new Error(
+					"STRIPE_SECRET_KEY is required in production. Refusing to start.",
+				);
+			}
 			this.logger.warn(
 				"STRIPE_SECRET_KEY is not configured. Stripe features will be disabled.",
 			);
 		}
-		this.stripe = new Stripe(secretKey || "sk_test_disabled");
+		if (!webhookSecret) {
+			if (isProduction) {
+				throw new Error(
+					"STRIPE_WEBHOOK_SECRET is required in production. Refusing to start.",
+				);
+			}
+			this.logger.warn(
+				"STRIPE_WEBHOOK_SECRET is not configured. /subscription/webhook will reject all events.",
+			);
+		}
+
+		// Use a clearly non-functional placeholder when no key is set so
+		// it never appears in stack traces as a real-looking key.
+		this.stripe = new Stripe(secretKey || "stripe-not-configured");
 	}
 
 	/**
@@ -173,25 +204,53 @@ export class SubscriptionService {
 			modelUsed?: string;
 		},
 	): Promise<void> {
+		if (credits === 0) return;
+
+		const absCredits = Math.abs(Math.trunc(credits));
+		if (absCredits === 0) return;
+
 		await this.prisma.$transaction(async (tx) => {
 			const subscription = await this.ensureSubscription(userId, tx);
 
-			if (
-				subscription.creditsUsed + credits >
-				subscription.monthlyCreditLimit
-			) {
-				throw new CreditsExceededError(
-					`Credit limit exceeded. Used: ${subscription.creditsUsed}/${subscription.monthlyCreditLimit}.`,
-					subscription.creditsUsed,
-					subscription.monthlyCreditLimit,
-					credits,
-				);
+			if (credits > 0) {
+				const result = await tx.subscription.updateMany({
+					where: {
+						userId,
+						creditsUsed: {
+							lte: subscription.monthlyCreditLimit - credits,
+						},
+					},
+					data: { creditsUsed: { increment: credits } },
+				});
+				if (result.count === 0) {
+					throw new CreditsExceededError(
+						`Credit limit exceeded. Used: ${subscription.creditsUsed}/${subscription.monthlyCreditLimit}.`,
+						subscription.creditsUsed,
+						subscription.monthlyCreditLimit,
+						credits,
+					);
+				}
+			} else {
+				const result = await tx.subscription.updateMany({
+					where: {
+						userId,
+						creditsUsed: { gte: absCredits },
+					},
+					data: { creditsUsed: { decrement: absCredits } },
+				});
+				if (result.count === 0) {
+					this.logger.warn(
+						`Refund skipped for user ${userId}: creditsUsed (${subscription.creditsUsed}) < refund amount (${absCredits})`,
+					);
+					return;
+				}
+				// Refund path: do NOT write a UsageRecord. The
+				// over-collected ledger entry that the refund is
+				// offsetting is the positive UsageRecord from the
+				// pre-deduct; an additional negative row would
+				// double-count in SUM(credits) audit queries.
+				return;
 			}
-
-			await tx.subscription.update({
-				where: { userId },
-				data: { creditsUsed: { increment: credits } },
-			});
 
 			await tx.usageRecord.create({
 				data: {
@@ -226,45 +285,57 @@ export class SubscriptionService {
 	}
 
 	/**
-	 * Fire-and-forget credit deduction. Used after a streaming AI call
-	 * finishes so we don't block the HTTP response on the DB write.
+	 * Enqueue a durable credit deduction via the Bull queue. Used after
+	 * a streaming AI call finishes so we don't block the HTTP response on
+	 * the DB write, but the deduction survives a process crash (it lives
+	 * in Redis until a worker picks it up).
 	 *
-	 * Errors are logged but not re-thrown — the user has already received
-	 * the response, and we don't want to surface credit-tracking failures
-	 * as 500s. The pre-check is the user-facing gate; this is the
-	 * accounting step.
+	 * Errors during enqueue are logged but not re-thrown — the user has
+	 * already received the response, and we don't want to surface
+	 * credit-tracking failures as 500s. The pre-check is the user-facing
+	 * gate; this is the accounting step.
+	 *
+	 * Two bypasses are enforced *before* enqueue:
+	 *  - superusers are never billed
+	 *  - calls that ran on a platform-provided API key (the user has
+	 *    no LLM config of their own) are billed to the platform, not
+	 *    the user — the caller passes `billedToUserKey: true` only
+	 *    when the user's own LLM was used
 	 */
-	enqueueDeduction(args: {
+	async enqueueDeduction(args: {
 		userId: string;
 		searchSpaceId: number;
 		operationType: UsageOperationType | string;
 		tokensIn?: number;
 		tokensOut?: number;
 		modelName?: string | null;
-	}): void {
-		const cost = calculateCreditCost(
-			args.modelName,
-			args.tokensIn ?? 0,
-			args.tokensOut ?? 0,
-		);
-		if (cost <= 0) return;
+		billedToUserKey?: boolean;
+	}): Promise<void> {
+		if (await this.isSuperuserBypass(args.userId)) {
+			return;
+		}
 
-		// Detach from the request lifecycle.
-		setImmediate(() => {
-			this.deductCredits(args.userId, cost, {
-				searchSpaceId: args.searchSpaceId,
-				operationType: args.operationType,
-				tokensIn: args.tokensIn,
-				tokensOut: args.tokensOut,
-				modelUsed: args.modelName ?? undefined,
-			}).catch((err) => {
-				this.logger.error(
-					`Async credit deduction failed for user ${args.userId} ` +
-						`(${args.operationType}, model=${args.modelName ?? "unknown"}, ` +
-						`cost=${cost}): ${err.message}`,
-					err.stack,
-				);
-			});
+		// Platform-key fallback: the LLM ran on the platform's API key,
+		// so the platform eats the cost — the user is not billed.
+		if (args.billedToUserKey === false) {
+			return;
+		}
+
+		if (!this.queueService) {
+			this.logger.error(
+				`QueueService unavailable; skipping credit deduction for user ${args.userId} ` +
+					`(${args.operationType}). Configure QueueModule to enable durable billing.`,
+			);
+			return;
+		}
+
+		await this.queueService.enqueueCreditDeduction({
+			userId: args.userId,
+			searchSpaceId: args.searchSpaceId,
+			operationType: args.operationType,
+			tokensIn: args.tokensIn,
+			tokensOut: args.tokensOut,
+			modelName: args.modelName,
 		});
 	}
 
@@ -309,6 +380,17 @@ export class SubscriptionService {
 		const delta = actual - estimated;
 		if (delta === 0) return;
 
+		if (delta < 0) {
+			await this.refundCreditsForIndexedPages(
+				userId,
+				searchSpaceId,
+				Math.abs(delta),
+				estimated,
+				actual,
+			);
+			return;
+		}
+
 		await this.deductCredits(userId, delta, {
 			searchSpaceId,
 			operationType: "INDEX_PAGE_RECONCILE",
@@ -316,6 +398,28 @@ export class SubscriptionService {
 		this.logger.log(
 			`Reconciled page credits for user ${userId}: ` +
 				`estimated=${estimated}, actual=${actual}, delta=${delta}`,
+		);
+	}
+
+	/**
+	 * Refund credits for an over-estimated pre-deduct. The UsageRecord
+	 * is intentionally written with a negative `credits` value so the
+	 * refund is visible in the audit ledger (do not Math.abs this).
+	 */
+	private async refundCreditsForIndexedPages(
+		userId: string,
+		searchSpaceId: number,
+		refundAmount: number,
+		estimated: number,
+		actual: number,
+	): Promise<void> {
+		await this.deductCredits(userId, -refundAmount, {
+			searchSpaceId,
+			operationType: "INDEX_PAGE_RECONCILE",
+		});
+		this.logger.log(
+			`Refunded ${refundAmount} page credits to user ${userId}: ` +
+				`estimated=${estimated}, actual=${actual}`,
 		);
 	}
 
@@ -501,7 +605,18 @@ export class SubscriptionService {
 			throw new BadRequestException(`Webhook Error: ${err.message}`);
 		}
 
-		this.logger.log(`Stripe webhook received: ${event.type}`);
+		this.logger.log(`Stripe webhook received: ${event.type} (id=${event.id})`);
+
+		// Idempotency: Stripe guarantees at-least-once delivery, so we
+		// record each processed event id and skip duplicates. The unique
+		// constraint on event_id makes the check + insert atomic.
+		const acquired = await this.tryAcquireWebhookEvent(event.id, event.type);
+		if (!acquired) {
+			this.logger.log(
+				`Skipping already-processed webhook event ${event.id} (${event.type})`,
+			);
+			return { received: true, deduped: true };
+		}
 
 		switch (event.type) {
 			case "checkout.session.completed": {
@@ -531,6 +646,29 @@ export class SubscriptionService {
 		return { received: true };
 	}
 
+	/**
+	 * Atomically claim a Stripe event id. Returns true on first call,
+	 * false on any subsequent call with the same id. Uses the unique
+	 * constraint on ProcessedWebhookEvent.event_id for the race-safe
+	 * check-and-insert.
+	 */
+	private async tryAcquireWebhookEvent(
+		eventId: string,
+		eventType: string,
+	): Promise<boolean> {
+		try {
+			await this.prisma.processedWebhookEvent.create({
+				data: { eventId, eventType },
+			});
+			return true;
+		} catch (err) {
+			// Unique-constraint violation on eventId — duplicate.
+			const code = (err as { code?: string }).code;
+			if (code === "P2002") return false;
+			throw err;
+		}
+	}
+
 	private async handleCheckoutSessionCompleted(
 		session: Record<string, unknown>,
 	) {
@@ -541,9 +679,29 @@ export class SubscriptionService {
 			`Checkout completed: customer=${customerId}, subscription=${subscriptionId}`,
 		);
 
-		const subscription = await this.prisma.subscription.findFirst({
+		// Prefer lookup by stripeCustomerId; fall back to the customer
+		// metadata's userId if the local row's customer id is stale.
+		let subscription = await this.prisma.subscription.findFirst({
 			where: { stripeCustomerId: customerId },
 		});
+
+		if (!subscription) {
+			try {
+				const customer = await this.stripe.customers.retrieve(customerId);
+				if (!customer.deleted) {
+					const userId = customer.metadata?.userId;
+					if (userId) {
+						subscription = await this.prisma.subscription.findUnique({
+							where: { userId },
+						});
+					}
+				}
+			} catch (err) {
+				this.logger.warn(
+					`Failed to fetch Stripe customer ${customerId} for fallback lookup: ${(err as Error).message}`,
+				);
+			}
+		}
 
 		if (!subscription) {
 			this.logger.warn(
@@ -646,6 +804,10 @@ export class SubscriptionService {
 			return;
 		}
 
+		const now = new Date();
+		const newPeriodEnd = new Date(now);
+		newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
+
 		await this.prisma.subscription.update({
 			where: { id: subscription.id },
 			data: {
@@ -655,6 +817,9 @@ export class SubscriptionService {
 				stripePriceId: null,
 				monthlyCreditLimit: FREE_PLAN_CREDITS,
 				cancelAt: null,
+				creditsUsed: 0,
+				currentPeriodStart: now,
+				currentPeriodEnd: newPeriodEnd,
 			},
 		});
 	}

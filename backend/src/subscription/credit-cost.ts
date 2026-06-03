@@ -95,17 +95,31 @@ export const UsageOperation = {
 export type UsageOperationType =
 	(typeof UsageOperation)[keyof typeof UsageOperation];
 
+const FALLBACK_PRICING: ModelPricing = OPENAI_MODEL_PRICING["gpt-4.1-mini"];
+const warnedUnknownModels = new Set<string>();
+
 /**
- * Resolve pricing for a model name, falling back to gpt-4.1-mini if unknown.
- * Never throws — an unknown model just uses the cheapest known rate.
+ * Resolve pricing for a model name, falling back to gpt-4.1-mini if
+ * unknown. Unknown models are logged once per process so the platform
+ * can be alerted and the pricing table updated; an unmapped premium
+ * model is silently under-collected otherwise.
  */
 export function getModelPricing(
 	modelName: string | null | undefined,
 ): ModelPricing {
-	if (!modelName) return OPENAI_MODEL_PRICING["gpt-4.1-mini"];
-	return (
-		OPENAI_MODEL_PRICING[modelName] ?? OPENAI_MODEL_PRICING["gpt-4.1-mini"]
-	);
+	if (!modelName) return FALLBACK_PRICING;
+	const pricing = OPENAI_MODEL_PRICING[modelName];
+	if (pricing) return pricing;
+
+	if (!warnedUnknownModels.has(modelName)) {
+		warnedUnknownModels.add(modelName);
+		// eslint-disable-next-line no-console
+		console.warn(
+			`[credit-cost] Unknown model "${modelName}" — billing at gpt-4.1-mini rate. ` +
+				`Add it to OPENAI_MODEL_PRICING in subscription/credit-cost.ts.`,
+		);
+	}
+	return FALLBACK_PRICING;
 }
 
 /**

@@ -277,8 +277,17 @@ export class DocumentsService {
 			const bypassCredits =
 				await this.subscriptionService.isSuperuserBypass(userId);
 
+			// Deduct BEFORE creating placeholder docs / queueing jobs.
+			// If a concurrent request pushed the user over the limit
+			// between the pre-check and now, `deductForIndexedPages`
+			// throws (atomic updateMany with a credit-limit guard) and
+			// we surface a 402 — the user never gets free indexed files.
 			if (totalEstimated > 0 && !bypassCredits) {
-				await this.subscriptionService.checkCredits(userId, totalEstimated);
+				await this.subscriptionService.deductForIndexedPages(
+					userId,
+					searchSpaceId,
+					totalEstimated,
+				);
 			}
 
 			const queuedJobs = [];
@@ -343,23 +352,6 @@ export class DocumentsService {
 					this.logger.error(
 						`Failed to queue file ${file.originalname}: ${queueError.message}`,
 						queueError.stack,
-					);
-				}
-			}
-
-			// Deduct the estimated pages now. The actual page count is
-			// only known after the async docling/llamacloud job completes;
-			// the file-processor reconciles the difference per file.
-			if (totalEstimated > 0 && !bypassCredits) {
-				try {
-					await this.subscriptionService.deductForIndexedPages(
-						userId,
-						searchSpaceId,
-						totalEstimated,
-					);
-				} catch (err) {
-					this.logger.error(
-						`Failed to deduct credits for indexed pages (user=${userId}, pages=${totalEstimated}): ${(err as Error).message}`,
 					);
 				}
 			}

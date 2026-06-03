@@ -35,6 +35,10 @@ export interface DeepAgentStreamResult {
 	stream: AsyncIterable<string>;
 	chatId: number;
 	chatWasCreated: boolean;
+	/** True if the LLM used was the user's own configured key. False
+	 *  if the platform-key fallback was used (in which case the
+	 *  platform eats the cost — do not bill the user). */
+	billedToUserKey: boolean;
 }
 
 export interface UploadedDocumentInfo {

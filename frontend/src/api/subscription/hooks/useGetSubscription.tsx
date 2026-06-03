@@ -1,5 +1,5 @@
 import { type UseQueryOptions, useQuery } from "@tanstack/react-query";
-import { SUBSCRIPTION, PREFERENCES } from "@/shared/queryKeys";
+import { SUBSCRIPTION } from "@/shared/queryKeys";
 import subscriptionClientRequests from "../authClientRequests";
 import type { SubscriptionInfo } from "../types";
 
@@ -12,6 +12,8 @@ const useGetSubscription = (
 	return useQuery<SubscriptionInfo, Error>({
 		queryKey: [SUBSCRIPTION],
 		queryFn: () => subscriptionClientRequests.getSubscription(),
+		staleTime: 30_000,
+		refetchOnWindowFocus: true,
 		...options,
 	});
 };

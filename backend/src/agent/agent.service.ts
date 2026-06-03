@@ -6,6 +6,7 @@ import { SearchMode } from "src/services";
 import { YoutubeProcessorService } from "../tasks/document-processors";
 import { ResearcherService } from "./researcher.service";
 import { ConversationMemoryService } from "./services";
+import { LLMService } from "./services/llm.service";
 
 interface StreamConnectorSearchResultsParams {
 	userQuery: string;
@@ -29,6 +30,7 @@ export class AgentService {
 		private readonly youtubeProcessorService: YoutubeProcessorService,
 		private readonly chatsService: ChatsService,
 		private readonly conversationMemoryService: ConversationMemoryService,
+		private readonly llmService: LLMService,
 	) {}
 
 	/**
@@ -41,7 +43,12 @@ export class AgentService {
 	 */
 	async streamConnectorSearchResults(
 		params: StreamConnectorSearchResultsParams,
-	): Promise<{ stream: any; chatId?: number; chatWasCreated: boolean }> {
+	): Promise<{
+		stream: any;
+		chatId?: number;
+		chatWasCreated: boolean;
+		billedToUserKey: boolean;
+	}> {
 		let currentChatId = params.chatId;
 		let chatWasCreated = false;
 
@@ -103,7 +110,20 @@ export class AgentService {
 				params.creditHandler,
 			);
 
-			return { stream, chatId: currentChatId, chatWasCreated };
+			// If the user has no LLM config of their own, the researcher
+			// falls back to the platform key (env OPENAI_API_KEY) and
+			// the platform eats the cost.
+			const userLlm = await this.llmService.getUserFastLLM(
+				params.userId,
+				params.searchSpaceId,
+			);
+
+			return {
+				stream,
+				chatId: currentChatId,
+				chatWasCreated,
+				billedToUserKey: userLlm !== null,
+			};
 		} catch (error) {
 			this.logger.error(
 				`Error streaming connector search results: ${error.message}`,
