@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { BaseMessage, HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
-import { createHash } from "node:crypto";
 import {
 	forwardRef,
 	Inject,
@@ -31,6 +32,7 @@ import type {
 import { ThinkingStepCallbackHandler } from "../utils/custom-event-handler";
 import { ConnectorService } from "./connector.service";
 import { ConversationMemoryService } from "./conversation-memory.service";
+import { LLMService } from "./llm.service";
 
 interface SelectedDocument {
 	id: number;
@@ -126,19 +128,15 @@ export class DeepAgentService {
 		@Optional()
 		@Inject(forwardRef(() => UploadService))
 		private readonly uploadService: UploadService,
+		private readonly llmService: LLMService,
 	) {}
 
 	private createAgent(
 		dependencies: ToolDependencies,
-		language?: string,
-		checkpointer?: BaseCheckpointSaver,
+		language: string | undefined,
+		llm: BaseChatModel,
+		checkpointer: BaseCheckpointSaver | undefined,
 	) {
-		const llm = new ChatOpenAI({
-			modelName: "gpt-5.2",
-			temperature: 0.4,
-			streaming: true,
-		});
-
 		const tools = buildTools(dependencies);
 		const systemPrompt = buildSystemPrompt(language);
 
@@ -150,15 +148,44 @@ export class DeepAgentService {
 		});
 	}
 
+	/**
+	 * Resolve the LLM the deep agent should run on. Prefers the user's
+	 * configured `fast` LLM so that model + API key + temperature match
+	 * the user's LLM Config. Falls back to a platform default that
+	 * relies on the `OPENAI_API_KEY` env var if the user has no config.
+	 */
+	private async resolveAgentLLM(
+		userId: string,
+		searchSpaceId: number,
+	): Promise<BaseChatModel> {
+		const userLlm = await this.llmService.getUserFastLLM(userId, searchSpaceId);
+		if (userLlm) {
+			this.logger.log(
+				`Deep agent using user-configured fast LLM: ${this.llmService.getModelName(userLlm)}`,
+			);
+			return userLlm;
+		}
+		this.logger.warn(
+			`No user-configured fast LLM for user ${userId} in search space ${searchSpaceId}; ` +
+				`falling back to platform default gpt-4.1-mini (env OPENAI_API_KEY).`,
+		);
+		return new ChatOpenAI({
+			modelName: "gpt-4.1-mini",
+			streaming: true,
+			temperature: 0.4,
+		});
+	}
+
 	async streamDeepAgent(
 		params: StreamDeepAgentParams,
 	): Promise<DeepAgentStreamResult> {
 		let currentChatId = params.chatId;
 		let chatWasCreated = false;
 
-		const userQueryText = typeof params.userQuery === "string"
-			? params.userQuery
-			: extractTextFromMultimodal(params.userQuery);
+		const userQueryText =
+			typeof params.userQuery === "string"
+				? params.userQuery
+				: extractTextFromMultimodal(params.userQuery);
 
 		if (!currentChatId) {
 			const chatTitleSummary = userQueryText.substring(0, 50);
@@ -199,7 +226,13 @@ export class DeepAgentService {
 			? this.checkpointerService.getCheckpointer()
 			: undefined;
 
-		const graph = this.createAgent(dependencies, params.language, checkpointer);
+		const llm = await this.resolveAgentLLM(params.userId, params.searchSpaceId);
+		const graph = this.createAgent(
+			dependencies,
+			params.language,
+			llm,
+			checkpointer,
+		);
 		this.logger.log(
 			`Starting deep agent stream for search space ${params.searchSpaceId}`,
 		);
@@ -208,7 +241,8 @@ export class DeepAgentService {
 			configurable: checkpointer ? { thread_id: String(currentChatId) } : {},
 		};
 
-		let humanMessageContent: string | Array<Record<string, unknown>> = params.userQuery;
+		let humanMessageContent: string | Array<Record<string, unknown>> =
+			params.userQuery;
 
 		if (Array.isArray(humanMessageContent)) {
 			const imageBlocks = humanMessageContent.filter(
@@ -223,7 +257,8 @@ export class DeepAgentService {
 				const imageDescriptions: string[] = [];
 				for (let i = 0; i < imageBlocks.length; i++) {
 					const block = imageBlocks[i] as Record<string, unknown>;
-					const imageUrl = (block.image_url as Record<string, unknown>).url as string;
+					const imageUrl = (block.image_url as Record<string, unknown>)
+						.url as string;
 					const refId = `uploaded://${i + 1}`;
 					uploadedImageUrls.set(refId, imageUrl);
 
@@ -251,21 +286,25 @@ export class DeepAgentService {
 							);
 						}
 					} catch (error) {
-						const msg = error instanceof Error ? error.message : "Unknown error";
+						const msg =
+							error instanceof Error ? error.message : "Unknown error";
 						this.logger.warn(
 							`Failed to pre-analyze uploaded image ${i + 1}: ${msg}`,
 						);
 					}
 				}
 
-			if (imageDescriptions.length > 0) {
+				if (imageDescriptions.length > 0) {
 					const imageContext = `<uploaded_images>\nThe user has uploaded ${imageDescriptions.length} image(s). Pre-generated AI descriptions for reference:\n\n${imageDescriptions.join("\n\n")}\n\nIf the user explicitly asks about an uploaded image, you MUST call analyze_image with the image URL shown above (e.g. imageUrl="https://..." if an HTTP URL is listed, or imageUrl="uploaded://N" as fallback). Do NOT just paraphrase these descriptions as your answer.\n</uploaded_images>`;
 
 					const textBlock = humanMessageContent.find(
-						(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
+						(b) =>
+							b.type === "text" &&
+							typeof (b as Record<string, unknown>).text === "string",
 					);
 					if (textBlock) {
-						(textBlock as { text: string }).text = `${imageContext}\n\n${(textBlock as { text: string }).text}`;
+						(textBlock as { text: string }).text =
+							`${imageContext}\n\n${(textBlock as { text: string }).text}`;
 					} else {
 						humanMessageContent = [
 							{ type: "text", text: `${imageContext}\n\n${userQueryText}` },
@@ -282,16 +321,20 @@ export class DeepAgentService {
 				// Image analysis is handled by the analyze_image tool (Gemini API),
 				// not by GPT vision. The <uploaded_images> XML context above gives
 				// the agent enough info to decide when to call analyze_image.
-				humanMessageContent = (Array.isArray(humanMessageContent)
-					? humanMessageContent.filter((b) => b.type !== "image_url")
-					: humanMessageContent) as string | Array<Record<string, unknown>>;
+				humanMessageContent = (
+					Array.isArray(humanMessageContent)
+						? humanMessageContent.filter((b) => b.type !== "image_url")
+						: humanMessageContent
+				) as string | Array<Record<string, unknown>>;
 			}
 		}
 
 		const documentMarkerRegex = /\[uploaded_document:\s*(\{.*?\})\]/g;
 		const allTextBlocks = Array.isArray(humanMessageContent)
 			? humanMessageContent.filter(
-					(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
+					(b) =>
+						b.type === "text" &&
+						typeof (b as Record<string, unknown>).text === "string",
 				)
 			: [];
 
@@ -311,7 +354,9 @@ export class DeepAgentService {
 							});
 						}
 					} catch {
-						this.logger.warn(`Failed to parse uploaded_document metadata: ${match[1]}`);
+						this.logger.warn(
+							`Failed to parse uploaded_document metadata: ${match[1]}`,
+						);
 					}
 				}
 			}
@@ -321,7 +366,9 @@ export class DeepAgentService {
 
 				for (const block of allTextBlocks) {
 					const textBlock = block as { text: string };
-					textBlock.text = textBlock.text.replace(documentMarkerRegex, "").trim();
+					textBlock.text = textBlock.text
+						.replace(documentMarkerRegex, "")
+						.trim();
 				}
 
 				const docContext = `<uploaded_documents>\nThe user has uploaded ${docEntries.length} document(s):\n\n${docEntries.map((d, i) => `[Document ${i + 1}: "${d.fileName}" (filePath: "${d.filePath}")]`).join("\n")}\n\nIf the user wants to index/add these documents to their knowledge base, call index_document with the filePath and fileName shown above.\n</uploaded_documents>`;
@@ -331,15 +378,11 @@ export class DeepAgentService {
 					firstTextBlock.text = `${docContext}\n\n${firstTextBlock.text}`;
 				}
 
-				this.logger.log(
-					`Detected ${docEntries.length} uploaded document(s)`,
-				);
+				this.logger.log(`Detected ${docEntries.length} uploaded document(s)`);
 			}
 		}
 
-		if (
-			params.documentIdsToAddInContext.length > 0
-		) {
+		if (params.documentIdsToAddInContext.length > 0) {
 			const documents = await this.prisma.document.findMany({
 				where: {
 					id: { in: params.documentIdsToAddInContext },
@@ -372,13 +415,19 @@ export class DeepAgentService {
 					humanMessageContent = `${documentContext}\n\n<user_query>${humanMessageContent}</user_query>`;
 				} else {
 					const textBlock = humanMessageContent.find(
-						(b) => b.type === "text" && typeof (b as Record<string, unknown>).text === "string",
+						(b) =>
+							b.type === "text" &&
+							typeof (b as Record<string, unknown>).text === "string",
 					);
 					if (textBlock) {
-						(textBlock as { text: string }).text = `${documentContext}\n\n<user_query>${(textBlock as { text: string }).text}</user_query>`;
+						(textBlock as { text: string }).text =
+							`${documentContext}\n\n<user_query>${(textBlock as { text: string }).text}</user_query>`;
 					} else {
 						humanMessageContent = [
-							{ type: "text", text: `${documentContext}\n\n<user_query>${userQueryText}</user_query>` },
+							{
+								type: "text",
+								text: `${documentContext}\n\n<user_query>${userQueryText}</user_query>`,
+							},
 							...humanMessageContent.filter((b) => b.type !== "text"),
 						];
 					}
@@ -390,14 +439,18 @@ export class DeepAgentService {
 		}
 
 		const inputState = {
-			messages: [new HumanMessage({ content: humanMessageContent })] as BaseMessage[],
+			messages: [
+				new HumanMessage({ content: humanMessageContent }),
+			] as BaseMessage[],
 		};
 
 		const stream = await graph.stream(inputState, {
 			...streamConfig,
 			encoding: "text/event-stream",
 			streamMode: ["messages", "custom"],
-			callbacks: [new ThinkingStepCallbackHandler()],
+			callbacks: params.creditHandler
+				? [new ThinkingStepCallbackHandler(), params.creditHandler]
+				: [new ThinkingStepCallbackHandler()],
 		});
 
 		return {
@@ -424,7 +477,12 @@ export class DeepAgentService {
 
 		const hash = createHash("sha256").update(buffer).digest("hex").slice(0, 16);
 		const ext = mimeType.split("/")[1] || "png";
-		const result = await this.uploadService.upload(buffer, `${hash}.${ext}`, "chat-images", mimeType);
+		const result = await this.uploadService.upload(
+			buffer,
+			`${hash}.${ext}`,
+			"chat-images",
+			mimeType,
+		);
 		return result.url;
 	}
 }

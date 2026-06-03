@@ -1,3 +1,4 @@
+import type { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import {
 	AIMessage,
 	BaseMessage,
@@ -37,7 +38,10 @@ export class ResearcherService {
 	 * Main researcher agent workflow using LangGraph streaming
 	 * Workflow: reformulate_query -> fetch_documents -> qna_workflow
 	 */
-	async streamResearcher(researcherDto: ResearcherDto): Promise<any> {
+	async streamResearcher(
+		researcherDto: ResearcherDto,
+		creditHandler?: BaseCallbackHandler,
+	): Promise<any> {
 		try {
 			const {
 				user_query,
@@ -166,8 +170,7 @@ Language: ${language || "English"}`,
 				{
 					streamMode: ["messages", "custom"],
 					configurable: { thread_id: persistentThreadId },
-					// TODO: Add callbacks if needed
-					// callbacks: [langsmithHandler, customEventHandler],
+					...(creditHandler ? { callbacks: [creditHandler] } : {}),
 				},
 			);
 

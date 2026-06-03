@@ -117,9 +117,11 @@ export class DocumentsProcessor {
 			searchSpaceId: number;
 			userId: string;
 			documentId: number;
+			estimatedPages?: number;
 		}>,
 	) {
-		const { filePath, fileName, searchSpaceId, userId, documentId } = job.data;
+		const { filePath, fileName, searchSpaceId, userId, documentId, estimatedPages } =
+			job.data;
 
 		try {
 			this.logger.log(
@@ -132,6 +134,7 @@ export class DocumentsProcessor {
 				searchSpaceId,
 				userId,
 				documentId,
+				estimatedPages,
 			);
 
 			this.logger.log(`Successfully processed file document: ${fileName}`);

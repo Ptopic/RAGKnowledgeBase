@@ -10,17 +10,18 @@ import { Document, DocumentType, Log } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SUMMARY_PROMPT_TEMPLATE } from "../../prompts";
 import { EmbeddingService } from "../../retriever/embedding.service";
-import { ImageAnalysisService } from "../../services/image-analysis.service";
 import { DeepgramService } from "../../services/deepgram.service";
 import { DoclingService } from "../../services/docling.service";
+import { ImageAnalysisService } from "../../services/image-analysis.service";
 import { LlamaCloudService } from "../../services/llamacloud.service";
 import { TaskLoggingService } from "../../services/task-logging.service";
 import { SseService } from "../../sse/sse.service";
-import { optimizeContentForContextWindow } from "../../utils/document-converters";
+import { SubscriptionService } from "../../subscription/subscription.service";
 import {
 	chunkMarkdownContent,
 	createMarkdownAwareSplitter,
 } from "../../utils/chunking";
+import { optimizeContentForContextWindow } from "../../utils/document-converters";
 import { extractImageCandidatesFromMarkdown } from "../../utils/image-markdown";
 import { DocumentProcessorBaseService } from "./base.service";
 import { MarkdownProcessorService } from "./markdown-processor.service";
@@ -46,6 +47,7 @@ export class FileProcessorsService {
 		private deepgramService: DeepgramService,
 		private imageAnalysisService: ImageAnalysisService,
 		private sseService: SseService,
+		private subscriptionService: SubscriptionService,
 	) {}
 
 	/**
@@ -61,7 +63,10 @@ export class FileProcessorsService {
 		);
 		const avgChunkChars =
 			chunks.length > 0
-				? Math.round(chunks.reduce((acc, chunk) => acc + chunk.length, 0) / chunks.length)
+				? Math.round(
+						chunks.reduce((acc, chunk) => acc + chunk.length, 0) /
+							chunks.length,
+					)
 				: 0;
 		const tinyChunkCount = chunks.filter((chunk) => chunk.length < 120).length;
 		this.logger.debug(
@@ -173,7 +178,7 @@ export class FileProcessorsService {
 	/**
 	 * Process and store document content parsed by LlamaCloud.
 	 */
-		async addReceivedFileDocumentUsingLlamacloud(
+	async addReceivedFileDocumentUsingLlamacloud(
 		fileName: string,
 		llamacloudMarkdownDocument: string,
 		searchSpaceId: number,
@@ -229,7 +234,9 @@ export class FileProcessorsService {
 
 				if (existingDocument) {
 					if (existingDocument.contentHash === contentHash) {
-						this.logger.log(`Document for file ${fileName} unchanged. Skipping.`);
+						this.logger.log(
+							`Document for file ${fileName} unchanged. Skipping.`,
+						);
 						return existingDocument;
 					}
 					this.logger.log(
@@ -266,19 +273,31 @@ export class FileProcessorsService {
 								FILE_NAME: fileName,
 								ETL_SERVICE: "LLAMACLOUD",
 							} as any,
-							processingStatus: 'COMPLETED',
+							processingStatus: "COMPLETED",
 							processingCompletedAt: new Date(),
 						},
 						include: { chunks: true },
 					});
 
-					await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
+					await this.updateDocumentEmbedding(
+						updatedDocument.id,
+						summaryEmbedding,
+					);
 					await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
-					await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
+					await this.enqueueImageAnalysisJob(
+						updatedDocument.id,
+						searchSpaceId,
+						fileInMarkdown,
+						"file",
+					);
 
 					this.sseService.broadcastEvent({
-						topic: 'documents',
-						data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+						topic: "documents",
+						data: {
+							action: "update",
+							searchSpaceId,
+							documentId: updatedDocument.id,
+						},
 					});
 
 					return updatedDocument;
@@ -298,13 +317,25 @@ export class FileProcessorsService {
 					include: { chunks: true },
 				});
 
-				await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
+				await this.updateDocumentEmbedding(
+					updatedDocument.id,
+					summaryEmbedding,
+				);
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
-				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
+				await this.enqueueImageAnalysisJob(
+					updatedDocument.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+					topic: "documents",
+					data: {
+						action: "update",
+						searchSpaceId,
+						documentId: updatedDocument.id,
+					},
 				});
 
 				return updatedDocument;
@@ -327,11 +358,16 @@ export class FileProcessorsService {
 
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
 				await this.insertChunksWithEmbeddings(document.id, chunks);
-				await this.enqueueImageAnalysisJob(document.id, searchSpaceId, fileInMarkdown, "file");
+				await this.enqueueImageAnalysisJob(
+					document.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'create', searchSpaceId, documentId: document.id },
+					topic: "documents",
+					data: { action: "create", searchSpaceId, documentId: document.id },
 				});
 
 				return document;
@@ -341,13 +377,13 @@ export class FileProcessorsService {
 				await this.prisma.document.update({
 					where: { id: documentId },
 					data: {
-						processingStatus: 'FAILED',
+						processingStatus: "FAILED",
 						processingCompletedAt: new Date(),
 					},
 				});
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'update', searchSpaceId, documentId },
+					topic: "documents",
+					data: { action: "update", searchSpaceId, documentId },
 				});
 			}
 			this.logger.error(
@@ -423,7 +459,9 @@ export class FileProcessorsService {
 
 				if (existingDocument) {
 					if (existingDocument.contentHash === contentHash) {
-						this.logger.log(`Document for file ${fileName} unchanged. Skipping.`);
+						this.logger.log(
+							`Document for file ${fileName} unchanged. Skipping.`,
+						);
 						return existingDocument;
 					}
 					this.logger.log(
@@ -460,19 +498,31 @@ export class FileProcessorsService {
 								FILE_NAME: fileName,
 								ETL_SERVICE: etlService.toUpperCase(),
 							} as any,
-							processingStatus: 'COMPLETED',
+							processingStatus: "COMPLETED",
 							processingCompletedAt: new Date(),
 						},
 						include: { chunks: true },
 					});
 
-					await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
+					await this.updateDocumentEmbedding(
+						updatedDocument.id,
+						summaryEmbedding,
+					);
 					await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
-					await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
+					await this.enqueueImageAnalysisJob(
+						updatedDocument.id,
+						searchSpaceId,
+						fileInMarkdown,
+						"file",
+					);
 
 					this.sseService.broadcastEvent({
-						topic: 'documents',
-						data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+						topic: "documents",
+						data: {
+							action: "update",
+							searchSpaceId,
+							documentId: updatedDocument.id,
+						},
 					});
 
 					return updatedDocument;
@@ -492,13 +542,25 @@ export class FileProcessorsService {
 					include: { chunks: true },
 				});
 
-				await this.updateDocumentEmbedding(updatedDocument.id, summaryEmbedding);
+				await this.updateDocumentEmbedding(
+					updatedDocument.id,
+					summaryEmbedding,
+				);
 				await this.insertChunksWithEmbeddings(updatedDocument.id, chunks);
-				await this.enqueueImageAnalysisJob(updatedDocument.id, searchSpaceId, fileInMarkdown, "file");
+				await this.enqueueImageAnalysisJob(
+					updatedDocument.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'update', searchSpaceId, documentId: updatedDocument.id },
+					topic: "documents",
+					data: {
+						action: "update",
+						searchSpaceId,
+						documentId: updatedDocument.id,
+					},
 				});
 
 				return updatedDocument;
@@ -521,11 +583,16 @@ export class FileProcessorsService {
 
 				await this.updateDocumentEmbedding(document.id, summaryEmbedding);
 				await this.insertChunksWithEmbeddings(document.id, chunks);
-				await this.enqueueImageAnalysisJob(document.id, searchSpaceId, fileInMarkdown, "file");
+				await this.enqueueImageAnalysisJob(
+					document.id,
+					searchSpaceId,
+					fileInMarkdown,
+					"file",
+				);
 
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'create', searchSpaceId, documentId: document.id },
+					topic: "documents",
+					data: { action: "create", searchSpaceId, documentId: document.id },
 				});
 
 				return document;
@@ -535,13 +602,13 @@ export class FileProcessorsService {
 				await this.prisma.document.update({
 					where: { id: documentId },
 					data: {
-						processingStatus: 'FAILED',
+						processingStatus: "FAILED",
 						processingCompletedAt: new Date(),
 					},
 				});
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'update', searchSpaceId, documentId },
+					topic: "documents",
+					data: { action: "update", searchSpaceId, documentId },
 				});
 			}
 			this.logger.error(
@@ -556,6 +623,11 @@ export class FileProcessorsService {
 
 	/**
 	 * Process file in background based on file type.
+	 *
+	 * `estimatedPages` is the pre-deducted page count from
+	 * `DocumentsService.createFileUpload`. The processor reads the actual
+	 * page count from the docling/llamacloud metadata and asks
+	 * SubscriptionService to refund or charge the difference.
 	 */
 	async processFileInBackground(
 		filePath: string,
@@ -563,6 +635,7 @@ export class FileProcessorsService {
 		searchSpaceId: number,
 		userId: string,
 		documentId?: number,
+		estimatedPages?: number,
 	): Promise<void> {
 		const taskLogger = TaskLoggingService.forSearchSpace(
 			this.prisma,
@@ -588,9 +661,7 @@ export class FileProcessorsService {
 			);
 
 			// Check if the file is an audio file
-			if (
-				filename.toLowerCase().match(/\.(mp3|mp4|mpeg|mpga|m4a|wav|webm)$/)
-			) {
+			if (filename.toLowerCase().match(/\.(mp3|mp4|mpeg|mpga|m4a|wav|webm)$/)) {
 				await taskLogger.logTaskProgress(
 					logEntry,
 					`Processing audio file for transcription: ${filename}`,
@@ -643,13 +714,17 @@ export class FileProcessorsService {
 							await this.prisma.document.update({
 								where: { id: documentId },
 								data: {
-									processingStatus: 'COMPLETED',
+									processingStatus: "COMPLETED",
 									processingCompletedAt: new Date(),
 								},
 							});
 							this.sseService.broadcastEvent({
-								topic: 'documents',
-								data: { action: 'update', searchSpaceId, documentId: result.id },
+								topic: "documents",
+								data: {
+									action: "update",
+									searchSpaceId,
+									documentId: result.id,
+								},
 							});
 						}
 						await taskLogger.logTaskSuccess(
@@ -791,6 +866,33 @@ export class FileProcessorsService {
 					);
 
 					if (result) {
+						const actualPages = metadata?.pages || metadata?.page_count;
+
+						// Reconcile estimated vs actual page count. Audio
+						// transcription does not have a per-page metric, so
+						// its pre-deducted estimate stays as the final charge
+						// (TODO: switch audio to a per-minute credit model).
+						// Superusers (admins) are exempt from credit charges.
+						if (
+							typeof estimatedPages === "number" &&
+							actualPages &&
+							!(await this.subscriptionService.isSuperuserBypass(userId))
+						) {
+							try {
+								await this.subscriptionService.adjustCreditsForIndexedPages(
+									userId,
+									searchSpaceId,
+									actualPages,
+									estimatedPages,
+								);
+							} catch (err) {
+								this.logger.error(
+									`Failed to reconcile page credits for document ${result.id} ` +
+										`(user=${userId}, estimated=${estimatedPages}, actual=${actualPages}): ${(err as Error).message}`,
+								);
+							}
+						}
+
 						await taskLogger.logTaskSuccess(
 							logEntry,
 							`Successfully processed document file: ${filename}`,
@@ -799,7 +901,7 @@ export class FileProcessorsService {
 								content_hash: result.contentHash,
 								file_type: "document",
 								etl_service: serviceName,
-								page_count: metadata?.pages || metadata?.page_count,
+								page_count: actualPages,
 							},
 						);
 					}
@@ -832,13 +934,13 @@ export class FileProcessorsService {
 				await this.prisma.document.update({
 					where: { id: documentId },
 					data: {
-						processingStatus: 'FAILED',
+						processingStatus: "FAILED",
 						processingCompletedAt: new Date(),
 					},
 				});
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'update', searchSpaceId, documentId },
+					topic: "documents",
+					data: { action: "update", searchSpaceId, documentId },
 				});
 			}
 			if (logEntry) {

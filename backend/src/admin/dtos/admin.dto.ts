@@ -1,7 +1,6 @@
 import {
 	IsBoolean,
 	IsEmail,
-	IsInt,
 	IsOptional,
 	IsString,
 	MaxLength,
@@ -29,10 +28,6 @@ export class CreateAdminUserDto {
 	@IsBoolean()
 	@IsOptional()
 	isSuperuser?: boolean;
-
-	@IsInt()
-	@IsOptional()
-	pagesLimit?: number;
 }
 
 export class UpdateAdminUserDto {
@@ -52,10 +47,6 @@ export class UpdateAdminUserDto {
 	@IsBoolean()
 	@IsOptional()
 	isVerified?: boolean;
-
-	@IsInt()
-	@IsOptional()
-	pagesLimit?: number;
 }
 
 export class AdminUserDto {
@@ -65,8 +56,6 @@ export class AdminUserDto {
 	isActive: boolean;
 	isSuperuser: boolean;
 	isVerified: boolean;
-	pagesUsed: number;
-	pagesLimit: number;
 	failedLoginAttempts: number;
 	lockedUntil: Date | null;
 	createdAt: Date;
@@ -85,8 +74,6 @@ export class AdminMetricsDto {
 	totalSearchSpaces: number;
 	totalDocuments: number;
 	totalChats: number;
-	totalPagesUsed: number;
-	totalPagesLimit: number;
 	userUsage: AdminUserDto[];
 	userUsageTotal: number;
 }

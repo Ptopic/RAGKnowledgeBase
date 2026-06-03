@@ -14,20 +14,24 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { MemberRole } from "@prisma/client";
 import * as crypto from "crypto";
-import * as fs from "fs";
-import * as path from "path";
 import { Response as ExpressResponse } from "express";
+import * as fs from "fs";
 import { diskStorage } from "multer";
+import * as path from "path";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
-import { SearchSpaceAccessGuard } from "src/permissions/guards/search-space-access.guard";
-import { RequireSearchSpaceRole } from "src/permissions/decorators/require-search-space-role.decorator";
 import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
+import { RequireSearchSpaceRole } from "src/permissions/decorators/require-search-space-role.decorator";
+import { SearchSpaceAccessGuard } from "src/permissions/guards/search-space-access.guard";
+import { UsageOperation } from "../subscription/credit-cost";
+import { CreditTrackingHandler } from "../subscription/credit-tracking.handler";
+import {
+	CreditsExceededError,
+	SubscriptionService,
+} from "../subscription/subscription.service";
 import { AgentService } from "./agent.service";
 import { ChatActionsService } from "./services/chat-actions.service";
 import { DeepAgentService } from "./services/deep-agent.service";
 import { LLMService } from "./services/llm.service";
-import { SubscriptionService } from "../subscription/subscription.service";
-import { CreditsExceededError } from "../subscription/subscription.service";
 import {
 	getInitialThinkingStep,
 	resetThinkingStepCounter,
@@ -104,6 +108,7 @@ export class AgentController {
 		@Req() req: any,
 		@Res() res: ExpressResponse,
 	) {
+		const creditHandler = new CreditTrackingHandler();
 		try {
 			const messages = request.messages;
 
@@ -124,8 +129,9 @@ export class AgentController {
 				throw new BadRequestException("search_space_id is required");
 			}
 
-			const isUserKey = await this.subscriptionService.isUserKeyBilled(req.user.id, searchSpaceId);
-			if (!isUserKey) {
+			const bypassBilling =
+				await this.subscriptionService.isSuperuserBypass(req.user.id);
+			if (!bypassBilling) {
 				await this.subscriptionService.checkCredits(req.user.id, 1);
 			}
 
@@ -140,16 +146,20 @@ export class AgentController {
 			const language = configuredLanguage || requestData.language || "English";
 			const chatId = request.chat_id;
 
-			const { stream, chatId: createdChatId, chatWasCreated } =
-				await this.deepAgentService.streamDeepAgent({
-					userQuery: userContent,
-					userId: req.user.id,
-					searchSpaceId,
-					selectedConnectors,
-					documentIdsToAddInContext,
-					language,
-					chatId,
-				});
+			const {
+				stream,
+				chatId: createdChatId,
+				chatWasCreated,
+			} = await this.deepAgentService.streamDeepAgent({
+				userQuery: userContent,
+				userId: req.user.id,
+				searchSpaceId,
+				selectedConnectors,
+				documentIdsToAddInContext,
+				language,
+				chatId,
+				creditHandler,
+			});
 
 			res.setHeader("Content-Type", "text/event-stream");
 			res.setHeader("Cache-Control", "no-cache");
@@ -164,7 +174,9 @@ export class AgentController {
 			const userQueryText = extractTextFromContent(userContent);
 			const initialStep = getInitialThinkingStep(userQueryText);
 			res.write("event: custom\n");
-			res.write(`data: ${JSON.stringify({ type: "thinking", ...initialStep })}\n\n`);
+			res.write(
+				`data: ${JSON.stringify({ type: "thinking", ...initialStep })}\n\n`,
+			);
 
 			try {
 				for await (const chunk of stream) {
@@ -177,8 +189,19 @@ export class AgentController {
 				res.write(`data: ${JSON.stringify({ message: error.message })}\n\n`);
 				res.end();
 			}
+
+			// Async credit deduction with the actual tokens used.
+			this.recordUsage(
+				req.user.id,
+				searchSpaceId,
+				creditHandler,
+				UsageOperation.DEEP_AGENT_MSG,
+			);
 		} catch (error) {
-			if (error instanceof CreditsExceededError || error instanceof BadRequestException) {
+			if (
+				error instanceof CreditsExceededError ||
+				error instanceof BadRequestException
+			) {
 				throw error;
 			}
 			this.logger.error(`Chat processing error: ${error.message}`, error.stack);
@@ -194,6 +217,7 @@ export class AgentController {
 		@Req() req: any,
 		@Res() res: ExpressResponse,
 	) {
+		const creditHandler = new CreditTrackingHandler();
 		try {
 			const messages = request.messages;
 
@@ -213,8 +237,9 @@ export class AgentController {
 				throw new BadRequestException("search_space_id is required");
 			}
 
-			const isUserKey = await this.subscriptionService.isUserKeyBilled(req.user.id, searchSpaceId);
-			if (!isUserKey) {
+			const bypassBilling =
+				await this.subscriptionService.isSuperuserBypass(req.user.id);
+			if (!bypassBilling) {
 				await this.subscriptionService.checkCredits(req.user.id, 1);
 			}
 
@@ -245,6 +270,7 @@ export class AgentController {
 				documentIdsToAddInContext,
 				language,
 				chatId,
+				creditHandler,
 			});
 
 			res.setHeader("Content-Type", "text/event-stream");
@@ -287,13 +313,42 @@ export class AgentController {
 				res.write(`data: ${JSON.stringify({ message: error.message })}\n\n`);
 				res.end();
 			}
+
+			// Async credit deduction with the actual tokens used.
+			this.recordUsage(
+				req.user.id,
+				searchSpaceId,
+				creditHandler,
+				UsageOperation.RESEARCHER_MSG,
+			);
 		} catch (error) {
-			if (error instanceof CreditsExceededError || error instanceof BadRequestException) {
+			if (
+				error instanceof CreditsExceededError ||
+				error instanceof BadRequestException
+			) {
 				throw error;
 			}
 			this.logger.error(`Chat processing error: ${error.message}`, error.stack);
 			throw new BadRequestException(`Failed to process chat: ${error.message}`);
 		}
+	}
+
+	private recordUsage(
+		userId: string,
+		searchSpaceId: number,
+		tracker: CreditTrackingHandler,
+		operationType: string,
+	): void {
+		tracker.reportCaptureOutcome(operationType);
+		const totals = tracker.totals();
+		this.subscriptionService.enqueueDeduction({
+			userId,
+			searchSpaceId,
+			operationType,
+			tokensIn: totals.tokensIn,
+			tokensOut: totals.tokensOut,
+			modelName: totals.modelName,
+		});
 	}
 
 	@Post("save-messages")
@@ -343,9 +398,7 @@ export class AgentController {
 					: null,
 				userId,
 				videoUrl,
-				documentId: documentId
-					? Number.parseInt(documentId, 10)
-					: undefined,
+				documentId: documentId ? Number.parseInt(documentId, 10) : undefined,
 			});
 
 			return { message: "Webhook processed successfully" };

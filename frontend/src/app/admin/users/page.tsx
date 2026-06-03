@@ -107,22 +107,12 @@ const createUserSchema = z.object({
 		.min(8, "Password must be at least 8 characters")
 		.optional()
 		.or(z.literal("")),
-	pagesLimit: z.coerce
-		.number()
-		.int()
-		.min(1, "Must be at least 1")
-		.max(100000, "Limit too high"),
 	isActive: z.boolean(),
 	isSuperuser: z.boolean(),
 });
 
 const editUserSchema = z.object({
 	fullName: z.string().max(255, "Name too long").optional(),
-	pagesLimit: z.coerce
-		.number()
-		.int()
-		.min(1, "Must be at least 1")
-		.max(100000, "Limit too high"),
 	isActive: z.boolean(),
 	isSuperuser: z.boolean(),
 });
@@ -172,7 +162,6 @@ export default function AdminUsersPage() {
 			email: "",
 			fullName: "",
 			password: "",
-			pagesLimit: 500,
 			isActive: true,
 			isSuperuser: false,
 		},
@@ -182,7 +171,6 @@ export default function AdminUsersPage() {
 		resolver: zodResolver(editUserSchema),
 		defaultValues: {
 			fullName: "",
-			pagesLimit: 500,
 			isActive: true,
 			isSuperuser: false,
 		},
@@ -194,7 +182,6 @@ export default function AdminUsersPage() {
 			fullName: user.fullName ?? "",
 			isActive: user.isActive,
 			isSuperuser: user.isSuperuser,
-			pagesLimit: user.pagesLimit,
 		});
 	};
 
@@ -204,7 +191,6 @@ export default function AdminUsersPage() {
 				email: values.email,
 				fullName: values.fullName || undefined,
 				password: values.password || undefined,
-				pagesLimit: values.pagesLimit,
 				isActive: values.isActive,
 				isSuperuser: values.isSuperuser,
 			});
@@ -477,9 +463,7 @@ export default function AdminUsersPage() {
 															</div>
 														</TableCell>
 														<TableCell>
-															<span className="text-sm">
-																{user.pagesUsed}/{user.pagesLimit}
-															</span>
+															<span className="text-sm text-muted-foreground">—</span>
 														</TableCell>
 														<TableCell>
 															<span className="text-sm text-muted-foreground">
@@ -628,16 +612,15 @@ export default function AdminUsersPage() {
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="add-pages-limit">Pages Limit</Label>
+									{/* pagesLimit removed in ZR-263 — see Subscription.creditsUsed
+									    and /admin/subscriptions for the replacement. */}
 									<Input
 										id="add-pages-limit"
 										type="number"
-										{...addForm.register("pagesLimit", { valueAsNumber: true })}
+										disabled
+										value={0}
+										readOnly
 									/>
-									{addForm.formState.errors.pagesLimit && (
-										<p className="text-sm text-destructive">
-											{addForm.formState.errors.pagesLimit.message}
-										</p>
-									)}
 								</div>
 								<div className="flex items-center justify-between">
 									<Label htmlFor="add-active">Active</Label>
@@ -716,18 +699,14 @@ export default function AdminUsersPage() {
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="edit-pages-limit">Pages Limit</Label>
+									{/* pagesLimit removed in ZR-263 — see Subscription.creditsUsed. */}
 									<Input
 										id="edit-pages-limit"
 										type="number"
-										{...editForm.register("pagesLimit", {
-											valueAsNumber: true,
-										})}
+										disabled
+										value={0}
+										readOnly
 									/>
-									{editForm.formState.errors.pagesLimit && (
-										<p className="text-sm text-destructive">
-											{editForm.formState.errors.pagesLimit.message}
-										</p>
-									)}
 								</div>
 								<div className="flex items-center justify-between">
 									<Label htmlFor="edit-active">Active</Label>

@@ -32,7 +32,7 @@ export class AdminService {
 		private subscriptionService: SubscriptionService,
 	) {}
 
-	private toDto(user: { id: string; email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean; pagesUsed: number; pagesLimit: number; failedLoginAttempts: number; lockedUntil: Date | null; createdAt: Date; updatedAt: Date }): AdminUserDto {
+	private toDto(user: { id: string; email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean; failedLoginAttempts: number; lockedUntil: Date | null; createdAt: Date; updatedAt: Date }): AdminUserDto {
 		return {
 			id: user.id,
 			email: user.email,
@@ -40,8 +40,6 @@ export class AdminService {
 			isActive: user.isActive,
 			isSuperuser: user.isSuperuser,
 			isVerified: user.isVerified,
-			pagesUsed: user.pagesUsed,
-			pagesLimit: user.pagesLimit,
 			failedLoginAttempts: user.failedLoginAttempts,
 			lockedUntil: user.lockedUntil,
 			createdAt: user.createdAt,
@@ -91,12 +89,11 @@ export class AdminService {
 			throw new ConflictException("User with this email already exists");
 		}
 
-		const data: { email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; pagesLimit: number; hashedPassword?: string } = {
+		const data: { email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; hashedPassword?: string } = {
 			email: dto.email,
 			fullName: dto.fullName ?? null,
 			isActive: dto.isActive ?? true,
 			isSuperuser: dto.isSuperuser ?? false,
-			pagesLimit: dto.pagesLimit ?? 500,
 		};
 
 		if (dto.password) {
@@ -129,12 +126,11 @@ export class AdminService {
 			throw new BadRequestException("You cannot disable your own account");
 		}
 
-		const data: Partial<{ fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean; pagesLimit: number }> = {};
+		const data: Partial<{ fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean }> = {};
 		if (dto.fullName !== undefined) data.fullName = dto.fullName;
 		if (dto.isActive !== undefined) data.isActive = dto.isActive;
 		if (dto.isSuperuser !== undefined) data.isSuperuser = dto.isSuperuser;
 		if (dto.isVerified !== undefined) data.isVerified = dto.isVerified;
-		if (dto.pagesLimit !== undefined) data.pagesLimit = dto.pagesLimit;
 
 		const updated = await this.prisma.user.update({
 			where: { id: userId },
@@ -227,7 +223,6 @@ export class AdminService {
 			totalSearchSpaces,
 			totalDocuments,
 			totalChats,
-			aggregatePages,
 			userUsage,
 			userUsageTotal,
 		] = await Promise.all([
@@ -237,14 +232,11 @@ export class AdminService {
 			this.prisma.searchSpace.count(),
 			this.prisma.document.count(),
 			this.prisma.chat.count(),
-			this.prisma.user.aggregate({
-				_sum: { pagesUsed: true, pagesLimit: true },
-			}),
 			this.prisma.user.findMany({
 				where,
 				skip,
 				take: limit,
-				orderBy: { pagesUsed: "desc" },
+				orderBy: { createdAt: "desc" },
 			}),
 			this.prisma.user.count({ where }),
 		]);
@@ -256,8 +248,6 @@ export class AdminService {
 			totalSearchSpaces,
 			totalDocuments,
 			totalChats,
-			totalPagesUsed: aggregatePages._sum.pagesUsed ?? 0,
-			totalPagesLimit: aggregatePages._sum.pagesLimit ?? 0,
 			userUsage: userUsage.map((u) => this.toDto(u)),
 			userUsageTotal,
 		};

@@ -14,7 +14,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { LLM_PROVIDERS, OPENAI_MODELS } from "@/contracts/enums/llm-providers";
+import {
+	getOpenAIModel,
+	LLM_PROVIDERS,
+	OPENAI_MODELS,
+} from "@/contracts/enums/llm-providers";
+
+// LLM_PROVIDERS is kept for type re-exports; provider selection in the
+// form is hardcoded to OpenAI per the ZR-263 LLM config simplification.
+void LLM_PROVIDERS;
+
 import InferenceParamsEditor from "./inference-params-editor";
 
 interface LLMConfigFormProps {
@@ -136,7 +145,10 @@ export function LLMConfigForm({
 
 	const { data: savedApiKeys = [] } = useGetApiKeys();
 
-	type StringFormField = Exclude<keyof CreateLLMConfig, 'litellm_params' | 'search_space_id' | 'is_platform_key'>;
+	type StringFormField = Exclude<
+		keyof CreateLLMConfig,
+		"litellm_params" | "search_space_id" | "is_platform_key"
+	>;
 
 	const handleInputChange = (field: StringFormField, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -161,36 +173,42 @@ export function LLMConfigForm({
 				</div>
 
 				<div className="space-y-2">
-					<Label htmlFor="provider">Provider *</Label>
-					<Select
-						value={formData.provider}
-						onValueChange={(value) => handleInputChange("provider", value)}
-					>
-						<SelectTrigger>
-							<SelectValue placeholder="Select a provider" />
-						</SelectTrigger>
-						<SelectContent>
-							{LLM_PROVIDERS.map((provider) => (
-								<SelectItem key={provider.value} value={provider.value}>
-									{provider.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					<Label>Provider</Label>
+					{/* Provider is hardcoded to OpenAI per the LLM config
+					    simplification in ZR-263; the field is shown for
+					    context but not editable. */}
+					<Input value="OpenAI" disabled readOnly />
 				</div>
 
 				<div className="space-y-2">
 					<Label htmlFor="model_name">Model *</Label>
-					<Select value={formData.model_name} onValueChange={(value) => handleInputChange("model_name", value)}>
-						<SelectTrigger>
-							<SelectValue placeholder="Select a model" />
+					<Select
+						value={formData.model_name}
+						onValueChange={(value) => handleInputChange("model_name", value)}
+					>
+						<SelectTrigger id="model_name">
+							<SelectValue placeholder="Select a model">
+								{getOpenAIModel(formData.model_name)?.label}
+							</SelectValue>
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent className="max-h-[420px]">
 							{OPENAI_MODELS.map((model) => (
-								<SelectItem key={model.value} value={model.value}>
-									<div className="space-y-1 py-1">
-										<div className="font-medium">{model.label}</div>
-										<div className="text-xs text-muted-foreground">{model.costEstimate}</div>
+								<SelectItem
+									key={model.value}
+									value={model.value}
+									textValue={model.label}
+									className="py-1.5"
+								>
+									<div className="space-y-0.5">
+										<div className="font-medium leading-tight">
+											{model.label}
+										</div>
+										<div className="text-xs text-muted-foreground leading-tight">
+											{model.costEstimate}
+										</div>
+										<div className="text-xs text-muted-foreground leading-tight">
+											{model.creditEstimate} · {model.tokenEstimate}
+										</div>
 									</div>
 								</SelectItem>
 							))}
@@ -203,12 +221,17 @@ export function LLMConfigForm({
 				<>
 					<div className="space-y-2">
 						<Label>API Key Source</Label>
-						<Select value={keyMode} onValueChange={(v) => handleKeyModeChange(v as KeyMode)}>
+						<Select
+							value={keyMode}
+							onValueChange={(v) => handleKeyModeChange(v as KeyMode)}
+						>
 							<SelectTrigger>
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="platform">Platform Key (admin-managed)</SelectItem>
+								<SelectItem value="platform">
+									Platform Key (admin-managed)
+								</SelectItem>
 								<SelectItem value="custom">Custom API Key</SelectItem>
 								<SelectItem value="saved">Saved Provider Key</SelectItem>
 							</SelectContent>
@@ -217,7 +240,8 @@ export function LLMConfigForm({
 
 					{keyMode === "platform" && (
 						<p className="text-sm text-muted-foreground">
-							Platform API key will be used. No key entry needed — managed by admin.
+							Platform API key will be used. No key entry needed — managed by
+							admin.
 						</p>
 					)}
 
@@ -241,7 +265,9 @@ export function LLMConfigForm({
 									{savedApiKeys.map((key) => (
 										<SelectItem key={key.id} value={key.id}>
 											<div className="flex items-center gap-2">
-												<Badge variant="secondary" className="text-xs">{key.provider}</Badge>
+												<Badge variant="secondary" className="text-xs">
+													{key.provider}
+												</Badge>
 												<span>{key.name}</span>
 											</div>
 										</SelectItem>
@@ -262,7 +288,11 @@ export function LLMConfigForm({
 							<Input
 								id="api_key"
 								type="password"
-								placeholder={editingConfig ? "Leave blank to keep current key" : "Your API key"}
+								placeholder={
+									editingConfig
+										? "Leave blank to keep current key"
+										: "Your API key"
+								}
 								value={formData.api_key}
 								onChange={(e) => handleInputChange("api_key", e.target.value)}
 								required={!editingConfig}
@@ -278,15 +308,15 @@ export function LLMConfigForm({
 			) : (
 				<div className="space-y-2">
 					<Label>API Key</Label>
-					<p className="text-sm text-muted-foreground">Platform API key will be used (managed by admin)</p>
+					<p className="text-sm text-muted-foreground">
+						Platform API key will be used (managed by admin)
+					</p>
 					<input type="hidden" name="is_platform_key" value="true" />
 				</div>
 			)}
 
 			<div className="space-y-2">
-				<Label htmlFor="api_base">
-					API Base URL
-				</Label>
+				<Label htmlFor="api_base">API Base URL</Label>
 				<Input
 					id="api_base"
 					placeholder="https://api.openai.com/v1"

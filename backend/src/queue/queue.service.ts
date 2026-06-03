@@ -94,6 +94,7 @@ export class QueueService implements OnModuleInit {
 		searchSpaceId: number,
 		userId: string,
 		documentId: number,
+		estimatedPages?: number,
 	) {
 		return this.documentsQueue.add("process-file-document", {
 			filePath,
@@ -101,6 +102,7 @@ export class QueueService implements OnModuleInit {
 			searchSpaceId,
 			userId,
 			documentId,
+			estimatedPages,
 		});
 	}
 

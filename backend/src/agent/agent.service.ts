@@ -1,3 +1,4 @@
+import type { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import { Injectable, Logger } from "@nestjs/common";
 import { ChatType } from "@prisma/client";
 import { ChatsService } from "src/chats/chats.service";
@@ -16,6 +17,7 @@ interface StreamConnectorSearchResultsParams {
 	documentIdsToAddInContext: number[];
 	language?: string;
 	chatId?: number;
+	creditHandler?: BaseCallbackHandler;
 }
 
 @Injectable()
@@ -96,8 +98,10 @@ export class AgentService {
 				chat_history: recentMessages,
 			};
 
-			const stream =
-				await this.researcherService.streamResearcher(researcherDto);
+			const stream = await this.researcherService.streamResearcher(
+				researcherDto,
+				params.creditHandler,
+			);
 
 			return { stream, chatId: currentChatId, chatWasCreated };
 		} catch (error) {

@@ -12,6 +12,7 @@ import { AgentModule } from "../agent/agent.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { RetrieverModule } from "../retriever/retriever.module";
 import { SseModule } from "../sse/sse.module";
+import { SubscriptionModule } from "../subscription/subscription.module";
 import { DeepgramService } from "../services/deepgram.service";
 import { DoclingService } from "../services/docling.service";
 import { ImageAnalysisService } from "../services/image-analysis.service";
@@ -46,6 +47,7 @@ import {
 		PrismaModule,
 		RetrieverModule,
 		SseModule,
+		SubscriptionModule,
 		forwardRef(() => AgentModule),
 		// Register Bull queues
 		BullModule.registerQueue(
