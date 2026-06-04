@@ -103,16 +103,16 @@ model User {
   fullName       String? @map("full_name")
   picture        String?
 
-	// Account lockout
-	failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-	lockedUntil         DateTime? @map("locked_until")
+  // Account lockout
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
 
-	// Password reset
-	resetToken        String?   @unique @map("reset_token")
-	resetTokenExpires DateTime? @map("reset_token_expires")
+  // Password reset
+  resetToken        String?   @unique @map("reset_token")
+  resetTokenExpires DateTime? @map("reset_token_expires")
 
-	// User preferences
-	preferredLanguage String @default("English") @map("preferred_language") @db.VarChar(50)
+  // User preferences
+  preferredLanguage String @default("English") @map("preferred_language") @db.VarChar(50)
 
   // Relationships
   oauthAccounts          OAuthAccount[]
@@ -126,9 +126,9 @@ model User {
   favorites              UserChatFavorite[]
   chats                  Chat[]
   searchSpaceMemberships SearchSpaceMember[]
-  invitedMemberships     SearchSpaceMember[] @relation("InvitedBy")
-  sentInvitations        SearchSpaceInvitation[] @relation("SentInvitations")
-  receivedInvitations    SearchSpaceInvitation[] @relation("ReceivedInvitations")
+  invitedMemberships     SearchSpaceMember[]         @relation("InvitedBy")
+  sentInvitations        SearchSpaceInvitation[]     @relation("SentInvitations")
+  receivedInvitations    SearchSpaceInvitation[]     @relation("ReceivedInvitations")
   subscription           Subscription?
   usageRecords           UsageRecord[]
 
@@ -137,26 +137,40 @@ model User {
 
 // Subscription Model
 model Subscription {
-  id                    String            @id @default(uuid())
-  userId                String            @unique @map("user_id")
-  plan                  SubscriptionPlan  @default(FREE)
-  status                String            @default("active")
-  stripeCustomerId      String?           @map("stripe_customer_id")
-  stripeSubscriptionId  String?           @map("stripe_subscription_id")
-  stripePriceId         String?           @map("stripe_price_id")
+  id                     String           @id @default(uuid())
+  userId                 String           @unique @map("user_id")
+  plan                   SubscriptionPlan @default(FREE)
+  status                 String           @default("active")
+  stripeCustomerId       String?          @map("stripe_customer_id")
+  stripeSubscriptionId   String?          @map("stripe_subscription_id")
+  stripePriceId          String?          @map("stripe_price_id")
   lastProcessedInvoiceId String?          @map("last_processed_invoice_id") @db.VarChar(255)
-  monthlyCreditLimit    Int               @default(1000) @map("monthly_credit_limit")
-  creditsUsed           Int               @default(0) @map("credits_used")
-  cancelAt              DateTime?         @map("cancel_at")
-  currentPeriodStart    DateTime          @map("current_period_start")
-  currentPeriodEnd      DateTime          @map("current_period_end")
-  createdAt             DateTime          @default(now()) @map("created_at")
-  updatedAt             DateTime          @updatedAt @map("updated_at")
-  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monthlyCreditLimit     Int              @default(1000) @map("monthly_credit_limit")
+  creditsUsed            Int              @default(0) @map("credits_used")
+  cancelAt               DateTime?        @map("cancel_at")
+  currentPeriodStart     DateTime         @map("current_period_start")
+  currentPeriodEnd       DateTime         @map("current_period_end")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([stripeCustomerId])
   @@map("subscriptions")
+}
+
+// Plan Definition Model — internal source of truth for the monthly
+// credit limit of each subscription tier. Superusers edit these rows
+// from the admin panel; updating a row retroactively re-applies the
+// limit to every Subscription row on that plan.
+model PlanDefinition {
+  plan               SubscriptionPlan @id
+  monthlyCreditLimit Int              @default(1000)
+  updatedAt          DateTime         @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedByUserId    String?
+
+  @@map("plan_definitions")
 }
 
 // OAuth Account Model
@@ -387,7 +401,7 @@ model LLMConfig {
   apiBase        String?         @map("api_base") @db.VarChar(500)
   language       String?         @default("English") @db.VarChar(50)
   litellmParams  Json?           @default("{}") @map("litellm_params")
-  isPlatformKey Boolean         @default(false) @map("is_platform_key")
+  isPlatformKey  Boolean         @default(false) @map("is_platform_key")
 
   searchSpaceId Int @map("search_space_id")
 
@@ -555,13 +569,13 @@ model SearchSpacePinnedQueryTemplate {
 
 // Search Space Member Model
 model SearchSpaceMember {
-  id        String    @id @default(uuid())
-  createdAt DateTime  @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
 
-  searchSpaceId Int                          @map("search_space_id")
-  userId        String                       @map("user_id")
-  role          MemberRole                   @default(VIEWER)
-  invitedById   String                       @map("invited_by_id")
+  searchSpaceId Int        @map("search_space_id")
+  userId        String     @map("user_id")
+  role          MemberRole @default(VIEWER)
+  invitedById   String     @map("invited_by_id")
 
   // Relationships
   searchSpace SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
@@ -580,12 +594,12 @@ model SearchSpaceInvitation {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
 
-  searchSpaceId Int         @map("search_space_id")
-  inviterId     String      @map("inviter_id")
-  inviteeEmail  String      @map("invitee_email") @db.VarChar(255)
-  token         String      @unique @db.VarChar(128)
+  searchSpaceId Int          @map("search_space_id")
+  inviterId     String       @map("inviter_id")
+  inviteeEmail  String       @map("invitee_email") @db.VarChar(255)
+  token         String       @unique @db.VarChar(128)
   status        InviteStatus @default(PENDING)
-  expiresAt     DateTime    @map("expires_at") @db.Timestamptz
+  expiresAt     DateTime     @map("expires_at") @db.Timestamptz
 
   // The user who accepted (nullable until accepted, null if declined/expired)
   acceptedBy String? @map("accepted_by")
@@ -605,16 +619,16 @@ model SearchSpaceInvitation {
 
 // Usage Record Model
 model UsageRecord {
-  id              Int      @id @default(autoincrement())
-  createdAt       DateTime @default(now()) @map("created_at")
-  userId          String   @map("user_id")
-  searchSpaceId   Int      @map("search_space_id")
-  operationType   String   @map("operation_type")
+  id              Int         @id @default(autoincrement())
+  createdAt       DateTime    @default(now()) @map("created_at")
+  userId          String      @map("user_id")
+  searchSpaceId   Int         @map("search_space_id")
+  operationType   String      @map("operation_type")
   credits         Int
-  tokensIn        Int?     @map("tokens_in")
-  tokensOut       Int?     @map("tokens_out")
-  modelUsed       String?  @map("model_used")
-  billedToUserKey Boolean  @default(false) @map("billed_to_user_key")
+  tokensIn        Int?        @map("tokens_in")
+  tokensOut       Int?        @map("tokens_out")
+  modelUsed       String?     @map("model_used")
+  billedToUserKey Boolean     @default(false) @map("billed_to_user_key")
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   searchSpace     SearchSpace @relation(fields: [searchSpaceId], references: [id], onDelete: Cascade)
 

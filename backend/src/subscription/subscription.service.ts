@@ -815,7 +815,7 @@ export class SubscriptionService {
 				status: "canceled",
 				stripeSubscriptionId: null,
 				stripePriceId: null,
-				monthlyCreditLimit: FREE_PLAN_CREDITS,
+				monthlyCreditLimit: await this.getOrSeedPlanDefinition(SubscriptionPlan.FREE),
 				cancelAt: null,
 				creditsUsed: 0,
 				currentPeriodStart: now,
@@ -906,7 +906,7 @@ export class SubscriptionService {
 				userId,
 				plan: SubscriptionPlan.FREE,
 				status: "active",
-				monthlyCreditLimit: FREE_PLAN_CREDITS,
+				monthlyCreditLimit: await this.getOrSeedPlanDefinition(SubscriptionPlan.FREE),
 				creditsUsed: 0,
 				currentPeriodStart: now,
 				currentPeriodEnd: periodEnd,
@@ -952,10 +952,24 @@ export class SubscriptionService {
 	}
 
 	async getCreditLimitForPlan(plan: string): Promise<number> {
-		if (plan === "FREE") return FREE_PLAN_CREDITS;
-		const plans = await this.getPlans();
-		const match = plans.find((p) => p.plan === plan);
-		return match?.credits ?? FREE_PLAN_CREDITS;
+		return this.getOrSeedPlanDefinition(plan as SubscriptionPlan);
+	}
+
+	private async getOrSeedPlanDefinition(
+		plan: SubscriptionPlan,
+	): Promise<number> {
+		const existing = await this.prisma.planDefinition.findUnique({
+			where: { plan },
+		});
+		if (existing) {
+			return existing.monthlyCreditLimit;
+		}
+		const seeded = await this.prisma.planDefinition.upsert({
+			where: { plan },
+			update: {},
+			create: { plan, monthlyCreditLimit: 1000 },
+		});
+		return seeded.monthlyCreditLimit;
 	}
 
 	/**

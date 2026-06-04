@@ -1,6 +1,7 @@
 import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
 import config from "@shared/config";
 import type {
+	AdminPlanDefinitionList,
 	AdminSubscriptionList,
 	CancelSubscriptionResponse,
 	CheckoutSessionResponse,
@@ -11,6 +12,7 @@ import type {
 	ResetCreditsResponse,
 	ResumeSubscriptionResponse,
 	SubscriptionInfo,
+	UpdatePlanCreditsResponse,
 } from "./types";
 
 export const getPlans =
@@ -109,6 +111,33 @@ export const adminResetCredits =
 		request.call(`${config.apiUrl}/admin/subscriptions/${userId}/reset-credits`, (init) => ({
 			...init,
 			method: "POST",
+		}));
+
+export const getAdminPlans =
+	(request: ICallableRequestBuilder<AdminPlanDefinitionList>) =>
+	async (): Promise<AdminPlanDefinitionList> =>
+		request.call(`${config.apiUrl}/admin/subscription-plans`, (init) => ({
+			...init,
+			method: "GET",
+		}));
+
+export const adminUpdatePlanCredits =
+	(request: ICallableRequestBuilder<UpdatePlanCreditsResponse>) =>
+	async ({
+		plan,
+		monthlyCreditLimit,
+	}: {
+		plan: "FREE" | "PRO" | "BUSINESS";
+		monthlyCreditLimit: number;
+	}): Promise<UpdatePlanCreditsResponse> =>
+		request.call(`${config.apiUrl}/admin/subscription-plans/${plan}/credits`, (init) => ({
+			...init,
+			method: "PUT",
+			headers: {
+				...init.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ monthlyCreditLimit }),
 		}));
 
 export const resumeSubscription =

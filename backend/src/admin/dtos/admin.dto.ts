@@ -2,9 +2,12 @@ import {
 	IsBoolean,
 	IsEmail,
 	IsIn,
+	IsInt,
 	IsOptional,
 	IsString,
+	Max,
 	MaxLength,
+	Min,
 	MinLength,
 } from "class-validator";
 import { SubscriptionPlan } from "@prisma/client";
@@ -106,4 +109,22 @@ export class AdminSubscriptionListDto {
 	active_subscriptions: number;
 	total_revenue: string;
 	free_tier_count: number;
+}
+
+export class AdminPlanDefinitionDto {
+	plan: SubscriptionPlan;
+	monthlyCreditLimit: number;
+	updatedAt: Date;
+	updatedByUserId: string | null;
+}
+
+export class AdminPlanDefinitionListDto {
+	plans: AdminPlanDefinitionDto[];
+}
+
+export class UpdatePlanCreditsDto {
+	@IsInt()
+	@Min(0)
+	@Max(1_000_000)
+	monthlyCreditLimit: number;
 }

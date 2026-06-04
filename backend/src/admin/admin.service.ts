@@ -10,12 +10,15 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SubscriptionService } from "../subscription/subscription.service";
 import {
 	AdminMetricsDto,
+	AdminPlanDefinitionDto,
+	AdminPlanDefinitionListDto,
 	AdminSubscriptionListDto,
 	AdminSubscriptionUserDto,
 	AdminUserDto,
 	AdminUserListDto,
 	CreateAdminUserDto,
 	UpdateAdminUserDto,
+	UpdatePlanCreditsDto,
 } from "./dtos/admin.dto";
 
 function getCurrentMonthBounds(): { start: Date; end: Date } {
@@ -390,5 +393,76 @@ export class AdminService {
 		});
 
 		return { message: "Credits reset successfully" };
+	}
+
+	async listPlanDefinitions(): Promise<AdminPlanDefinitionListDto> {
+		const allPlans = Object.values(SubscriptionPlan);
+		const existing = await this.prisma.planDefinition.findMany();
+		const existingPlans = new Set(existing.map((p) => p.plan));
+		const missing = allPlans.filter((p) => !existingPlans.has(p));
+
+		if (missing.length > 0) {
+			await this.prisma.$transaction(
+				missing.map((plan) =>
+					this.prisma.planDefinition.upsert({
+						where: { plan },
+						update: {},
+						create: { plan, monthlyCreditLimit: 1000 },
+					}),
+				),
+			);
+		}
+
+		const plans = await this.prisma.planDefinition.findMany({
+			orderBy: { plan: "asc" },
+		});
+
+		return {
+			plans: plans.map((p) => this.toPlanDefinitionDto(p)),
+		};
+	}
+
+	async updatePlanCredits(
+		plan: SubscriptionPlan,
+		dto: UpdatePlanCreditsDto,
+		adminUserId: string,
+	): Promise<AdminPlanDefinitionDto> {
+		const result = await this.prisma.$transaction(async (tx) => {
+			const updated = await tx.planDefinition.upsert({
+				where: { plan },
+				update: {
+					monthlyCreditLimit: dto.monthlyCreditLimit,
+					updatedByUserId: adminUserId,
+				},
+				create: {
+					plan,
+					monthlyCreditLimit: dto.monthlyCreditLimit,
+					updatedByUserId: adminUserId,
+				},
+			});
+
+			await tx.subscription.updateMany({
+				where: { plan },
+				data: { monthlyCreditLimit: dto.monthlyCreditLimit },
+			});
+
+			return updated;
+		});
+
+		return this.toPlanDefinitionDto(result);
+	}
+
+	private toPlanDefinitionDto(plan: {
+		plan: SubscriptionPlan;
+		monthlyCreditLimit: number;
+		updatedAt: Date;
+		updatedByUserId: string | null;
+	}): AdminPlanDefinitionDto {
+		return {
+			plan: plan.plan,
+			monthlyCreditLimit: plan.monthlyCreditLimit,
+			updatedAt: plan.updatedAt,
+			updatedByUserId: plan.updatedByUserId,
+		};
 	}
 }
