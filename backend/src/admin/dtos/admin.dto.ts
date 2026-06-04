@@ -114,6 +114,7 @@ export class AdminSubscriptionListDto {
 export class AdminPlanDefinitionDto {
 	plan: SubscriptionPlan;
 	monthly_credit_limit: number;
+	created_at: Date;
 	updated_at: Date;
 	updated_by_user_id: string | null;
 }

@@ -462,12 +462,14 @@ export class AdminService {
 	private toPlanDefinitionDto(plan: {
 		plan: SubscriptionPlan;
 		monthlyCreditLimit: number;
+		createdAt: Date;
 		updatedAt: Date;
 		updatedByUserId: string | null;
 	}): AdminPlanDefinitionDto {
 		return {
 			plan: plan.plan,
 			monthly_credit_limit: plan.monthlyCreditLimit,
+			created_at: plan.createdAt,
 			updated_at: plan.updatedAt,
 			updated_by_user_id: plan.updatedByUserId,
 		};

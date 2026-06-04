@@ -72,6 +72,7 @@ export type AdminPlanName = "FREE" | "PRO" | "BUSINESS";
 export interface AdminPlanDefinition {
 	plan: AdminPlanName;
 	monthly_credit_limit: number;
+	created_at: string;
 	updated_at: string;
 	updated_by_user_id: string | null;
 }
@@ -85,6 +86,4 @@ export interface UpdatePlanCreditsPayload {
 	monthlyCreditLimit: number;
 }
 
-export interface UpdatePlanCreditsResponse {
-	plan: AdminPlanDefinition;
-}
+export type UpdatePlanCreditsResponse = AdminPlanDefinition;

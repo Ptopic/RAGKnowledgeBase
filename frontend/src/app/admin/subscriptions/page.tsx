@@ -100,7 +100,8 @@ const editPlanSchema = z.object({
 
 type EditPlanFormValues = z.infer<typeof editPlanSchema>;
 
-type PlanRow = Omit<AdminPlanDefinition, "updated_at"> & {
+type PlanRow = Omit<AdminPlanDefinition, "updated_at" | "created_at"> & {
+	created_at: string | null;
 	updated_at: string | null;
 	isLoaded: boolean;
 };
@@ -176,6 +177,7 @@ export default function AdminSubscriptionsPage() {
 		return {
 			plan: name,
 			monthly_credit_limit: 0,
+			created_at: null,
 			updated_at: null,
 			updated_by_user_id: null,
 			isLoaded: false,
