@@ -88,8 +88,6 @@ const STATUS_BADGE_COLORS: Record<string, string> = {
 
 const PLANS = ["FREE", "PRO", "BUSINESS"] as const;
 
-const PLAN_NAMES_ORDER = ["FREE", "PRO", "BUSINESS"] as const;
-
 const editPlanSchema = z.object({
 	monthlyCreditLimit: z.coerce
 		.number()
@@ -99,6 +97,8 @@ const editPlanSchema = z.object({
 });
 
 type EditPlanFormValues = z.infer<typeof editPlanSchema>;
+
+type PlanRow = AdminPlanDefinition & { isLoaded: boolean };
 
 export default function AdminSubscriptionsPage() {
 	const [search, setSearch] = useState("");
@@ -129,13 +129,10 @@ export default function AdminSubscriptionsPage() {
 		defaultValues: { monthlyCreditLimit: 0 },
 	});
 
-	useEffect(() => {
-		if (editingPlan) {
-			editPlanForm.reset({ monthlyCreditLimit: editingPlan.monthly_credit_limit });
-		}
-	}, [editingPlan, editPlanForm]);
-
 	const openEditPlanDialog = (plan: AdminPlanDefinition) => {
+		// Reset synchronously (not in an effect) so the input shows the
+		// current value on the first paint of the dialog.
+		editPlanForm.reset({ monthlyCreditLimit: plan.monthly_credit_limit });
 		setEditingPlan(plan);
 	};
 
@@ -155,24 +152,30 @@ export default function AdminSubscriptionsPage() {
 				`Monthly credit limit updated to ${values.monthlyCreditLimit.toLocaleString()} for ${editingPlan.plan}`,
 			);
 			closeEditPlanDialog();
-		} catch {
-			toast.error("Failed to update plan credits");
+		} catch (err) {
+			const message =
+				err instanceof Error && err.message
+					? err.message
+					: "Failed to update plan credits";
+			toast.error(message);
 		}
 	};
 
 	const plans = plansData?.plans ?? [];
 	const plansByName = new Map(plans.map((p) => [p.plan, p]));
-	// Render in fixed order so FREE/PRO/BUSINESS are always shown even if
-	// the backend hasn't returned one yet — fall back to an empty stub.
-	const orderedPlans = PLAN_NAMES_ORDER.map(
-		(name) =>
-			plansByName.get(name) ?? {
-				plan: name,
-				monthly_credit_limit: 0,
-				updated_at: new Date(0).toISOString(),
-				updated_by_user_id: null,
-			},
-	);
+	const orderedPlans: PlanRow[] = PLANS.map((name) => {
+		const found = plansByName.get(name);
+		if (found) {
+			return { ...found, isLoaded: true };
+		}
+		return {
+			plan: name,
+			monthly_credit_limit: 0,
+			updated_at: "",
+			updated_by_user_id: null,
+			isLoaded: false,
+		};
+	});
 
 	const users = data?.users ?? [];
 	const total = data?.total ?? 0;
@@ -528,9 +531,9 @@ export default function AdminSubscriptionsPage() {
 									</TableHeader>
 									<TableBody>
 										{orderedPlans.map((plan) => {
-											const updatedAt = new Date(plan.updated_at);
-											const isUnloadedStub =
-												plan.updated_at === new Date(0).toISOString();
+											const updatedAt = plan.isLoaded
+												? new Date(plan.updated_at)
+												: null;
 											return (
 												<TableRow key={plan.plan}>
 													<TableCell>
@@ -552,7 +555,7 @@ export default function AdminSubscriptionsPage() {
 														</span>
 													</TableCell>
 													<TableCell>
-														{isUnloadedStub ? (
+														{!updatedAt || Number.isNaN(updatedAt.getTime()) ? (
 															<span className="text-xs text-muted-foreground">
 																—
 															</span>
@@ -580,7 +583,7 @@ export default function AdminSubscriptionsPage() {
 															variant="outline"
 															size="sm"
 															onClick={() => openEditPlanDialog(plan)}
-															disabled={isUnloadedStub}
+															disabled={!plan.isLoaded}
 															className="h-8 px-2 text-xs"
 														>
 															<Pencil className="h-3 w-3 mr-1" />

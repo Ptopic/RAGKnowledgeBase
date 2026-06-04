@@ -2,6 +2,7 @@ import {
 	BadRequestException,
 	ConflictException,
 	Injectable,
+	Logger,
 	NotFoundException,
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
@@ -30,6 +31,8 @@ function getCurrentMonthBounds(): { start: Date; end: Date } {
 
 @Injectable()
 export class AdminService {
+	private readonly logger = new Logger(AdminService.name);
+
 	constructor(
 		private prisma: PrismaService,
 		private subscriptionService: SubscriptionService,
@@ -441,10 +444,14 @@ export class AdminService {
 				},
 			});
 
-			await tx.subscription.updateMany({
+			const subsResult = await tx.subscription.updateMany({
 				where: { plan },
 				data: { monthlyCreditLimit: dto.monthlyCreditLimit },
 			});
+
+			this.logger.log(
+				`Plan ${plan} credit limit set to ${dto.monthlyCreditLimit} by admin ${adminUserId} — applied to ${subsResult.count} subscription(s)`,
+			);
 
 			return updated;
 		});
@@ -460,9 +467,9 @@ export class AdminService {
 	}): AdminPlanDefinitionDto {
 		return {
 			plan: plan.plan,
-			monthlyCreditLimit: plan.monthlyCreditLimit,
-			updatedAt: plan.updatedAt,
-			updatedByUserId: plan.updatedByUserId,
+			monthly_credit_limit: plan.monthlyCreditLimit,
+			updated_at: plan.updatedAt,
+			updated_by_user_id: plan.updatedByUserId,
 		};
 	}
 }

@@ -1,8 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ADMIN_PLANS, ADMIN_SUBSCRIPTIONS } from "@/shared/queryKeys";
 import subscriptionClientRequests from "../authClientRequests";
-
-const ADMIN_PLANS = ["admin-plans"] as const;
-const ADMIN_SUBSCRIPTIONS = ["admin-subscriptions"] as const;
+import type { AdminPlanName } from "../types";
 
 const useAdminUpdatePlanCredits = () => {
 	const queryClient = useQueryClient();
@@ -11,7 +10,7 @@ const useAdminUpdatePlanCredits = () => {
 			plan,
 			monthlyCreditLimit,
 		}: {
-			plan: "FREE" | "PRO" | "BUSINESS";
+			plan: AdminPlanName;
 			monthlyCreditLimit: number;
 		}) => subscriptionClientRequests.adminUpdatePlanCredits({ plan, monthlyCreditLimit }),
 		onSuccess: () => {

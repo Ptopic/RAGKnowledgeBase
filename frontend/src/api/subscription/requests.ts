@@ -2,6 +2,7 @@ import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
 import config from "@shared/config";
 import type {
 	AdminPlanDefinitionList,
+	AdminPlanName,
 	AdminSubscriptionList,
 	CancelSubscriptionResponse,
 	CheckoutSessionResponse,
@@ -127,7 +128,7 @@ export const adminUpdatePlanCredits =
 		plan,
 		monthlyCreditLimit,
 	}: {
-		plan: "FREE" | "PRO" | "BUSINESS";
+		plan: AdminPlanName;
 		monthlyCreditLimit: number;
 	}): Promise<UpdatePlanCreditsResponse> =>
 		request.call(`${config.apiUrl}/admin/subscription-plans/${plan}/credits`, (init) => ({

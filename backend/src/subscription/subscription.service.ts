@@ -44,7 +44,6 @@ export class CreditsExceededError extends BadRequestException {
 	}
 }
 
-const FREE_PLAN_CREDITS = 1000;
 const PLANS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 @Injectable()
@@ -906,7 +905,10 @@ export class SubscriptionService {
 				userId,
 				plan: SubscriptionPlan.FREE,
 				status: "active",
-				monthlyCreditLimit: await this.getOrSeedPlanDefinition(SubscriptionPlan.FREE),
+				monthlyCreditLimit: await this.getOrSeedPlanDefinition(
+					SubscriptionPlan.FREE,
+					client,
+				),
 				creditsUsed: 0,
 				currentPeriodStart: now,
 				currentPeriodEnd: periodEnd,
@@ -957,14 +959,19 @@ export class SubscriptionService {
 
 	private async getOrSeedPlanDefinition(
 		plan: SubscriptionPlan,
+		client: Prisma.TransactionClient | PrismaService = this.prisma,
 	): Promise<number> {
-		const existing = await this.prisma.planDefinition.findUnique({
+		const existing = await client.planDefinition.findUnique({
 			where: { plan },
 		});
 		if (existing) {
 			return existing.monthlyCreditLimit;
 		}
-		const seeded = await this.prisma.planDefinition.upsert({
+		this.logger.warn(
+			`PlanDefinition row for ${plan} was missing — auto-seeding with default 1000 credits. ` +
+				`If this is unexpected, verify the migration 'add_plan_definition' has run.`,
+		);
+		const seeded = await client.planDefinition.upsert({
 			where: { plan },
 			update: {},
 			create: { plan, monthlyCreditLimit: 1000 },

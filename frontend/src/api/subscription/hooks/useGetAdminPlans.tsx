@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { ADMIN_PLANS } from "@/shared/queryKeys";
 import subscriptionClientRequests from "../authClientRequests";
 import type { AdminPlanDefinitionList } from "../types";
-
-const ADMIN_PLANS = ["admin-plans"] as const;
 
 const useGetAdminPlans = () => {
 	return useQuery<AdminPlanDefinitionList, Error>({

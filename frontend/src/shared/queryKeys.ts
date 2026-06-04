@@ -32,3 +32,4 @@ export const SUBSCRIPTION = "subscription";
 export const SUBSCRIPTION_PLANS = "subscriptionPlans";
 export const PREFERENCES = "preferences";
 export const ADMIN_SUBSCRIPTIONS = "adminSubscriptions";
+export const ADMIN_PLANS = "adminPlans";
