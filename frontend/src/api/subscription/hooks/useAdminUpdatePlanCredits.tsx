@@ -1,18 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ADMIN_PLANS, ADMIN_SUBSCRIPTIONS } from "@/shared/queryKeys";
 import subscriptionClientRequests from "../authClientRequests";
-import type { AdminPlanName } from "../types";
+import type { UpdatePlanCreditsPayload } from "../types";
 
 const useAdminUpdatePlanCredits = () => {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: ({
-			plan,
-			monthlyCreditLimit,
-		}: {
-			plan: AdminPlanName;
-			monthlyCreditLimit: number;
-		}) => subscriptionClientRequests.adminUpdatePlanCredits({ plan, monthlyCreditLimit }),
+		mutationFn: (payload: UpdatePlanCreditsPayload) =>
+			subscriptionClientRequests.adminUpdatePlanCredits(payload),
 		onSuccess: () => {
 			// Refresh the plan list and the user subscription table — the
 			// user table shows `monthly_credit_limit` per row so it must

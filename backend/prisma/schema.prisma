@@ -165,10 +165,10 @@ model Subscription {
 // limit to every Subscription row on that plan.
 model PlanDefinition {
   plan               SubscriptionPlan @id
-  monthlyCreditLimit Int              @default(1000)
-  updatedAt          DateTime         @updatedAt
-  createdAt          DateTime         @default(now())
-  updatedByUserId    String?
+  monthlyCreditLimit Int              @default(1000) @map("monthly_credit_limit")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedByUserId    String?          @map("updated_by_user_id")
 
   @@map("plan_definitions")
 }

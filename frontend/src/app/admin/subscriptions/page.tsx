@@ -88,17 +88,22 @@ const STATUS_BADGE_COLORS: Record<string, string> = {
 
 const PLANS = ["FREE", "PRO", "BUSINESS"] as const;
 
+const MAX_MONTHLY_CREDIT_LIMIT = 1_000_000;
+
 const editPlanSchema = z.object({
 	monthlyCreditLimit: z.coerce
 		.number()
 		.int("Must be a whole number")
 		.min(0, "Cannot be negative")
-		.max(1_000_000, "Cannot exceed 1,000,000"),
+		.max(MAX_MONTHLY_CREDIT_LIMIT, `Cannot exceed ${MAX_MONTHLY_CREDIT_LIMIT.toLocaleString()}`),
 });
 
 type EditPlanFormValues = z.infer<typeof editPlanSchema>;
 
-type PlanRow = AdminPlanDefinition & { isLoaded: boolean };
+type PlanRow = Omit<AdminPlanDefinition, "updated_at"> & {
+	updated_at: string | null;
+	isLoaded: boolean;
+};
 
 export default function AdminSubscriptionsPage() {
 	const [search, setSearch] = useState("");
@@ -123,13 +128,13 @@ export default function AdminSubscriptionsPage() {
 		error: plansError,
 	} = useGetAdminPlans();
 	const updatePlanMutation = useAdminUpdatePlanCredits();
-	const [editingPlan, setEditingPlan] = useState<AdminPlanDefinition | null>(null);
+	const [editingPlan, setEditingPlan] = useState<PlanRow | null>(null);
 	const editPlanForm = useForm<EditPlanFormValues>({
 		resolver: zodResolver(editPlanSchema),
 		defaultValues: { monthlyCreditLimit: 0 },
 	});
 
-	const openEditPlanDialog = (plan: AdminPlanDefinition) => {
+	const openEditPlanDialog = (plan: PlanRow) => {
 		// Reset synchronously (not in an effect) so the input shows the
 		// current value on the first paint of the dialog.
 		editPlanForm.reset({ monthlyCreditLimit: plan.monthly_credit_limit });
@@ -171,7 +176,7 @@ export default function AdminSubscriptionsPage() {
 		return {
 			plan: name,
 			monthly_credit_limit: 0,
-			updated_at: "",
+			updated_at: null,
 			updated_by_user_id: null,
 			isLoaded: false,
 		};
@@ -531,9 +536,10 @@ export default function AdminSubscriptionsPage() {
 									</TableHeader>
 									<TableBody>
 										{orderedPlans.map((plan) => {
-											const updatedAt = plan.isLoaded
-												? new Date(plan.updated_at)
-												: null;
+											const updatedAt =
+												plan.isLoaded && plan.updated_at
+													? new Date(plan.updated_at)
+													: null;
 											return (
 												<TableRow key={plan.plan}>
 													<TableCell>
@@ -547,12 +553,20 @@ export default function AdminSubscriptionsPage() {
 														</Badge>
 													</TableCell>
 													<TableCell>
-														<span className="font-medium tabular-nums">
-															{plan.monthly_credit_limit.toLocaleString()}
-														</span>
-														<span className="ml-1 text-xs text-muted-foreground">
-															credits / month
-														</span>
+														{plan.isLoaded ? (
+															<>
+																<span className="font-medium tabular-nums">
+																	{plan.monthly_credit_limit.toLocaleString()}
+																</span>
+																<span className="ml-1 text-xs text-muted-foreground">
+																	credits / month
+																</span>
+															</>
+														) : (
+															<span className="text-xs text-muted-foreground">
+																Unavailable
+															</span>
+														)}
 													</TableCell>
 													<TableCell>
 														{!updatedAt || Number.isNaN(updatedAt.getTime()) ? (
@@ -705,7 +719,7 @@ export default function AdminSubscriptionsPage() {
 							<DialogHeader>
 								<DialogTitle className="flex items-center gap-2">
 									<Pencil className="w-5 h-5" />
-									Edit Plan Credits
+									Edit Monthly Credit Limit
 								</DialogTitle>
 								<DialogDescription>
 									Update the monthly credit limit for the{" "}
@@ -735,7 +749,7 @@ export default function AdminSubscriptionsPage() {
 										id="monthlyCreditLimit"
 										type="number"
 										min={0}
-										max={1_000_000}
+										max={MAX_MONTHLY_CREDIT_LIMIT}
 										step={1}
 										{...editPlanForm.register("monthlyCreditLimit")}
 									/>
@@ -752,7 +766,7 @@ export default function AdminSubscriptionsPage() {
 										<span className="font-medium tabular-nums">
 											{editingPlan?.monthly_credit_limit.toLocaleString() ?? "—"}
 										</span>{" "}
-										credits / month. Allowed range: 0 – 1,000,000.
+										credits / month. Allowed range: 0 – {MAX_MONTHLY_CREDIT_LIMIT.toLocaleString()}.
 									</p>
 								</div>
 							</form>
