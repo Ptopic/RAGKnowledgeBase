@@ -1,4 +1,6 @@
 "use client";
+
+import { useMemo } from "react";
 import useCreateLLMConfig from "@/api/llm-configs/hooks/useCreateLLMConfig";
 import useDeleteLLMConfig from "@/api/llm-configs/hooks/useDeleteLLMConfig";
 import useGetLLMConfigs from "@/api/llm-configs/hooks/useGetLLMConfigs";
@@ -74,10 +76,17 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 export function useLLMPreferences(searchSpaceId: number | null) {
 	const params = searchSpaceId ? { search_space_id: searchSpaceId } : null;
 
-	const { data: preferences = {}, isLoading: loading, error: queryError, refetch } = useGetLLMPreferences(params);
+	const { data, isLoading: loading, error: queryError, refetch } = useGetLLMPreferences(params);
 	const updateMutation = useUpdateLLMPreferences();
 
 	const error = queryError?.message || null;
+
+	// Stabilize preferences object reference to prevent infinite re-renders
+	// when used as a useEffect dependency. React Query may return a new object
+	// on each render even when data is unchanged.
+	const stableKey = JSON.stringify(data ?? {});
+	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey is derived from data
+	const preferences = useMemo(() => data ?? {}, [stableKey]);
 
 	const updatePreferences = async (
 		newPreferences: Partial<import("@/api/llm-configs/types").LLMPreferences>

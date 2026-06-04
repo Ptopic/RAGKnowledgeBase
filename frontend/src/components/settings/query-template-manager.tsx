@@ -295,7 +295,7 @@ export function QueryTemplateManager({ searchSpaceId, canModify = true }: QueryT
 																{template.is_global && (
 																	<Badge variant="outline" className="text-xs">
 																		<Globe className="h-3 w-3 mr-1" />
-																		Global
+																		My Template
 																	</Badge>
 																)}
 															</div>
@@ -356,7 +356,7 @@ export function QueryTemplateManager({ searchSpaceId, canModify = true }: QueryT
 						<div className="space-y-4">
 							<div className="flex items-center gap-2">
 								<Globe className="h-4 w-4 text-muted-foreground" />
-								<h3 className="text-lg font-semibold">Global Templates</h3>
+								<h3 className="text-lg font-semibold">My Templates</h3>
 								<Badge variant="secondary" className="text-xs">{globalTemplates.length}</Badge>
 							</div>
 							<div className="grid gap-3">
@@ -378,7 +378,7 @@ export function QueryTemplateManager({ searchSpaceId, canModify = true }: QueryT
 																<h4 className="text-sm font-semibold">{template.title}</h4>
 																<Badge variant="outline" className="text-xs">
 																	<Globe className="h-3 w-3 mr-1" />
-																	Global
+																	My Template
 																</Badge>
 															</div>
 															{template.description && (
@@ -614,12 +614,12 @@ export function QueryTemplateManager({ searchSpaceId, canModify = true }: QueryT
 
 						<div className="flex items-center justify-between rounded-lg border p-3">
 							<div className="space-y-0.5">
-								<Label>Global Template</Label>
-								{formData.is_global && (
-									<p className="text-xs text-muted-foreground">
-										This template will be available in all search spaces
-									</p>
-								)}
+															<Label>Available in all my search spaces</Label>
+															{formData.is_global && (
+																<p className="text-xs text-muted-foreground">
+																	This template will appear in all your search spaces, including new ones
+																</p>
+															)}
 							</div>
 							<Switch
 								checked={formData.is_global}

@@ -1,17 +1,17 @@
+import { randomBytes } from "node:crypto";
 import {
 	ConflictException,
 	ForbiddenException,
 	Injectable,
 	Logger,
-	NotFoundException,
 	UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import axios from "axios";
 import * as bcrypt from "bcrypt";
-import { randomBytes } from "node:crypto";
 import { MailService } from "src/mail/mail.service";
 import { PrismaService } from "src/prisma/prisma.service";
+import { SubscriptionService } from "src/subscription/subscription.service";
 
 @Injectable()
 export class AuthService {
@@ -21,6 +21,7 @@ export class AuthService {
 		private prisma: PrismaService,
 		private jwtService: JwtService,
 		private mailService: MailService,
+		private subscriptionService: SubscriptionService,
 	) {}
 
 	private async onAfterRegister(userId: string): Promise<void> {
@@ -63,6 +64,20 @@ export class AuthService {
 				fullName: fullName || null,
 			},
 		});
+
+		// Auto-assign a FREE plan with 1,000 monthly credits so the new
+		// user can immediately use AI features. ensureSubscription is
+		// idempotent — it will reuse an existing row if present.
+		try {
+			await this.subscriptionService.ensureSubscription(newUser.id);
+		} catch (err) {
+			this.logger.error(
+				`Failed to create FREE subscription for new user ${newUser.id}: ${(err as Error).message}`,
+				(err as Error).stack,
+			);
+			// Non-fatal: user is created, subscription can be lazy-created
+			// on first billable operation.
+		}
 
 		await this.onAfterRegister(newUser.id);
 
@@ -366,27 +381,31 @@ export class AuthService {
 		return user;
 	}
 
-	async incrementPagesUsed(userId: string, pagesUsed: number): Promise<void> {
-		await this.prisma.user.update({
-			where: { id: userId },
-			data: {
-				pagesUsed: {
-					increment: pagesUsed,
-				},
-			},
-		});
-	}
-
-	async hasExceededPageLimit(userId: string): Promise<boolean> {
+	async getPreferences(userId: string) {
 		const user = await this.prisma.user.findUnique({
 			where: { id: userId },
-			select: { pagesLimit: true, pagesUsed: true },
+			select: { preferredLanguage: true },
 		});
+		if (!user) throw new UnauthorizedException("User not found");
+		return { preferred_language: user.preferredLanguage };
+	}
 
-		if (!user) {
-			throw new UnauthorizedException("User not found");
-		}
+	async updatePreferences(
+		userId: string,
+		body: { preferred_language?: string },
+	) {
+		const user = await this.prisma.user.findUnique({ where: { id: userId } });
+		if (!user) throw new UnauthorizedException("User not found");
 
-		return user.pagesUsed >= user.pagesLimit;
+		const data: any = {};
+		if (body.preferred_language !== undefined)
+			data.preferredLanguage = body.preferred_language;
+
+		const updated = await this.prisma.user.update({
+			where: { id: userId },
+			data,
+			select: { preferredLanguage: true },
+		});
+		return { preferred_language: updated.preferredLanguage };
 	}
 }

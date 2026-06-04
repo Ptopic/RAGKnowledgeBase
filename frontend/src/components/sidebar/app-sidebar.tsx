@@ -25,6 +25,7 @@ import { memo, useMemo } from "react";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
+import { CreditUsage } from "@/components/sidebar/credit-usage";
 import {
 	Sidebar,
 	SidebarContent,
@@ -242,6 +243,7 @@ export const AppSidebar = memo(function AppSidebar({
 				)}
 			</SidebarContent>
 			<SidebarFooter>
+				<CreditUsage />
 				<NavSecondary items={processedNavSecondary} label={navSecondaryLabel} className="mt-auto" />
 			</SidebarFooter>
 		</Sidebar>

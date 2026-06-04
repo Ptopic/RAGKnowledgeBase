@@ -45,10 +45,8 @@ const formatDate = (dateStr: string) => {
 	});
 };
 
-const formatPercent = (used: number, limit: number) => {
-	if (limit === 0) return "0%";
-	return `${Math.round((used / limit) * 100)}%`;
-};
+// Page-based quota is removed in ZR-263 — see /admin/subscriptions for
+// the new credit-usage tracking.
 
 const getUsageColor = (used: number, limit: number) => {
 	const pct = limit === 0 ? 0 : used / limit;
@@ -215,30 +213,14 @@ export default function AdminSystemPage() {
 									<div className="space-y-4">
 										<div className="flex items-center gap-2">
 											<BarChart3 className="h-5 w-5 text-indigo-600" />
-											<h3 className="text-lg font-semibold tracking-tight">Page Usage Overview</h3>
+											<h3 className="text-lg font-semibold tracking-tight">Usage Overview</h3>
 										</div>
-										<div className="grid gap-4 md:grid-cols-2">
-											<div>
-												<p className="text-sm text-muted-foreground">Total Pages Used</p>
-												<p className="text-2xl font-bold">{metrics?.totalPagesUsed ?? 0}</p>
-											</div>
-											<div>
-												<p className="text-sm text-muted-foreground">Total Pages Limit</p>
-												<p className="text-2xl font-bold">{metrics?.totalPagesLimit ?? 0}</p>
-											</div>
-										</div>
-										{metrics && metrics.totalPagesLimit > 0 && (
-											<div className="w-full bg-muted rounded-full h-2.5">
-												<div
-													className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-													style={{
-														width: `${Math.min(100, (metrics.totalPagesUsed / metrics.totalPagesLimit) * 100)}%`,
-													}}
-												/>
-											</div>
-										)}
 										<p className="text-sm text-muted-foreground">
-											{formatPercent(metrics?.totalPagesUsed ?? 0, metrics?.totalPagesLimit ?? 1)} of total allocated pages used
+											Per-user credit usage is now tracked in{" "}
+											<a href="/admin/subscriptions" className="text-primary underline">
+												Admin &rarr; Subscriptions
+											</a>
+											. The page-based quota system was removed in ZR-263.
 										</p>
 									</div>
 								</CardContent>
@@ -328,33 +310,9 @@ export default function AdminSystemPage() {
 																</Badge>
 															</TableCell>
 															<TableCell>
-																<span className={`font-medium ${getUsageColor(user.pagesUsed, user.pagesLimit)}`}>
-																	{user.pagesUsed}
+																<span className="text-sm text-muted-foreground">
+																	See /admin/subscriptions
 																</span>
-															</TableCell>
-															<TableCell>
-																<span className="text-sm">{user.pagesLimit}</span>
-															</TableCell>
-															<TableCell>
-																<div className="flex items-center gap-2">
-																	<div className="w-16 bg-muted rounded-full h-1.5">
-																		<div
-																			className={`h-1.5 rounded-full transition-all ${
-																				user.pagesUsed / (user.pagesLimit || 1) >= 0.9
-																					? "bg-red-500"
-																					: user.pagesUsed / (user.pagesLimit || 1) >= 0.7
-																						? "bg-amber-500"
-																						: "bg-green-500"
-																			}`}
-																			style={{
-																				width: `${Math.min(100, (user.pagesUsed / (user.pagesLimit || 1)) * 100)}%`,
-																			}}
-																		/>
-																	</div>
-																	<span className="text-xs text-muted-foreground">
-																		{formatPercent(user.pagesUsed, user.pagesLimit)}
-																	</span>
-																</div>
 															</TableCell>
 															<TableCell>
 																{user.lockedUntil ? (

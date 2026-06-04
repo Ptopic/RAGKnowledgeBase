@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { LiteLLMProvider } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { encrypt, decrypt } from '../utils/encryption';
@@ -11,7 +12,10 @@ import { apiKeyCache } from './api-key-cache';
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   async upsert(userId: string, createDto: CreateApiKeyDto): Promise<ApiKeyDto> {
     try {
@@ -106,7 +110,22 @@ export class ApiKeysService {
     return decrypt(key.apiKey);
   }
 
-  async resolveApiKey(llmConfig: { id: number; apiKey: string; userProviderKeyId: string | null }, userId?: string): Promise<string> {
+  async resolveApiKey(llmConfig: { id: number; apiKey: string; isPlatformKey?: boolean; userProviderKeyId: string | null }, userId?: string): Promise<string> {
+    // Platform-managed key: the config stores an empty apiKey, so we
+    // resolve to the OPENAI_API_KEY env var. Admins/owners using the
+    // platform key bypass credit metering — see SubscriptionService.isUserKeyBilled.
+    if (llmConfig.isPlatformKey) {
+      const platformKey =
+        this.configService.get<string>('llm.openai.apiKey') ||
+        process.env.OPENAI_API_KEY;
+      if (!platformKey) {
+        throw new InternalServerErrorException(
+          'Platform API key is not configured (set OPENAI_API_KEY).',
+        );
+      }
+      return platformKey;
+    }
+
     if (llmConfig.userProviderKeyId) {
       const cached = apiKeyCache.get(llmConfig.userProviderKeyId);
       if (cached) return cached;
@@ -130,6 +149,12 @@ export class ApiKeysService {
     const cacheKey = `config:${llmConfig.id}`;
     const cached = apiKeyCache.get(cacheKey);
     if (cached) return cached;
+
+    if (!llmConfig.apiKey) {
+      throw new InternalServerErrorException(
+        'LLM config has no API key and is not marked as a platform key.',
+      );
+    }
 
     const decrypted = decrypt(llmConfig.apiKey);
     apiKeyCache.set(cacheKey, decrypted);

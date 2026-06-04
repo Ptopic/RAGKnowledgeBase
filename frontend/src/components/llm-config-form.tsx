@@ -1,10 +1,8 @@
 "use client";
 
-import { AlertCircle, CheckCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import useGetApiKeys from "@/api/api-keys/hooks/useGetApiKeys";
 import type { CreateLLMConfig, LLMConfig } from "@/api/llm-configs/types";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +14,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { LANGUAGES } from "@/contracts/enums/languages";
-import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
+import {
+	getOpenAIModel,
+	LLM_PROVIDERS,
+	OPENAI_MODELS,
+} from "@/contracts/enums/llm-providers";
+
+// LLM_PROVIDERS is kept for type re-exports; provider selection in the
+// form is hardcoded to OpenAI per the ZR-263 LLM config simplification.
+void LLM_PROVIDERS;
+
 import InferenceParamsEditor from "./inference-params-editor";
 
 interface LLMConfigFormProps {
@@ -27,16 +32,17 @@ interface LLMConfigFormProps {
 	onSubmit: (data: CreateLLMConfig) => Promise<unknown>;
 	onCancel: () => void;
 	isSubmitting: boolean;
+	isSuperuser?: boolean;
 }
 
 const DEFAULT_FORM_DATA: CreateLLMConfig = {
 	name: "",
-	provider: "",
+	provider: "OPENAI",
 	custom_provider: "",
 	model_name: "",
 	api_key: "",
 	api_base: "",
-	language: "English",
+	is_platform_key: false,
 	litellm_params: {},
 	search_space_id: 0,
 	user_provider_key_id: "",
@@ -48,6 +54,7 @@ export function LLMConfigForm({
 	onSubmit,
 	onCancel,
 	isSubmitting,
+	isSuperuser = false,
 }: LLMConfigFormProps) {
 	const [formData, setFormData] = useState<CreateLLMConfig>(() => {
 		if (editingConfig) {
@@ -58,7 +65,7 @@ export function LLMConfigForm({
 				model_name: editingConfig.model_name,
 				api_key: "",
 				api_base: editingConfig.api_base || "",
-				language: editingConfig.language || "English",
+				is_platform_key: editingConfig.is_platform_key || false,
 				litellm_params: editingConfig.litellm_params || {},
 				search_space_id: searchSpaceId,
 				user_provider_key_id: editingConfig.user_provider_key_id || "",
@@ -67,12 +74,41 @@ export function LLMConfigForm({
 		return { ...DEFAULT_FORM_DATA, search_space_id: searchSpaceId };
 	});
 
-	const [useSavedKey, setUseSavedKey] = useState(
-		!!editingConfig?.user_provider_key_id,
-	);
-	const [draftApiKey, setDraftApiKey] = useState(
-		"",
-	);
+	const [draftApiKey, setDraftApiKey] = useState("");
+
+	type KeyMode = "platform" | "saved" | "custom";
+	const [keyMode, setKeyMode] = useState<KeyMode>(() => {
+		if (!isSuperuser) return "platform";
+		if (editingConfig?.is_platform_key) return "platform";
+		if (editingConfig?.user_provider_key_id) return "saved";
+		return "custom";
+	});
+
+	const handleKeyModeChange = (mode: KeyMode) => {
+		if (mode === "platform") {
+			setFormData((prev) => ({
+				...prev,
+				is_platform_key: true,
+				api_key: "",
+				user_provider_key_id: "",
+			}));
+		} else if (mode === "saved") {
+			setDraftApiKey(formData.api_key || "");
+			setFormData((prev) => ({
+				...prev,
+				is_platform_key: false,
+				api_key: "",
+			}));
+		} else {
+			setFormData((prev) => ({
+				...prev,
+				is_platform_key: false,
+				user_provider_key_id: "",
+				api_key: draftApiKey,
+			}));
+		}
+		setKeyMode(mode);
+	};
 
 	useEffect(() => {
 		if (editingConfig) {
@@ -83,43 +119,45 @@ export function LLMConfigForm({
 				model_name: editingConfig.model_name,
 				api_key: "",
 				api_base: editingConfig.api_base || "",
-				language: editingConfig.language || "English",
+				is_platform_key: editingConfig.is_platform_key || false,
 				litellm_params: editingConfig.litellm_params || {},
 				search_space_id: searchSpaceId,
 				user_provider_key_id: editingConfig.user_provider_key_id || "",
 			});
-			setUseSavedKey(!!editingConfig.user_provider_key_id);
 			setDraftApiKey("");
+			if (editingConfig.is_platform_key) {
+				setKeyMode("platform");
+			} else if (editingConfig.user_provider_key_id) {
+				setKeyMode("saved");
+			} else {
+				setKeyMode("custom");
+			}
 		} else {
-			setFormData({ ...DEFAULT_FORM_DATA, search_space_id: searchSpaceId });
-			setUseSavedKey(false);
+			setFormData({
+				...DEFAULT_FORM_DATA,
+				search_space_id: searchSpaceId,
+				is_platform_key: !isSuperuser,
+			});
 			setDraftApiKey("");
+			setKeyMode(isSuperuser ? "custom" : "platform");
 		}
-	}, [editingConfig, searchSpaceId]);
+	}, [editingConfig, isSuperuser, searchSpaceId]);
 
 	const { data: savedApiKeys = [] } = useGetApiKeys();
 
-type StringFormField = Exclude<keyof CreateLLMConfig, 'litellm_params' | 'search_space_id'>;
+	type StringFormField = Exclude<
+		keyof CreateLLMConfig,
+		"litellm_params" | "search_space_id" | "is_platform_key"
+	>;
 
 	const handleInputChange = (field: StringFormField, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
-	};
-
-	const handleProviderChange = (providerValue: string) => {
-		const provider = LLM_PROVIDERS.find((p) => p.value === providerValue);
-		setFormData((prev) => ({
-			...prev,
-			provider: providerValue,
-			api_base: provider?.apiBase || prev.api_base,
-		}));
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		await onSubmit(formData);
 	};
-
-	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === formData.provider);
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
@@ -135,24 +173,41 @@ type StringFormField = Exclude<keyof CreateLLMConfig, 'litellm_params' | 'search
 				</div>
 
 				<div className="space-y-2">
-					<Label htmlFor="provider">Provider *</Label>
-					<Select value={formData.provider} onValueChange={handleProviderChange}>
-						<SelectTrigger>
-							<SelectValue placeholder="Select a provider">
-								{formData.provider && (
-									<span className="font-medium">
-										{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.label}
-									</span>
-								)}
+					<Label>Provider</Label>
+					{/* Provider is hardcoded to OpenAI per the LLM config
+					    simplification in ZR-263; the field is shown for
+					    context but not editable. */}
+					<Input value="OpenAI" disabled readOnly />
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="model_name">Model *</Label>
+					<Select
+						value={formData.model_name}
+						onValueChange={(value) => handleInputChange("model_name", value)}
+					>
+						<SelectTrigger id="model_name">
+							<SelectValue placeholder="Select a model">
+								{getOpenAIModel(formData.model_name)?.label}
 							</SelectValue>
 						</SelectTrigger>
-						<SelectContent>
-							{LLM_PROVIDERS.map((provider) => (
-								<SelectItem key={provider.value} value={provider.value}>
-									<div className="space-y-1 py-1">
-										<div className="font-medium">{provider.label}</div>
-										<div className="text-xs text-muted-foreground">
-											{provider.description}
+						<SelectContent className="max-h-[420px]">
+							{OPENAI_MODELS.map((model) => (
+								<SelectItem
+									key={model.value}
+									value={model.value}
+									textValue={model.label}
+									className="py-1.5"
+								>
+									<div className="space-y-0.5">
+										<div className="font-medium leading-tight">
+											{model.label}
+										</div>
+										<div className="text-xs text-muted-foreground leading-tight">
+											{model.costEstimate}
+										</div>
+										<div className="text-xs text-muted-foreground leading-tight">
+											{model.creditEstimate} · {model.tokenEstimate}
 										</div>
 									</div>
 								</SelectItem>
@@ -162,166 +217,112 @@ type StringFormField = Exclude<keyof CreateLLMConfig, 'litellm_params' | 'search
 				</div>
 			</div>
 
-			{formData.provider === "CUSTOM" && (
-				<div className="space-y-2">
-					<Label htmlFor="custom_provider">Custom Provider Name *</Label>
-					<Input
-						id="custom_provider"
-						placeholder="e.g., my-custom-provider"
-						value={formData.custom_provider}
-						onChange={(e) => handleInputChange("custom_provider", e.target.value)}
-					/>
-				</div>
-			)}
-
-			<div className="space-y-2">
-				<Label htmlFor="model_name">Model Name *</Label>
-				<Input
-					id="model_name"
-					placeholder={selectedProvider?.example || "e.g., gpt-4"}
-					value={formData.model_name}
-					onChange={(e) => handleInputChange("model_name", e.target.value)}
-				/>
-				{selectedProvider && (
-					<p className="text-xs text-muted-foreground">
-						Examples: {selectedProvider.example}
-					</p>
-				)}
-			</div>
-
-			<div className="space-y-2">
-				<Label htmlFor="language">Language (Optional)</Label>
-				<Select
-					value={formData.language || "English"}
-					onValueChange={(value) => handleInputChange("language", value)}
-				>
-					<SelectTrigger>
-						<SelectValue placeholder="Select language" />
-					</SelectTrigger>
-					<SelectContent>
-						{LANGUAGES.map((language) => (
-							<SelectItem key={language.value} value={language.value}>
-								{language.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
-
-			<div className="flex items-center justify-between rounded-lg border p-3">
-				<div className="space-y-0.5">
-					<Label className="text-sm font-medium">Use Saved Key</Label>
-					<p className="text-xs text-muted-foreground">
-						{useSavedKey
-							? "Select a previously saved provider key"
-							: "Enter an API key directly"}
-					</p>
-				</div>
-				<Switch
-					checked={useSavedKey}
-					onCheckedChange={(checked) => {
-						if (checked) {
-							setDraftApiKey(formData.api_key || "");
-						} else {
-							setFormData((prev) => ({
-								...prev,
-								api_key: draftApiKey,
-								user_provider_key_id: "",
-							}));
-						}
-						setUseSavedKey(checked);
-					}}
-				/>
-			</div>
-
-			{useSavedKey ? (
-				<div className="space-y-2">
-					<Label htmlFor="saved_key">Saved API Key *</Label>
-					<Select
-						value={formData.user_provider_key_id || ""}
-						onValueChange={(value) => {
-							setFormData((prev) => ({
-								...prev,
-								user_provider_key_id: value,
-								api_key: "",
-							}));
-						}}
-					>
-						<SelectTrigger>
-							<SelectValue placeholder="Select a saved key" />
-						</SelectTrigger>
-						<SelectContent>
-							{savedApiKeys.map((key) => (
-								<SelectItem key={key.id} value={key.id}>
-									<div className="flex items-center gap-2">
-										<Badge variant="secondary" className="text-xs">{key.provider}</Badge>
-										<span>{key.name}</span>
-									</div>
+			{isSuperuser ? (
+				<>
+					<div className="space-y-2">
+						<Label>API Key Source</Label>
+						<Select
+							value={keyMode}
+							onValueChange={(v) => handleKeyModeChange(v as KeyMode)}
+						>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="platform">
+									Platform Key (admin-managed)
 								</SelectItem>
-							))}
-							{savedApiKeys.length === 0 && (
-								<div className="p-2 text-sm text-muted-foreground text-center">
-									No saved keys. Add one in Settings &rarr; API Keys.
-								</div>
-							)}
-						</SelectContent>
-					</Select>
-				</div>
-			) : (
-				<div className="space-y-2">
-					<Label htmlFor="api_key">API Key *</Label>
-					<Input
-						id="api_key"
-						type="password"
-						placeholder={editingConfig ? "Leave blank to keep current key" : "Your API key"}
-						value={formData.api_key}
-						onChange={(e) => handleInputChange("api_key", e.target.value)}
-						required={!editingConfig}
-					/>
-					{editingConfig && editingConfig.api_key_preview && (
-						<p className="text-xs text-muted-foreground">
-							Current: {editingConfig.api_key_preview}
+								<SelectItem value="custom">Custom API Key</SelectItem>
+								<SelectItem value="saved">Saved Provider Key</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+
+					{keyMode === "platform" && (
+						<p className="text-sm text-muted-foreground">
+							Platform API key will be used. No key entry needed — managed by
+							admin.
 						</p>
 					)}
+
+					{keyMode === "saved" && (
+						<div className="space-y-2">
+							<Label htmlFor="saved_key">Saved API Key *</Label>
+							<Select
+								value={formData.user_provider_key_id || ""}
+								onValueChange={(value) => {
+									setFormData((prev) => ({
+										...prev,
+										user_provider_key_id: value,
+										api_key: "",
+									}));
+								}}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select a saved key" />
+								</SelectTrigger>
+								<SelectContent>
+									{savedApiKeys.map((key) => (
+										<SelectItem key={key.id} value={key.id}>
+											<div className="flex items-center gap-2">
+												<Badge variant="secondary" className="text-xs">
+													{key.provider}
+												</Badge>
+												<span>{key.name}</span>
+											</div>
+										</SelectItem>
+									))}
+									{savedApiKeys.length === 0 && (
+										<div className="p-2 text-sm text-muted-foreground text-center">
+											No saved keys. Add one in Settings &rarr; API Keys.
+										</div>
+									)}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
+
+					{keyMode === "custom" && (
+						<div className="space-y-2">
+							<Label htmlFor="api_key">API Key *</Label>
+							<Input
+								id="api_key"
+								type="password"
+								placeholder={
+									editingConfig
+										? "Leave blank to keep current key"
+										: "Your API key"
+								}
+								value={formData.api_key}
+								onChange={(e) => handleInputChange("api_key", e.target.value)}
+								required={!editingConfig}
+							/>
+							{editingConfig?.api_key_preview && (
+								<p className="text-xs text-muted-foreground">
+									Current: {editingConfig.api_key_preview}
+								</p>
+							)}
+						</div>
+					)}
+				</>
+			) : (
+				<div className="space-y-2">
+					<Label>API Key</Label>
+					<p className="text-sm text-muted-foreground">
+						Platform API key will be used (managed by admin)
+					</p>
+					<input type="hidden" name="is_platform_key" value="true" />
 				</div>
 			)}
 
 			<div className="space-y-2">
-				<Label htmlFor="api_base">
-					API Base URL
-					{selectedProvider?.apiBase && (
-						<span className="text-xs font-normal text-muted-foreground ml-2">
-							(Auto-filled for {selectedProvider.label})
-						</span>
-					)}
-				</Label>
+				<Label htmlFor="api_base">API Base URL</Label>
 				<Input
 					id="api_base"
-					placeholder={selectedProvider?.apiBase || "e.g., https://api.openai.com/v1"}
+					placeholder="https://api.openai.com/v1"
 					value={formData.api_base}
 					onChange={(e) => handleInputChange("api_base", e.target.value)}
 				/>
-				{selectedProvider?.apiBase && formData.api_base === selectedProvider.apiBase && (
-					<p className="text-xs text-green-600 flex items-center gap-1">
-						<CheckCircle className="h-3 w-3" />
-						Using recommended API endpoint for {selectedProvider.label}
-					</p>
-				)}
-				{selectedProvider?.apiBase && !formData.api_base && (
-					<Alert variant="destructive" className="py-2">
-						<AlertCircle className="h-3 w-3" />
-						<AlertDescription className="text-xs">
-							API Base URL is recommended for {selectedProvider.label}.{" "}
-							<button
-								type="button"
-								className="underline font-medium"
-								onClick={() => handleInputChange("api_base", selectedProvider.apiBase || "")}
-							>
-								Click to auto-fill: {selectedProvider.apiBase}
-							</button>
-						</AlertDescription>
-					</Alert>
-				)}
 			</div>
 
 			<div className="pt-4">

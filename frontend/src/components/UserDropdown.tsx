@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, LogOut, Shield } from "lucide-react";
+import { BadgeCheck, LogOut, Settings, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -68,10 +68,14 @@ export function UserDropdown({
 							Admin Dashboard
 						</DropdownMenuItem>
 					)}
-					<DropdownMenuItem onClick={() => router.push(`/dashboard/api-key`)}>
-						<BadgeCheck className="mr-2 h-4 w-4" />
-						API Key
-					</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => router.push(`/dashboard/api-key`)}>
+					<BadgeCheck className="mr-2 h-4 w-4" />
+					API Key
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
+					<Settings className="mr-2 h-4 w-4" />
+					Settings
+				</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem onClick={handleLogout}>

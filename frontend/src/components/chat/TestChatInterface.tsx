@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type Dispatch, type SetStateAction, useMemo } from "react";
 import { AssistantChatInterface } from "@/components/research-assistant-ui/assistant-chat-interface";
 import type { Document } from "@/hooks/use-documents";
+import { SUBSCRIPTION } from "@/shared/queryKeys";
 
 interface ChatInterfaceProps {
 	onDocumentSelectionChange?: (documents: Document[]) => void;
@@ -71,6 +72,11 @@ export default function TestChatInterface({
 								queryKey: ["chatDetails", chatId],
 							});
 						}
+						// Backend enqueues credit deduction in
+						// `subscriptionService.enqueueDeduction` after the
+						// stream ends (see agent.controller.ts). Refetching
+						// here gives the sidebar a real-time credit display.
+						queryClient.invalidateQueries({ queryKey: [SUBSCRIPTION] });
 					}}
 				/>
 			</div>

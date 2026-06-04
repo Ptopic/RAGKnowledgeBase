@@ -105,12 +105,7 @@ export function ApiKeyForm({
 						<SelectContent>
 							{LLM_PROVIDERS.map((provider) => (
 								<SelectItem key={provider.value} value={provider.value}>
-									<div className="space-y-1 py-1">
-										<div className="font-medium">{provider.label}</div>
-										<div className="text-xs text-muted-foreground">
-											{provider.description}
-										</div>
-									</div>
+									{provider.label}
 								</SelectItem>
 							))}
 						</SelectContent>

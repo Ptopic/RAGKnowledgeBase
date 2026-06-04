@@ -5,20 +5,34 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
+import { SubscriptionPlan } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { SubscriptionService } from "../subscription/subscription.service";
 import {
 	AdminMetricsDto,
+	AdminSubscriptionListDto,
+	AdminSubscriptionUserDto,
 	AdminUserDto,
 	AdminUserListDto,
 	CreateAdminUserDto,
 	UpdateAdminUserDto,
 } from "./dtos/admin.dto";
 
+function getCurrentMonthBounds(): { start: Date; end: Date } {
+	const now = new Date();
+	const start = new Date(now.getFullYear(), now.getMonth(), 1);
+	const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+	return { start, end };
+}
+
 @Injectable()
 export class AdminService {
-	constructor(private prisma: PrismaService) {}
+	constructor(
+		private prisma: PrismaService,
+		private subscriptionService: SubscriptionService,
+	) {}
 
-	private toDto(user: { id: string; email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean; pagesUsed: number; pagesLimit: number; failedLoginAttempts: number; lockedUntil: Date | null; createdAt: Date; updatedAt: Date }): AdminUserDto {
+	private toDto(user: { id: string; email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean; failedLoginAttempts: number; lockedUntil: Date | null; createdAt: Date; updatedAt: Date }): AdminUserDto {
 		return {
 			id: user.id,
 			email: user.email,
@@ -26,8 +40,6 @@ export class AdminService {
 			isActive: user.isActive,
 			isSuperuser: user.isSuperuser,
 			isVerified: user.isVerified,
-			pagesUsed: user.pagesUsed,
-			pagesLimit: user.pagesLimit,
 			failedLoginAttempts: user.failedLoginAttempts,
 			lockedUntil: user.lockedUntil,
 			createdAt: user.createdAt,
@@ -77,12 +89,11 @@ export class AdminService {
 			throw new ConflictException("User with this email already exists");
 		}
 
-		const data: { email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; pagesLimit: number; hashedPassword?: string } = {
+		const data: { email: string; fullName: string | null; isActive: boolean; isSuperuser: boolean; hashedPassword?: string } = {
 			email: dto.email,
 			fullName: dto.fullName ?? null,
 			isActive: dto.isActive ?? true,
 			isSuperuser: dto.isSuperuser ?? false,
-			pagesLimit: dto.pagesLimit ?? 500,
 		};
 
 		if (dto.password) {
@@ -115,12 +126,11 @@ export class AdminService {
 			throw new BadRequestException("You cannot disable your own account");
 		}
 
-		const data: Partial<{ fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean; pagesLimit: number }> = {};
+		const data: Partial<{ fullName: string | null; isActive: boolean; isSuperuser: boolean; isVerified: boolean }> = {};
 		if (dto.fullName !== undefined) data.fullName = dto.fullName;
 		if (dto.isActive !== undefined) data.isActive = dto.isActive;
 		if (dto.isSuperuser !== undefined) data.isSuperuser = dto.isSuperuser;
 		if (dto.isVerified !== undefined) data.isVerified = dto.isVerified;
-		if (dto.pagesLimit !== undefined) data.pagesLimit = dto.pagesLimit;
 
 		const updated = await this.prisma.user.update({
 			where: { id: userId },
@@ -213,7 +223,6 @@ export class AdminService {
 			totalSearchSpaces,
 			totalDocuments,
 			totalChats,
-			aggregatePages,
 			userUsage,
 			userUsageTotal,
 		] = await Promise.all([
@@ -223,14 +232,11 @@ export class AdminService {
 			this.prisma.searchSpace.count(),
 			this.prisma.document.count(),
 			this.prisma.chat.count(),
-			this.prisma.user.aggregate({
-				_sum: { pagesUsed: true, pagesLimit: true },
-			}),
 			this.prisma.user.findMany({
 				where,
 				skip,
 				take: limit,
-				orderBy: { pagesUsed: "desc" },
+				orderBy: { createdAt: "desc" },
 			}),
 			this.prisma.user.count({ where }),
 		]);
@@ -242,10 +248,147 @@ export class AdminService {
 			totalSearchSpaces,
 			totalDocuments,
 			totalChats,
-			totalPagesUsed: aggregatePages._sum.pagesUsed ?? 0,
-			totalPagesLimit: aggregatePages._sum.pagesLimit ?? 0,
 			userUsage: userUsage.map((u) => this.toDto(u)),
 			userUsageTotal,
 		};
+	}
+
+	async listSubscriptions(
+		skip = 0,
+		limit = 50,
+		search?: string,
+	): Promise<AdminSubscriptionListDto> {
+		const where = search
+			? {
+					OR: [
+						{ email: { contains: search, mode: "insensitive" as const } },
+						{ fullName: { contains: search, mode: "insensitive" as const } },
+					],
+				}
+			: {};
+
+		const [users, total, activeSubscriptions, paidSubscriptions] = await Promise.all([
+			this.prisma.user.findMany({
+				where,
+				skip,
+				take: limit,
+				orderBy: { createdAt: "desc" },
+				include: { subscription: true },
+			}),
+			this.prisma.user.count({ where }),
+			this.prisma.subscription.count({
+				where: { plan: { not: "FREE" }, status: "active" },
+			}),
+			this.prisma.subscription.count({
+				where: { plan: { not: "FREE" } },
+			}),
+		]);
+
+		const subscriptionUsers: AdminSubscriptionUserDto[] = users.map((u) => {
+			const sub = u.subscription;
+			return {
+				id: u.id,
+				email: u.email,
+				full_name: u.fullName,
+				plan: sub?.plan ?? "FREE",
+				status: sub?.status ?? "active",
+				credits_used: sub?.creditsUsed ?? 0,
+				monthly_credit_limit: sub?.monthlyCreditLimit ?? 1000,
+				stripe_customer_id: sub?.stripeCustomerId ?? null,
+			};
+		});
+
+		const freeTierCount = total - paidSubscriptions;
+
+		return {
+			users: subscriptionUsers,
+			total,
+			active_subscriptions: activeSubscriptions,
+			total_revenue: "N/A",
+			free_tier_count: freeTierCount,
+		};
+	}
+
+	async overrideUserSubscriptionPlan(
+		_adminId: string,
+		userId: string,
+		plan: string,
+	): Promise<{ message: string }> {
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+			include: { subscription: true },
+		});
+
+		if (!user) {
+			throw new NotFoundException("User not found");
+		}
+
+		const plans = await this.subscriptionService.getPlans();
+		const validPlanNames = new Set(plans.map((p) => p.plan));
+		validPlanNames.add("FREE");
+
+		if (!validPlanNames.has(plan)) {
+			const validList = [...validPlanNames].sort().join(", ");
+			throw new BadRequestException(`Invalid plan: ${plan}. Valid plans: ${validList}`);
+		}
+
+		const creditLimit = await this.subscriptionService.getCreditLimitForPlan(plan);
+
+		const { start, end } = getCurrentMonthBounds();
+		await this.prisma.subscription.upsert({
+			where: { userId },
+			update: {
+				plan: plan as SubscriptionPlan,
+				monthlyCreditLimit: creditLimit,
+				status: "active",
+			},
+			create: {
+				userId,
+				plan: plan as SubscriptionPlan,
+				monthlyCreditLimit: creditLimit,
+				creditsUsed: 0,
+				status: "active",
+				currentPeriodStart: start,
+				currentPeriodEnd: end,
+			},
+		});
+
+		return { message: "Subscription plan updated successfully" };
+	}
+
+	async resetUserCredits(
+		_adminId: string,
+		userId: string,
+	): Promise<{ message: string }> {
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+			include: { subscription: true },
+		});
+
+		if (!user) {
+			throw new NotFoundException("User not found");
+		}
+
+		const { start, end } = getCurrentMonthBounds();
+
+		await this.prisma.subscription.upsert({
+			where: { userId },
+			update: {
+				creditsUsed: 0,
+				currentPeriodStart: start,
+				currentPeriodEnd: end,
+			},
+			create: {
+				userId,
+				plan: SubscriptionPlan.FREE,
+				monthlyCreditLimit: await this.subscriptionService.getCreditLimitForPlan("FREE"),
+				creditsUsed: 0,
+				status: "active",
+				currentPeriodStart: start,
+				currentPeriodEnd: end,
+			},
+		});
+
+		return { message: "Credits reset successfully" };
 	}
 }

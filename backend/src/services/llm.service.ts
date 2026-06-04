@@ -84,32 +84,15 @@ export class LLMService {
 				return null;
 			}
 
-			// Build the model string for litellm
+			// Build the model string. The LiteLLMProvider enum was trimmed
+			// to OPENAI only in ZR-263; the rest of this block is dead
+			// scaffolding kept for backward-compat (customProvider still
+			// works if a deployment chooses to use it).
 			let modelString: string;
 			if (llmConfig.customProvider) {
 				modelString = `${llmConfig.customProvider}/${llmConfig.modelName}`;
 			} else {
-				// Map provider enum to litellm format
-				const providerMap: Partial<Record<LiteLLMProvider, string>> = {
-					[LiteLLMProvider.OPENAI]: 'openai',
-					[LiteLLMProvider.ANTHROPIC]: 'anthropic',
-					[LiteLLMProvider.GROQ]: 'groq',
-					[LiteLLMProvider.COHERE]: 'cohere',
-					[LiteLLMProvider.GOOGLE]: 'gemini',
-					[LiteLLMProvider.OLLAMA]: 'ollama',
-					[LiteLLMProvider.MISTRAL]: 'mistral',
-					[LiteLLMProvider.AZURE_OPENAI]: 'azure',
-					[LiteLLMProvider.OPENROUTER]: 'openrouter',
-					[LiteLLMProvider.COMETAPI]: 'cometapi',
-					// Chinese LLM providers (OpenAI-compatible)
-					[LiteLLMProvider.DEEPSEEK]: 'openai', // DeepSeek uses OpenAI-compatible API
-					[LiteLLMProvider.ALIBABA_QWEN]: 'openai', // Qwen uses OpenAI-compatible API
-					[LiteLLMProvider.MOONSHOT]: 'openai', // Moonshot (Kimi) uses OpenAI-compatible API
-					[LiteLLMProvider.ZHIPU]: 'openai', // Zhipu (GLM) uses OpenAI-compatible API
-				};
-				const providerPrefix =
-					providerMap[llmConfig.provider] || llmConfig.provider.toLowerCase();
-				modelString = `${providerPrefix}/${llmConfig.modelName}`;
+				modelString = `openai/${llmConfig.modelName}`;
 			}
 
 			// Create ChatLiteLLM instance - commented out as package doesn't exist

@@ -79,12 +79,13 @@ export class QueryTemplatesService {
 	}
 
 	async findAllGlobal(
+		userId: string,
 		search?: string,
 		skip: number = 0,
 		limit: number = 100,
 	): Promise<PaginatedQueryTemplatesResponseDto> {
 		try {
-			const where: Prisma.QueryTemplateWhereInput = { isGlobal: true };
+			const where: Prisma.QueryTemplateWhereInput = { isGlobal: true, createdById: userId };
 
 			if (search) {
 				where.OR = [
@@ -137,14 +138,14 @@ export class QueryTemplatesService {
 			);
 
 			const where: Prisma.QueryTemplateWhereInput = {
-				OR: [{ isGlobal: true }, { searchSpaceId }],
+				OR: [{ isGlobal: true, createdById: userId }, { searchSpaceId }],
 			};
 
 			if (search) {
 				where.OR = [
-					{ isGlobal: true, title: { contains: search, mode: "insensitive" } },
-					{ isGlobal: true, description: { contains: search, mode: "insensitive" } },
-					{ isGlobal: true, content: { contains: search, mode: "insensitive" } },
+					{ isGlobal: true, createdById: userId, title: { contains: search, mode: "insensitive" } },
+					{ isGlobal: true, createdById: userId, description: { contains: search, mode: "insensitive" } },
+					{ isGlobal: true, createdById: userId, content: { contains: search, mode: "insensitive" } },
 					{ searchSpaceId, title: { contains: search, mode: "insensitive" } },
 					{ searchSpaceId, description: { contains: search, mode: "insensitive" } },
 					{ searchSpaceId, content: { contains: search, mode: "insensitive" } },
@@ -230,6 +231,10 @@ export class QueryTemplatesService {
 				throw new ForbiddenException(
 					"Use the search-space endpoint to update per-space templates",
 				);
+			}
+
+			if (template.createdById !== userId) {
+				throw new ForbiddenException("You can only edit your own templates");
 			}
 
 			const updateData: Prisma.QueryTemplateUpdateInput = {
@@ -343,6 +348,10 @@ export class QueryTemplatesService {
 				throw new ForbiddenException(
 					"Use the search-space endpoint to delete per-space templates",
 				);
+			}
+
+			if (template.createdById !== userId) {
+				throw new ForbiddenException("You can only delete your own templates");
 			}
 
 			await this.prisma.queryTemplate.delete({

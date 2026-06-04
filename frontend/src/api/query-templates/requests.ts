@@ -15,7 +15,7 @@ import type {
 export const getGlobalQueryTemplates =
 	(request: ICallableRequestBuilder<unknown>) =>
 	async (params?: GetGlobalQueryTemplatesParams): Promise<ListResponse<QueryTemplate>> => {
-		const url = new URL(`${config.apiUrl}/admin/query-templates`);
+		const url = new URL(`${config.apiUrl}/user/query-templates`);
 		if (params?.search) {
 			url.searchParams.append("search", params.search);
 		}
@@ -35,7 +35,7 @@ export const getGlobalQueryTemplates =
 export const createGlobalQueryTemplate =
 	(request: ICallableRequestBuilder<CreateQueryTemplateResponse>) =>
 	async (data: CreateQueryTemplateRequest): Promise<CreateQueryTemplateResponse> =>
-		request.call(`${config.apiUrl}/admin/query-templates`, (init) => ({
+		request.call(`${config.apiUrl}/user/query-templates`, (init) => ({
 			...init,
 			method: "POST",
 			headers: {
@@ -48,7 +48,7 @@ export const createGlobalQueryTemplate =
 export const updateGlobalQueryTemplate =
 	(request: ICallableRequestBuilder<QueryTemplate>) =>
 	async (id: number, data: UpdateQueryTemplateRequest): Promise<QueryTemplate> =>
-		request.call(`${config.apiUrl}/admin/query-templates/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/user/query-templates/${id}`, (init) => ({
 			...init,
 			method: "PUT",
 			headers: {
@@ -61,7 +61,7 @@ export const updateGlobalQueryTemplate =
 export const deleteGlobalQueryTemplate =
 	(request: ICallableRequestBuilder<void>) =>
 	async (id: number): Promise<void> =>
-		request.call(`${config.apiUrl}/admin/query-templates/${id}`, (init) => ({
+		request.call(`${config.apiUrl}/user/query-templates/${id}`, (init) => ({
 			...init,
 			method: "DELETE",
 		}));

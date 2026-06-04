@@ -1,20 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
 	constructor(private prisma: PrismaService) {
 		super({
-			jwtFromRequest: ExtractJwt.fromExtractors([
-				ExtractJwt.fromAuthHeaderAsBearerToken(),
-				(request: Request) => {
-					const token = request?.query?.token as string | undefined;
-					return token || null;
-				},
-			]),
+			// SECURITY: tokens are accepted ONLY via the Authorization
+			// Bearer header. Reading JWTs from the query string is a
+			// token-leak vector (logged by reverse proxies, browser
+			// history, Referer headers, third-party scripts).
+			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 			ignoreExpiration: false,
 			secretOrKey: process.env.JWT_SECRET,
 		});

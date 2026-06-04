@@ -9,7 +9,6 @@ export * from "./crawlee-impit-fallback.service";
 export * from "./docling.service";
 export * from "./jina-reader.service";
 export * from "./llm.service";
-export * from "./page-limit.service";
 export * from "./query.service";
 export * from "./reranker.service";
 export * from "./services.module";

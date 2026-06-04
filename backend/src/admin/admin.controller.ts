@@ -1,4 +1,14 @@
 import {
+	AdminMetricsDto,
+	AdminSubscriptionListDto,
+	AdminUserDto,
+	AdminUserListDto,
+	CreateAdminUserDto,
+	OverridePlanDto,
+	UpdateAdminUserDto,
+} from "./dtos/admin.dto";
+import { AdminService } from "./admin.service";
+import {
 	Body,
 	Controller,
 	Delete,
@@ -12,14 +22,6 @@ import {
 	UseGuards,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
-import {
-	AdminMetricsDto,
-	AdminUserDto,
-	AdminUserListDto,
-	CreateAdminUserDto,
-	UpdateAdminUserDto,
-} from "./dtos/admin.dto";
-import { AdminService } from "./admin.service";
 
 @Controller("admin")
 @UseGuards(JwtAuthGuard)
@@ -97,5 +99,39 @@ export class AdminController {
 			limit ? parseInt(limit, 10) : 50,
 			search,
 		);
+	}
+
+	@Get("subscriptions")
+	async listSubscriptions(
+		@Req() req: { user: { id: string; isSuperuser: boolean } },
+		@Query("skip") skip?: string,
+		@Query("limit") limit?: string,
+		@Query("search") search?: string,
+	): Promise<AdminSubscriptionListDto> {
+		this.requireSuperuser(req.user);
+		return this.adminService.listSubscriptions(
+			skip ? parseInt(skip, 10) : 0,
+			limit ? parseInt(limit, 10) : 50,
+			search,
+		);
+	}
+
+	@Put("subscriptions/:id/plan")
+	async overrideSubscriptionPlan(
+		@Req() req: { user: { id: string; isSuperuser: boolean } },
+		@Param("id") userId: string,
+		@Body() dto: OverridePlanDto,
+	): Promise<{ message: string }> {
+		this.requireSuperuser(req.user);
+		return this.adminService.overrideUserSubscriptionPlan(req.user.id, userId, dto.plan);
+	}
+
+	@Post("subscriptions/:id/reset-credits")
+	async resetUserCredits(
+		@Req() req: { user: { id: string; isSuperuser: boolean } },
+		@Param("id") userId: string,
+	): Promise<{ message: string }> {
+		this.requireSuperuser(req.user);
+		return this.adminService.resetUserCredits(req.user.id, userId);
 	}
 }

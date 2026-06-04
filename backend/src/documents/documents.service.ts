@@ -9,6 +9,8 @@ import { DocumentType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
 import { SseService } from "../sse/sse.service";
+import { estimatePagesFromFilePath } from "../subscription/page-estimate";
+import { SubscriptionService } from "../subscription/subscription.service";
 import {
 	BulkDeleteResultDto,
 	CreateDocumentsDto,
@@ -27,6 +29,7 @@ export class DocumentsService {
 		private prisma: PrismaService,
 		private queueService: QueueService,
 		private sseService: SseService,
+		private subscriptionService: SubscriptionService,
 	) {}
 
 	async create(
@@ -38,27 +41,47 @@ export class DocumentsService {
 				throw new BadRequestException("Content array cannot be empty");
 			}
 
+			// Superusers (admins) are exempt from credit charges.
+			const bypassCredits =
+				await this.subscriptionService.isSuperuserBypass(userId);
+
+			// Pre-flight: charge 1 INDEX_PAGE credit per item. URL crawl and
+			// YouTube transcript lengths are unknown at queue time; we use
+			// the simple 1-credit heuristic. TODO: reconcile the actual
+			// indexed page count in the url-crawler / youtube-processor
+			// hooks (mirroring the file-processor reconciliation pattern).
+			const itemCount = createDto.content.length;
+			if (itemCount > 0 && !bypassCredits) {
+				await this.subscriptionService.checkCredits(userId, itemCount);
+			}
+
 			if (createDto.document_type === DocumentType.CRAWLED_URL) {
 				const queuedJobs = [];
 				for (const url of createDto.content) {
-					this.logger.log(`Creating placeholder and queuing URL for crawling: ${url}`);
+					this.logger.log(
+						`Creating placeholder and queuing URL for crawling: ${url}`,
+					);
 
 					const placeholderDoc = await this.prisma.document.create({
 						data: {
 							searchSpaceId: createDto.search_space_id,
 							title: url,
 							documentType: DocumentType.CRAWLED_URL,
-							documentMetadata: { url, source: 'url_crawl' },
+							documentMetadata: { url, source: "url_crawl" },
 							content: null,
 							contentHash: null,
-							processingStatus: 'PROCESSING',
+							processingStatus: "PROCESSING",
 							processingStartedAt: new Date(),
 						},
 					});
 
 					this.sseService.broadcastEvent({
-						topic: 'documents',
-						data: { action: 'create', searchSpaceId: createDto.search_space_id, documentId: placeholderDoc.id },
+						topic: "documents",
+						data: {
+							action: "create",
+							searchSpaceId: createDto.search_space_id,
+							documentId: placeholderDoc.id,
+						},
 					});
 
 					try {
@@ -72,14 +95,32 @@ export class DocumentsService {
 					} catch (queueError) {
 						await this.prisma.document.update({
 							where: { id: placeholderDoc.id },
-							data: { processingStatus: 'FAILED', processingCompletedAt: new Date() },
+							data: {
+								processingStatus: "FAILED",
+								processingCompletedAt: new Date(),
+							},
 						});
 						this.sseService.broadcastEvent({
-							topic: 'documents',
-							data: { action: 'update', searchSpaceId: createDto.search_space_id, documentId: placeholderDoc.id },
+							topic: "documents",
+							data: {
+								action: "update",
+								searchSpaceId: createDto.search_space_id,
+								documentId: placeholderDoc.id,
+							},
 						});
-						this.logger.error(`Failed to queue URL ${url}: ${queueError.message}`, queueError.stack);
+						this.logger.error(
+							`Failed to queue URL ${url}: ${queueError.message}`,
+							queueError.stack,
+						);
 					}
+				}
+
+				if (!bypassCredits) {
+					await this.deductForUrlOrYouTubeBatch(
+						userId,
+						createDto.search_space_id,
+						itemCount,
+					);
 				}
 
 				this.logger.log(
@@ -93,24 +134,30 @@ export class DocumentsService {
 			if (createDto.document_type === DocumentType.YOUTUBE_VIDEO) {
 				const queuedJobs = [];
 				for (const videoUrl of createDto.content) {
-					this.logger.log(`Creating placeholder and queuing YouTube video: ${videoUrl}`);
+					this.logger.log(
+						`Creating placeholder and queuing YouTube video: ${videoUrl}`,
+					);
 
 					const placeholderDoc = await this.prisma.document.create({
 						data: {
 							searchSpaceId: createDto.search_space_id,
 							title: videoUrl,
 							documentType: DocumentType.YOUTUBE_VIDEO,
-							documentMetadata: { url: videoUrl, source: 'youtube_import' },
+							documentMetadata: { url: videoUrl, source: "youtube_import" },
 							content: null,
 							contentHash: null,
-							processingStatus: 'PROCESSING',
+							processingStatus: "PROCESSING",
 							processingStartedAt: new Date(),
 						},
 					});
 
 					this.sseService.broadcastEvent({
-						topic: 'documents',
-						data: { action: 'create', searchSpaceId: createDto.search_space_id, documentId: placeholderDoc.id },
+						topic: "documents",
+						data: {
+							action: "create",
+							searchSpaceId: createDto.search_space_id,
+							documentId: placeholderDoc.id,
+						},
 					});
 
 					try {
@@ -124,14 +171,32 @@ export class DocumentsService {
 					} catch (queueError) {
 						await this.prisma.document.update({
 							where: { id: placeholderDoc.id },
-							data: { processingStatus: 'FAILED', processingCompletedAt: new Date() },
+							data: {
+								processingStatus: "FAILED",
+								processingCompletedAt: new Date(),
+							},
 						});
 						this.sseService.broadcastEvent({
-							topic: 'documents',
-							data: { action: 'update', searchSpaceId: createDto.search_space_id, documentId: placeholderDoc.id },
+							topic: "documents",
+							data: {
+								action: "update",
+								searchSpaceId: createDto.search_space_id,
+								documentId: placeholderDoc.id,
+							},
 						});
-						this.logger.error(`Failed to queue YouTube video ${videoUrl}: ${queueError.message}`, queueError.stack);
+						this.logger.error(
+							`Failed to queue YouTube video ${videoUrl}: ${queueError.message}`,
+							queueError.stack,
+						);
 					}
+				}
+
+				if (!bypassCredits) {
+					await this.deductForUrlOrYouTubeBatch(
+						userId,
+						createDto.search_space_id,
+						itemCount,
+					);
 				}
 
 				this.logger.log(
@@ -160,6 +225,31 @@ export class DocumentsService {
 		}
 	}
 
+	/**
+	 * Deduct INDEX_PAGE credits for a URL crawl or YouTube batch.
+	 * One credit per item, same model as the file-upload path. Failures
+	 * are logged but don't fail the request — the items are already
+	 * queued and the user has been pre-checked.
+	 */
+	private async deductForUrlOrYouTubeBatch(
+		userId: string,
+		searchSpaceId: number,
+		itemCount: number,
+	): Promise<void> {
+		if (itemCount <= 0) return;
+		try {
+			await this.subscriptionService.deductForIndexedPages(
+				userId,
+				searchSpaceId,
+				itemCount,
+			);
+		} catch (err) {
+			this.logger.error(
+				`Failed to deduct URL/YouTube credits (user=${userId}, count=${itemCount}): ${(err as Error).message}`,
+			);
+		}
+	}
+
 	async createFileUpload(
 		files: Express.Multer.File[],
 		searchSpaceId: number,
@@ -170,10 +260,42 @@ export class DocumentsService {
 				throw new BadRequestException("No files provided");
 			}
 
+			// Pre-flight: estimate page count per file. We pre-deduct the
+			// total up front; the document processor reconciles each file's
+			// actual page count after docling/llamacloud completes and
+			// refunds (or charges) the difference per file.
+			const perFileEstimates: number[] = files.map((file) => {
+				try {
+					return estimatePagesFromFilePath(file.path);
+				} catch {
+					return 1;
+				}
+			});
+			const totalEstimated = perFileEstimates.reduce((s, n) => s + n, 0);
+
+			// Superusers (admins) are exempt from credit charges.
+			const bypassCredits =
+				await this.subscriptionService.isSuperuserBypass(userId);
+
+			// Deduct BEFORE creating placeholder docs / queueing jobs.
+			// If a concurrent request pushed the user over the limit
+			// between the pre-check and now, `deductForIndexedPages`
+			// throws (atomic updateMany with a credit-limit guard) and
+			// we surface a 402 — the user never gets free indexed files.
+			if (totalEstimated > 0 && !bypassCredits) {
+				await this.subscriptionService.deductForIndexedPages(
+					userId,
+					searchSpaceId,
+					totalEstimated,
+				);
+			}
+
 			const queuedJobs = [];
-			for (const file of files) {
+			for (let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const fileEstimated = perFileEstimates[i];
 				this.logger.log(
-					`Creating placeholder and queuing file: ${file.originalname}`,
+					`Creating placeholder and queuing file: ${file.originalname} (estimated ${fileEstimated} pages)`,
 				);
 
 				const placeholderDoc = await this.prisma.document.create({
@@ -181,17 +303,24 @@ export class DocumentsService {
 						searchSpaceId,
 						title: file.originalname,
 						documentType: DocumentType.FILE,
-						documentMetadata: { file_name: file.originalname, source: 'file_upload' },
+						documentMetadata: {
+							file_name: file.originalname,
+							source: "file_upload",
+						},
 						content: null,
 						contentHash: null,
-						processingStatus: 'PROCESSING',
+						processingStatus: "PROCESSING",
 						processingStartedAt: new Date(),
 					},
 				});
 
 				this.sseService.broadcastEvent({
-					topic: 'documents',
-					data: { action: 'create', searchSpaceId, documentId: placeholderDoc.id },
+					topic: "documents",
+					data: {
+						action: "create",
+						searchSpaceId,
+						documentId: placeholderDoc.id,
+					},
 				});
 
 				try {
@@ -201,18 +330,29 @@ export class DocumentsService {
 						searchSpaceId,
 						userId,
 						placeholderDoc.id,
+						fileEstimated,
 					);
 					queuedJobs.push(job.id);
 				} catch (queueError) {
 					await this.prisma.document.update({
 						where: { id: placeholderDoc.id },
-						data: { processingStatus: 'FAILED', processingCompletedAt: new Date() },
+						data: {
+							processingStatus: "FAILED",
+							processingCompletedAt: new Date(),
+						},
 					});
 					this.sseService.broadcastEvent({
-						topic: 'documents',
-						data: { action: 'update', searchSpaceId, documentId: placeholderDoc.id },
+						topic: "documents",
+						data: {
+							action: "update",
+							searchSpaceId,
+							documentId: placeholderDoc.id,
+						},
 					});
-					this.logger.error(`Failed to queue file ${file.originalname}: ${queueError.message}`, queueError.stack);
+					this.logger.error(
+						`Failed to queue file ${file.originalname}: ${queueError.message}`,
+						queueError.stack,
+					);
 				}
 			}
 
@@ -659,10 +799,7 @@ export class DocumentsService {
 		};
 	}
 
-	async addFavorite(
-		id: number,
-		userId: string,
-	): Promise<{ message: string }> {
+	async addFavorite(id: number, userId: string): Promise<{ message: string }> {
 		try {
 			const document = await this.prisma.document.findFirst({
 				where: { id },
@@ -727,9 +864,7 @@ export class DocumentsService {
 				throw error;
 			}
 			if (error.code === "P2025") {
-				throw new NotFoundException(
-					`Document is not in your favorites`,
-				);
+				throw new NotFoundException(`Document is not in your favorites`);
 			}
 			throw new InternalServerErrorException(
 				`Failed to remove favorite: ${error.message}`,

@@ -69,6 +69,7 @@ export const QUEUE_NAMES = {
   DOCUMENTS: 'documents',
   CONNECTORS: 'connectors',
   SCHEDULER: 'scheduler',
+  CREDIT_DEDUCTIONS: 'credit-deductions',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

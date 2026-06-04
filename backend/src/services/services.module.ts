@@ -6,7 +6,6 @@ import { LLMService } from './llm.service';
 import { StreamingService } from './streaming.service';
 import { QueryService } from './query.service';
 import { RerankerService } from './reranker.service';
-import { PageLimitService } from './page-limit.service';
 import { DoclingService } from './docling.service';
 import { STTService } from './stt.service';
 import { JinaReaderService } from './jina-reader.service';
@@ -26,7 +25,6 @@ import { CrawleeImpitFallbackService } from './crawlee-impit-fallback.service';
 		StreamingService,
 		QueryService,
 		RerankerService,
-		PageLimitService,
 		DoclingService,
 		STTService,
 		JinaReaderService,
@@ -37,7 +35,6 @@ import { CrawleeImpitFallbackService } from './crawlee-impit-fallback.service';
 		StreamingService,
 		QueryService,
 		RerankerService,
-		PageLimitService,
 		DoclingService,
 		STTService,
 		JinaReaderService,

@@ -3,6 +3,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { MailModule } from "src/mail/mail.module";
 import { PrismaModule } from "src/prisma/prisma.module";
+import { SubscriptionModule } from "src/subscription/subscription.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtStrategy } from "./strategies/jwt.strategy";
@@ -16,6 +17,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
 		}),
 		PrismaModule,
 		MailModule,
+		SubscriptionModule,
 	],
 	controllers: [AuthController],
 	providers: [AuthService, JwtStrategy],

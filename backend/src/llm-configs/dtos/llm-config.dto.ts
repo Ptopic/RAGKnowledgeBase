@@ -1,6 +1,7 @@
 import { LiteLLMProvider } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
+	IsBoolean,
 	IsEnum,
 	IsInt,
 	IsObject,
@@ -39,11 +40,6 @@ export class LLMConfigBaseDto {
 	@MaxLength(500)
 	api_base?: string;
 
-	@IsString()
-	@IsOptional()
-	@MaxLength(50)
-	language?: string;
-
 	@IsObject()
 	@IsOptional()
 	litellm_params?: Record<string, any>;
@@ -52,6 +48,10 @@ export class LLMConfigBaseDto {
 export class CreateLLMConfigDto extends LLMConfigBaseDto {
 	@IsInt()
 	search_space_id: number;
+
+	@IsBoolean()
+	@IsOptional()
+	is_platform_key?: boolean;
 }
 
 export class UpdateLLMConfigDto {
@@ -87,10 +87,9 @@ export class UpdateLLMConfigDto {
 	@MaxLength(500)
 	api_base?: string;
 
-	@IsString()
+	@IsBoolean()
 	@IsOptional()
-	@MaxLength(50)
-	language?: string;
+	is_platform_key?: boolean;
 
 	@IsObject()
 	@IsOptional()
@@ -125,14 +124,13 @@ export class LLMConfigDto {
 	@MaxLength(500)
 	api_base?: string;
 
-	@IsString()
-	@IsOptional()
-	@MaxLength(50)
-	language?: string;
-
 	@IsObject()
 	@IsOptional()
 	litellm_params?: Record<string, any>;
+
+	@IsBoolean()
+	@IsOptional()
+	is_platform_key?: boolean;
 
 	@IsInt()
 	search_space_id: number;

@@ -9,6 +9,7 @@ import {
 import { Prisma, SearchSourceConnectorType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueueService } from "../queue/queue.service";
+import { SubscriptionService } from "../subscription/subscription.service";
 import {
 	CreateSearchSourceConnectorDto,
 	SearchSourceConnectorDto,
@@ -20,6 +21,7 @@ export class SearchSourceConnectorsService {
 	constructor(
 		private prisma: PrismaService,
 		private queueService: QueueService,
+		private subscriptionService: SubscriptionService,
 	) {}
 
 	async create(
@@ -103,7 +105,10 @@ export class SearchSourceConnectorsService {
 
 			return connectors.map((c) => this.toDto(c));
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof ForbiddenException
+			) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -124,7 +129,10 @@ export class SearchSourceConnectorsService {
 
 			return this.toDto(connector);
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof ForbiddenException
+			) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -251,7 +259,10 @@ export class SearchSourceConnectorsService {
 
 			return { message: "Search source connector deleted successfully" };
 		} catch (error) {
-			if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+			if (
+				error instanceof NotFoundException ||
+				error instanceof ForbiddenException
+			) {
 				throw error;
 			}
 			throw new InternalServerErrorException(
@@ -300,6 +311,21 @@ export class SearchSourceConnectorsService {
 
 			const startDateObj = indexingFrom ? new Date(indexingFrom) : undefined;
 			const endDateObj = indexingTo ? new Date(indexingTo) : undefined;
+
+			// Pre-flight: charge 1 INDEX_PAGE credit for kicking off a
+			// connector indexer. The actual count of messages / pages /
+			// events is only known after the async job runs, so we use a
+			// flat 1-credit minimum and TODO: reconcile in each connector
+			// processor (mirror the file-processor pattern).
+			// Superusers (admins) are exempt from credit charges.
+			if (!(await this.subscriptionService.isSuperuserBypass(userId))) {
+				await this.subscriptionService.checkCredits(userId, 1);
+				await this.deductConnectorKickoff(
+					userId,
+					searchSpaceId,
+					connector.connectorType,
+				);
+			}
 
 			switch (connector.connectorType) {
 				case SearchSourceConnectorType.SLACK_CONNECTOR:
@@ -375,6 +401,27 @@ export class SearchSourceConnectorsService {
 			}
 			throw new InternalServerErrorException(
 				`Failed to initiate indexing: ${error.message}`,
+			);
+		}
+	}
+
+	private async deductConnectorKickoff(
+		userId: string,
+		searchSpaceId: number,
+		connectorType: SearchSourceConnectorType,
+	): Promise<void> {
+		try {
+			await this.subscriptionService.deductForIndexedPages(
+				userId,
+				searchSpaceId,
+				1,
+			);
+		} catch (err) {
+			// Non-fatal: the queue job is already enqueued. Logging is
+			// enough — over the next reconciliation pass we can recompute.
+			// biome-ignore lint/suspicious/noConsole: this is a logger
+			console.error(
+				`Failed to deduct connector kickoff credit (user=${userId}, type=${connectorType}): ${(err as Error).message}`,
 			);
 		}
 	}

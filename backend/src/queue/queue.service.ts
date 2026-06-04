@@ -18,7 +18,37 @@ export class QueueService implements OnModuleInit {
 		private connectorsQueue: Queue,
 		@InjectQueue(QUEUE_NAMES.SCHEDULER)
 		private schedulerQueue: Queue,
+		@InjectQueue(QUEUE_NAMES.CREDIT_DEDUCTIONS)
+		private creditDeductionsQueue: Queue,
 	) {}
+
+	/**
+	 * Enqueue a credit deduction job. The job is durably persisted in
+	 * Redis; if the API process crashes after the HTTP response is sent
+	 * but before the deduction runs, the worker picks it up on restart.
+	 */
+	async enqueueCreditDeduction(job: {
+		userId: string;
+		searchSpaceId: number;
+		operationType: string;
+		tokensIn?: number;
+		tokensOut?: number;
+		modelName?: string | null;
+	}): Promise<void> {
+		try {
+			await this.creditDeductionsQueue.add("deduct-credits", job, {
+				attempts: 3,
+				backoff: { type: "exponential", delay: 1000 },
+				removeOnComplete: { age: 86400, count: 1000 },
+				removeOnFail: { age: 604800 },
+			});
+		} catch (err) {
+			this.logger.error(
+				`Failed to enqueue credit deduction for user ${job.userId}: ${(err as Error).message}`,
+				(err as Error).stack,
+			);
+		}
+	}
 
 	async onModuleInit() {
 		await this.setupScheduleChecker();
@@ -94,6 +124,7 @@ export class QueueService implements OnModuleInit {
 		searchSpaceId: number,
 		userId: string,
 		documentId: number,
+		estimatedPages?: number,
 	) {
 		return this.documentsQueue.add("process-file-document", {
 			filePath,
@@ -101,6 +132,7 @@ export class QueueService implements OnModuleInit {
 			searchSpaceId,
 			userId,
 			documentId,
+			estimatedPages,
 		});
 	}
 
@@ -236,6 +268,8 @@ export class QueueService implements OnModuleInit {
 				return this.connectorsQueue;
 			case QUEUE_NAMES.SCHEDULER:
 				return this.schedulerQueue;
+			case QUEUE_NAMES.CREDIT_DEDUCTIONS:
+				return this.creditDeductionsQueue;
 			default:
 				return null;
 		}

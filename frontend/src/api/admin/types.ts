@@ -5,8 +5,6 @@ export interface AdminUser {
 	isActive: boolean;
 	isSuperuser: boolean;
 	isVerified: boolean;
-	pagesUsed: number;
-	pagesLimit: number;
 	failedLoginAttempts: number;
 	lockedUntil: string | null;
 	createdAt: string;
@@ -24,7 +22,6 @@ export interface CreateAdminUser {
 	password?: string;
 	isActive?: boolean;
 	isSuperuser?: boolean;
-	pagesLimit?: number;
 }
 
 export interface UpdateAdminUser {
@@ -32,7 +29,6 @@ export interface UpdateAdminUser {
 	isActive?: boolean;
 	isSuperuser?: boolean;
 	isVerified?: boolean;
-	pagesLimit?: number;
 }
 
 export interface AdminMetrics {
@@ -42,8 +38,6 @@ export interface AdminMetrics {
 	totalSearchSpaces: number;
 	totalDocuments: number;
 	totalChats: number;
-	totalPagesUsed: number;
-	totalPagesLimit: number;
 	userUsage: AdminUser[];
 	userUsageTotal: number;
 }

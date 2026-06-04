@@ -1,12 +1,13 @@
 import {
 	IsBoolean,
 	IsEmail,
-	IsInt,
+	IsIn,
 	IsOptional,
 	IsString,
 	MaxLength,
 	MinLength,
 } from "class-validator";
+import { SubscriptionPlan } from "@prisma/client";
 
 export class CreateAdminUserDto {
 	@IsEmail()
@@ -29,10 +30,6 @@ export class CreateAdminUserDto {
 	@IsBoolean()
 	@IsOptional()
 	isSuperuser?: boolean;
-
-	@IsInt()
-	@IsOptional()
-	pagesLimit?: number;
 }
 
 export class UpdateAdminUserDto {
@@ -52,10 +49,6 @@ export class UpdateAdminUserDto {
 	@IsBoolean()
 	@IsOptional()
 	isVerified?: boolean;
-
-	@IsInt()
-	@IsOptional()
-	pagesLimit?: number;
 }
 
 export class AdminUserDto {
@@ -65,8 +58,6 @@ export class AdminUserDto {
 	isActive: boolean;
 	isSuperuser: boolean;
 	isVerified: boolean;
-	pagesUsed: number;
-	pagesLimit: number;
 	failedLoginAttempts: number;
 	lockedUntil: Date | null;
 	createdAt: Date;
@@ -85,8 +76,34 @@ export class AdminMetricsDto {
 	totalSearchSpaces: number;
 	totalDocuments: number;
 	totalChats: number;
-	totalPagesUsed: number;
-	totalPagesLimit: number;
 	userUsage: AdminUserDto[];
 	userUsageTotal: number;
+}
+
+// Admin Subscription DTOs
+
+export class OverridePlanDto {
+	@IsIn(Object.values(SubscriptionPlan), {
+		message: `plan must be one of: ${Object.values(SubscriptionPlan).join(", ")}`,
+	})
+	plan: SubscriptionPlan;
+}
+
+export class AdminSubscriptionUserDto {
+	id: string;
+	email: string;
+	full_name: string | null;
+	plan: string;
+	status: string;
+	credits_used: number;
+	monthly_credit_limit: number;
+	stripe_customer_id: string | null;
+}
+
+export class AdminSubscriptionListDto {
+	users: AdminSubscriptionUserDto[];
+	total: number;
+	active_subscriptions: number;
+	total_revenue: string;
+	free_tier_count: number;
 }
