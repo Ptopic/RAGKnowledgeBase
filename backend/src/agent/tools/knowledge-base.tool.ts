@@ -165,6 +165,7 @@ function extractSourceMetadata(documents: Document[]): Array<{
 	url: string;
 	type: string;
 	ogImage?: string;
+	chunk_ids: string[];
 }> {
 	const seen = new Set<string>();
 	const sources: Array<{
@@ -173,13 +174,26 @@ function extractSourceMetadata(documents: Document[]): Array<{
 		url: string;
 		type: string;
 		ogImage?: string;
+		chunk_ids: string[];
 	}> = [];
 
 	for (const doc of documents) {
 		const docInfo = doc.document;
 		if (!docInfo) continue;
 		const key = String(docInfo.id);
-		if (seen.has(key)) continue;
+		if (seen.has(key)) {
+			// Already emitted this document; just append this chunk id so the
+			// frontend can match citations to the document even when several
+			// chunks of the same doc are returned.
+			const existing = sources.find((s) => s.id === key);
+			if (existing && doc.chunk_id !== undefined && doc.chunk_id !== null) {
+				const chunkKey = String(doc.chunk_id);
+				if (!existing.chunk_ids.includes(chunkKey)) {
+					existing.chunk_ids.push(chunkKey);
+				}
+			}
+			continue;
+		}
 		seen.add(key);
 
 		const metadata = (docInfo.metadata || {}) as Record<string, unknown>;
@@ -187,12 +201,18 @@ function extractSourceMetadata(documents: Document[]): Array<{
 		const ogImage =
 			typeof metadata.ogImage === "string" ? metadata.ogImage : undefined;
 
+		const chunkIds: string[] = [];
+		if (doc.chunk_id !== undefined && doc.chunk_id !== null) {
+			chunkIds.push(String(doc.chunk_id));
+		}
+
 		sources.push({
 			id: key,
 			title: docInfo.title || "Untitled",
 			url,
 			type: docInfo.document_type || "UNKNOWN",
 			ogImage,
+			chunk_ids: chunkIds,
 		});
 	}
 
