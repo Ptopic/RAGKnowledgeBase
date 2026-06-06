@@ -273,22 +273,27 @@ export class AdminService {
 				}
 			: {};
 
-		const [users, total, activeSubscriptions, paidSubscriptions] = await Promise.all([
-			this.prisma.user.findMany({
-				where,
-				skip,
-				take: limit,
-				orderBy: { createdAt: "desc" },
-				include: { subscription: true },
-			}),
-			this.prisma.user.count({ where }),
-			this.prisma.subscription.count({
-				where: { plan: { not: "FREE" }, status: "active" },
-			}),
-			this.prisma.subscription.count({
-				where: { plan: { not: "FREE" } },
-			}),
-		]);
+		const [users, total, activeSubscriptions, paidSubscriptions, activePaidSubs] =
+			await Promise.all([
+				this.prisma.user.findMany({
+					where,
+					skip,
+					take: limit,
+					orderBy: { createdAt: "desc" },
+					include: { subscription: true },
+				}),
+				this.prisma.user.count({ where }),
+				this.prisma.subscription.count({
+					where: { plan: { not: "FREE" }, status: "active" },
+				}),
+				this.prisma.subscription.count({
+					where: { plan: { not: "FREE" } },
+				}),
+				this.prisma.subscription.findMany({
+					where: { plan: { not: "FREE" }, status: "active" },
+					select: { stripePriceId: true },
+				}),
+			]);
 
 		const subscriptionUsers: AdminSubscriptionUserDto[] = users.map((u) => {
 			const sub = u.subscription;
@@ -310,9 +315,53 @@ export class AdminService {
 			users: subscriptionUsers,
 			total,
 			active_subscriptions: activeSubscriptions,
-			total_revenue: "N/A",
+			total_revenue: await this.computeMrr(activePaidSubs),
 			free_tier_count: freeTierCount,
 		};
+	}
+
+	/**
+	 * Sum the `unit_amount` (in the smallest currency unit, e.g. cents) of
+	 * every active paid subscription's Stripe price, then format as USD.
+	 * Returns "N/A" when Stripe isn't configured — the same contract the
+	 * dashboard had before this method existed.
+	 */
+	private async computeMrr(
+		activePaidSubs: Array<{ stripePriceId: string | null }>,
+	): Promise<string> {
+		if (activePaidSubs.length === 0) return "$0.00";
+
+		const plans = await this.subscriptionService.getPlans();
+		if (plans.length === 0) return "N/A";
+
+		const amountByPriceId = new Map<string, number>();
+		for (const p of plans) {
+			if (p.price_id) amountByPriceId.set(p.price_id, p.amount);
+		}
+
+		let totalCents = 0;
+		let matchedCount = 0;
+		for (const sub of activePaidSubs) {
+			if (!sub.stripePriceId) continue;
+			const amount = amountByPriceId.get(sub.stripePriceId);
+			if (amount === undefined) continue;
+			totalCents += amount;
+			matchedCount += 1;
+		}
+
+		// If Stripe plans haven't loaded (no STRIPE_SECRET_KEY) the map is
+		// empty and we can't price any of the subs — surface "N/A" so the
+		// admin knows the number is unavailable, not zero.
+		if (matchedCount === 0 && activePaidSubs.some((s) => s.stripePriceId)) {
+			return "N/A";
+		}
+
+		return new Intl.NumberFormat("en-US", {
+			style: "currency",
+			currency: "USD",
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		}).format(totalCents / 100);
 	}
 
 	async overrideUserSubscriptionPlan(
