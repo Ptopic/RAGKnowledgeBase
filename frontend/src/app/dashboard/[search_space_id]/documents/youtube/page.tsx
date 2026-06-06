@@ -20,6 +20,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 export default function YouTubeVideoAdder() {
 	const params = useParams();
@@ -137,6 +138,7 @@ export default function YouTubeVideoAdder() {
 	};
 
 	return (
+		<RouteCreditGate>
 		<div className="container mx-auto py-8">
 			<motion.div
 				initial="hidden"
@@ -288,5 +290,6 @@ export default function YouTubeVideoAdder() {
 				</Card>
 			</motion.div>
 		</div>
+		</RouteCreditGate>
 	);
 }

@@ -23,6 +23,7 @@ import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
 } from "@/hooks/use-search-source-connectors";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 export default function GoogleGmailConnectorPage() {
 	const router = useRouter();
@@ -62,6 +63,7 @@ export default function GoogleGmailConnectorPage() {
 	};
 
 	return (
+		<RouteCreditGate>
 		<div className="container mx-auto py-8 max-w-2xl">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
@@ -191,5 +193,6 @@ export default function GoogleGmailConnectorPage() {
 				</Card>
 			</motion.div>
 		</div>
+		</RouteCreditGate>
 	);
 }

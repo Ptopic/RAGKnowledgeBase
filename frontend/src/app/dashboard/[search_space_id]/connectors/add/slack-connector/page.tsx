@@ -40,6 +40,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { AccessDeniedPage } from "@/components/access-denied-page";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 // Define the form schema with Zod
 const slackConnectorFormSchema = z.object({
@@ -109,6 +110,7 @@ export default function SlackConnectorPage() {
 	};
 
 	return (
+		<RouteCreditGate>
 		<div className="container mx-auto py-8 max-w-3xl">
 			<Button
 				variant="ghost"
@@ -422,5 +424,6 @@ settings:
 				</Tabs>
 			</motion.div>
 		</div>
+		</RouteCreditGate>
 	);
 }

@@ -25,6 +25,7 @@ import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { AccessDeniedPage } from "@/components/access-denied-page";
 // Import Utils, Types, Hook, and Components
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 export default function EditConnectorPage() {
 	const router = useRouter();
@@ -79,6 +80,7 @@ export default function EditConnectorPage() {
 
 	// Main Render using data/handlers from the hook
 	return (
+		<RouteCreditGate>
 		<div className="container mx-auto py-8 max-w-3xl">
 			<Button
 				variant="ghost"
@@ -306,5 +308,6 @@ export default function EditConnectorPage() {
 				</Card>
 			</motion.div>
 		</div>
+		</RouteCreditGate>
 	);
 }

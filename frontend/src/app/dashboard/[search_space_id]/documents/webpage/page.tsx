@@ -17,6 +17,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 export default function WebpageCrawler() {
 	const params = useParams();
@@ -106,6 +107,7 @@ export default function WebpageCrawler() {
 	};
 
 	return (
+		<RouteCreditGate>
 		<div className="container mx-auto py-8">
 			<Card className="max-w-2xl mx-auto">
 				<CardHeader>
@@ -184,5 +186,6 @@ export default function WebpageCrawler() {
 				</CardFooter>
 			</Card>
 		</div>
+		</RouteCreditGate>
 	);
 }

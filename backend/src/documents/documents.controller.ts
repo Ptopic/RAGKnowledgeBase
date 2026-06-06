@@ -22,6 +22,8 @@ import * as path from "path";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
+import { RequiresCredits } from "../subscription/decorators/requires-credits.decorator";
+import { CreditsRequiredGuard } from "../subscription/guards/credits-required.guard";
 import { DocumentsService } from "./documents.service";
 import {
 	CreateDocumentsDto,
@@ -57,7 +59,9 @@ export class DocumentsController {
 	constructor(private readonly documentsService: DocumentsService) {}
 
 	@Post()
+	@UseGuards(CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequiresCredits(1)
 	async create(
 		@Body() createDto: CreateDocumentsDto,
 		@Req() req: any,
@@ -67,7 +71,9 @@ export class DocumentsController {
 
 	@Post("fileupload")
 	@UseInterceptors(FilesInterceptor("files", 10, { storage }))
+	@UseGuards(CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequiresCredits(1)
 	async createFileUpload(
 		@UploadedFiles() files: Express.Multer.File[],
 		@Body("search_space_id", ParseIntPipe) searchSpaceId: number,

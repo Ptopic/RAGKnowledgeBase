@@ -15,6 +15,8 @@ import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
+import { RequiresCredits } from "../subscription/decorators/requires-credits.decorator";
+import { CreditsRequiredGuard } from "../subscription/guards/credits-required.guard";
 import {
 	CreateSearchSourceConnectorDto,
 	GitHubPATRequestDto,
@@ -22,7 +24,6 @@ import {
 	UpdateSearchSourceConnectorDto,
 } from "./dtos/search-source-connector.dto";
 import { SearchSourceConnectorsService } from "./search-source-connectors.service";
-
 @Controller()
 @UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
 export class SearchSourceConnectorsController {
@@ -40,7 +41,9 @@ export class SearchSourceConnectorsController {
 	}
 
 	@Post("search-source-connectors")
+	@UseGuards(CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequiresCredits(1)
 	async create(
 		@Body() createDto: CreateSearchSourceConnectorDto,
 		@Req() req: any,
@@ -96,7 +99,9 @@ export class SearchSourceConnectorsController {
 	}
 
 	@Post("search-source-connectors/:id/index")
+	@UseGuards(CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequiresCredits(1)
 	async indexConnectorContent(
 		@Param("id", ParseIntPipe) id: number,
 		@Query("search_space_id", ParseIntPipe) searchSpaceId: number,

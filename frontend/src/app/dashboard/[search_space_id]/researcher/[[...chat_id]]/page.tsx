@@ -8,6 +8,7 @@ import TestChatInterface from "@/components/chat/TestChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
 import { convertToLangChainMessages } from "@/lib/chat/message-adapter";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 interface ChatState {
 	selectedDocuments: Document[];
@@ -190,6 +191,7 @@ export default function ResearcherPage() {
 	}
 
 	return (
+		<RouteCreditGate>
 		<div className="relative h-full">
 			<TestChatInterface
 				onDocumentSelectionChange={setSelectedDocuments}
@@ -225,5 +227,6 @@ export default function ResearcherPage() {
 				</>
 			)}
 		</div>
+		</RouteCreditGate>
 	);
 }

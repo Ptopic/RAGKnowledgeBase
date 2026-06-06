@@ -51,6 +51,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { AccessDeniedPage } from "@/components/access-denied-page";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 // Define the form schema with Zod for GitHub PAT entry step
 const githubPatFormSchema = z.object({
@@ -165,6 +166,7 @@ export default function GithubConnectorPage() {
 	};
 
 	return (
+		<RouteCreditGate>
 		<div className="container mx-auto py-8 max-w-3xl">
 			<Button
 				variant="ghost"
@@ -567,5 +569,6 @@ export default function GithubConnectorPage() {
 				</Tabs>
 			</motion.div>
 		</div>
+		</RouteCreditGate>
 	);
 }

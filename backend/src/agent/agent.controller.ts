@@ -20,6 +20,8 @@ import { diskStorage } from "multer";
 import * as path from "path";
 import { JwtAuthGuard } from "src/auth/guards/jwt.guard";
 import { AgentChatRequestDto, SaveMessagesDto } from "src/chats/dtos/chat.dto";
+import { RequiresCredits } from "src/subscription/decorators/requires-credits.decorator";
+import { CreditsRequiredGuard } from "src/subscription/guards/credits-required.guard";
 import { RequireSearchSpaceRole } from "src/permissions/decorators/require-search-space-role.decorator";
 import { SearchSpaceAccessGuard } from "src/permissions/guards/search-space-access.guard";
 import { UsageOperation } from "../subscription/credit-cost";
@@ -81,8 +83,9 @@ export class AgentController {
 	) {}
 
 	@Post("upload-chat-file")
-	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard, CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.VIEWER)
+	@RequiresCredits(1)
 	@UseInterceptors(FileInterceptor("file", { storage: chatFileStorage }))
 	async uploadChatFile(
 		@UploadedFile() file: Express.Multer.File | undefined,
@@ -101,8 +104,9 @@ export class AgentController {
 	}
 
 	@Post("chatWithDeepAgent")
-	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard, CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.VIEWER)
+	@RequiresCredits(1)
 	async chatWithDeepAgent(
 		@Body() request: AgentChatRequestDto,
 		@Req() req: any,
@@ -129,11 +133,6 @@ export class AgentController {
 				throw new BadRequestException("search_space_id is required");
 			}
 
-			const bypassBilling =
-				await this.subscriptionService.isSuperuserBypass(req.user.id);
-			if (!bypassBilling) {
-				await this.subscriptionService.checkCredits(req.user.id, 1);
-			}
 
 			const selectedConnectors = requestData.selected_connectors || [];
 			const documentIdsToAddInContext = (
@@ -215,8 +214,9 @@ export class AgentController {
 	}
 
 	@Post("chat")
-	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard)
+	@UseGuards(JwtAuthGuard, SearchSpaceAccessGuard, CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.VIEWER)
+	@RequiresCredits(1)
 	async handleChatData(
 		@Body() request: AgentChatRequestDto,
 		@Req() req: any,
@@ -242,11 +242,6 @@ export class AgentController {
 				throw new BadRequestException("search_space_id is required");
 			}
 
-			const bypassBilling =
-				await this.subscriptionService.isSuperuserBypass(req.user.id);
-			if (!bypassBilling) {
-				await this.subscriptionService.checkCredits(req.user.id, 1);
-			}
 
 			const researchMode = requestData.research_mode || "QNA";
 			const selectedConnectors = requestData.selected_connectors || [];

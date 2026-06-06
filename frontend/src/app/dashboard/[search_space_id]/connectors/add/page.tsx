@@ -25,6 +25,7 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
 import { AccessDeniedPage } from "@/components/access-denied-page";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 // Define the Connector type
 interface Connector {
@@ -167,6 +168,7 @@ export default function ConnectorsPage() {
 	};
 
 	return (
+		<RouteCreditGate>
 		<motion.div
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
@@ -344,5 +346,6 @@ export default function ConnectorsPage() {
 			</motion.div>
 			</div>
 		</motion.div>
+		</RouteCreditGate>
 	);
 }
