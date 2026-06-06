@@ -236,11 +236,21 @@ export class GoogleCalendarIndexerService {
 				try {
 					const eventId = event.id;
 					const eventSummary = event.summary || "No Title";
-					// biome-ignore lint/suspicious/noExplicitAny: Event type may have calendarId
-					const calendarId = (event as any).calendarId || "primary";
+					const calendarId = event.calendarId || "primary";
 
 					if (!eventId) {
 						this.logger.warn(`Skipping event with missing ID: ${eventSummary}`);
+						documentsSkipped++;
+						continue;
+					}
+
+					// Skip cancelled events — Google keeps them in the list response
+					// (so the user can see "X was cancelled" in their UI) but they
+					// have no useful content for the knowledge base.
+					if (event.status === "cancelled") {
+						this.logger.log(
+							`Skipping cancelled Google Calendar event ${eventSummary}`,
+						);
 						documentsSkipped++;
 						continue;
 					}

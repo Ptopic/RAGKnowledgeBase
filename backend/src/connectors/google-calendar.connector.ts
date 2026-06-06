@@ -15,6 +15,8 @@ interface GoogleCredentialsConfig {
 	access_token?: string;
 	refresh_token: string;
 	expiry_date?: number;
+	scopes?: string[];
+	token_uri?: string;
 }
 
 @Injectable()
@@ -53,11 +55,26 @@ export class GoogleCalendarConnector {
 
 			// If token was refreshed, update database
 			if (tokenInfo.token && this.oauth2Client.credentials) {
+				const creds = this.oauth2Client.credentials;
 				const updatedConfig: GoogleCredentialsConfig = {
 					...this.credentialsConfig,
 					access_token: tokenInfo.token,
-					expiry_date: this.oauth2Client.credentials.expiry_date || undefined,
+					expiry_date: creds.expiry_date || undefined,
 				};
+				// Google may rotate the refresh_token; persist it when it does.
+				if (typeof creds.refresh_token === "string" && creds.refresh_token) {
+					updatedConfig.refresh_token = creds.refresh_token;
+				}
+				if (typeof creds.scope === "string" && creds.scope) {
+					updatedConfig.scopes = creds.scope.split(" ");
+				}
+				// biome-ignore lint/suspicious/noExplicitAny: google-auth-library's
+				// `Credentials` type does not expose `token_uri`, but the OAuth2
+				// client populates it on refresh.
+				const tokenUri = (creds as any).token_uri;
+				if (typeof tokenUri === "string" && tokenUri) {
+					updatedConfig.token_uri = tokenUri;
+				}
 
 				const connector = this.connectorId
 					? await this.prisma.searchSourceConnector.findUnique({
@@ -148,24 +165,34 @@ export class GoogleCalendarConnector {
 				this.logger.warn(`getCalendars returned error: ${calError}`);
 			}
 
+			// Index every calendar the user can read from. `accessRole` is one of
+			// "freeBusyReader" | "reader" | "writer" | "owner" | "none"; "none" means
+			// we can't read events, so drop those. The previous implementation only
+			// kept `primary` and any calendar whose summary literally contained
+			// "work", which silently dropped the vast majority of user calendars.
+			const readableAccessRoles = new Set([
+				"freeBusyReader",
+				"reader",
+				"writer",
+				"owner",
+			]);
 			const selectedCalendars = (calendars || []).filter((cal) => {
 				if (!cal || !cal.id) return false;
-				if (cal.primary) return true;
-				if (cal.summary?.toLowerCase().includes("work")) return true;
-				return false;
+				if (!cal.accessRole || !readableAccessRoles.has(cal.accessRole)) {
+					return false;
+				}
+				return true;
 			});
 
+			// Last-resort fallback: if the calendar list came back empty (e.g. the
+			// list call failed and `calendars` is []), still try the user's primary
+			// calendar, which `calendarId: "primary"` resolves server-side.
 			if (selectedCalendars.length === 0) {
-				const primaryCal = (calendars || []).find((c) => c.primary);
-				if (primaryCal) {
-					selectedCalendars.push(primaryCal);
-				} else {
-					selectedCalendars.push({
-						id: "primary",
-						summary: "Primary",
-						primary: true,
-					});
-				}
+				selectedCalendars.push({
+					id: "primary",
+					summary: "Primary",
+					primary: true,
+				});
 			}
 
 			const aggregatedEvents: CalendarEvent[] = [];
@@ -183,8 +210,17 @@ export class GoogleCalendarConnector {
 						pageToken: evPageToken,
 					});
 
-					if (evResp.data.items) {
-						aggregatedEvents.push(...(evResp.data.items as CalendarEvent[]));
+					const items = evResp.data.items || [];
+					for (const item of items) {
+						if (!item) continue;
+						// Tag the event with its source calendar so the indexer can
+						// record it in documentMetadata. The googleapis response does
+						// not include a `calendarId` on items, so we attach it here.
+						(aggregatedEvents as Array<CalendarEvent & { calendarId: string }>).push(
+							Object.assign(item as CalendarEvent, {
+								calendarId: cal.id as string,
+							}),
+						);
 					}
 
 					evPageToken = evResp.data.nextPageToken || undefined;
@@ -217,22 +253,40 @@ export class GoogleCalendarConnector {
 		const summary = event.summary || "No Title";
 		const description = event.description || "";
 		const location = event.location || "";
+		const calendarId = event.calendarId || "";
 
 		const startTime = event.start.dateTime || event.start.date || "Unknown";
 		const endTime = event.end.dateTime || event.end.date || "Unknown";
+		// Google returns `date` (without `T`) for all-day events and `dateTime`
+		// for timed events.
+		const isAllDay = !event.start.dateTime && !!event.start.date;
 
 		let markdown = `# ${summary}\n\n`;
 		markdown += `**Start:** ${this.formatDateTime(startTime)}\n`;
 		markdown += `**End:** ${this.formatDateTime(endTime)}\n`;
+		if (isAllDay) markdown += "**All Day Event**\n";
 
 		if (location) {
 			markdown += `**Location:** ${location}\n`;
+		}
+
+		if (calendarId) {
+			markdown += `**Calendar ID:** ${calendarId}\n`;
 		}
 
 		markdown += "\n";
 
 		if (description) {
 			markdown += `## Description\n\n${description}\n\n`;
+		}
+
+		// Organizer is useful context that's not always captured by attendees.
+		// biome-ignore lint/suspicious/noExplicitAny: googleapis attaches `organizer`
+		// on the event; it isn't on the narrow CalendarEvent interface.
+		const organizer = (event as any).organizer;
+		if (organizer && (organizer.email || organizer.displayName)) {
+			const organizerName = organizer.displayName || organizer.email;
+			markdown += `## Organizer\n\n- ${organizerName}\n\n`;
 		}
 
 		if (event.attendees && event.attendees.length > 0) {
