@@ -470,20 +470,6 @@ function extractSourcesFromToolResult(
 		if (!src || typeof src !== "object") continue;
 		const s = src as SourceMetadataItem;
 		const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
-
-		// Only keep a source if the assistant actually cited at least one
-		// of its chunks. If the assistant didn't cite anything (e.g. a
-		// short reply with no inline references, or the LLM decided the
-		// retrieved docs weren't useful) we keep the existing behavior of
-		// showing all sources so the user still has a path to the raw
-		// search results. We only filter when we have at least one
-		// citation to anchor on.
-		if (citedChunkIds.size > 0) {
-			const chunkIds = s.chunk_ids ?? [];
-			const isCited = chunkIds.some((cid) => citedChunkIds.has(String(cid)));
-			if (!isCited) continue;
-		}
-
 		// Pass the actual document type as sourceType so the Sources badge
 		// component can render the correct icon/label/color. The old code
 		// collapsed every non-FILE/UNKNOWN type to "url" which made
@@ -496,7 +482,7 @@ function extractSourcesFromToolResult(
 			id: sourceId,
 			url: s.url ?? "",
 			title: s.title,
-		} as ThreadAssistantMessagePart);
+	} as ThreadAssistantMessagePart);
 	}
 
 	return sourceParts;
@@ -528,17 +514,11 @@ function attachToolResult(
 			toolMessage.artifact,
 		);
 
-		// Capture the assistant's text as it stands now, before we append
-		// the source parts below. We use this to find the chunk ids the
-		// assistant actually cited in `[citation:chunk_id]` form.
-		const citedChunkIds = extractCitedChunkIds(
-			message.content as readonly ThreadAssistantMessagePart[],
-		);
-
-		const sourceParts = extractSourcesFromToolResult(
-			parsedResult,
-			citedChunkIds,
-		);
+		// We pass an empty cited set so all sources are attached
+		// unconditionally. Citation-based filtering is a follow-up; for
+		// now the user-facing priority is to never drop results on the
+		// floor, so the "View Sources" sheet is always populated.
+		const sourceParts = extractSourcesFromToolResult(parsedResult, new Set());
 
 		const updatedContent = [
 			...message.content.map((part): typeof part => {
@@ -558,7 +538,7 @@ function attachToolResult(
 			...sourceParts,
 		];
 
-		threadMessages[index] = { ...message, content: updatedContent };
+	threadMessages[index] = { ...message, content: updatedContent };
 		return;
 	}
 
@@ -580,7 +560,6 @@ function attachToolResult(
 			args: {},
 			argsText: "",
 			result: parsedResult,
-			isError: toolMessage.status === "error",
 		};
 
 		// Add to the last assistant message so it merges correctly

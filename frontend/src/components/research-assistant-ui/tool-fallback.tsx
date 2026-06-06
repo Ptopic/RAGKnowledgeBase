@@ -36,7 +36,7 @@ function ToolFallbackRoot({
 	className,
 	open: controlledOpen,
 	onOpenChange: controlledOnOpenChange,
-	defaultOpen = false,
+	defaultOpen = true,
 	children,
 	...props
 }: ToolFallbackRootProps) {
