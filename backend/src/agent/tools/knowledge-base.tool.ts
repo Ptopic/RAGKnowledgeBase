@@ -203,9 +203,13 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 	return new DynamicStructuredTool({
 		name: "search_knowledge_base",
 		description:
-			"Search the user's personal knowledge base for relevant information.",
+			"Search the user's personal knowledge base for relevant information. IMPORTANT: pass the user's full original question (not a stripped keyword) as the 'query' parameter, and if the question is time-scoped (any date, weekday, or relative phrase) call parse_date_range FIRST and pass the result as date_start / date_end — without those dates calendar results are not filtered to the requested window.",
 		schema: z.object({
-			query: z.string(),
+			query: z
+				.string()
+				.describe(
+					"Pass the user's full original question (or a close paraphrase). Do NOT strip it down to a single keyword like 'events' or 'calendar' — that produces empty results on structured data like calendar events. The retriever needs the natural-language context to rank chunks correctly.",
+				),
 			top_k: z.number().int().min(1).max(50).default(10),
 			connectors_to_search: z.array(z.string()).optional(),
 			title_filter: z.string().optional(),
