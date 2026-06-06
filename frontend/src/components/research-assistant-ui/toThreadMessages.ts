@@ -707,7 +707,7 @@ function mergeConsecutiveAssistantMessages(
 	for (const msg of merged) {
 		if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
 		const sources = msg.content.filter(
-			(p): p is SourceMessagePart => p.type === "source",
+		(p): p is SourceMessagePart => p.type === "source",
 		);
 		if (sources.length === 0) continue;
 		const rest = msg.content.filter((p) => p.type !== "source");
@@ -716,21 +716,20 @@ function mergeConsecutiveAssistantMessages(
 		// citation set is computed from the merged text (post-merge so
 		// text that arrived in a separate message after the tool result
 		// is included). If the assistant emitted no citations at all
-		// (short reply, no inline references) we keep all sources so we
-		// never over-prune.
+		// we drop every source — better to show nothing than to dump
+		// the full retrieval list when the LLM didn't actually use it.
 		const citedChunkIds = extractCitedChunkIds(
 			msg.content as readonly ThreadAssistantMessagePart[],
 		);
 		const filteredSources = citedChunkIds.size === 0
-			? sources
+			? []
 			: sources.filter((s) => {
-					const chunkIds = (s as { chunk_ids?: string[] }).chunk_ids;
-					if (!Array.isArray(chunkIds) || chunkIds.length === 0) {
-						return false;
-					}
-					return chunkIds.some((cid) => citedChunkIds.has(String(cid)));
-				});
-
+				const chunkIds = (s as { chunk_ids?: string[] }).chunk_ids;
+				if (!Array.isArray(chunkIds) || chunkIds.length === 0) {
+					return false;
+				}
+				return chunkIds.some((cid) => citedChunkIds.has(String(cid)));
+			});
 		const seenIds = new Set<string>();
 		const uniqueSources = filteredSources.filter((s) => {
 			if (seenIds.has(s.id)) return false;

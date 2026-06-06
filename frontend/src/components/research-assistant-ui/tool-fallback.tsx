@@ -36,7 +36,7 @@ function ToolFallbackRoot({
 	className,
 	open: controlledOpen,
 	onOpenChange: controlledOnOpenChange,
-	defaultOpen = true,
+	defaultOpen = false,
 	children,
 	...props
 }: ToolFallbackRootProps) {
@@ -277,11 +277,16 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 	result,
 	status,
 }) => {
+	const isRunning = status?.type === "running";
 	const isCancelled =
 		status?.type === "incomplete" && status.reason === "cancelled";
 
 	return (
 		<ToolFallbackRoot
+			// Open the trigger while the tool is running so the user can
+			// watch the args populate. Once the tool finishes the panel
+			// collapses — the user can click the trigger to expand it.
+			defaultOpen={isRunning}
 			className={cn(isCancelled && "border-muted-foreground/30 bg-muted/30")}
 		>
 			<ToolFallbackTrigger toolName={toolName} status={status} />
