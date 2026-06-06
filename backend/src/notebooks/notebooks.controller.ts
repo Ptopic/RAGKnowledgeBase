@@ -19,6 +19,8 @@ import { MemberRole } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
 import { SearchSpaceAccessGuard } from "../permissions/guards/search-space-access.guard";
 import { RequireSearchSpaceRole } from "../permissions/decorators/require-search-space-role.decorator";
+import { RequiresCredits } from "../subscription/decorators/requires-credits.decorator";
+import { CreditsRequiredGuard } from "../subscription/guards/credits-required.guard";
 import { UploadService } from "../upload";
 import {
 	CreateNotebookDto,
@@ -42,7 +44,9 @@ export class NotebooksController {
 	) {}
 
 	@Post(":searchSpaceId/notebooks")
+	@UseGuards(CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequiresCredits(1)
 	async create(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Body() createDto: CreateNotebookDto,
@@ -150,7 +154,9 @@ export class NotebooksController {
 	}
 
 	@Put(":searchSpaceId/notebooks/:notebookId")
+	@UseGuards(CreditsRequiredGuard)
 	@RequireSearchSpaceRole(MemberRole.EDITOR)
+	@RequiresCredits(1)
 	async update(
 		@Param("searchSpaceId", ParseIntPipe) searchSpaceId: number,
 		@Param("notebookId", ParseIntPipe) notebookId: number,

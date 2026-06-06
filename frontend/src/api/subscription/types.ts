@@ -66,3 +66,32 @@ export interface OverridePlanResponse {
 export interface ResetCreditsResponse {
 	message: string;
 }
+
+export type AdminPlanName = "FREE" | "PRO" | "BUSINESS";
+
+export interface AdminPlanDefinition {
+	plan: AdminPlanName;
+	monthly_credit_limit: number;
+	created_at: string;
+	updated_at: string;
+	updated_by_user_id: string | null;
+}
+export interface AdminPlanDefinitionList {
+	plans: AdminPlanDefinition[];
+}
+
+export interface PlanCreditLimit {
+	plan: string;
+	monthly_credit_limit: number;
+}
+
+export interface PlanCreditLimitsResponse {
+	plans: PlanCreditLimit[];
+}
+
+export interface UpdatePlanCreditsPayload {
+	plan: AdminPlanName;
+	monthlyCreditLimit: number;
+}
+
+export type UpdatePlanCreditsResponse = AdminPlanDefinition;

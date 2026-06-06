@@ -14,6 +14,7 @@ import { NotebookPreviewModal } from "@/components/notebook/NotebookPreviewModal
 import { HeadlineImageUploader } from "@/components/notebook/HeadlineImageUploader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 export default function CreateNotebookPage({
 	params,
@@ -80,6 +81,7 @@ export default function CreateNotebookPage({
 	};
 
 	return (
+		<RouteCreditGate>
 		<div className="h-screen flex flex-col">
 			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
 				<Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/${search_space_id}/notebooks`)} aria-label="Back to notebooks">
@@ -170,5 +172,6 @@ export default function CreateNotebookPage({
 				headlineImageUrl={headlineImageUrl}
 			/>
 		</div>
+		</RouteCreditGate>
 	);
 }

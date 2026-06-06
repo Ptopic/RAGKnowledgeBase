@@ -30,5 +30,7 @@ export const ADMIN_USERS = "adminUsers";
 export const ADMIN_METRICS = "adminMetrics";
 export const SUBSCRIPTION = "subscription";
 export const SUBSCRIPTION_PLANS = "subscriptionPlans";
+export const SUBSCRIPTION_PLAN_LIMITS = "subscriptionPlanLimits";
 export const PREFERENCES = "preferences";
 export const ADMIN_SUBSCRIPTIONS = "adminSubscriptions";
+export const ADMIN_PLANS = "adminPlans";

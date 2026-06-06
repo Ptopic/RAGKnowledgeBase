@@ -1,14 +1,18 @@
 import {
 	AdminMetricsDto,
+	AdminPlanDefinitionDto,
+	AdminPlanDefinitionListDto,
 	AdminSubscriptionListDto,
 	AdminUserDto,
 	AdminUserListDto,
 	CreateAdminUserDto,
 	OverridePlanDto,
 	UpdateAdminUserDto,
+	UpdatePlanCreditsDto,
 } from "./dtos/admin.dto";
 import { AdminService } from "./admin.service";
 import {
+	BadRequestException,
 	Body,
 	Controller,
 	Delete,
@@ -22,6 +26,7 @@ import {
 	UseGuards,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt.guard";
+import { SubscriptionPlan } from "@prisma/client";
 
 @Controller("admin")
 @UseGuards(JwtAuthGuard)
@@ -133,5 +138,32 @@ export class AdminController {
 	): Promise<{ message: string }> {
 		this.requireSuperuser(req.user);
 		return this.adminService.resetUserCredits(req.user.id, userId);
+	}
+
+	@Get("subscription-plans")
+	async listPlanDefinitions(
+		@Req() req: { user: { id: string; isSuperuser: boolean } },
+	): Promise<AdminPlanDefinitionListDto> {
+		this.requireSuperuser(req.user);
+		return this.adminService.listPlanDefinitions();
+	}
+
+	@Put("subscription-plans/:plan/credits")
+	async updatePlanCredits(
+		@Req() req: { user: { id: string; isSuperuser: boolean } },
+		@Param("plan") plan: string,
+		@Body() dto: UpdatePlanCreditsDto,
+	): Promise<AdminPlanDefinitionDto> {
+		this.requireSuperuser(req.user);
+		if (!Object.values(SubscriptionPlan).includes(plan as SubscriptionPlan)) {
+			throw new BadRequestException(
+				`Invalid plan: ${plan}. Valid plans: ${Object.values(SubscriptionPlan).join(", ")}`,
+			);
+		}
+		return this.adminService.updatePlanCredits(
+			plan as SubscriptionPlan,
+			dto,
+			req.user.id,
+		);
 	}
 }

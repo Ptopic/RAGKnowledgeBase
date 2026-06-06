@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { NOTEBOOK } from "@/shared/queryKeys";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 export default function EditNotebookPage({
 	params,
@@ -184,6 +185,7 @@ export default function EditNotebookPage({
 	}
 
 	return (
+		<RouteCreditGate>
 		<div className="h-screen flex flex-col">
 			<div className="sticky top-0 z-50 flex items-center justify-between px-3 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
 				<div className="flex items-center gap-2">
@@ -314,5 +316,6 @@ export default function EditNotebookPage({
 				</AlertDialogContent>
 			</AlertDialog>
 		</div>
+		</RouteCreditGate>
 	);
 }

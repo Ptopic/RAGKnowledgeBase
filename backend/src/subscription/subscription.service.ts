@@ -44,7 +44,6 @@ export class CreditsExceededError extends BadRequestException {
 	}
 }
 
-const FREE_PLAN_CREDITS = 1000;
 const PLANS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 @Injectable()
@@ -432,6 +431,22 @@ export class SubscriptionService {
 
 		const subscription = await this.ensureSubscription(userId);
 
+		// If the user is switching from one paid plan to another (e.g. PRO →
+		// BUSINESS), Stripe would otherwise create a *second* subscription
+		// for the same customer and leave the old one running — resulting
+		// in two active subscriptions on the customer. Cancel the previous
+		// one immediately so the new Checkout Session becomes the only
+		// active sub. (User-initiated "Cancel" still uses the period-end
+		// path in cancelSubscription() — only plan changes cancel now.)
+		if (
+			subscription.plan !== SubscriptionPlan.FREE &&
+			subscription.stripeSubscriptionId
+		) {
+			await this.cancelStripeSubscriptionImmediate(
+				subscription.stripeSubscriptionId,
+			);
+		}
+
 		let customerId = subscription.stripeCustomerId;
 
 		if (!customerId) {
@@ -579,6 +594,51 @@ export class SubscriptionService {
 			message: "Subscription scheduled for cancellation.",
 			cancel_at: cancelAt,
 		};
+	}
+
+	/**
+	 * Immediately cancel a Stripe subscription (no period-end grace)
+	 * and clear the local row's references. Used by the plan-change
+	 * flow so the new Checkout Session becomes the customer's only
+	 * active subscription — otherwise Stripe leaves the old one
+	 * running and the user ends up with two paid plans at once.
+	 *
+	 * User-initiated cancellation in the settings page is a separate
+	 * path (cancelSubscription) that schedules at period end instead.
+	 */
+	private async cancelStripeSubscriptionImmediate(
+		stripeSubscriptionId: string,
+	): Promise<void> {
+		try {
+			await this.stripe.subscriptions.cancel(stripeSubscriptionId);
+		} catch (err) {
+			// 404 (resource_missing) means the sub is already gone in
+			// Stripe — treat as a no-op so the new checkout can proceed.
+			const code = (err as { code?: string }).code;
+			if (code !== "resource_missing") {
+				throw err;
+			}
+			this.logger.warn(
+				`Stripe subscription ${stripeSubscriptionId} already gone, continuing`,
+			);
+		}
+
+		// Clear the local row's Stripe refs. The matching webhook
+		// (customer.subscription.deleted) will run handleSubscriptionDeleted
+		// which downgrades the plan to FREE; we also defensively clear
+		// the price/ids here so a second plan change initiated before
+		// the webhook arrives doesn't try to re-cancel the same id.
+		await this.prisma.subscription.updateMany({
+			where: { stripeSubscriptionId },
+			data: {
+				stripeSubscriptionId: null,
+				stripePriceId: null,
+			},
+		});
+
+		this.logger.log(
+			`Subscription canceled immediately (plan change): ${stripeSubscriptionId}`,
+		);
 	}
 
 	async handleStripeWebhook(signature: string, rawBody: Buffer) {
@@ -815,7 +875,7 @@ export class SubscriptionService {
 				status: "canceled",
 				stripeSubscriptionId: null,
 				stripePriceId: null,
-				monthlyCreditLimit: FREE_PLAN_CREDITS,
+				monthlyCreditLimit: await this.getOrSeedPlanDefinition(SubscriptionPlan.FREE),
 				cancelAt: null,
 				creditsUsed: 0,
 				currentPeriodStart: now,
@@ -906,7 +966,10 @@ export class SubscriptionService {
 				userId,
 				plan: SubscriptionPlan.FREE,
 				status: "active",
-				monthlyCreditLimit: FREE_PLAN_CREDITS,
+				monthlyCreditLimit: await this.getOrSeedPlanDefinition(
+					SubscriptionPlan.FREE,
+					client,
+				),
 				creditsUsed: 0,
 				currentPeriodStart: now,
 				currentPeriodEnd: periodEnd,
@@ -952,10 +1015,66 @@ export class SubscriptionService {
 	}
 
 	async getCreditLimitForPlan(plan: string): Promise<number> {
-		if (plan === "FREE") return FREE_PLAN_CREDITS;
-		const plans = await this.getPlans();
-		const match = plans.find((p) => p.plan === plan);
-		return match?.credits ?? FREE_PLAN_CREDITS;
+		return this.getOrSeedPlanDefinition(plan as SubscriptionPlan);
+	}
+
+	/**
+	 * Return the monthly credit limit for every plan in the enum, sourced
+	 * from the `plan_definitions` table (admin-editable at runtime).
+	 * Missing rows are auto-seeded with the historical default of 1000 so
+	 * the client never sees an empty list on a fresh database.
+	 */
+	async getPlanCreditLimits(): Promise<
+		Array<{ plan: SubscriptionPlan; monthlyCreditLimit: number }>
+	> {
+		const allPlans = Object.values(SubscriptionPlan);
+		const existing = await this.prisma.planDefinition.findMany();
+		const existingByPlan = new Map(
+			existing.map((p) => [p.plan, p.monthlyCreditLimit]),
+		);
+
+		const missing = allPlans.filter((p) => !existingByPlan.has(p));
+		if (missing.length > 0) {
+			await this.prisma.$transaction(
+				missing.map((plan) =>
+					this.prisma.planDefinition.upsert({
+						where: { plan },
+						update: {},
+						create: { plan, monthlyCreditLimit: 1000 },
+					}),
+				),
+			);
+			for (const plan of missing) {
+				existingByPlan.set(plan, 1000);
+			}
+		}
+
+		return allPlans.map((plan) => ({
+			plan,
+			monthlyCreditLimit: existingByPlan.get(plan) ?? 1000,
+		}));
+	}
+
+	private async getOrSeedPlanDefinition(
+		plan: SubscriptionPlan,
+		client: Prisma.TransactionClient | PrismaService = this.prisma,
+	): Promise<number> {
+		const existing = await client.planDefinition.findUnique({
+			where: { plan },
+		});
+		if (existing) {
+			return existing.monthlyCreditLimit;
+		}
+		this.logger.warn(
+			`PlanDefinition row for ${plan} was missing — auto-seeding with default 1000 credits. ` +
+				`If this is unexpected, verify the migration 'add_plan_definition' has run.`,
+		);
+		const seeded = await client.planDefinition.upsert({
+			where: { plan },
+			update: {},
+			create: { plan, monthlyCreditLimit: 1000 },
+		});
+		return seeded.monthlyCreditLimit;
 	}
 
 	/**

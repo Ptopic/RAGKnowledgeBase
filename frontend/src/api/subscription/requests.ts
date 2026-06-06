@@ -1,22 +1,33 @@
 import type { ICallableRequestBuilder } from "@api/requestBuilder/types";
 import config from "@shared/config";
 import type {
+	AdminPlanDefinitionList,
 	AdminSubscriptionList,
 	CancelSubscriptionResponse,
 	CheckoutSessionResponse,
 	OverridePlanResponse,
+	PlanCreditLimitsResponse,
 	PlanInfo,
 	PortalSessionResponse,
 	PreferencesInfo,
 	ResetCreditsResponse,
 	ResumeSubscriptionResponse,
 	SubscriptionInfo,
+	UpdatePlanCreditsPayload,
+	UpdatePlanCreditsResponse,
 } from "./types";
-
 export const getPlans =
 	(request: ICallableRequestBuilder<PlanInfo[]>) =>
 	async (): Promise<PlanInfo[]> =>
 		request.call(`${config.apiUrl}/subscription/plans`, (init) => ({
+			...init,
+			method: "GET",
+		}));
+
+export const getPlanCreditLimits =
+	(request: ICallableRequestBuilder<PlanCreditLimitsResponse>) =>
+	async (): Promise<PlanCreditLimitsResponse> =>
+		request.call(`${config.apiUrl}/subscription/plans/limits`, (init) => ({
 			...init,
 			method: "GET",
 		}));
@@ -110,6 +121,30 @@ export const adminResetCredits =
 			...init,
 			method: "POST",
 		}));
+
+export const getAdminPlans =
+	(request: ICallableRequestBuilder<AdminPlanDefinitionList>) =>
+	async (): Promise<AdminPlanDefinitionList> =>
+		request.call(`${config.apiUrl}/admin/subscription-plans`, (init) => ({
+			...init,
+			method: "GET",
+		}));
+
+export const adminUpdatePlanCredits =
+	(request: ICallableRequestBuilder<UpdatePlanCreditsResponse>) =>
+	async (payload: UpdatePlanCreditsPayload): Promise<UpdatePlanCreditsResponse> =>
+		request.call(
+			`${config.apiUrl}/admin/subscription-plans/${payload.plan}/credits`,
+			(init) => ({
+				...init,
+				method: "PUT",
+				headers: {
+					...init.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ monthlyCreditLimit: payload.monthlyCreditLimit }),
+			}),
+		);
 
 export const resumeSubscription =
 	(request: ICallableRequestBuilder<ResumeSubscriptionResponse>) =>

@@ -1,11 +1,14 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	AlertCircle,
+	Banknote,
 	CreditCard,
 	DollarSign,
 	ExternalLink,
 	Loader2,
+	Pencil,
 	RefreshCw,
 	RotateCcw,
 	Search,
@@ -14,11 +17,15 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import useGetAdminSubscriptions from "@/api/subscription/hooks/useGetAdminSubscriptions";
 import useAdminOverridePlan from "@/api/subscription/hooks/useAdminOverridePlan";
 import useAdminResetCredits from "@/api/subscription/hooks/useAdminResetCredits";
-import type { AdminSubscriptionUser } from "@/api/subscription/types";
+import useAdminUpdatePlanCredits from "@/api/subscription/hooks/useAdminUpdatePlanCredits";
+import useGetAdminPlans from "@/api/subscription/hooks/useGetAdminPlans";
+import type { AdminPlanDefinition, AdminSubscriptionUser } from "@/api/subscription/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	AlertDialog,
@@ -81,6 +88,24 @@ const STATUS_BADGE_COLORS: Record<string, string> = {
 
 const PLANS = ["FREE", "PRO", "BUSINESS"] as const;
 
+const MAX_MONTHLY_CREDIT_LIMIT = 1_000_000;
+
+const editPlanSchema = z.object({
+	monthlyCreditLimit: z.coerce
+		.number()
+		.int("Must be a whole number")
+		.min(0, "Cannot be negative")
+		.max(MAX_MONTHLY_CREDIT_LIMIT, `Cannot exceed ${MAX_MONTHLY_CREDIT_LIMIT.toLocaleString()}`),
+});
+
+type EditPlanFormValues = z.infer<typeof editPlanSchema>;
+
+type PlanRow = Omit<AdminPlanDefinition, "updated_at" | "created_at"> & {
+	created_at: string | null;
+	updated_at: string | null;
+	isLoaded: boolean;
+};
+
 export default function AdminSubscriptionsPage() {
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -97,6 +122,67 @@ export default function AdminSubscriptionsPage() {
 	const [overrideUser, setOverrideUser] = useState<AdminSubscriptionUser | null>(null);
 	const [selectedPlan, setSelectedPlan] = useState<string>("FREE");
 	const [resetCreditsUser, setResetCreditsUser] = useState<AdminSubscriptionUser | null>(null);
+
+	const {
+		data: plansData,
+		isLoading: isPlansLoading,
+		error: plansError,
+	} = useGetAdminPlans();
+	const updatePlanMutation = useAdminUpdatePlanCredits();
+	const [editingPlan, setEditingPlan] = useState<PlanRow | null>(null);
+	const editPlanForm = useForm<EditPlanFormValues>({
+		resolver: zodResolver(editPlanSchema),
+		defaultValues: { monthlyCreditLimit: 0 },
+	});
+
+	const openEditPlanDialog = (plan: PlanRow) => {
+		// Reset synchronously (not in an effect) so the input shows the
+		// current value on the first paint of the dialog.
+		editPlanForm.reset({ monthlyCreditLimit: plan.monthly_credit_limit });
+		setEditingPlan(plan);
+	};
+
+	const closeEditPlanDialog = () => {
+		setEditingPlan(null);
+		editPlanForm.reset({ monthlyCreditLimit: 0 });
+	};
+
+	const handleEditPlanSubmit = async (values: EditPlanFormValues) => {
+		if (!editingPlan) return;
+		try {
+			await updatePlanMutation.mutateAsync({
+				plan: editingPlan.plan,
+				monthlyCreditLimit: values.monthlyCreditLimit,
+			});
+			toast.success(
+				`Monthly credit limit updated to ${values.monthlyCreditLimit.toLocaleString()} for ${editingPlan.plan}`,
+			);
+			closeEditPlanDialog();
+		} catch (err) {
+			const message =
+				err instanceof Error && err.message
+					? err.message
+					: "Failed to update plan credits";
+			toast.error(message);
+		}
+	};
+
+	const plans = plansData?.plans ?? [];
+	const plansByName = new Map(plans.map((p) => [p.plan, p]));
+	const orderedPlans: PlanRow[] = PLANS.map((name) => {
+		const found = plansByName.get(name);
+		if (found) {
+			return { ...found, isLoaded: true };
+		}
+		return {
+			plan: name,
+			monthly_credit_limit: 0,
+			created_at: null,
+			updated_at: null,
+			updated_by_user_id: null,
+			isLoaded: false,
+		};
+	});
 
 	const users = data?.users ?? [];
 	const total = data?.total ?? 0;
@@ -410,6 +496,125 @@ export default function AdminSubscriptionsPage() {
 						</CardContent>
 					</Card>
 
+					<Card>
+						<CardHeader>
+							<div className="flex items-center gap-3">
+								<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+									<Banknote className="h-5 w-5 text-primary" />
+								</div>
+								<div>
+									<CardTitle className="text-lg font-medium">
+										Subscription Tiers
+									</CardTitle>
+									<CardDescription>
+										Changes to a tier&apos;s monthly credit limit apply to all
+										users on that plan immediately.
+									</CardDescription>
+								</div>
+							</div>
+						</CardHeader>
+						<CardContent>
+							{plansError ? (
+								<Alert variant="destructive">
+									<AlertCircle className="h-4 w-4" />
+									<AlertDescription>{plansError.message}</AlertDescription>
+								</Alert>
+							) : isPlansLoading ? (
+								<div className="flex items-center justify-center py-12">
+									<div className="flex items-center gap-2 text-muted-foreground">
+										<Loader2 className="h-5 w-5 animate-spin" />
+										<span>Loading subscription tiers...</span>
+									</div>
+								</div>
+							) : (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Plan</TableHead>
+											<TableHead>Monthly Credit Limit</TableHead>
+											<TableHead>Last Updated</TableHead>
+											<TableHead className="text-right">Actions</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{orderedPlans.map((plan) => {
+											const updatedAt =
+												plan.isLoaded && plan.updated_at
+													? new Date(plan.updated_at)
+													: null;
+											return (
+												<TableRow key={plan.plan}>
+													<TableCell>
+														<Badge
+															className={
+																PLAN_BADGE_COLORS[plan.plan] ||
+																"bg-slate-500 text-white"
+															}
+														>
+															{plan.plan}
+														</Badge>
+													</TableCell>
+													<TableCell>
+														{plan.isLoaded ? (
+															<>
+																<span className="font-medium tabular-nums">
+																	{plan.monthly_credit_limit.toLocaleString()}
+																</span>
+																<span className="ml-1 text-xs text-muted-foreground">
+																	credits / month
+																</span>
+															</>
+														) : (
+															<span className="text-xs text-muted-foreground">
+																Unavailable
+															</span>
+														)}
+													</TableCell>
+													<TableCell>
+														{!updatedAt || Number.isNaN(updatedAt.getTime()) ? (
+															<span className="text-xs text-muted-foreground">
+																—
+															</span>
+														) : (
+															<span
+																className="text-sm text-muted-foreground tabular-nums"
+																title={updatedAt.toISOString()}
+															>
+																{updatedAt.toLocaleDateString("en-US", {
+																	month: "short",
+																	day: "numeric",
+																	year: "numeric",
+																})}{" "}
+																<span className="text-xs">
+																	{updatedAt.toLocaleTimeString("en-US", {
+																		hour: "numeric",
+																		minute: "2-digit",
+																	})}
+																</span>
+															</span>
+														)}
+													</TableCell>
+													<TableCell className="text-right">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => openEditPlanDialog(plan)}
+															disabled={!plan.isLoaded}
+															className="h-8 px-2 text-xs"
+														>
+															<Pencil className="h-3 w-3 mr-1" />
+															Edit
+														</Button>
+													</TableCell>
+												</TableRow>
+											);
+										})}
+									</TableBody>
+								</Table>
+							)}
+						</CardContent>
+					</Card>
+
 					{/* Override Plan Dialog */}
 					<Dialog
 						open={!!overrideUser}
@@ -504,6 +709,91 @@ export default function AdminSubscriptionsPage() {
 							</AlertDialogFooter>
 						</AlertDialogContent>
 					</AlertDialog>
+
+					{/* Edit Plan Credits Dialog */}
+					<Dialog
+						open={!!editingPlan}
+						onOpenChange={(open) => {
+							if (!open) closeEditPlanDialog();
+						}}
+					>
+						<DialogContent className="max-w-lg">
+							<DialogHeader>
+								<DialogTitle className="flex items-center gap-2">
+									<Pencil className="w-5 h-5" />
+									Edit Monthly Credit Limit
+								</DialogTitle>
+								<DialogDescription>
+									Update the monthly credit limit for the{" "}
+									<Badge
+										className={
+											(editingPlan &&
+												PLAN_BADGE_COLORS[editingPlan.plan]) ||
+											"bg-slate-500 text-white"
+										}
+									>
+										{editingPlan?.plan}
+									</Badge>{" "}
+									tier. This change applies to all users on this plan
+									immediately.
+								</DialogDescription>
+							</DialogHeader>
+							<form
+								id="edit-plan-form"
+								onSubmit={editPlanForm.handleSubmit(handleEditPlanSubmit)}
+								className="space-y-4 py-4"
+							>
+								<div className="space-y-2">
+									<Label htmlFor="monthlyCreditLimit">
+										Monthly Credit Limit
+									</Label>
+									<Input
+										id="monthlyCreditLimit"
+										type="number"
+										min={0}
+										max={MAX_MONTHLY_CREDIT_LIMIT}
+										step={1}
+										{...editPlanForm.register("monthlyCreditLimit")}
+									/>
+									{editPlanForm.formState.errors.monthlyCreditLimit && (
+										<p className="text-sm text-destructive">
+											{
+												editPlanForm.formState.errors.monthlyCreditLimit
+													.message
+											}
+										</p>
+									)}
+									<p className="text-xs text-muted-foreground">
+										Current value:{" "}
+										<span className="font-medium tabular-nums">
+											{editingPlan?.monthly_credit_limit.toLocaleString() ?? "—"}
+										</span>{" "}
+										credits / month. Allowed range: 0 – {MAX_MONTHLY_CREDIT_LIMIT.toLocaleString()}.
+									</p>
+								</div>
+							</form>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									type="button"
+									onClick={closeEditPlanDialog}
+									disabled={updatePlanMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									form="edit-plan-form"
+									disabled={updatePlanMutation.isPending}
+								>
+									{updatePlanMutation.isPending && (
+										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									)}
+									Save Changes
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 				</div>
 			</div>
 		</div>

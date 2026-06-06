@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { RouteCreditGate } from "@/components/route-credit-gate";
 
 // Grid pattern component inspired by Aceternity UI
 function GridPattern() {
@@ -164,6 +165,7 @@ export default function FileUploader() {
 	}
 
 	return (
+		<RouteCreditGate>
 		<div className="grow flex items-center justify-center p-4 md:p-8">
 			<motion.div
 				className="w-full max-w-4xl mx-auto space-y-6"
@@ -443,5 +445,6 @@ export default function FileUploader() {
                 }
             `}</style>
 		</div>
+		</RouteCreditGate>
 	);
 }

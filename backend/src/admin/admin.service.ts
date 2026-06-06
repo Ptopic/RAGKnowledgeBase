@@ -2,6 +2,7 @@ import {
 	BadRequestException,
 	ConflictException,
 	Injectable,
+	Logger,
 	NotFoundException,
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
@@ -10,12 +11,15 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SubscriptionService } from "../subscription/subscription.service";
 import {
 	AdminMetricsDto,
+	AdminPlanDefinitionDto,
+	AdminPlanDefinitionListDto,
 	AdminSubscriptionListDto,
 	AdminSubscriptionUserDto,
 	AdminUserDto,
 	AdminUserListDto,
 	CreateAdminUserDto,
 	UpdateAdminUserDto,
+	UpdatePlanCreditsDto,
 } from "./dtos/admin.dto";
 
 function getCurrentMonthBounds(): { start: Date; end: Date } {
@@ -27,6 +31,8 @@ function getCurrentMonthBounds(): { start: Date; end: Date } {
 
 @Injectable()
 export class AdminService {
+	private readonly logger = new Logger(AdminService.name);
+
 	constructor(
 		private prisma: PrismaService,
 		private subscriptionService: SubscriptionService,
@@ -267,22 +273,27 @@ export class AdminService {
 				}
 			: {};
 
-		const [users, total, activeSubscriptions, paidSubscriptions] = await Promise.all([
-			this.prisma.user.findMany({
-				where,
-				skip,
-				take: limit,
-				orderBy: { createdAt: "desc" },
-				include: { subscription: true },
-			}),
-			this.prisma.user.count({ where }),
-			this.prisma.subscription.count({
-				where: { plan: { not: "FREE" }, status: "active" },
-			}),
-			this.prisma.subscription.count({
-				where: { plan: { not: "FREE" } },
-			}),
-		]);
+		const [users, total, activeSubscriptions, paidSubscriptions, activePaidSubs] =
+			await Promise.all([
+				this.prisma.user.findMany({
+					where,
+					skip,
+					take: limit,
+					orderBy: { createdAt: "desc" },
+					include: { subscription: true },
+				}),
+				this.prisma.user.count({ where }),
+				this.prisma.subscription.count({
+					where: { plan: { not: "FREE" }, status: "active" },
+				}),
+				this.prisma.subscription.count({
+					where: { plan: { not: "FREE" } },
+				}),
+				this.prisma.subscription.findMany({
+					where: { plan: { not: "FREE" }, status: "active" },
+					select: { stripePriceId: true },
+				}),
+			]);
 
 		const subscriptionUsers: AdminSubscriptionUserDto[] = users.map((u) => {
 			const sub = u.subscription;
@@ -304,9 +315,53 @@ export class AdminService {
 			users: subscriptionUsers,
 			total,
 			active_subscriptions: activeSubscriptions,
-			total_revenue: "N/A",
+			total_revenue: await this.computeMrr(activePaidSubs),
 			free_tier_count: freeTierCount,
 		};
+	}
+
+	/**
+	 * Sum the `unit_amount` (in the smallest currency unit, e.g. cents) of
+	 * every active paid subscription's Stripe price, then format as USD.
+	 * Returns "N/A" when Stripe isn't configured — the same contract the
+	 * dashboard had before this method existed.
+	 */
+	private async computeMrr(
+		activePaidSubs: Array<{ stripePriceId: string | null }>,
+	): Promise<string> {
+		if (activePaidSubs.length === 0) return "$0.00";
+
+		const plans = await this.subscriptionService.getPlans();
+		if (plans.length === 0) return "N/A";
+
+		const amountByPriceId = new Map<string, number>();
+		for (const p of plans) {
+			if (p.price_id) amountByPriceId.set(p.price_id, p.amount);
+		}
+
+		let totalCents = 0;
+		let matchedCount = 0;
+		for (const sub of activePaidSubs) {
+			if (!sub.stripePriceId) continue;
+			const amount = amountByPriceId.get(sub.stripePriceId);
+			if (amount === undefined) continue;
+			totalCents += amount;
+			matchedCount += 1;
+		}
+
+		// If Stripe plans haven't loaded (no STRIPE_SECRET_KEY) the map is
+		// empty and we can't price any of the subs — surface "N/A" so the
+		// admin knows the number is unavailable, not zero.
+		if (matchedCount === 0 && activePaidSubs.some((s) => s.stripePriceId)) {
+			return "N/A";
+		}
+
+		return new Intl.NumberFormat("en-US", {
+			style: "currency",
+			currency: "USD",
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		}).format(totalCents / 100);
 	}
 
 	async overrideUserSubscriptionPlan(
@@ -390,5 +445,82 @@ export class AdminService {
 		});
 
 		return { message: "Credits reset successfully" };
+	}
+
+	async listPlanDefinitions(): Promise<AdminPlanDefinitionListDto> {
+		const allPlans = Object.values(SubscriptionPlan);
+		const existing = await this.prisma.planDefinition.findMany();
+		const existingPlans = new Set(existing.map((p) => p.plan));
+		const missing = allPlans.filter((p) => !existingPlans.has(p));
+
+		if (missing.length > 0) {
+			await this.prisma.$transaction(
+				missing.map((plan) =>
+					this.prisma.planDefinition.upsert({
+						where: { plan },
+						update: {},
+						create: { plan, monthlyCreditLimit: 1000 },
+					}),
+				),
+			);
+		}
+
+		const plans = await this.prisma.planDefinition.findMany({
+			orderBy: { plan: "asc" },
+		});
+
+		return {
+			plans: plans.map((p) => this.toPlanDefinitionDto(p)),
+		};
+	}
+
+	async updatePlanCredits(
+		plan: SubscriptionPlan,
+		dto: UpdatePlanCreditsDto,
+		adminUserId: string,
+	): Promise<AdminPlanDefinitionDto> {
+		const result = await this.prisma.$transaction(async (tx) => {
+			const updated = await tx.planDefinition.upsert({
+				where: { plan },
+				update: {
+					monthlyCreditLimit: dto.monthlyCreditLimit,
+					updatedByUserId: adminUserId,
+				},
+				create: {
+					plan,
+					monthlyCreditLimit: dto.monthlyCreditLimit,
+					updatedByUserId: adminUserId,
+				},
+			});
+
+			const subsResult = await tx.subscription.updateMany({
+				where: { plan },
+				data: { monthlyCreditLimit: dto.monthlyCreditLimit },
+			});
+
+			this.logger.log(
+				`Plan ${plan} credit limit set to ${dto.monthlyCreditLimit} by admin ${adminUserId} — applied to ${subsResult.count} subscription(s)`,
+			);
+
+			return updated;
+		});
+
+		return this.toPlanDefinitionDto(result);
+	}
+
+	private toPlanDefinitionDto(plan: {
+		plan: SubscriptionPlan;
+		monthlyCreditLimit: number;
+		createdAt: Date;
+		updatedAt: Date;
+		updatedByUserId: string | null;
+	}): AdminPlanDefinitionDto {
+		return {
+			plan: plan.plan,
+			monthly_credit_limit: plan.monthlyCreditLimit,
+			created_at: plan.createdAt,
+			updated_at: plan.updatedAt,
+			updated_by_user_id: plan.updatedByUserId,
+		};
 	}
 }

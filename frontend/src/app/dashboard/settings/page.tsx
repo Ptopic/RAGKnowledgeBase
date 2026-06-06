@@ -14,14 +14,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import useGetSubscription from "@/api/subscription/hooks/useGetSubscription";
-import useGetPlans from "@/api/subscription/hooks/useGetPlans";
 import useGetPreferences from "@/api/subscription/hooks/useGetPreferences";
 import useUpdatePreferences from "@/api/subscription/hooks/useUpdatePreferences";
 import useCreatePortalSession from "@/api/subscription/hooks/useCreatePortalSession";
 import useCreateCheckoutSession from "@/api/subscription/hooks/useCreateCheckoutSession";
 import useResumeSubscription from "@/api/subscription/hooks/useResumeSubscription";
 import { useSearchParams } from "next/navigation";
-import type { PlanInfo } from "@/api/subscription/types";
+import { AvailablePlansCard } from "@/components/available-plans-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,16 +51,6 @@ const PLAN_BADGE_COLORS: Record<string, string> = {
 	BUSINESS: "bg-purple-600 text-white",
 };
 
-const FREE_PLAN_CREDITS = 1000;
-
-function formatPrice(amount: number, currency: string): string {
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: currency.toUpperCase(),
-		minimumFractionDigits: 0,
-	}).format(amount / 100);
-}
-
 export default function SettingsPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -85,12 +74,12 @@ export default function SettingsPage() {
 			for (const t of timers) clearTimeout(t);
 		};
 	}, [returningFromCheckout, refetchSubscription]);
-	const { data: plans = [], isLoading: plansLoading } = useGetPlans();
 	const { data: preferences, isLoading: prefLoading } = useGetPreferences();
 	const updatePreferences = useUpdatePreferences();
 	const createPortalSession = useCreatePortalSession();
 	const createCheckout = useCreateCheckoutSession();
 	const resumeSubscription = useResumeSubscription();
+
 
 	const [selectedLanguage, setSelectedLanguage] = useState<string>(
 		preferences?.preferred_language || "English",
@@ -142,7 +131,7 @@ export default function SettingsPage() {
 
 	const plan = subscription?.plan || "FREE";
 	const creditsUsed = subscription?.credits_used || 0;
-	const creditLimit = subscription?.monthly_credit_limit || FREE_PLAN_CREDITS;
+	const creditLimit = subscription?.monthly_credit_limit ?? 0;
 	const creditPercent = creditLimit > 0 ? Math.min((creditsUsed / creditLimit) * 100, 100) : 0;
 
 	return (
@@ -357,63 +346,10 @@ export default function SettingsPage() {
 										</Card>
 									)}
 
-									{!plansLoading && plans.length > 0 && (
-										<Card>
-											<CardHeader>
-												<CardTitle className="text-lg font-medium">
-													Available Plans
-												</CardTitle>
-												<CardDescription>
-													Compare plans and choose the one that fits your needs.
-												</CardDescription>
-											</CardHeader>
-											<CardContent>
-												<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-													<Card className="border-2 border-muted">
-														<CardHeader className="pb-2">
-															<CardTitle className="text-base">Free</CardTitle>
-															<p className="text-2xl font-bold">$0<span className="text-sm font-normal text-muted-foreground">/month</span></p>
-														</CardHeader>
-														<CardContent>
-															<p className="text-sm text-muted-foreground">{formatCredits(FREE_PLAN_CREDITS)} credits/month</p>
-														</CardContent>
-													</Card>
-													{[...plans].sort((a, b) => a.amount - b.amount).map((p: PlanInfo) => (
-														<Card key={p.plan} className={p.plan === plan ? "border-2 border-primary" : "border-2 border-muted"}>
-															<CardHeader className="pb-2">
-																<div className="flex items-center gap-2">
-																	<CardTitle className="text-base">{p.name}</CardTitle>
-																	{p.plan === plan && (
-																		<Badge variant="default" className="text-xs">Current</Badge>
-																	)}
-																</div>
-																<p className="text-2xl font-bold">
-																	{formatPrice(p.amount, p.currency)}
-																	<span className="text-sm font-normal text-muted-foreground">/{p.interval}</span>
-																</p>
-															</CardHeader>
-															<CardContent className="space-y-2">
-																<p className="text-sm text-muted-foreground">{formatCredits(p.credits)} credits/month</p>
-																{p.description && (
-																	<p className="text-xs text-muted-foreground">{p.description}</p>
-																)}
-																{p.plan !== plan && (
-																	<Button
-																		size="sm"
-																		variant={p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "outline" : "default"}
-																		className="w-full"
-																		onClick={() => handleUpgrade(p.plan)}
-																	>
-																		Change plan
-																	</Button>
-																)}
-															</CardContent>
-														</Card>
-													))}
-												</div>
-											</CardContent>
-										</Card>
-									)}
+									<AvailablePlansCard
+										currentPlan={plan}
+										onChangePlan={handleUpgrade}
+									/>
 
 									<CancelSubscriptionModal
 										open={isCancelModalOpen}

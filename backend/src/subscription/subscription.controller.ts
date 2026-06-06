@@ -10,11 +10,26 @@ import {
 import { Request } from "express";
 import { SubscriptionService } from "./subscription.service";
 import { JwtAuth } from "../auth/decorators/jwt-auth.decorator";
-import { CreateCheckoutSessionDto } from "./dtos/subscription.dto";
+import {
+	CreateCheckoutSessionDto,
+	PlanCreditLimitsResponseDto,
+} from "./dtos/subscription.dto";
 
 @Controller("subscription")
 export class SubscriptionController {
 	constructor(private readonly subscriptionService: SubscriptionService) {}
+
+	@Get("plans/limits")
+	@JwtAuth()
+	async getPlanCreditLimits(): Promise<PlanCreditLimitsResponseDto> {
+		const plans = await this.subscriptionService.getPlanCreditLimits();
+		return {
+			plans: plans.map((p) => ({
+				plan: p.plan,
+				monthly_credit_limit: p.monthlyCreditLimit,
+			})),
+		};
+	}
 
 	@Get("plans")
 	@JwtAuth()
