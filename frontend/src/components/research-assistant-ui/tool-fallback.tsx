@@ -12,7 +12,7 @@ import {
 	LoaderIcon,
 	XCircleIcon,
 } from "lucide-react";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { TOOL_MESSAGES } from "@/components/ui/Chat/constants";
 import {
 	Collapsible,
@@ -46,6 +46,17 @@ function ToolFallbackRoot({
 
 	const isControlled = controlledOpen !== undefined;
 	const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
+
+	// Sync `defaultOpen` changes into the uncontrolled state. Without this,
+	// the initial `useState(defaultOpen)` only takes effect on mount, so
+	// when the parent flips `defaultOpen` from `true` (running) to `false`
+	// (complete) the panel would stay open. We sync on every defaultOpen
+	// change so the panel collapses the moment the tool finishes.
+	useEffect(() => {
+		if (!isControlled) {
+			setUncontrolledOpen(defaultOpen);
+		}
+	}, [defaultOpen, isControlled]);
 
 	const handleOpenChange = useCallback(
 		(open: boolean) => {
