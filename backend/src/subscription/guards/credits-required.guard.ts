@@ -1,6 +1,7 @@
 import {
 	CanActivate,
 	ExecutionContext,
+	Inject,
 	Injectable,
 	Logger,
 } from "@nestjs/common";
@@ -9,12 +10,19 @@ import { Request } from "express";
 import {
 	REQUIRES_CREDITS_KEY,
 } from "../decorators/requires-credits.decorator";
+import { SubscriptionService } from "../subscription.service";
 
 /**
- * Structural slice of `SubscriptionService` the guard relies on. Kept
- * narrow on purpose so the guard can be typechecked and unit-tested
- * without pulling in the rest of the service (which transitively
- * imports Stripe types that are noisy in the test environment).
+ * DI token for the slice of `SubscriptionService` the guard relies on.
+ * The guard only needs `isSuperuserBypass` and `checkCredits`; using a
+ * dedicated token keeps the guard decoupled from the rest of the
+ * service (which transitively imports Stripe types that are noisy
+ * to compile in unit tests).
+ */
+export const CREDITS_GUARD_SERVICE = Symbol("CreditsGuardSubscriptionService");
+
+/**
+ * Structural slice of `SubscriptionService` the guard relies on.
  */
 export interface CreditsGuardSubscriptionService {
 	isSuperuserBypass(userId: string): Promise<boolean>;
@@ -47,6 +55,7 @@ export class CreditsRequiredGuard implements CanActivate {
 
 	constructor(
 		private readonly reflector: Reflector,
+		@Inject(CREDITS_GUARD_SERVICE)
 		private readonly subscriptionService: CreditsGuardSubscriptionService,
 	) {}
 
