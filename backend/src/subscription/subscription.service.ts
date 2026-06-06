@@ -431,6 +431,22 @@ export class SubscriptionService {
 
 		const subscription = await this.ensureSubscription(userId);
 
+		// If the user is switching from one paid plan to another (e.g. PRO →
+		// BUSINESS), Stripe would otherwise create a *second* subscription
+		// for the same customer and leave the old one running — resulting
+		// in two active subscriptions on the customer. Cancel the previous
+		// one immediately so the new Checkout Session becomes the only
+		// active sub. (User-initiated "Cancel" still uses the period-end
+		// path in cancelSubscription() — only plan changes cancel now.)
+		if (
+			subscription.plan !== SubscriptionPlan.FREE &&
+			subscription.stripeSubscriptionId
+		) {
+			await this.cancelStripeSubscriptionImmediate(
+				subscription.stripeSubscriptionId,
+			);
+		}
+
 		let customerId = subscription.stripeCustomerId;
 
 		if (!customerId) {
@@ -578,6 +594,51 @@ export class SubscriptionService {
 			message: "Subscription scheduled for cancellation.",
 			cancel_at: cancelAt,
 		};
+	}
+
+	/**
+	 * Immediately cancel a Stripe subscription (no period-end grace)
+	 * and clear the local row's references. Used by the plan-change
+	 * flow so the new Checkout Session becomes the customer's only
+	 * active subscription — otherwise Stripe leaves the old one
+	 * running and the user ends up with two paid plans at once.
+	 *
+	 * User-initiated cancellation in the settings page is a separate
+	 * path (cancelSubscription) that schedules at period end instead.
+	 */
+	private async cancelStripeSubscriptionImmediate(
+		stripeSubscriptionId: string,
+	): Promise<void> {
+		try {
+			await this.stripe.subscriptions.cancel(stripeSubscriptionId);
+		} catch (err) {
+			// 404 (resource_missing) means the sub is already gone in
+			// Stripe — treat as a no-op so the new checkout can proceed.
+			const code = (err as { code?: string }).code;
+			if (code !== "resource_missing") {
+				throw err;
+			}
+			this.logger.warn(
+				`Stripe subscription ${stripeSubscriptionId} already gone, continuing`,
+			);
+		}
+
+		// Clear the local row's Stripe refs. The matching webhook
+		// (customer.subscription.deleted) will run handleSubscriptionDeleted
+		// which downgrades the plan to FREE; we also defensively clear
+		// the price/ids here so a second plan change initiated before
+		// the webhook arrives doesn't try to re-cancel the same id.
+		await this.prisma.subscription.updateMany({
+			where: { stripeSubscriptionId },
+			data: {
+				stripeSubscriptionId: null,
+				stripePriceId: null,
+			},
+		});
+
+		this.logger.log(
+			`Subscription canceled immediately (plan change): ${stripeSubscriptionId}`,
+		);
 	}
 
 	async handleStripeWebhook(signature: string, rawBody: Buffer) {
