@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import useGetSubscription from "@/api/subscription/hooks/useGetSubscription";
 import useGetPlans from "@/api/subscription/hooks/useGetPlans";
+import useGetPlanCreditLimits from "@/api/subscription/hooks/useGetPlanCreditLimits";
 import useGetPreferences from "@/api/subscription/hooks/useGetPreferences";
 import useUpdatePreferences from "@/api/subscription/hooks/useUpdatePreferences";
 import useCreatePortalSession from "@/api/subscription/hooks/useCreatePortalSession";
@@ -52,7 +53,6 @@ const PLAN_BADGE_COLORS: Record<string, string> = {
 	BUSINESS: "bg-purple-600 text-white",
 };
 
-const FREE_PLAN_CREDITS = 1000;
 
 function formatPrice(amount: number, currency: string): string {
 	return new Intl.NumberFormat("en-US", {
@@ -86,6 +86,8 @@ export default function SettingsPage() {
 		};
 	}, [returningFromCheckout, refetchSubscription]);
 	const { data: plans = [], isLoading: plansLoading } = useGetPlans();
+	const { data: planLimitsData, isLoading: planLimitsLoading } =
+		useGetPlanCreditLimits();
 	const { data: preferences, isLoading: prefLoading } = useGetPreferences();
 	const updatePreferences = useUpdatePreferences();
 	const createPortalSession = useCreatePortalSession();
@@ -140,9 +142,13 @@ export default function SettingsPage() {
 		}
 	};
 
+	const planLimitsByPlan = new Map(
+		(planLimitsData?.plans ?? []).map((p) => [p.plan, p.monthly_credit_limit]),
+	);
 	const plan = subscription?.plan || "FREE";
 	const creditsUsed = subscription?.credits_used || 0;
-	const creditLimit = subscription?.monthly_credit_limit || FREE_PLAN_CREDITS;
+	const creditLimit =
+		planLimitsByPlan.get(plan) ?? subscription?.monthly_credit_limit ?? 0;
 	const creditPercent = creditLimit > 0 ? Math.min((creditsUsed / creditLimit) * 100, 100) : 0;
 
 	return (
@@ -357,7 +363,7 @@ export default function SettingsPage() {
 										</Card>
 									)}
 
-									{!plansLoading && plans.length > 0 && (
+									{!plansLoading && !planLimitsLoading && plans.length > 0 && (
 										<Card>
 											<CardHeader>
 												<CardTitle className="text-lg font-medium">
@@ -375,41 +381,50 @@ export default function SettingsPage() {
 															<p className="text-2xl font-bold">$0<span className="text-sm font-normal text-muted-foreground">/month</span></p>
 														</CardHeader>
 														<CardContent>
-															<p className="text-sm text-muted-foreground">{formatCredits(FREE_PLAN_CREDITS)} credits/month</p>
+															<p className="text-sm text-muted-foreground">
+																{formatCredits(planLimitsByPlan.get("FREE") ?? 0)} credits/month
+															</p>
 														</CardContent>
 													</Card>
-													{[...plans].sort((a, b) => a.amount - b.amount).map((p: PlanInfo) => (
-														<Card key={p.plan} className={p.plan === plan ? "border-2 border-primary" : "border-2 border-muted"}>
-															<CardHeader className="pb-2">
-																<div className="flex items-center gap-2">
-																	<CardTitle className="text-base">{p.name}</CardTitle>
-																	{p.plan === plan && (
-																		<Badge variant="default" className="text-xs">Current</Badge>
+													{[...plans].sort((a, b) => a.amount - b.amount).map((p: PlanInfo) => {
+														// Prefer the DB-backed limit (admin-editable at runtime);
+														// fall back to the Stripe-sourced `p.credits` only if a row
+														// is missing in plan_definitions for this tier.
+														const planCredits =
+															planLimitsByPlan.get(p.plan) ?? p.credits;
+														return (
+															<Card key={p.plan} className={p.plan === plan ? "border-2 border-primary" : "border-2 border-muted"}>
+																<CardHeader className="pb-2">
+																	<div className="flex items-center gap-2">
+																		<CardTitle className="text-base">{p.name}</CardTitle>
+																		{p.plan === plan && (
+																			<Badge variant="default" className="text-xs">Current</Badge>
+																		)}
+																	</div>
+																	<p className="text-2xl font-bold">
+																		{formatPrice(p.amount, p.currency)}
+																		<span className="text-sm font-normal text-muted-foreground">/{p.interval}</span>
+																	</p>
+																</CardHeader>
+																<CardContent className="space-y-2">
+																	<p className="text-sm text-muted-foreground">{formatCredits(planCredits)} credits/month</p>
+																	{p.description && (
+																		<p className="text-xs text-muted-foreground">{p.description}</p>
 																	)}
-																</div>
-																<p className="text-2xl font-bold">
-																	{formatPrice(p.amount, p.currency)}
-																	<span className="text-sm font-normal text-muted-foreground">/{p.interval}</span>
-																</p>
-															</CardHeader>
-															<CardContent className="space-y-2">
-																<p className="text-sm text-muted-foreground">{formatCredits(p.credits)} credits/month</p>
-																{p.description && (
-																	<p className="text-xs text-muted-foreground">{p.description}</p>
-																)}
-																{p.plan !== plan && (
-																	<Button
-																		size="sm"
-																		variant={p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "outline" : "default"}
-																		className="w-full"
-																		onClick={() => handleUpgrade(p.plan)}
-																	>
-																		Change plan
-																	</Button>
-																)}
-															</CardContent>
-														</Card>
-													))}
+																	{p.plan !== plan && (
+																		<Button
+																			size="sm"
+																			variant={p.amount < (plans.find((c: PlanInfo) => c.plan === plan)?.amount ?? Infinity) ? "outline" : "default"}
+																			className="w-full"
+																			onClick={() => handleUpgrade(p.plan)}
+																		>
+																			Change plan
+																		</Button>
+																	)}
+																</CardContent>
+															</Card>
+														);
+													})}
 												</div>
 											</CardContent>
 										</Card>

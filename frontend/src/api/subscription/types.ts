@@ -76,9 +76,17 @@ export interface AdminPlanDefinition {
 	updated_at: string;
 	updated_by_user_id: string | null;
 }
-
 export interface AdminPlanDefinitionList {
 	plans: AdminPlanDefinition[];
+}
+
+export interface PlanCreditLimit {
+	plan: string;
+	monthly_credit_limit: number;
+}
+
+export interface PlanCreditLimitsResponse {
+	plans: PlanCreditLimit[];
 }
 
 export interface UpdatePlanCreditsPayload {

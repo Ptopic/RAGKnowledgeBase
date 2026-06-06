@@ -957,6 +957,43 @@ export class SubscriptionService {
 		return this.getOrSeedPlanDefinition(plan as SubscriptionPlan);
 	}
 
+	/**
+	 * Return the monthly credit limit for every plan in the enum, sourced
+	 * from the `plan_definitions` table (admin-editable at runtime).
+	 * Missing rows are auto-seeded with the historical default of 1000 so
+	 * the client never sees an empty list on a fresh database.
+	 */
+	async getPlanCreditLimits(): Promise<
+		Array<{ plan: SubscriptionPlan; monthlyCreditLimit: number }>
+	> {
+		const allPlans = Object.values(SubscriptionPlan);
+		const existing = await this.prisma.planDefinition.findMany();
+		const existingByPlan = new Map(
+			existing.map((p) => [p.plan, p.monthlyCreditLimit]),
+		);
+
+		const missing = allPlans.filter((p) => !existingByPlan.has(p));
+		if (missing.length > 0) {
+			await this.prisma.$transaction(
+				missing.map((plan) =>
+					this.prisma.planDefinition.upsert({
+						where: { plan },
+						update: {},
+						create: { plan, monthlyCreditLimit: 1000 },
+					}),
+				),
+			);
+			for (const plan of missing) {
+				existingByPlan.set(plan, 1000);
+			}
+		}
+
+		return allPlans.map((plan) => ({
+			plan,
+			monthlyCreditLimit: existingByPlan.get(plan) ?? 1000,
+		}));
+	}
+
 	private async getOrSeedPlanDefinition(
 		plan: SubscriptionPlan,
 		client: Prisma.TransactionClient | PrismaService = this.prisma,

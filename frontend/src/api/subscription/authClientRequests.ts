@@ -9,6 +9,7 @@ import {
 	getAdminPlans,
 	getAdminSubscriptions,
 	getPlans,
+	getPlanCreditLimits,
 	getPreferences,
 	getSubscription,
 	resumeSubscription,
@@ -17,6 +18,7 @@ import {
 
 const subscriptionClientRequests = {
 	getPlans: withAuthenticatedClientRequest(getPlans),
+	getPlanCreditLimits: withAuthenticatedClientRequest(getPlanCreditLimits),
 	getSubscription: withAuthenticatedClientRequest(getSubscription),
 	getPreferences: withAuthenticatedClientRequest(getPreferences),
 	updatePreferences: withAuthenticatedClientRequest(updatePreferences),

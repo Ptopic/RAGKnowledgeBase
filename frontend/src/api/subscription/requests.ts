@@ -6,6 +6,7 @@ import type {
 	CancelSubscriptionResponse,
 	CheckoutSessionResponse,
 	OverridePlanResponse,
+	PlanCreditLimitsResponse,
 	PlanInfo,
 	PortalSessionResponse,
 	PreferencesInfo,
@@ -15,11 +16,18 @@ import type {
 	UpdatePlanCreditsPayload,
 	UpdatePlanCreditsResponse,
 } from "./types";
-
 export const getPlans =
 	(request: ICallableRequestBuilder<PlanInfo[]>) =>
 	async (): Promise<PlanInfo[]> =>
 		request.call(`${config.apiUrl}/subscription/plans`, (init) => ({
+			...init,
+			method: "GET",
+		}));
+
+export const getPlanCreditLimits =
+	(request: ICallableRequestBuilder<PlanCreditLimitsResponse>) =>
+	async (): Promise<PlanCreditLimitsResponse> =>
+		request.call(`${config.apiUrl}/subscription/plans/limits`, (init) => ({
 			...init,
 			method: "GET",
 		}));
