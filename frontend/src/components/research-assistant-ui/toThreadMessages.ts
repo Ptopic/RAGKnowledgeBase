@@ -440,10 +440,8 @@ function extractCitedChunkIds(parts: readonly ThreadAssistantMessagePart[]): Set
 	}
 	return cited;
 }
-
 function extractSourcesFromToolResult(
 	parsedResult: unknown,
-	citedChunkIds: Set<string>,
 ): ThreadAssistantMessagePart[] {
 	if (!parsedResult) return [];
 
@@ -470,24 +468,33 @@ function extractSourcesFromToolResult(
 		if (!src || typeof src !== "object") continue;
 		const s = src as SourceMetadataItem;
 		const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
+
 		// Pass the actual document type as sourceType so the Sources badge
 		// component can render the correct icon/label/color. The old code
 		// collapsed every non-FILE/UNKNOWN type to "url" which made
 		// Google Calendar, Slack, Notion, etc. all show up as a generic
 		// "Webpage" globe badge.
 		const sourceType = s.type || "UNKNOWN";
-		sourceParts.push({
+		// Stash the chunk_ids on the source part as a custom property so
+		// `mergeConsecutiveAssistantMessages` can match citations
+		// (`[citation:chunk_id]`) in the assistant's text to the right
+		// source. The assistant-ui SourceMessagePart type does not
+		// declare this field, so the cast is required.
+		const sourcePart = {
 			type: "source",
 			sourceType,
 			id: sourceId,
 			url: s.url ?? "",
 			title: s.title,
-	} as ThreadAssistantMessagePart);
+			chunk_ids: s.chunk_ids ?? [],
+		} as unknown as ThreadAssistantMessagePart & {
+			chunk_ids?: string[];
+		};
+		sourceParts.push(sourcePart);
 	}
 
 	return sourceParts;
 }
-
 function attachToolResult(
 	threadMessages: ThreadMessageLike[],
 	toolMessage: LangChainToolMessage,
@@ -514,11 +521,13 @@ function attachToolResult(
 			toolMessage.artifact,
 		);
 
-		// We pass an empty cited set so all sources are attached
-		// unconditionally. Citation-based filtering is a follow-up; for
-		// now the user-facing priority is to never drop results on the
-		// floor, so the "View Sources" sheet is always populated.
-		const sourceParts = extractSourcesFromToolResult(parsedResult, new Set());
+		// Always attach every source from the tool result. The
+		// citation-based filter ("only show sources the assistant cited")
+		// runs later in `mergeConsecutiveAssistantMessages` once the
+		// assistant's text is fully assembled. This way the filter has
+		// full visibility into the citations even if the assistant's text
+		// arrives in a separate message after the tool result.
+		const sourceParts = extractSourcesFromToolResult(parsedResult);
 
 		const updatedContent = [
 			...message.content.map((part): typeof part => {
@@ -538,7 +547,7 @@ function attachToolResult(
 			...sourceParts,
 		];
 
-	threadMessages[index] = { ...message, content: updatedContent };
+		threadMessages[index] = { ...message, content: updatedContent };
 		return;
 	}
 
@@ -560,6 +569,7 @@ function attachToolResult(
 			args: {},
 			argsText: "",
 			result: parsedResult,
+			isError: toolMessage.status === "error",
 		};
 
 		// Add to the last assistant message so it merges correctly
@@ -701,8 +711,28 @@ function mergeConsecutiveAssistantMessages(
 		);
 		if (sources.length === 0) continue;
 		const rest = msg.content.filter((p) => p.type !== "source");
+
+		// Filter sources to only those the assistant actually cited. The
+		// citation set is computed from the merged text (post-merge so
+		// text that arrived in a separate message after the tool result
+		// is included). If the assistant emitted no citations at all
+		// (short reply, no inline references) we keep all sources so we
+		// never over-prune.
+		const citedChunkIds = extractCitedChunkIds(
+			msg.content as readonly ThreadAssistantMessagePart[],
+		);
+		const filteredSources = citedChunkIds.size === 0
+			? sources
+			: sources.filter((s) => {
+					const chunkIds = (s as { chunk_ids?: string[] }).chunk_ids;
+					if (!Array.isArray(chunkIds) || chunkIds.length === 0) {
+						return false;
+					}
+					return chunkIds.some((cid) => citedChunkIds.has(String(cid)));
+				});
+
 		const seenIds = new Set<string>();
-		const uniqueSources = sources.filter((s) => {
+		const uniqueSources = filteredSources.filter((s) => {
 			if (seenIds.has(s.id)) return false;
 			seenIds.add(s.id);
 			return true;
