@@ -6,6 +6,7 @@ import { createGenerateFollowupQuestionsTool } from "./generate-followup-questio
 import { createIndexDocumentTool } from "./index-document.tool";
 import { createIndexWebpageTool } from "./index-webpage.tool";
 import { createIndexYouTubeTool } from "./index-youtube.tool";
+import { createParseDateRangeTool } from "./parse-date-range.tool";
 import { createSearchKnowledgeBaseTool } from "./knowledge-base.tool";
 
 const BUILTIN_TOOLS: ToolDefinition[] = [
@@ -54,6 +55,14 @@ const BUILTIN_TOOLS: ToolDefinition[] = [
 			"Transcribe and index a YouTube video into the user's knowledge base",
 		factory: (deps) => createIndexYouTubeTool(deps),
 		requires: ["queueService", "prisma"],
+		enabledByDefault: true,
+	},
+	{
+		name: "parse_date_range",
+		description:
+			"Parse natural-language or locale-specific date expressions in the user's question into a structured ISO {start, end} window. Call this BEFORE search_knowledge_base whenever the user's question references a specific date or time range (e.g. '2.6', 'june 2', 'yesterday', 'last week', 'from 25.11 to 28.11'). Pass the returned start/end as date_start and date_end on the next search_knowledge_base call.",
+		factory: () => createParseDateRangeTool(),
+		requires: [],
 		enabledByDefault: true,
 	},
 	{

@@ -209,14 +209,34 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 			top_k: z.number().int().min(1).max(50).default(10),
 			connectors_to_search: z.array(z.string()).optional(),
 			title_filter: z.string().optional(),
+			date_start: z
+				.string()
+				.nullable()
+				.optional()
+				.describe(
+					"Optional ISO date (YYYY-MM-DD). When set, calendar results are filtered to events starting on/after this date. Pair with date_end for a window.",
+				),
+			date_end: z
+				.string()
+				.nullable()
+				.optional()
+				.describe(
+					"Optional ISO date (YYYY-MM-DD). When set, calendar results are filtered to events starting on/before this date. Pair with date_start for a window.",
+				),
 		}),
-		func: async ({ query, top_k, connectors_to_search, title_filter }) => {
+		func: async ({
+			query,
+			top_k,
+			connectors_to_search,
+			title_filter,
+			date_start,
+			date_end,
+		}) => {
 			const requestedConnectors = connectors_to_search?.length
 				? connectors_to_search
 				: deps.defaultConnectors?.length
 					? deps.defaultConnectors
 					: DEFAULT_CONNECTORS;
-
 			let connectors = normalizeConnectors(requestedConnectors);
 			if (!connectors.length) {
 				connectors = DEFAULT_CONNECTORS;
@@ -239,6 +259,7 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 						top_k,
 						SearchMode.CHUNKS,
 						title_filter,
+						{ start: date_start ?? null, end: date_end ?? null },
 					);
 
 					if (result?.chunks?.length) {

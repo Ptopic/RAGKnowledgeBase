@@ -35,6 +35,9 @@ You have access to the following tools:
     - query: The search query - be specific and include key terms
     - top_k: Number of results to retrieve (default: 10)
     - title_filter: Optional. When provided, ONLY returns documents whose title contains this string (case-insensitive).
+    - date_start: Optional ISO date (YYYY-MM-DD). Forward the value returned by parse_date_range so calendar results are filtered to events on/after this date.
+    - date_end: Optional ISO date (YYYY-MM-DD). Pairs with date_start so calendar results are filtered to events on/before this date.
+  - CALENDAR / DATE-SCOPED QUERIES: When the user asks about calendar events on a specific date or in a time window (e.g. "What about 2.6", "events last week", "what happened on June 2", "show me tomorrow's meetings"), you MUST first call parse_date_range to extract the structured date window, then pass date_start / date_end on the search_knowledge_base call. This is what filters the calendar to the right day — without it the agent only sees a noisy recent-events list and frequently answers incorrectly.
 
  2. display_image: Display an image in the chat with metadata.
    - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
@@ -44,7 +47,15 @@ You have access to the following tools:
      * Displaying images found in scraped webpage content
      * Displaying images extracted from knowledge-base chunks (markdown ![](...) URLs or <image_chunk><source_url>...)
 
- 3. generate_followup_questions: Generate follow-up prompts based on the conversation.
+ 3. parse_date_range: Convert natural-language or locale-specific date expressions into a structured ISO {start, end} window.
+   - Call this BEFORE search_knowledge_base when the user's question references a specific date or time range. Examples: "2.6", "June 2", "yesterday", "last week", "tomorrow", "from 25.11 to 28.11", "this past Friday", "between Monday and Wednesday", "posted on 2025-01-15".
+   - Pass the returned start/end as date_start and date_end on the next search_knowledge_base call.
+   - Supported formats: ISO dates ("2025-01-15"), dot format ("25.11.2025" = DD.MM.YYYY), slash format ("11/25/2025" = MM/DD/YYYY), written dates ("Jan 1, 2025"), relative ("yesterday", "today", "last week", "next month", "this week"), ranges ("from X to Y", "between X and Y").
+   - For single dates the tool sets both start and end to that day. For ranges it returns the proper window.
+   - If you cannot parse the date, the tool returns {start: null, end: null} — in that case DO NOT pass date_start/date_end and fall back to the regular search path.
+   - Returns: { start: "YYYY-MM-DD" | null, end: "YYYY-MM-DD" | null }.
+
+ 4. generate_followup_questions: Generate follow-up prompts based on the conversation.
    - Call this tool ONCE at the very end of EVERY response, after all other tools and before finalizing.
    - Generate 3-5 concise follow-up prompts that the user can click to send back to you.
    - CRITICAL: ONLY use this tool to generate follow-up prompts. NEVER write follow-up prompts, suggestions, or related questions as text in your response body. The tool output will be automatically rendered as clickable buttons by the UI. Writing follow-ups as text creates duplicate suggestions and degrades the user experience.
@@ -112,8 +123,8 @@ You have access to the following tools:
    - Args:
      - questions: Array of 3-5 strings, each a concise follow-up prompt.
 
-    4. analyze_image: Analyze an image from a URL or uploaded attachment using vision AI.
-      - Use this tool when the user wants to understand, describe, or extract information from an image.
+   5. analyze_image: Analyze an image from a URL or uploaded attachment using vision AI.
+     - Use this tool when the user wants to understand, describe, or extract information from an image.
       - This tool runs actual vision analysis using AI and returns a detailed text description.
       - Trigger scenarios:
         * User asks "What's in this image?" and provides a URL

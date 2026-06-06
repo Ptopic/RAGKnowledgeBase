@@ -210,6 +210,7 @@ export class ConnectorService {
 		searchSpaceId: number,
 		topK: number,
 		searchMode: SearchMode,
+		dateRange?: { start: string | null; end: string | null },
 	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
 		const [hybridResult, timeWindowChunks] = await Promise.all([
 			this.searchDocumentType(
@@ -221,7 +222,13 @@ export class ConnectorService {
 				topK,
 				searchMode,
 			),
-			this.fetchRecentCalendarDocuments(userId, searchSpaceId, topK),
+			this.fetchRecentCalendarDocuments(
+				userQuery,
+				userId,
+				searchSpaceId,
+				topK,
+				dateRange,
+			),
 		]);
 
 		if (timeWindowChunks.length === 0) {
@@ -262,14 +269,18 @@ export class ConnectorService {
 	 * carry essentially the same information.
 	 */
 	private async fetchRecentCalendarDocuments(
+		userQuery: string,
 		userId: string,
 		searchSpaceId: number,
 		topK: number,
+		dateRange?: { start: string | null; end: string | null },
 	): Promise<Document[]> {
 		try {
 			const now = new Date();
-			const windowStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-			const windowEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+			const { windowStart, windowEnd } = this.resolveCalendarWindow(
+				dateRange,
+				now,
+			);
 			// We pull a wider candidate set so that, after filtering on the
 			// JSONB start_time range below, we still have enough rows to fill
 			// `topK`. A power user with thousands of past events would otherwise
@@ -385,6 +396,52 @@ export class ConnectorService {
 			description: this.truncateDescription(description),
 			url,
 		};
+	}
+
+	/**
+	 * Resolve the date window used to fetch calendar documents.
+	 *
+	 * When the agent supplies a `dateRange` (parsed via the
+	 * `parse_date_range` tool), we narrow the window to that range. The
+	 * start is the start of the start day in local time, the end is the
+	 * end of the end day so single-day queries include late-night events.
+	 * If either bound is missing or invalid we fall back to the wide
+	 * 90-day-past / 30-day-future default so the merge still has context.
+	 */
+	private resolveCalendarWindow(
+		dateRange: { start: string | null; end: string | null } | undefined,
+		now: Date,
+	): { windowStart: Date; windowEnd: Date } {
+		const defaultStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+		const defaultEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+		if (!dateRange) {
+			return { windowStart: defaultStart, windowEnd: defaultEnd };
+		}
+
+		const startStr = dateRange.start;
+		const endStr = dateRange.end;
+		if (typeof startStr !== "string" && typeof endStr !== "string") {
+			return { windowStart: defaultStart, windowEnd: defaultEnd };
+		}
+
+		// start of the start day, local time
+		let windowStart = defaultStart;
+		if (typeof startStr === "string" && /^\d{4}-\d{2}-\d{2}/.test(startStr)) {
+			const d = new Date(`${startStr.slice(0, 10)}T00:00:00`);
+			if (!Number.isNaN(d.getTime())) {
+				windowStart = d;
+			}
+		}
+		// end of the end day, local time
+		let windowEnd = defaultEnd;
+		if (typeof endStr === "string" && /^\d{4}-\d{2}-\d{2}/.test(endStr)) {
+			const d = new Date(`${endStr.slice(0, 10)}T23:59:59.999`);
+			if (!Number.isNaN(d.getTime())) {
+				windowEnd = d;
+			}
+		}
+		return { windowStart, windowEnd };
 	}
 
 	/**
@@ -1004,7 +1061,18 @@ export class ConnectorService {
 		topK: number,
 		searchMode: SearchMode,
 		titleFilter?: string,
+		dateRange?: { start: string | null; end: string | null },
 	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
+		if (documentType === DocumentType.GOOGLE_CALENDAR_CONNECTOR) {
+			return this.searchGoogleCalendar(
+				userQuery,
+				userId,
+				searchSpaceId,
+				topK,
+				searchMode,
+				dateRange,
+			);
+		}
 		return this.searchDocumentType(
 			documentType,
 			getConnectorFriendlyName(documentType),
