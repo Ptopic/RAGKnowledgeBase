@@ -484,10 +484,15 @@ function extractSourcesFromToolResult(
 			if (!isCited) continue;
 		}
 
-		const isDocument = s.type === "FILE" || s.type === "UNKNOWN";
+		// Pass the actual document type as sourceType so the Sources badge
+		// component can render the correct icon/label/color. The old code
+		// collapsed every non-FILE/UNKNOWN type to "url" which made
+		// Google Calendar, Slack, Notion, etc. all show up as a generic
+		// "Webpage" globe badge.
+		const sourceType = s.type || "UNKNOWN";
 		sourceParts.push({
 			type: "source",
-			sourceType: isDocument ? "document" : "url",
+			sourceType,
 			id: sourceId,
 			url: s.url ?? "",
 			title: s.title,
