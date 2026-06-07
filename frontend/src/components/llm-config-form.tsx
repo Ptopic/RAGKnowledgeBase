@@ -197,24 +197,13 @@ export function LLMConfigForm({
 									textValue={model.label}
 									className="py-1.5"
 								>
-									<div className="space-y-0.5">
-										<div className="font-medium leading-tight">
-											{model.label}
-										</div>
-										<div className="text-xs text-muted-foreground leading-tight">
-											{model.costEstimate}
-										</div>
-										<div className="text-xs text-muted-foreground leading-tight">
-											{model.creditEstimate} · {model.tokenEstimate}
-										</div>
-									</div>
+									{model.label}
 								</SelectItem>
 							))}
 						</SelectContent>
 					</Select>
 				</div>
 			</div>
-
 			{isSuperuser ? (
 				<>
 					<div className="space-y-2">
