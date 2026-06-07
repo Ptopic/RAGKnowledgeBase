@@ -187,9 +187,7 @@ export function LLMConfigForm({
 						onValueChange={(value) => handleInputChange("model_name", value)}
 					>
 						<SelectTrigger id="model_name">
-							<SelectValue placeholder="Select a model">
-								{getOpenAIModel(formData.model_name)?.label}
-							</SelectValue>
+							<SelectValue placeholder="Select a model" />
 						</SelectTrigger>
 						<SelectContent className="max-h-[420px]">
 							{OPENAI_MODELS.map((model) => (
