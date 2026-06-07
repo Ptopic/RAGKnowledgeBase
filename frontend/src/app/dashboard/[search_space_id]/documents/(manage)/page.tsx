@@ -1,23 +1,30 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
-
-import { useDocuments } from "@/hooks/use-documents";
-import { useDebounce } from "@/hooks/use-debounce";
-import { useSSE } from "@/hooks/useSSE";
 import useBulkDeleteDocuments from "@/api/documents/hooks/useBulkDeleteDocuments";
+import useGetDocumentTypeCounts from "@/api/documents/hooks/useGetDocumentTypeCounts";
 import useGetSearchSpace from "@/api/searchspaces/hooks/useGetSearchSpace";
-import { useQueryClient } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useDocuments } from "@/hooks/use-documents";
+import { useSSE } from "@/hooks/useSSE";
+import { DOCUMENT_TYPE_COUNTS, DOCUMENTS } from "@/shared/queryKeys";
 import { DOCUMENTS_SSE_TOPIC } from "@/shared/sseTopics";
-import { DOCUMENTS, DOCUMENT_TYPE_COUNTS } from "@/shared/queryKeys";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import {
-    DocumentsTableShell,
-    type SortKey,
+	DocumentsTableShell,
+	type SortKey,
 } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
 import type { ColumnVisibility } from "./components/types";
@@ -31,7 +38,9 @@ export default function DocumentsTable() {
 	const router = useRouter();
 	const searchSpaceId = Number(params.search_space_id);
 	const { data: searchSpace } = useGetSearchSpace(searchSpaceId);
-	const canDelete = searchSpace ? searchSpace.is_owner || searchSpace.role === "EDITOR" : false;
+	const canDelete = searchSpace
+		? searchSpace.is_owner || searchSpace.role === "EDITOR"
+		: false;
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
@@ -49,9 +58,13 @@ export default function DocumentsTable() {
 	const [sortKey, setSortKey] = useState<SortKey>("created_at");
 	const [sortDesc, setSortDesc] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
-	const [favoriteStatus, setFavoriteStatus] = useState<"all" | "favorited" | "non_favorited">(
-		(searchParams.get("favorite_status") as "all" | "favorited" | "non_favorited") || "all",
+	const [favoriteStatus, setFavoriteStatus] = useState<
+		"all" | "favorited" | "non_favorited"
+	>(
+		(searchParams.get("favorite_status") as
+			| "all"
+			| "favorited"
+			| "non_favorited") || "all",
 	);
 
 	const { mutateAsync: bulkDeleteDocuments } = useBulkDeleteDocuments();
@@ -69,18 +82,31 @@ export default function DocumentsTable() {
 		fetchDocuments,
 		searchDocuments,
 		deleteDocument,
-		getDocumentTypeCounts,
 		toggleFavorite,
 	} = useDocuments(searchSpaceId, {
 		page: pageIndex,
 		pageSize: pageSize,
 	});
 
-	useEffect(() => {
-		if (searchSpaceId && getDocumentTypeCounts) {
-			getDocumentTypeCounts().then(setTypeCounts);
-		}
-	}, [searchSpaceId, getDocumentTypeCounts]);
+	// Type counts come from a React Query hook now so the SSE-driven
+	// `DOCUMENT_TYPE_COUNTS` invalidation in the handler below actually
+	// refreshes the filter badges in real time. Previously the page kept a
+	// snapshot in local state, so the counts went stale as soon as the
+	// page mounted.
+	const { data: typeCountsData } = useGetDocumentTypeCounts(
+		{ search_space_id: searchSpaceId },
+		{ enabled: !!searchSpaceId },
+	);
+	const typeCounts = useMemo(() => {
+		if (!typeCountsData) return {};
+		return typeCountsData.reduce(
+			(acc, item) => {
+				acc[item.type] = item.count;
+				return acc;
+			},
+			{} as Record<string, number>,
+		);
+	}, [typeCountsData]);
 
 	useEffect(() => {
 		if (searchSpaceId) {
@@ -161,7 +187,9 @@ export default function DocumentsTable() {
 		const { searchSpaceId: eventSearchSpaceId } = lastEvent.data;
 		if (eventSearchSpaceId && eventSearchSpaceId !== searchSpaceId) return;
 		queryClient.invalidateQueries({ queryKey: [DOCUMENTS, searchSpaceId] });
-		queryClient.invalidateQueries({ queryKey: [DOCUMENT_TYPE_COUNTS, searchSpaceId] });
+		queryClient.invalidateQueries({
+			queryKey: [DOCUMENT_TYPE_COUNTS, searchSpaceId],
+		});
 		refreshCurrentView();
 	}, [lastEvent, queryClient, searchSpaceId, refreshCurrentView]);
 
@@ -171,7 +199,9 @@ export default function DocumentsTable() {
 			connectionCountRef.current++;
 			if (connectionCountRef.current > 1) {
 				queryClient.invalidateQueries({ queryKey: [DOCUMENTS, searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: [DOCUMENT_TYPE_COUNTS, searchSpaceId] });
+				queryClient.invalidateQueries({
+					queryKey: [DOCUMENT_TYPE_COUNTS, searchSpaceId],
+				});
 			}
 		}
 	}, [isConnected, queryClient, searchSpaceId]);
@@ -187,18 +217,24 @@ export default function DocumentsTable() {
 				searchSpaceId,
 			});
 			if (result.failed.length === 0) {
-				toast.success(`Successfully deleted ${result.deleted.length} document(s)`);
+				toast.success(
+					`Successfully deleted ${result.deleted.length} document(s)`,
+				);
 			} else if (result.deleted.length > 0) {
 				toast.warning(
 					`Deleted ${result.deleted.length} document(s), ${result.failed.length} failed`,
 					{
-						description: result.failed.map(f => `Document ${f.id}: ${f.reason}`).join('\n'),
+						description: result.failed
+							.map((f) => `Document ${f.id}: ${f.reason}`)
+							.join("\n"),
 						duration: 8000,
-					}
+					},
 				);
 			} else {
 				toast.error("Failed to delete documents", {
-					description: result.failed.map(f => `Document ${f.id}: ${f.reason}`).join('\n'),
+					description: result.failed
+						.map((f) => `Document ${f.id}: ${f.reason}`)
+						.join("\n"),
 					duration: 8000,
 				});
 			}
