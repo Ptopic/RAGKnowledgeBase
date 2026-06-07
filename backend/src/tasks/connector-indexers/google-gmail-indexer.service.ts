@@ -392,6 +392,14 @@ export class GoogleGmailIndexerService {
                 `;
 							}
 
+							await taskLogger.logDocumentIndexed(
+								"google_gmail_messages_indexing",
+								existingDocument.id,
+								subject,
+								"updated",
+								{ message_id: messageId },
+							);
+
 							documentsProcessed++;
 							this.logger.log(`Successfully updated Gmail message ${subject}`);
 							continue;
@@ -481,6 +489,14 @@ export class GoogleGmailIndexerService {
               WHERE id = ${chunkRecord.id}
             `;
 					}
+
+					await taskLogger.logDocumentIndexed(
+						"google_gmail_messages_indexing",
+						document.id,
+						subject,
+						"created",
+						{ message_id: messageId },
+					);
 
 					documentsProcessed++;
 					this.logger.log(`Successfully indexed new email ${subject}`);

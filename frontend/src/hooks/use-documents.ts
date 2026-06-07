@@ -1,6 +1,6 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import documentsClientRequests from "@/api/documents/authClientRequests";
 import useDeleteDocument from "@/api/documents/hooks/useDeleteDocument";
@@ -38,6 +38,15 @@ export function useDocuments(
 	const [isLoaded, setIsLoaded] = useState(false);
 	const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
+	// The full-screen "Loading..." spinner should only appear on the very
+	// first fetch (when there is no data on screen yet). Every subsequent
+	// refetch — filter changes, bulk-delete refresh, and most importantly
+	// the SSE-driven `documents` event from a connector indexer — must run
+	// silently so the table updates in place. The logs page already behaves
+	// this way (it reads from React Query, where `isLoading` is false
+	// during background refetches); we match that UX here.
+	const hasLoadedOnceRef = useRef(false);
+
 	const { mutate: deleteDocumentMutation } = useDeleteDocument({
 		onSuccess: (_, params) => {
 			setDocuments((prev) => prev.filter((doc) => doc.id !== params.id));
@@ -61,7 +70,7 @@ export function useDocuments(
 			if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
 
 			try {
-				setLoading(true);
+				if (!hasLoadedOnceRef.current) setLoading(true);
 				setError(null);
 
 				const favoriteStatusParam =
@@ -105,7 +114,10 @@ export function useDocuments(
 				console.error("Error fetching documents:", err);
 				toast.error("Failed to fetch documents");
 			} finally {
-				setLoading(false);
+				if (!hasLoadedOnceRef.current) {
+					hasLoadedOnceRef.current = true;
+					setLoading(false);
+				}
 			}
 		},
 		[searchSpaceId, page, pageSize, documentTypes, isLoaded, lazy, queryClient],
@@ -137,11 +149,16 @@ export function useDocuments(
 		) => {
 			if (!searchQuery.trim()) {
 				// If search is empty, fetch all documents
-				return fetchDocuments(fetchPage, fetchPageSize, fetchDocumentTypes, fetchFavoriteStatus);
+				return fetchDocuments(
+					fetchPage,
+					fetchPageSize,
+					fetchDocumentTypes,
+					fetchFavoriteStatus,
+				);
 			}
 
 			try {
-				setLoading(true);
+				if (!hasLoadedOnceRef.current) setLoading(true);
 				setError(null);
 
 				const favoriteStatusParam =
@@ -186,7 +203,10 @@ export function useDocuments(
 				console.error("Error searching documents:", err);
 				toast.error("Failed to search documents");
 			} finally {
-				setLoading(false);
+				if (!hasLoadedOnceRef.current) {
+					hasLoadedOnceRef.current = true;
+					setLoading(false);
+				}
 			}
 		},
 		[searchSpaceId, page, pageSize, documentTypes, fetchDocuments, queryClient],

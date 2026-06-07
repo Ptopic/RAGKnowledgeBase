@@ -358,6 +358,14 @@ export class GithubIndexerService {
                   `;
 								}
 
+								await taskLogger.logDocumentIndexed(
+									"github_repos_indexing",
+									existingDocument.id,
+									fullPathKey,
+									"updated",
+									{ repository: repoFullName, file_path: filePath },
+								);
+
 								documentsProcessed++;
 								this.logger.log(
 									`Successfully updated GitHub file ${fullPathKey}`,
@@ -449,6 +457,14 @@ export class GithubIndexerService {
 						}
 
 						documentsProcessed++;
+						await taskLogger.logDocumentIndexed(
+							"github_repos_indexing",
+							document.id,
+							fullPathKey,
+							"created",
+							{ repository: repoFullName, file_path: filePath },
+						);
+
 						this.logger.log(
 							`Successfully indexed new GitHub file: ${fullPathKey}`,
 						);

@@ -1,10 +1,18 @@
 "use client";
-
 import { type SourceMessagePartComponent, useThread } from "@assistant-ui/react";
+import {
+	IconBrandGithub,
+	IconBrandNotion,
+	IconBrandSlack,
+	IconBrandYoutube,
+	IconCalendar,
+	IconMail,
+} from "@tabler/icons-react";
 import {
 	ExternalLinkIcon,
 	FileTextIcon,
 	GlobeIcon,
+	NotebookIcon,
 	VideoIcon,
 } from "lucide-react";
 import { type ComponentProps, memo, useCallback, useEffect, useRef, useState } from "react";
@@ -56,19 +64,55 @@ const getYouTubeThumbnail = (url: string): string | null => {
 		return null;
 	}
 };
+type SourceKind =
+	| "webpage"
+	| "youtube"
+	| "document"
+	| "notebook"
+	| "calendar"
+	| "gmail"
+	| "slack"
+	| "notion"
+	| "github";
 
-/** Determine the content type label for a source. */
-const getSourceKind = (
-	sourceType: string,
-	url?: string,
-): "webpage" | "youtube" | "document" => {
-	if (sourceType === "document") return "document";
-	if (url && getYouTubeThumbnail(url)) return "youtube";
-	return "webpage";
+/** Map a backend document type to a render kind for the badge. */
+const getSourceKind = (sourceType: string): SourceKind => {
+	switch (sourceType) {
+		case "FILE":
+		case "EXTENSION":
+		case "UNKNOWN":
+			return "document";
+		case "CRAWLED_URL":
+			return "webpage";
+		case "YOUTUBE_VIDEO":
+			return "youtube";
+		case "NOTEBOOK":
+			return "notebook";
+		case "GOOGLE_CALENDAR_CONNECTOR":
+			return "calendar";
+		case "GOOGLE_GMAIL_CONNECTOR":
+			return "gmail";
+		case "SLACK_CONNECTOR":
+			return "slack";
+		case "NOTION_CONNECTOR":
+			return "notion";
+		case "GITHUB_CONNECTOR":
+			return "github";
+		// Legacy values that the old collapsed code emitted; map them
+		// back to their previous behaviour so the badge doesn't go blank.
+		case "document":
+			return "document";
+		case "url":
+			return "webpage";
+		default:
+			// Unknown connector types still get rendered as a webpage
+			// badge so we never drop a source on the floor.
+			return "webpage";
+	}
 };
 
 const KIND_CONFIG: Record<
-	string,
+	SourceKind,
 	{ label: string; icon: typeof GlobeIcon; badgeClass: string }
 > = {
 	webpage: {
@@ -89,8 +133,43 @@ const KIND_CONFIG: Record<
 		badgeClass:
 			"bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
 	},
+	notebook: {
+		label: "Notebook",
+		icon: NotebookIcon,
+		badgeClass:
+			"bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+	},
+	calendar: {
+		label: "Calendar",
+		icon: IconCalendar,
+		badgeClass:
+			"bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+	},
+	gmail: {
+		label: "Gmail",
+		icon: IconMail,
+		badgeClass:
+			"bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
+	},
+	slack: {
+		label: "Slack",
+		icon: IconBrandSlack,
+		badgeClass:
+			"bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/50 dark:text-fuchsia-300",
+	},
+	notion: {
+		label: "Notion",
+		icon: IconBrandNotion,
+		badgeClass:
+			"bg-stone-100 text-stone-700 dark:bg-stone-800/60 dark:text-stone-300",
+	},
+	github: {
+		label: "GitHub",
+		icon: IconBrandGithub,
+		badgeClass:
+			"bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300",
+	},
 };
-
 // ---------------------------------------------------------------------------
 // SourceIcon — favicon for URLs, file icon for documents
 // ---------------------------------------------------------------------------
@@ -102,8 +181,10 @@ function SourceIcon({
 	...props
 }: ComponentProps<"span"> & { url?: string; sourceType?: string }) {
 	const [hasError, setHasError] = useState(false);
+	const kind = getSourceKind(sourceType ?? "");
 
-	if (sourceType === "document" || !url) {
+	// File-system types render a static file icon.
+	if (kind === "document" || kind === "notebook" || !url) {
 		return (
 			<span
 				data-slot="source-icon-document"
@@ -114,6 +195,26 @@ function SourceIcon({
 				{...props}
 			>
 				<FileTextIcon className="size-3" />
+			</span>
+		);
+	}
+
+	// Connector types (calendar, slack, gmail, notion, github) render
+	// the brand icon, not a favicon — a Google Calendar entry's url
+	// points to calendar.google.com which is not what the user thinks
+	// they're looking at.
+	if (kind !== "webpage") {
+		const KindIcon = KIND_CONFIG[kind].icon;
+		return (
+			<span
+				data-slot="source-icon-connector"
+				className={cn(
+					"flex size-3 shrink-0 items-center justify-center text-muted-foreground",
+					className,
+				)}
+				{...props}
+			>
+				<KindIcon className="size-3" />
 			</span>
 		);
 	}
@@ -204,7 +305,6 @@ function Source({
 // ---------------------------------------------------------------------------
 // SourceHoverCard — rich hover card content
 // ---------------------------------------------------------------------------
-
 function SourceHoverCard({
 	url,
 	title,
@@ -214,13 +314,12 @@ function SourceHoverCard({
 	title?: string;
 	sourceType: string;
 }) {
-	const kind = getSourceKind(sourceType, url);
+	const kind = getSourceKind(sourceType);
 	const config = KIND_CONFIG[kind];
 	const KindIcon = config.icon;
 	const domain = url ? extractDomain(url) : null;
 	const displayTitle = title || domain || "Untitled";
 	const thumbnailUrl = url ? getYouTubeThumbnail(url) : null;
-
 	return (
 		<div data-slot="source-hover-card" className="space-y-2.5">
 			{thumbnailUrl && (
@@ -315,18 +414,23 @@ const SourcesImpl: SourceMessagePartComponent = ({
 			setOpen(false);
 		}, 150);
 	}, [clearTimers]);
-
 	useEffect(() => {
 		return () => {
 			clearTimers();
 		};
 	}, [clearTimers]);
-
-	if (sourceType !== "url" && sourceType !== "document") return null;
 	if (isRunning) return null;
 
+	const kind = getSourceKind(sourceType);
+	const config = KIND_CONFIG[kind];
+	const KindIcon = config.icon;
 	const domain = url ? extractDomain(url) : null;
 	const displayTitle = title || domain || "Document";
+	// Connector-typed sources (calendar, slack, gmail, etc.) and notebook
+	// sources are rendered as a click-through badge that links out to the
+	// underlying item. Only "document" sources without a url get the
+	// no-navigation behaviour.
+	const shouldPreventNav = kind === "document" && !url;
 
 	return (
 		<div className="mt-2 mb-1 mr-2 inline-flex">
@@ -339,7 +443,7 @@ const SourcesImpl: SourceMessagePartComponent = ({
 					onFocus={handleOpenDelayed}
 					onBlur={handleClose}
 					onClick={(e) => {
-						if (sourceType === "document" && !url) e.preventDefault();
+						if (shouldPreventNav) e.preventDefault();
 					}}
 				>
 					<SourceIcon url={url} sourceType={sourceType} />

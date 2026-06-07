@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { ChatType } from "@prisma/client";
 import { createDeepAgent } from "deepagents";
+import { createMiddleware } from "langchain";
 import { ChatsService } from "src/chats/chats.service";
 import { DocumentsService } from "src/documents/documents.service";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -33,6 +34,38 @@ import { ThinkingStepCallbackHandler } from "../utils/custom-event-handler";
 import { ConnectorService } from "./connector.service";
 import { ConversationMemoryService } from "./conversation-memory.service";
 import { LLMService } from "./llm.service";
+
+// ---------------------------------------------------------------------------
+// deepagents ships a default set of filesystem / subagent / todo tools
+// (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`,
+// `execute`, `write_todos`, `task`) that this product does not need.
+// The agent's filesystem lives in transient LangGraph state and the LLM
+// will call `read_file` on empty state, which then returns errors. We
+// drop them from the tools array on every model call so the LLM never
+// sees them in the first place and never calls them.
+// ---------------------------------------------------------------------------
+const FORBIDDEN_DEEPAGENT_TOOLS = new Set([
+	"ls",
+	"read_file",
+	"write_file",
+	"edit_file",
+	"glob",
+	"grep",
+	"execute",
+	"write_todos",
+	"task",
+]);
+
+const stripForbiddenDeepagentTools = createMiddleware({
+	name: "StripForbiddenDeepagentTools",
+	wrapModelCall: (request, handler) => {
+		const tools = (request.tools ?? []) as Array<{ name?: string }>;
+		const filtered = tools.filter(
+			(t) => !FORBIDDEN_DEEPAGENT_TOOLS.has(typeof t?.name === "string" ? t.name : ""),
+		);
+		return handler({ ...request, tools: filtered });
+	},
+});
 
 interface SelectedDocument {
 	id: number;
@@ -139,12 +172,16 @@ export class DeepAgentService {
 	) {
 		const tools = buildTools(dependencies);
 		const systemPrompt = buildSystemPrompt(language);
-
 		return createDeepAgent({
 			model: llm,
 			tools: tools,
 			systemPrompt: systemPrompt,
 			checkpointer: checkpointer,
+			// Custom middleware is appended after the deepagents defaults. The
+			// strip middleware runs in `wrapModelCall` and removes the
+			// filesystem / subagent / todo tools from the LLM's view so the
+			// model never emits calls for them.
+			middleware: [stripForbiddenDeepagentTools],
 		});
 	}
 

@@ -193,7 +193,16 @@ export class ConnectorService {
 	}
 
 	/**
-	 * Search Google Calendar events
+	 * Search Google Calendar events.
+	 *
+	 * Calendar events are very different from documents: the chunk text is
+	 * mostly structured markdown (date strings, "Event Details", "Attendees"),
+	 * so a hybrid-search query like "what events did I have last week" shares
+	 * almost no keywords with the event bodies and the embedding is far from
+	 * the chunk's embedding. To answer time-scoped questions we ALSO run a
+	 * structured Prisma fetch over `documentMetadata->>'start_time'` and merge
+	 * those hits with the hybrid-search hits. The two result sets are
+	 * deduplicated by document id and the union is re-ranked.
 	 */
 	async searchGoogleCalendar(
 		userQuery: string,
@@ -201,16 +210,238 @@ export class ConnectorService {
 		searchSpaceId: number,
 		topK: number,
 		searchMode: SearchMode,
+		dateRange?: { start: string | null; end: string | null },
 	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
-		return this.searchDocumentType(
-			"GOOGLE_CALENDAR_CONNECTOR",
-			"Google Calendar",
-			userQuery,
-			userId,
-			searchSpaceId,
-			topK,
-			searchMode,
-		);
+		const [hybridResult, timeWindowChunks] = await Promise.all([
+			this.searchDocumentType(
+				"GOOGLE_CALENDAR_CONNECTOR",
+				"Google Calendar",
+				userQuery,
+				userId,
+				searchSpaceId,
+				topK,
+				searchMode,
+			),
+			this.fetchRecentCalendarDocuments(
+				userQuery,
+				userId,
+				searchSpaceId,
+				topK,
+				dateRange,
+			),
+		]);
+
+		if (timeWindowChunks.length === 0) {
+			return hybridResult;
+		}
+
+		// Merge: time-window hits first (sorted by recency), then hybrid hits
+		// we haven't already surfaced. Cap each set to `topK` so the merged
+		// result stays bounded to ~2x topK before downstream truncation.
+		const seenDocIds = new Set<string | number>();
+		const merged: Document[] = [];
+
+		for (const chunk of [...timeWindowChunks, ...hybridResult.chunks]) {
+			const id = chunk.document.id;
+			if (seenDocIds.has(id)) continue;
+			seenDocIds.add(id);
+			merged.push(chunk);
+		}
+
+		return {
+			sourceObject: {
+				...hybridResult.sourceObject,
+				sources: merged.map((c) => this.formatCalendarSourceEntry(c)),
+			},
+			// Cap at topK from each path (time-window + hybrid) so the merged
+			// result stays bounded to ~2x topK before downstream truncation.
+			chunks: merged.slice(0, topK + Math.min(hybridResult.chunks.length, topK)),
+		};
+	}
+
+	/**
+	 * Fetch the user's calendar documents within a recency window
+	 * (default: last 90 days, next 30 days), ordered by start_time DESC.
+	 *
+	 * Uses Prisma's JSONB operator on `documentMetadata` to filter by
+	 * `start_time` and returns one chunk per document (the first one)
+	 * because events are short enough that all chunks of a single event
+	 * carry essentially the same information.
+	 */
+	private async fetchRecentCalendarDocuments(
+		userQuery: string,
+		userId: string,
+		searchSpaceId: number,
+		topK: number,
+		dateRange?: { start: string | null; end: string | null },
+	): Promise<Document[]> {
+		try {
+			const now = new Date();
+			const { windowStart, windowEnd } = this.resolveCalendarWindow(
+				dateRange,
+				now,
+			);
+			// We pull a wider candidate set so that, after filtering on the
+			// JSONB start_time range below, we still have enough rows to fill
+			// `topK`. A power user with thousands of past events would otherwise
+			// have older events starve the recent ones, so we cap at 200.
+			const candidateLimit = Math.min(Math.max(topK * 4, 100), 200);
+
+			const documents = await this.prisma.document.findMany({
+				where: {
+					searchSpace: { userId },
+					searchSpaceId,
+					documentType: DocumentType.GOOGLE_CALENDAR_CONNECTOR,
+					documentMetadata: {
+						path: ["start_time"],
+						not: null,
+					},
+				},
+				include: {
+					chunks: {
+						orderBy: { id: "asc" },
+						take: 1,
+					},
+				},
+				take: candidateLimit,
+			});
+
+			const inWindow = documents
+				.filter((doc) => {
+					const startTime = (doc.documentMetadata as any)?.start_time;
+					if (typeof startTime !== "string" || !startTime) return false;
+					const t = new Date(startTime);
+					if (Number.isNaN(t.getTime())) return false;
+					return t >= windowStart && t <= windowEnd;
+				})
+				.sort((a, b) => {
+					const ta = new Date(
+						(a.documentMetadata as any)?.start_time as string,
+					).getTime();
+					const tb = new Date(
+						(b.documentMetadata as any)?.start_time as string,
+					).getTime();
+					return tb - ta;
+				})
+				.slice(0, topK);
+
+			return inWindow.map((doc) => {
+				const chunk = doc.chunks[0];
+				return {
+					chunk_id: chunk?.id ?? doc.id,
+					content: chunk?.content ?? doc.content ?? "",
+					score: 1.0,
+					document: {
+						id: doc.id,
+						title: doc.title,
+						document_type: "GOOGLE_CALENDAR_CONNECTOR",
+						metadata: (doc.documentMetadata as any) ?? {},
+					},
+					source: "GOOGLE_CALENDAR_CONNECTOR",
+				};
+			});
+		} catch (error) {
+			this.logger.error(
+				`Error fetching recent calendar documents: ${error.message}`,
+				error.stack,
+			);
+			return [];
+		}
+	}
+
+	/**
+	 * Build a calendar-specific source entry. We can't reuse the generic
+	 * `formatSourceEntry` switch for merged results because that switch
+	 * branches on document type and the merged path bypasses it.
+	 */
+	private formatCalendarSourceEntry(chunk: Document): {
+		id: string | number;
+		title: string;
+		description: string;
+		url: string;
+	} {
+		const metadata = chunk.document.metadata || {};
+		const eventSummary = metadata.event_summary || chunk.document.title;
+		const startTime = metadata.start_time || "";
+		const eventId = metadata.event_id || "";
+
+		let title = `Calendar: ${eventSummary}`;
+		if (startTime) {
+			if (startTime.includes("T")) {
+				const dt = new Date(startTime);
+				if (!Number.isNaN(dt.getTime())) {
+					title += ` (${dt.toLocaleString("en-US", {
+						year: "numeric",
+						month: "2-digit",
+						day: "2-digit",
+						hour: "2-digit",
+						minute: "2-digit",
+					})})`;
+				} else {
+					title += ` (${startTime})`;
+				}
+			} else {
+				title += ` (${startTime})`;
+			}
+		}
+
+		const description = chunk.content || "";
+		const url = eventId
+			? `https://calendar.google.com/calendar/event?eid=${eventId}`
+			: "";
+
+		return {
+			id: chunk.chunk_id,
+			title,
+			description: this.truncateDescription(description),
+			url,
+		};
+	}
+
+	/**
+	 * Resolve the date window used to fetch calendar documents.
+	 *
+	 * When the agent supplies a `dateRange` (parsed via the
+	 * `parse_date_range` tool), we narrow the window to that range. The
+	 * start is the start of the start day in local time, the end is the
+	 * end of the end day so single-day queries include late-night events.
+	 * If either bound is missing or invalid we fall back to the wide
+	 * 90-day-past / 30-day-future default so the merge still has context.
+	 */
+	private resolveCalendarWindow(
+		dateRange: { start: string | null; end: string | null } | undefined,
+		now: Date,
+	): { windowStart: Date; windowEnd: Date } {
+		const defaultStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+		const defaultEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+		if (!dateRange) {
+			return { windowStart: defaultStart, windowEnd: defaultEnd };
+		}
+
+		const startStr = dateRange.start;
+		const endStr = dateRange.end;
+		if (typeof startStr !== "string" && typeof endStr !== "string") {
+			return { windowStart: defaultStart, windowEnd: defaultEnd };
+		}
+
+		// start of the start day, local time
+		let windowStart = defaultStart;
+		if (typeof startStr === "string" && /^\d{4}-\d{2}-\d{2}/.test(startStr)) {
+			const d = new Date(`${startStr.slice(0, 10)}T00:00:00`);
+			if (!Number.isNaN(d.getTime())) {
+				windowStart = d;
+			}
+		}
+		// end of the end day, local time
+		let windowEnd = defaultEnd;
+		if (typeof endStr === "string" && /^\d{4}-\d{2}-\d{2}/.test(endStr)) {
+			const d = new Date(`${endStr.slice(0, 10)}T23:59:59.999`);
+			if (!Number.isNaN(d.getTime())) {
+				windowEnd = d;
+			}
+		}
+		return { windowStart, windowEnd };
 	}
 
 	/**
@@ -830,7 +1061,18 @@ export class ConnectorService {
 		topK: number,
 		searchMode: SearchMode,
 		titleFilter?: string,
+		dateRange?: { start: string | null; end: string | null },
 	): Promise<{ sourceObject: SourceObject; chunks: Document[] }> {
+		if (documentType === DocumentType.GOOGLE_CALENDAR_CONNECTOR) {
+			return this.searchGoogleCalendar(
+				userQuery,
+				userId,
+				searchSpaceId,
+				topK,
+				searchMode,
+				dateRange,
+			);
+		}
 		return this.searchDocumentType(
 			documentType,
 			getConnectorFriendlyName(documentType),

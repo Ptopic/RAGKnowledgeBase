@@ -402,61 +402,103 @@ function toAssistantThreadContent(
 
 	return parts;
 }
+type SourceMetadataItem = {
+	id: string;
+	title: string;
+	url: string;
+	type: string;
+	ogImage?: string;
+	// Backend populates this so the frontend can filter sources to only
+	// those actually cited in the assistant's answer. Multiple chunks of
+	// the same document share a single `id`, so we keep the chunk ids
+	// on each source entry for citation matching.
+	chunk_ids?: string[];
+};
 
-	type SourceMetadataItem = {
-		id: string;
-		title: string;
-		url: string;
-		type: string;
-		ogImage?: string;
-	};
+const CITATION_REGEX = /\[citation:([^\]]+)\]/g;
 
-	function extractSourcesFromToolResult(
-		parsedResult: unknown,
-	): ThreadAssistantMessagePart[] {
-		if (!parsedResult) return [];
-
-		const resultObj =
-			typeof parsedResult === "string"
-				? (() => {
-						try {
-							return JSON.parse(parsedResult);
-						} catch {
-							return null;
-						}
-					})()
-				: parsedResult;
-
-		if (!resultObj || typeof resultObj !== "object" || !("sources" in resultObj))
-			return [];
-
-		const sources = (resultObj as { sources: unknown }).sources;
-		if (!Array.isArray(sources)) return [];
-
-		const sourceParts: ThreadAssistantMessagePart[] = [];
-
-		for (const src of sources) {
-			if (!src || typeof src !== "object") continue;
-			const s = src as SourceMetadataItem;
-			const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
-
-			const isDocument = s.type === "FILE" || s.type === "UNKNOWN";
-			sourceParts.push({
-				type: "source",
-				sourceType: isDocument ? "document" : "url",
-				id: sourceId,
-				url: s.url ?? "",
-				title: s.title,
-			} as ThreadAssistantMessagePart);
+/**
+ * Extract every chunk id the assistant actually cited in its visible
+ * text. Matches the `[citation:chunk_id]` format the system prompt
+ * enforces. Returns a Set of stringified ids; missing/empty text
+ * returns an empty set (caller decides how to handle that — we
+ * currently keep all sources in that case so we never over-prune).
+ */
+function extractCitedChunkIds(parts: readonly ThreadAssistantMessagePart[]): Set<string> {
+	const cited = new Set<string>();
+	for (const part of parts) {
+		if (part && (part as { type?: string }).type === "text") {
+			const text = (part as { text?: string }).text;
+			if (typeof text !== "string") continue;
+			let match: RegExpExecArray | null;
+			// biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop
+			while ((match = CITATION_REGEX.exec(text)) !== null) {
+				const raw = match[1]?.trim();
+				if (raw) cited.add(raw);
+			}
 		}
+	}
+	return cited;
+}
+function extractSourcesFromToolResult(
+	parsedResult: unknown,
+): ThreadAssistantMessagePart[] {
+	if (!parsedResult) return [];
 
-		return sourceParts;
+	const resultObj =
+		typeof parsedResult === "string"
+			? (() => {
+					try {
+						return JSON.parse(parsedResult);
+					} catch {
+						return null;
+					}
+				})()
+			: parsedResult;
+
+	if (!resultObj || typeof resultObj !== "object" || !("sources" in resultObj))
+		return [];
+
+	const sources = (resultObj as { sources: unknown }).sources;
+	if (!Array.isArray(sources)) return [];
+
+	const sourceParts: ThreadAssistantMessagePart[] = [];
+
+	for (const src of sources) {
+		if (!src || typeof src !== "object") continue;
+		const s = src as SourceMetadataItem;
+		const sourceId = s.id ?? `source-${Math.random().toString(36).slice(2)}`;
+
+		// Pass the actual document type as sourceType so the Sources badge
+		// component can render the correct icon/label/color. The old code
+		// collapsed every non-FILE/UNKNOWN type to "url" which made
+		// Google Calendar, Slack, Notion, etc. all show up as a generic
+		// "Webpage" globe badge.
+		const sourceType = s.type || "UNKNOWN";
+		// Stash the chunk_ids on the source part as a custom property so
+		// `mergeConsecutiveAssistantMessages` can match citations
+		// (`[citation:chunk_id]`) in the assistant's text to the right
+		// source. The assistant-ui SourceMessagePart type does not
+		// declare this field, so the cast is required.
+		const sourcePart = {
+			type: "source",
+			sourceType,
+			id: sourceId,
+			url: s.url ?? "",
+			title: s.title,
+			chunk_ids: s.chunk_ids ?? [],
+		} as unknown as ThreadAssistantMessagePart & {
+			chunk_ids?: string[];
+		};
+		sourceParts.push(sourcePart);
 	}
 
-	function attachToolResult(
-		threadMessages: ThreadMessageLike[],
-		toolMessage: LangChainToolMessage,
-	) {
+	return sourceParts;
+}
+function attachToolResult(
+	threadMessages: ThreadMessageLike[],
+	toolMessage: LangChainToolMessage,
+) {
 	for (let index = threadMessages.length - 1; index >= 0; index -= 1) {
 		const message = threadMessages[index];
 		if (
@@ -479,9 +521,13 @@ function toAssistantThreadContent(
 			toolMessage.artifact,
 		);
 
-		const sourceParts = extractSourcesFromToolResult(
-			parsedResult,
-		);
+		// Always attach every source from the tool result. The
+		// citation-based filter ("only show sources the assistant cited")
+		// runs later in `mergeConsecutiveAssistantMessages` once the
+		// assistant's text is fully assembled. This way the filter has
+		// full visibility into the citations even if the assistant's text
+		// arrives in a separate message after the tool result.
+		const sourceParts = extractSourcesFromToolResult(parsedResult);
 
 		const updatedContent = [
 			...message.content.map((part): typeof part => {
@@ -661,12 +707,31 @@ function mergeConsecutiveAssistantMessages(
 	for (const msg of merged) {
 		if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
 		const sources = msg.content.filter(
-			(p): p is SourceMessagePart => p.type === "source",
+		(p): p is SourceMessagePart => p.type === "source",
 		);
 		if (sources.length === 0) continue;
 		const rest = msg.content.filter((p) => p.type !== "source");
+
+		// Filter sources to only those the assistant actually cited. The
+		// citation set is computed from the merged text (post-merge so
+		// text that arrived in a separate message after the tool result
+		// is included). If the assistant emitted no citations at all
+		// we drop every source — better to show nothing than to dump
+		// the full retrieval list when the LLM didn't actually use it.
+		const citedChunkIds = extractCitedChunkIds(
+			msg.content as readonly ThreadAssistantMessagePart[],
+		);
+		const filteredSources = citedChunkIds.size === 0
+			? []
+			: sources.filter((s) => {
+				const chunkIds = (s as { chunk_ids?: string[] }).chunk_ids;
+				if (!Array.isArray(chunkIds) || chunkIds.length === 0) {
+					return false;
+				}
+				return chunkIds.some((cid) => citedChunkIds.has(String(cid)));
+			});
 		const seenIds = new Set<string>();
-		const uniqueSources = sources.filter((s) => {
+		const uniqueSources = filteredSources.filter((s) => {
 			if (seenIds.has(s.id)) return false;
 			seenIds.add(s.id);
 			return true;

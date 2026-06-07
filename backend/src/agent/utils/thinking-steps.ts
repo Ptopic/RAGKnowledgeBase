@@ -141,34 +141,50 @@ export function getToolThinkingInfo(
 				title: "Indexing web page",
 				items: [`URL: ${truncatedUrl}`, "Crawling..."],
 			};
-		}
-		case "index_youtube": {
-			const videoUrl = (toolInput?.videoUrl as string) || "";
-			const truncatedUrl = videoUrl.length > 60 ? `${videoUrl.substring(0, 60)}...` : videoUrl;
-			if (toolOutput) {
-				const hasError = typeof toolOutput === "object" && "error" in (toolOutput as object);
-				if (hasError) {
-					return {
-						title: "Indexing YouTube video",
-						items: [`URL: ${truncatedUrl}`, `Error: ${(toolOutput as any).error}`],
-					};
-				}
+	}
+	case "index_youtube": {
+		const videoUrl = (toolInput?.videoUrl as string) || "";
+		const truncatedUrl = videoUrl.length > 60 ? `${videoUrl.substring(0, 60)}...` : videoUrl;
+		if (toolOutput) {
+			const hasError = typeof toolOutput === "object" && "error" in (toolOutput as object);
+			if (hasError) {
 				return {
 					title: "Indexing YouTube video",
-					items: [`URL: ${truncatedUrl}`, "Video indexed successfully"],
+					items: [`URL: ${truncatedUrl}`, `Error: ${(toolOutput as any).error}`],
 				};
 			}
 			return {
 				title: "Indexing YouTube video",
-				items: [`URL: ${truncatedUrl}`, "Transcribing..."],
+				items: [`URL: ${truncatedUrl}`, "Video indexed successfully"],
 			};
 		}
-		default:
-			return {
-				title: toolName.replace(/_/g, " "),
-				items: [],
-			};
+		return {
+			title: "Indexing YouTube video",
+			items: [`URL: ${truncatedUrl}`, "Transcribing..."],
+		};
 	}
+	case "parse_date_range": {
+		const start = (toolInput?.start as string) || "";
+		const end = (toolInput?.end as string) || "";
+		let rangeItem: string;
+		if (start && end && start !== end) {
+			rangeItem = `Range: ${start} → ${end}`;
+		} else if (start) {
+			rangeItem = `Date: ${start}`;
+		} else {
+			rangeItem = "Detecting date range...";
+		}
+		return {
+			title: "Generating date range",
+			items: [rangeItem],
+		};
+	}
+	default:
+		return {
+			title: toolName.replace(/_/g, " "),
+			items: [],
+		};
+}
 }
 
 export function getInitialThinkingStep(userQuery: string): ThinkingStep {

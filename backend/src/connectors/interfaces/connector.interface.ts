@@ -41,6 +41,13 @@ export interface CalendarEvent {
   created?: string;
   updated?: string;
   recurringEventId?: string;
+  // Set by the connector at fetch time; not present on the raw googleapis
+  // response. The indexer uses this to record the source calendar in
+  // documentMetadata.calendar_id.
+  calendarId?: string;
+  // Events cancelled in Google Calendar come back with status: "cancelled";
+  // we surface it here so the indexer can skip them.
+  status?: string;
 }
 
 export interface Calendar {

@@ -1,7 +1,6 @@
 /**
  * Google Calendar connector indexer service.
  */
-
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Injectable, Logger } from "@nestjs/common";
 import { DocumentType } from "@prisma/client";
@@ -236,11 +235,21 @@ export class GoogleCalendarIndexerService {
 				try {
 					const eventId = event.id;
 					const eventSummary = event.summary || "No Title";
-					// biome-ignore lint/suspicious/noExplicitAny: Event type may have calendarId
-					const calendarId = (event as any).calendarId || "primary";
+					const calendarId = event.calendarId || "primary";
 
 					if (!eventId) {
 						this.logger.warn(`Skipping event with missing ID: ${eventSummary}`);
+						documentsSkipped++;
+						continue;
+					}
+
+					// Skip cancelled events — Google keeps them in the list response
+					// (so the user can see "X was cancelled" in their UI) but they
+					// have no useful content for the knowledge base.
+					if (event.status === "cancelled") {
+						this.logger.log(
+							`Skipping cancelled Google Calendar event ${eventSummary}`,
+						);
 						documentsSkipped++;
 						continue;
 					}
@@ -373,22 +382,33 @@ export class GoogleCalendarIndexerService {
                   SET embedding = ${JSON.stringify(chunk.embedding)}::vector
                   WHERE id = ${chunkRecord.id}
                 `;
-							}
-
-							documentsProcessed++;
-							this.logger.log(
-								`Successfully updated Google Calendar event ${eventSummary}`,
-							);
-							continue;
 						}
-					}
 
-					// Document doesn't exist - create new one
-					// Generate document summary with metadata
-					const userLlm = await this.llmService.getUserLongContextLLM(
-						userId,
-						searchSpaceId,
-					);
+						// Per-document log + SSE: the logs page picks it up
+						// and the documents table refreshes without waiting
+						// for the whole batch to finish.
+						await taskLogger.logDocumentIndexed(
+							"google_calendar_events_indexing",
+							existingDocument.id,
+							eventSummary,
+							"updated",
+							{ event_id: eventId, calendar_id: calendarId },
+						);
+
+						documentsProcessed++;
+						this.logger.log(
+							`Successfully updated Google Calendar event ${eventSummary}`,
+						);
+						continue;
+					}
+				}
+
+				// Document doesn't exist - create new one
+				// Generate document summary with metadata
+				const userLlm = await this.llmService.getUserLongContextLLM(
+					userId,
+					searchSpaceId,
+				);
 
 					let summaryContent: string;
 					let summaryEmbedding: number[];
@@ -468,6 +488,17 @@ export class GoogleCalendarIndexerService {
             `;
 					}
 
+					// Per-document log + SSE: the logs page picks it up and
+					// the documents table refreshes without waiting for the
+					// whole batch to finish.
+					await taskLogger.logDocumentIndexed(
+						"google_calendar_events_indexing",
+						document.id,
+						eventSummary,
+						"created",
+						{ event_id: eventId, calendar_id: calendarId },
+					);
+
 					documentsProcessed++;
 					this.logger.log(`Successfully indexed new event ${eventSummary}`);
 				} catch (error) {
@@ -488,7 +519,6 @@ export class GoogleCalendarIndexerService {
 			this.logger.log(
 				`Finished Google Calendar indexing for connector ${connectorId}. Processed ${documentsProcessed} events, skipped ${documentsSkipped}.`,
 			);
-
 			// Log success
 			await taskLogger.logTaskSuccess(
 				logEntry,

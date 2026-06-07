@@ -165,6 +165,7 @@ function extractSourceMetadata(documents: Document[]): Array<{
 	url: string;
 	type: string;
 	ogImage?: string;
+	chunk_ids: string[];
 }> {
 	const seen = new Set<string>();
 	const sources: Array<{
@@ -173,13 +174,26 @@ function extractSourceMetadata(documents: Document[]): Array<{
 		url: string;
 		type: string;
 		ogImage?: string;
+		chunk_ids: string[];
 	}> = [];
 
 	for (const doc of documents) {
 		const docInfo = doc.document;
 		if (!docInfo) continue;
 		const key = String(docInfo.id);
-		if (seen.has(key)) continue;
+		if (seen.has(key)) {
+			// Already emitted this document; just append this chunk id so the
+			// frontend can match citations to the document even when several
+			// chunks of the same doc are returned.
+			const existing = sources.find((s) => s.id === key);
+			if (existing && doc.chunk_id !== undefined && doc.chunk_id !== null) {
+				const chunkKey = String(doc.chunk_id);
+				if (!existing.chunk_ids.includes(chunkKey)) {
+					existing.chunk_ids.push(chunkKey);
+				}
+			}
+			continue;
+		}
 		seen.add(key);
 
 		const metadata = (docInfo.metadata || {}) as Record<string, unknown>;
@@ -187,12 +201,18 @@ function extractSourceMetadata(documents: Document[]): Array<{
 		const ogImage =
 			typeof metadata.ogImage === "string" ? metadata.ogImage : undefined;
 
+		const chunkIds: string[] = [];
+		if (doc.chunk_id !== undefined && doc.chunk_id !== null) {
+			chunkIds.push(String(doc.chunk_id));
+		}
+
 		sources.push({
 			id: key,
 			title: docInfo.title || "Untitled",
 			url,
 			type: docInfo.document_type || "UNKNOWN",
 			ogImage,
+			chunk_ids: chunkIds,
 		});
 	}
 
@@ -203,20 +223,44 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 	return new DynamicStructuredTool({
 		name: "search_knowledge_base",
 		description:
-			"Search the user's personal knowledge base for relevant information.",
+			"Search the user's personal knowledge base for relevant information. IMPORTANT: pass the user's full original question (not a stripped keyword) as the 'query' parameter, and if the question is time-scoped (any date, weekday, or relative phrase) call parse_date_range FIRST and pass the result as date_start / date_end — without those dates calendar results are not filtered to the requested window.",
 		schema: z.object({
-			query: z.string(),
+			query: z
+				.string()
+				.describe(
+					"Pass the user's full original question (or a close paraphrase). Do NOT strip it down to a single keyword like 'events' or 'calendar' — that produces empty results on structured data like calendar events. The retriever needs the natural-language context to rank chunks correctly.",
+				),
 			top_k: z.number().int().min(1).max(50).default(10),
 			connectors_to_search: z.array(z.string()).optional(),
 			title_filter: z.string().optional(),
+			date_start: z
+				.string()
+				.nullable()
+				.optional()
+				.describe(
+					"Optional ISO date (YYYY-MM-DD). When set, calendar results are filtered to events starting on/after this date. Pair with date_end for a window.",
+				),
+			date_end: z
+				.string()
+				.nullable()
+				.optional()
+				.describe(
+					"Optional ISO date (YYYY-MM-DD). When set, calendar results are filtered to events starting on/before this date. Pair with date_start for a window.",
+				),
 		}),
-		func: async ({ query, top_k, connectors_to_search, title_filter }) => {
+		func: async ({
+			query,
+			top_k,
+			connectors_to_search,
+			title_filter,
+			date_start,
+			date_end,
+		}) => {
 			const requestedConnectors = connectors_to_search?.length
 				? connectors_to_search
 				: deps.defaultConnectors?.length
 					? deps.defaultConnectors
 					: DEFAULT_CONNECTORS;
-
 			let connectors = normalizeConnectors(requestedConnectors);
 			if (!connectors.length) {
 				connectors = DEFAULT_CONNECTORS;
@@ -239,6 +283,7 @@ export function createSearchKnowledgeBaseTool(deps: ToolDependencies) {
 						top_k,
 						SearchMode.CHUNKS,
 						title_filter,
+						{ start: date_start ?? null, end: date_end ?? null },
 					);
 
 					if (result?.chunks?.length) {
