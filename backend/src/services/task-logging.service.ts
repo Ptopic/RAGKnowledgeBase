@@ -192,7 +192,6 @@ export class TaskLoggingService {
 
 	/**
 	 * Log a simple event (not a long-running task)
-	 */
 	async logSimpleEvent(
 		level: LogLevel,
 		source: string,
@@ -218,5 +217,73 @@ export class TaskLoggingService {
 		});
 
 		return logEntry;
+	}
+
+	/**
+	 * Log a "document indexed" event for a single document produced by a
+	 * connector indexer. Writes a Log row tagged with the connector source
+	 * (so the logs page shows it as part of the indexing task), emits a
+	 * `logs` SSE event (so the logs page auto-refreshes), and emits a
+	 * `documents` SSE event (so the documents page auto-refreshes).
+	 *
+	 * Best-effort: failures here are logged but never thrown, so a log
+	 * write can never break the indexing loop.
+	 */
+	async logDocumentIndexed(
+		source: string,
+		documentId: number,
+		title: string,
+		action: 'created' | 'updated',
+		additionalMetadata: Record<string, any> = {},
+	): Promise<Log | null> {
+		try {
+			const message =
+				action === 'created'
+					? `Indexed new document: ${title}`
+					: `Updated document: ${title}`;
+			const logEntry = await this.prisma.log.create({
+				data: {
+					level: LogLevel.INFO,
+					status: LogStatus.SUCCESS,
+					message,
+					source,
+					logMetadata: {
+						document_id: documentId,
+						document_title: title,
+						action,
+						...additionalMetadata,
+					},
+					searchSpaceId: this.searchSpaceId,
+				},
+			});
+
+			// Notify the logs page so it auto-refreshes.
+			this.sseService.broadcastEvent({
+				topic: 'logs',
+				data: {
+					action: 'create',
+					searchSpaceId: this.searchSpaceId,
+					logId: logEntry.id,
+				},
+			});
+
+			// Notify the documents page so the table updates per-document
+			// (without waiting for the overall task to finish).
+			this.sseService.broadcastEvent({
+				topic: 'documents',
+				data: {
+					action,
+					searchSpaceId: this.searchSpaceId,
+					documentId,
+				},
+			});
+
+			return logEntry;
+		} catch (err) {
+			this.logger.warn(
+				`Failed to log document-indexed event for ${documentId}: ${(err as Error).message}`,
+			);
+			return null;
+		}
 	}
 }

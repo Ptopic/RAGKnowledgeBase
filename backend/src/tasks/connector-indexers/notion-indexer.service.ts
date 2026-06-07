@@ -413,6 +413,14 @@ export class NotionIndexerService {
                 `;
 							}
 
+							await taskLogger.logDocumentIndexed(
+								"notion_pages_indexing",
+								existingDocument.id,
+								pageTitle,
+								"updated",
+								{ page_id: pageId },
+							);
+
 							documentsIndexed++;
 							this.logger.log(`Successfully updated Notion page: ${pageTitle}`);
 							continue;
@@ -493,6 +501,15 @@ export class NotionIndexerService {
               WHERE id = ${chunkRecord.id}
             `;
 					}
+
+					await taskLogger.logDocumentIndexed(
+						"notion_pages_indexing",
+						document.id,
+						pageTitle,
+						"created",
+						{ page_id: pageId },
+					);
+
 
 					documentsIndexed++;
 					this.logger.log(`Successfully indexed new Notion page: ${pageTitle}`);

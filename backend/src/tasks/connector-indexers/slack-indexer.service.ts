@@ -426,6 +426,14 @@ export class SlackIndexerService {
                   `;
 								}
 
+								await taskLogger.logDocumentIndexed(
+									"slack_messages_indexing",
+									existingDocument.id,
+									`${channelName}`,
+									"updated",
+									{ channel: channelName },
+								);
+
 								documentsIndexed++;
 								this.logger.log(`Successfully updated Slack message ${msgTs}`);
 								continue;
@@ -516,6 +524,14 @@ export class SlackIndexerService {
                 WHERE id = ${chunkRecord.id}
               `;
 						}
+
+						await taskLogger.logDocumentIndexed(
+							"slack_messages_indexing",
+							document.id,
+							`${channelName}`,
+							"created",
+							{ channel: channelName },
+						);
 
 						documentsIndexed++;
 					}
