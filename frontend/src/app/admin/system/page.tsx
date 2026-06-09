@@ -2,7 +2,6 @@
 
 import {
 	AlertCircle,
-	BarChart3,
 	CheckCircle,
 	Crown,
 	Database,
@@ -43,16 +42,6 @@ const formatDate = (dateStr: string) => {
 		day: "numeric",
 		year: "numeric",
 	});
-};
-
-// Page-based quota is removed in ZR-263 — see /admin/subscriptions for
-// the new credit-usage tracking.
-
-const getUsageColor = (used: number, limit: number) => {
-	const pct = limit === 0 ? 0 : used / limit;
-	if (pct >= 0.9) return "text-red-600";
-	if (pct >= 0.7) return "text-amber-600";
-	return "text-green-600";
 };
 
 export default function AdminSystemPage() {
@@ -207,24 +196,6 @@ export default function AdminSystemPage() {
 									</CardContent>
 								</Card>
 							</div>
-
-							<Card className="border-l-4 border-l-indigo-500">
-								<CardContent className="p-6">
-									<div className="space-y-4">
-										<div className="flex items-center gap-2">
-											<BarChart3 className="h-5 w-5 text-indigo-600" />
-											<h3 className="text-lg font-semibold tracking-tight">Usage Overview</h3>
-										</div>
-										<p className="text-sm text-muted-foreground">
-											Per-user credit usage is now tracked in{" "}
-											<a href="/admin/subscriptions" className="text-primary underline">
-												Admin &rarr; Subscriptions
-											</a>
-											. The page-based quota system was removed in ZR-263.
-										</p>
-									</div>
-								</CardContent>
-							</Card>
 
 							<Card>
 								<CardHeader>
