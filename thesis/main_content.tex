@@ -1,0 +1,578 @@
+% ----------------------------------------------------------------
+% Chapter 1: Opis projekta i korištene tehnologije
+% ----------------------------------------------------------------
+\chapter{Opis projekta i korištene tehnologije}
+
+\section{Uvod u projekt}
+Sustav za upravljanje studentskim praksama nastao je iz potrebe da se digitalizira i pojednostavi
+proces koji tradicionalno uključuje mnoštvo papirologije, nekoordiniranu komunikaciju i
+netransparentno praćenje napretka. Cilj projekta bio je stvoriti centraliziranu platformu koja
+povezuje sve sudionike procesa prakse -- studente, sveučilišne mentore, mentore iz tvrtki i
+administratore -- omogućujući im učinkovitu suradnju kroz intuitivno web sučelje.
+
+Zamislimo tipičan scenarij bez ovakvog sustava: student mora fizički dostaviti uputnicu mentoru,
+mentor ručno vodi evidenciju o dodijeljenim studentima, tvrtka šalje ocjene e-poštom, a
+administrator pokušava sve te informacije objediniti u koherentnu sliku. Ovaj projekt te
+fragmentirane procese objedinjuje u jedinstvenu aplikaciju gdje svaki sudionik ima pristup
+upravo onim informacijama i funkcionalnostima koje su relevantne za njegovu ulogu.
+
+\section{Arhitektura i struktura projekta}
+Prije pisanja prve linije koda, bilo je potrebno donijeti temeljne arhitekturne odluke koje će
+oblikovati cijeli razvojni proces. Odabrana je moderna trodijelna arhitektura koja jasno
+odvaja odgovornosti između slojeva aplikacije.
+
+Repozitorij je organiziran u nekoliko ključnih direktorija. Direktorij \texttt{backend/} sadrži
+cjelokupnu poslužiteljsku logiku -- od definicije API ruta, preko poslovne logike u servisima,
+do komunikacije s bazom podataka. Direktorij \texttt{frontend/} pak obuhvaća React aplikaciju
+s komponentama korisničkog sučelja, servisnim slojem za komunikaciju s backendom te upravljanjem
+stanja aplikacije. Datoteka \texttt{docker-compose.yml} omogućuje pokretanje cjelokupnog sustava
+jednom naredbom, dok direktorij \texttt{scripts/} sadrži pomoćne skripte za automatizaciju
+čestih razvojnih zadataka.
+
+Ovakva organizacija omogućuje da se svaki dio sustava razvija i testira neovisno o ostalima.
+Tijekom rada na projektu, jedan član tima mogao se fokusirati na backend logiku dok je drugi
+istovremeno radio na frontend komponentama, bez da su si međusobno stajali na putu. Jasna
+podjela također olakšava snalaženje u kodu -- uvijek je odmah jasno gdje treba tražiti
+određenu funkcionalnost.
+
+\section{Odabir tehnološkog stoga}
+Odabir tehnologija za projekt zahtijevao je balansiranje između više faktora: performansi,
+produktivnosti razvoja, dostupnosti dokumentacije i dugoročne održivosti.
+
+Za backend je odabrana Node.js verzija 24.11 u kombinaciji s Express.js razvojnim okvirom
+verzije 5.1. Ova kombinacija pruža izvrsne performanse za I/O intenzivne operacije kakve su
+tipične za web aplikacije, uz bogat ekosustav paketa i aktivnu zajednicu. Express.js svojom
+minimalistčkom filozofijom omogućuje potpunu kontrolu nad arhitekturom aplikacije, bez
+nametanja specifičnih obrazaca koji bi mogli ograničavati fleksibilnost.
+
+Kao sustav za upravljanje bazom podataka odabran je PostgreSQL verzije 16, robusna relacijska
+baza s izvrsnom podrškom za složene upite i transakcije -- oboje kritično za sustav koji mora
+održavati integritet podataka o praksama, ocjenama i korisnicima. Za komunikaciju s bazom
+koristi se Prisma ORM verzije 6.19, koji kombinira sigurnost tipova s intuitivnim API-jem,
+značajno smanjujući mogućnost grešaka pri radu s podacima.
+
+Autentifikacija se temelji na JWT (JSON Web Tokens) standardu, dok Zod biblioteka osigurava
+rigoroznu validaciju svih ulaznih podataka. Swagger automatski generira API dokumentaciju,
+olakšavajući komunikaciju između backend i frontend timova, a Nodemailer omogućuje slanje
+e-pošte za funkcionalnosti poput dostave pristupnih podataka novim korisnicima.
+
+Na frontendu je odabrana React verzija 19 kao temeljna biblioteka za izradu korisničkog sučelja.
+React-ov komponentni model savršeno odgovara potrebama projekta za izgradnju konzistentnog sučelja
+s mnogo dijeljenih elemenata. Vite verzije 7 služi kao razvojni poslužitelj i alat za izgradnju,
+nudeći izuzetno brzo osvježavanje tijekom razvoja. TypeScript dodaje statičku provjeru tipova,
+hvatajući mnoge pogreške prije nego što kod uopće dođe do preglednika.
+
+Za komponente korisničkog sučelja odabran je Radix UI, biblioteka pristupačnih primitiva
+koje se mogu stilizirati prema potrebama projekta. Tailwind CSS omogućuje brzo stiliziranje
+bez napuštanja JSX koda, dok react-hook-form pojednostavljuje upravljanje formama,
+što je ključna funkcionalnost u aplikacijama ovog tipa.
+
+\section{Razvojno okruženje i pokretanje}
+Postavljanje razvojnog okruženja dizajnirano je s ciljem što jednostavnijeg pokretanja
+projekta. Docker Compose konfiguracija omogućuje pokretanje cjelokupnog sustava -- baze
+podataka, backenda i frontenda -- izvršavanjem jedne skripte:
+
+\begin{verbatim}
+./scripts/start.sh
+\end{verbatim}
+
+Za developere koji preferiraju ručno postavljanje, proces započinje instalacijom Node.js-a i
+PostgreSQL-a, nakon čega slijedi konfiguriranje environment varijabli kopiranjem predložaka:
+
+\begin{verbatim}
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+\end{verbatim}
+
+Nakon uređivanja \texttt{.env} datoteka s ispravnim vrijednostima (podaci za spajanje na bazu,
+JWT tajne i slično), potrebno je instalirati ovisnosti i pokrenuti migracije baze podataka:
+
+\begin{verbatim}
+cd backend
+npm install
+npm run prisma:apply
+npm run prisma:seed
+\end{verbatim}
+
+Naredba \texttt{prisma:apply} primjenjuje migracije prema definiranoj shemi, dok
+\texttt{prisma:seed} popunjava bazu početnim podacima potrebnim za rad aplikacije.
+Za frontend je potrebno samo instalirati ovisnosti:
+
+\begin{verbatim}
+cd frontend
+npm install
+\end{verbatim}
+
+Konačno, backend i frontend razvojni poslužitelji pokreću se u zasebnim terminalima:
+
+\begin{verbatim}
+cd backend && npm run dev
+cd frontend && npm run dev
+\end{verbatim}
+
+Nakon uspješnog pokretanja, sustav izlaže nekoliko servisa na različitim portovima. PostgreSQL
+baza dostupna je na portu 5432, backend API na portu 3000, frontend aplikacija na portu 5173,
+a Prisma Studio -- grafičko sučelje za pregled i uređivanje podataka u bazi -- na portu 5555.
+
+\begin{table}[H]
+    \centering
+    \caption{Pregled servisa i njihovih portova}
+    \label{tab:servisi}
+    \renewcommand{\arraystretch}{1.5}
+    \setlength{\tabcolsep}{10pt}
+    \begin{tabularx}{\textwidth}{|X|X|X|}
+        \hline
+        \textbf{Servis} & \textbf{Port} & \textbf{Namjena} \\
+        \hline
+        PostgreSQL & 5432 & Relacijska baza podataka \\
+        \hline
+        Backend API & 3000 & REST API za poslovnu logiku \\
+        \hline
+        Frontend & 5173 & React aplikacija \\
+        \hline
+        Prisma Studio & 5555 & Administracija baze podataka \\
+        \hline
+    \end{tabularx}
+\end{table}
+
+% ----------------------------------------------------------------
+% Chapter 2: Izgled korisničkog sučelja
+% ----------------------------------------------------------------
+\chapter{Izgled korisničkog sučelja}
+
+\section{Pristup aplikaciji i prijava}
+Prvi susret korisnika s aplikacijom započinje na stranici za prijavu. Dizajn je namjerno
+jednostavan i fokusiran -- bijela pozadina s centriranom karticom koja sadrži samo ono
+što je potrebno: polja za unos e-mail adrese i lozinke, te gumb za prijavu. Ovakav
+minimalistički pristup smanjuje distrakcije i jasno komunicira svrhu stranice.
+
+Validacija unosa provodi se u realnom vremenu. E-mail adresa mora biti u ispravnom
+formatu, a lozinka mora sadržavati minimalno šest znakova. Ikona oka pored polja za
+lozinku omogućuje privremeno otkrivanje unesenih znakova za provjeru ispravnosti.
+Poruke o greškama prikazuju se ispod pripadajućih polja, pružajući korisnicima jasne
+smjernice za ispravljanje problema.
+
+Nakon uspješne prijave, korisnik se preusmjerava na nadzornu ploču specifičnu za njegovu
+ulogu u sustavu. Ova automatska prilagodba eliminira potrebu za dodatnom navigacijom i
+odmah stavlja korisniku na raspolaganje relevantne funkcionalnosti.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image1.png}
+    \caption{Stranica za prijavu}
+\end{figure}
+
+\section{Navigacija i struktura sučelja}
+Sve stranice aplikacije dijele zajedničku strukturu definiranu u Layout komponenti. Na vrhu
+svakog ekrana nalazi se navigacijska traka crne boje s bijelim tekstom koja nosi naziv
+aplikacije ``Internship Hub'' i omogućuje navigaciju između ključnih dijelova sustava.
+
+Stavke u navigaciji dinamički se prilagođavaju ulozi prijavljenog korisnika. Student vidi
+opcije za pristup svojoj nadzornoj ploči i pregledu tvrtki, dok administrator ima pristup
+širem spektru funkcionalnosti uključujući kreiranje novih praksi. Ova prilagodba nije
+samo kozmetička -- ona odražava stvarna ograničenja pristupa implementirana na razini
+aplikacije, osiguravajući da korisnici ne vide opcije koje im nisu dostupne.
+
+U desnom dijelu navigacijske trake nalazi se gumb za odjavu koji omogućuje sigurno
+napuštanje sustava, brišući autentifikacijske tokene i vraćajući korisnika na stranicu
+za prijavu.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image2.png}
+    \caption{Navigacijska traka}
+\end{figure}
+
+\section{Administratorska nadzorna ploča}
+Kada se administrator prijavi u sustav, dočekuje ga sveobuhvatna nadzorna ploča
+organizirana kroz pet kartica koje pokrivaju sve aspekte upravljanja sustavom. Ovaj
+tab-bazirani pristup omogućuje brzo prebacivanje između različitih administrativnih
+funkcija bez napuštanja stranice.
+
+Prva kartica, posvećena upravljanju korisnicima, prikazuje listu svih registriranih
+korisnika s mogućnostima filtriranja po ulozi i statusu aktivnosti. Administrator može
+kreirati nove korisnike odabirom uloge (administrator, mentor, student ili mentor iz
+tvrtke), pri čemu sustav automatski generira početnu lozinku i šalje je na korisnikovu
+e-mail adresu. Za postojeće korisnike dostupne su opcije uređivanja podataka, deaktivacije
+računa i resetiranja lozinke.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image3.png}
+    \caption{Administracija korisnika}
+\end{figure}
+
+Kartica za upravljanje tvrtkama omogućuje dodavanje novih tvrtki u sustav, uključujući
+podatke poput naziva, OIB-a (s validacijom ispravnosti), adrese, poštanskog broja, grada
+i regije. Postojeće tvrtke mogu se uređivati ili deaktivirati, pri čemu deaktivirane
+tvrtke ostaju u sustavu za povijesne reference, ali se ne prikazuju kao opcija pri
+kreiranju novih praksi.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image4.png}
+    \caption{Administracija tvrtki}
+\end{figure}
+
+Treća kartica namijenjena je administraciji studijskih programa. Prilikom unosa definiraju
+se naziv i opis programa, ukupan broj semestara te, za svaki semestar, obavezni broj sati
+prakse. Ti se podaci kasnije koriste pri kreiranju korisničkih računa studenata i
+automatskom postavljanju broja potrebnih sati prakse.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image5.png}
+    \caption{Administracija studijskih programata}
+\end{figure}
+
+Četvrta kartica služi za upravljanje akademskim godinama. Sustav podržava više akademskih
+godina, ali samo jedna može biti aktivna u određenom trenutku. Nova akademska godina
+automatski se generira prema uzorku prethodne (npr. iz ``2024./2025.'' sustav predlaže
+``2025./2026.''), smanjujući mogućnost pogrešaka pri unosu.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image6.png}
+    \caption{Administracija akademskih godina}
+\end{figure}
+
+Posljednja kartica pruža pregled svih praksi u sustavu s mogućnostima filtriranja
+i pretraživanja. Administrator može filtrirati prakse po studijskom programu, akademskoj
+godini ili statusu, te pretraživati po imenu studenta. Paginacija omogućuje preglednu
+navigaciju kroz veliki broj zapisa.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image7.png}
+    \caption{Pregled praksi}
+\end{figure}
+
+\section{Studentska nadzorna ploča}
+Studentsko sučelje dizajnirano je s fokusom na jednostavnost i jasnoću. Nadzorna ploča
+prikazuje dvije glavne kartice: osobne podatke i popis praksi.
+
+Kartica s osobnim podacima prikazuje ime i prezime studenta, e-mail adresu, ulogu u
+sustavu, status računa te datum pridruživanja. Ovi podaci služe kao brza referenca i
+potvrda da je korisnik prijavljen s ispravnim računom.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image8.png}
+    \caption{Osobni podaci studenta}
+\end{figure}
+
+Srce studentskog sučelja je kartica ``My Practices'' koja prikazuje sve prakse dodijeljene
+tom studentu. Svaka praksa prikazana je kao zasebna kartica s ključnim informacijama
+vidljivim na prvi pogled: naziv tvrtke, status prakse, studijski program i akademska
+godina. Status prakse može biti: ``Submitted'' (praksa je predana i čeka odobrenje mentora
+iz tvrtke), ``In Progress'' (praksa je odobrena i student aktivno radi), ``Completed''
+(praksa je uspješno završena) ili ``Rejected'' (praksa je odbijena). Ispod toga prikazani su dodatni detalji: naziv tvrtke, ime sveučilišnog
+mentora te odnos odrađenih i ukupno potrebnih sati.
+
+Ako je mentor iz tvrtke već dodijelio ocjenu, ona se prikazuje uz karticu prakse.
+Gumb ``View Details'' na svakoj kartici vodi do detaljne stranice prakse gdje student
+može vidjeti sve informacije i, ovisno o statusu, unositi dnevnik rada ili kreirati
+završni izvještaj.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image9.png}
+    \caption{Moje prakse}
+\end{figure}
+
+\section{Mentorska nadzorna ploča}
+Sveučilišni mentori pri prijavi vide nadzornu ploču optimiziranu za praćenje napretka
+više studenata istovremeno. Centralni element je kartica ``Students Overview'' koja
+prikazuje sve prakse gdje je taj mentor dodijeljen kao sveučilišni mentor.
+
+Sustav kartica na vrhu omogućuje brzo filtriranje praksi po statusu: sve prakse, samo
+predane, u tijeku, završene ili odbijene. Ovaj pristup omogućuje mentoru da se fokusira
+na prakse koje zahtijevaju pažnju -- primjerice, pregledom samo predanih praksi može
+brzo identificirati studente koji čekaju odobrenje za početak.
+
+Svaka praksa prikazana je kao kartica s inicijalima studenta, imenom i e-mail adresom studenta, nazivom tvrtke, oznakom
+akademske godine, progress barom odrađenih sati te statusnom oznakom. Dodatne oznake
+indiciraju je li izvještaj predan i je li certifikat generiran, pružajući mentoru
+kompletnu sliku statusa svake prakse bez potrebe za otvaranjem detaljnog prikaza.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image10.png}
+    \caption{Mentorsk sa fakulteta nadzorna ploča}
+\end{figure}
+
+Mentor iz tvrtke ima gotovo identičnu nadzornu ploču. Kartica ``My Student Practices''
+prikazuje sve studente dodijeljene tom mentoru za praksu. Dostupni su isti filteri po
+statusu (All, Submitted, In Progress, Completed, Rejected), a svaka praksa prikazana
+je kao kartica s inicijalima studenta, imenom, e-mail adresom, studijskim programom,
+akademskom godinom, progress barom odrađenih sati i gumbom ``View Details'' za pristup
+detaljima prakse.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image11.png}
+    \caption{Mentor iz tvrtke nadzorna ploča}
+\end{figure}
+
+\section{Detaljna stranica prakse}
+Neovisno o ulozi, svi korisnici pristupaju detaljima pojedine prakse kroz istu stranicu,
+ali s različitim razinama pristupa pojedinim funkcionalnostima. Stranica je organizirana
+kroz pet kartica koje pokrivaju sve aspekte prakse.
+
+Kartica ``Practice'' prikazuje opće informacije o praksi (status, student, ukupni i
+odrađeni sati, datum kreiranja), akademske podatke (studijski program i akademsku godinu),
+podatke o tvrtki (naziv, grad, OIB, adresa) te dodijeljene mentore (sveučilišnog i iz
+tvrtke). Uređivanje je ograničeno na dio s informacijama o tvrtki i dostupno je samo
+administratoru ili sveučilišnom mentoru; ostali podaci u ovoj kartici prikazuju se samo
+za čitanje.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image12.png}
+    \caption{Pregled prakse}
+\end{figure}
+
+Kartica ``Referral'' prikazuje uputnicu u formatu pogodnom za preuzimanje. Dokument sadrži
+sve službene podatke potrebne za formalnu evidenciju prakse: ime studenta, JMBAG,
+OIB, studijski program, podatke o tvrtki i potreban broj sati. Gumb za preuzimanje
+omogućuje generiranje i preuzimanje PDF dokumenta izravno iz aplikacije.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image14.png}
+    \caption{Kreiranje uputnice za praksu}
+\end{figure}
+
+Kartica ``Certificate'' prikazuje certifikat o obavljenoj praksi s
+informacijama o studentu, datumima obavljanja prakse i dodijeljenom ocjenom. Kao i
+uputnica, certifikat se može generirati kao PDF dokument izravno iz aplikacije.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image16.png}
+    \caption{Certifikat o obavljenoj praksi}
+\end{figure}
+
+``Worklogs'' kartica omogućuje studentu unos dnevnika rada. Za svaki radni dan student
+unosi datum, broj odrađenih sati i opis aktivnosti. Sustav automatski zbraja sve unose
+i prikazuje ukupan napredak prema ciljanom broju sati. Ova kartica aktivna je samo
+kada je praksa u statusu ``U tijeku'' -- prije odobravanja ili nakon završetka,
+unos nije moguć.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image13.png}
+    \caption{Kreiranje dnevnika rada studenta}
+\end{figure}
+
+Posljednja kartica, ``Report'', služi za kreiranje završnog izvještaja o praksi. Student može unijeti
+naslov i sadržaj izvještaja. Ova funkcionalnost dostupna je
+tek nakon što praksa prijeđe u status ``Završeno'', osiguravajući da izvještaj predstavlja
+cjelovit pregled obavljene prakse.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image15.png}
+    \caption{Kreiranje završnog izvještaja o praksi}
+\end{figure}
+
+\section{Stranica pregleda tvrtki}
+Studenti i administratori imaju pristup stranici koja služi kao centralno mjesto za
+pregled svih tvrtki registriranih u sustavu. Svaka tvrtka prikazana je kroz karticu
+koja objedinjuje najvažnije informacije potrebne za brzu procjenu i usporedbu: naziv
+tvrtke i status aktivnosti, OIB kao službeni identifikator, potpunu adresu
+(ulica, poštanski broj i grad) te pripadajuću regiju. Avatar na kartici prikazuje
+inicijale naziva tvrtke i olakšava vizualno razlikovanje zapisa. U situaciji kada
+u sustavu nema registriranih tvrtki, stranica jasno informira korisnika porukom da
+trenutno nema dostupnih zapisa.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image17.png}
+    \caption{Stranica pregleda tvrtki}
+\end{figure}
+
+\section{Modalni prozori i obavijesti}
+Kroz cijelu aplikaciju koristi se konzistentan pristup modalnim prozorima za akcije
+koje zahtijevaju potvrdu ili dodatni unos. Kreiranje novog korisnika, uređivanje
+tvrtke, brisanje prakse -- sve ove akcije otvaraju modalni prozor koji jasno
+komunicira što će se dogoditi i traži eksplicitnu potvrdu korisnika.
+
+Posebno važan je modalni prozor za promjenu lozinke koji se prikazuje pri prvoj
+prijavi korisnika. Ovaj prozor nije moguće zatvoriti dok korisnik ne postavi novu
+lozinku, osiguravajući da automatski generirana početna lozinka bude zamijenjena
+sigurnijom koju zna samo korisnik.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image18.png}
+    \caption{Modalni prozor za promjenu lozinke}
+\end{figure}
+
+Obavijesti o uspješnim ili neuspješnim akcijama prikazuju se kao ``toast'' poruke
+u kutu ekrana. Zelena boja označava uspjeh, crvena grešku. Poruke se automatski
+zatvaraju nakon nekoliko sekundi, ali korisnik ih može i ručno odbaciti. Ovaj
+neometajući pristup obavijestima omogućuje korisnicima da nastave s radom bez
+prekida, dok ih istovremeno informira o statusu njihovih akcija.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{assets/image19.png}
+    \caption{Obavijesti o uspješnim ili neuspješnim akcijama}
+\end{figure}
+
+% ----------------------------------------------------------------
+% Chapter 3: Tok rada
+% ----------------------------------------------------------------
+\chapter{Tok rada}
+
+\section{Organizacija rada kroz alate}
+Uspješan softverski projekt ne ovisi samo o tehničkim vještinama razvojnog tima, već i o
+kvaliteti procesa koji usmjerava njihov rad. Za ovaj projekt usvojen je agilni pristup
+s jasno definiranim zadacima, transparentnim praćenjem napretka i strukturiranim procesom
+integracije koda.
+
+Svi zadaci definirani su i praćeni kroz Trello, popularni alat za upravljanje projektima
+temeljen na Kanban metodologiji. Trello ploča organizirana je u stupce koji predstavljaju
+faze životnog ciklusa zadatka -- od početnog backlog-a, preko zadataka u izradi, do
+završenih funkcionalnosti. Svaki zadatak dobiva jedinstveni identifikator -- primjerice
+Task 23 ili Task 68 -- koji služi kao referentna točka kroz cijeli razvojni ciklus.
+
+Trello kartice nisu samo kratki podsjetnici -- svaka kartica sadrži detaljan opis zadatka
+koji uključuje funkcionalne zahtjeve, tehničke smjernice i kriterije prihvaćanja. Checklistama
+se prate pojedini koraci unutar zadatka, dok komentari omogućuju diskusiju i pojašnjenja
+između članova tima. Ovakva razina detalja osigurava da developer razumije ne samo što
+treba napraviti, već i zašto i kako to uklapa u širu sliku sustava.
+
+\section{Git tijek rada}
+Verzioniranje koda organizirano je oko koncepta feature grana. Kada developer započinje rad
+na novom zadatku, prva akcija je kreiranje nove grane iz glavne \texttt{main} grane. Ime
+grane slijedi konvenciju koja uključuje tip promjene i identifikator zadatka:
+
+\begin{verbatim}
+feature/task-X-kratki-opis-zadatka
+\end{verbatim}
+
+Tako primjerice grana za implementaciju JWT autentifikacije nosi ime
+\texttt{feature/task-23-add-middleware-for-authentication-using-jwt-token}, jasno
+komunicirajući svakom članu tima što ta grana sadrži i s kojim zadatkom je povezana.
+
+Rad na grani odvija se kroz seriju commitova, gdje svaki commit predstavlja logički zaokruženu
+promjenu. Po završetku implementacije, developer kreira merge request koji prolazi kroz
+proces pregleda koda (code review). Tek nakon odobrenja, promjene se spajaju u glavnu granu,
+osiguravajući da \texttt{main} uvijek sadrži stabilan, pregledan kod.
+
+\section{Od zadatka do funkcionalnosti}
+Životni ciklus tipičnog zadatka ilustrira kako teorija procesa postaje praksa. Uzmimo za
+primjer Task 55 -- implementaciju prisilne promjene lozinke pri prvoj prijavi.
+
+Zadatak započinje detaljnim opisom u Trellu koji specificira ponašanje: nakon uspješne
+prijave sustav provjerava \texttt{is\_first\_login} zastavicu; ako je istinita, prikazuje
+se modalni prozor koji korisnik ne može zatvoriti dok ne postavi novu lozinku; nova lozinka
+mora zadovoljiti sigurnosne kriterije; nakon uspješne promjene zastavica se postavlja na
+\texttt{false} i korisnik nastavlja normalno koristiti aplikaciju.
+
+Developer tada kreira granu, implementira funkcionalnost kroz nekoliko commitova -- možda
+jedan za backend endpoint, jedan za frontend komponentu modalnog prozora, jedan za validaciju
+lozinke -- i po završetku kreira merge request. Sažetak na kraju dokumentira što je
+postignuto, služeći kao trajni zapis za buduće reference.
+
+Ovaj strukturirani pristup možda djeluje kao dodatni napor u usporedbi s ad-hoc razvojem,
+ali dugoročno drastično smanjuje konfuziju i stvara vrijednu dokumentaciju razvoja projekta.
+
+% ----------------------------------------------------------------
+% Chapter 3: Kompletan tok rada po sprintovima
+% ----------------------------------------------------------------
+\chapter{Kompletan tok rada po sprintovima}
+
+U nastavku je opisan tok rada po sprintovima, s kratkim pregledom timskog fokusa i
+zatim detaljnijim opisom mog osobnog doprinosa.
+
+\section{Sprint 1 (17.11 -- 24.11), voditelj: Boris Kivela}
+Timski fokus bio je na postavljanju temelja: ERD i domenski modeli, tehnološki stack,
+razvojno okruženje, inicijalna struktura repozitorija i početne UI smjernice.
+
+Moj doprinos bio je usmjeren na razvojnu infrastrukturu (Task 6, 8, 16). Postavio sam
+modularni Express backend s jasno odvojenim slojevima (router, kontroler, servis) i
+modulima (\texttt{practice}, \texttt{report}, \texttt{user}), uveo \texttt{middleware}
+i \texttt{utils} sloj, \texttt{swagger} konfiguraciju i \texttt{.env.example}, te
+osnovnu Prisma/Zod postavu za validacije i API dokumentaciju. Sudjelovao sam i u
+strukturiranju repozitorija (\texttt{.gitignore}, \texttt{README.md}) radi brzog
+onboardinga.
+
+\section{Sprint 2 (24.11 -- 1.12), voditelj: Matej Vavkan}
+Drugi sprint bio je fokusiran na autentifikaciju i osnovne tokove prijave, uz prve
+korisničke ekrane te početne role-based pristupe.
+
+Timski fokus bio je na autentifikaciji, početnim korisničkim ekranima i role-based
+prikazima nakon prijave.
+
+Moj doprinos bio je kompletan autentifikacijski sustav (Task 23--25) i role-based
+dashboard logika (Task 27). Implementirao sam middleware za zaštitu ruta s provjerom
+JWT tokena iz \texttt{Authorization} zaglavlja, te endpoint-e za registraciju, prijavu
+i odjavu uz Zod validacije i bcrypt hashiranje. Koriste se access i refresh tokeni,
+uz automatsko osvježavanje pristupa. Uz to sam postavio početne nadzorne ploče po ulozi
+uz kontrolu pristupa i dinamičku navigaciju.
+
+\section{Sprint 3 (1.12 -- 8.12), voditelj: Petar Topić}
+U trećem sprintu tim je razvijao servisni sloj na frontendu i backend CRUD operacije
+za ključne entitete sustava.
+
+Timski fokus bio je na CRUD operacijama za ključne entitete i uspostavi frontend
+servisnog sloja za standardiziranu komunikaciju s API-jem.
+
+Moj doprinos bio je izgradnja servisnog sloja (Task 30--31) i CRUD za izvještaje i
+uputnice (Task 38--39). Postavio sam centralnu API konfiguraciju i modularnu strukturu
+po domenama, te izradio \texttt{requestBuilder} koji standardizira HTTP pozive,
+autorizaciju, obradu grešaka i automatsku rotaciju access tokena. Na backendu sam
+implementirao kontroler-servis-pristup bazi za izvještaje i uputnice, s validacijom,
+paginacijom i provjerama (npr. postojanje prakse) prije zapisa u bazu.
+
+\section{Sprint 4 (8.12 -- 15.12), voditelj: Marino Lučić-Raguž}
+Četvrti sprint fokusirao se na razradu administratorskog sučelja i korisničkih
+ekrana za studente, mentore i mentore iz tvrtki.
+
+Timski fokus bio je na izradi konkretnih ekrana za administratore, studente i mentore,
+čime je uspostavljen prvi puni vizualni tok aplikacije.
+
+Moj doprinos bio je onboarding kroz automatizirano slanje pristupnih podataka (Task 47).
+Implementirao sam Nodemailer servis, SMTP konfiguraciju i HTML predložak, te logiku
+koja nakon kreiranja korisnika automatski šalje podatke za prijavu i upute.
+
+\section{Sprint 5 (15.12 -- 22.12), voditelj: Josip Brnas}
+Peti sprint je proširio administrativne funkcionalnosti te poboljšao proces
+prve prijave i automatskog pokretanja prakse.
+
+Timski fokus bio je na proširenju admin CRUD mogućnosti i doradi korisničkih tokova
+nakon prve prijave.
+
+Moj doprinos obuhvatio je obaveznu promjenu lozinke pri prvom loginu (Task 55) i
+automatsko kreiranje prakse za nove studente (Task 68). Implementirao sam
+\texttt{is\_first\_login} zastavicu i modal koji blokira aplikaciju dok korisnik ne
+postavi novu lozinku, uz validaciju kriterija u stvarnom vremenu. Također sam
+automatizirao kreiranje prakse pri izradi studentskog računa, s postavljanjem
+akademske godine, broja sati prema studiju i dodjelom mentora u jednoj transakciji.
+
+\section{Sprint 6 (22.12 -- 12.1), voditelj: Ante Aljinović}
+Šesti sprint trajao je tri tjedna zbog blagdana i smanjenog intenziteta rada. Tim je
+uglavnom radio na nadzornim pločama mentora, sigurnosnim provjerama, proširenju seed
+podataka te nizu popravaka u poslovnoj logici i UI-u.
+
+Timski fokus bio je na mentor dashboardima, sigurnosnim provjerama, seed podacima
+i većem broju ispravaka u poslovnoj logici i UI-u.
+
+Moj doprinos bio je dio toka za mentore: sučelje za mentore iz tvrtki
+(Task 72) s karticama studenata, napretkom i ocjenjivanjem, te nadzorna ploča
+sveučilišnih mentora (Task 74) s filtrima statusa i detaljnim uvidom u dokumentaciju.
+Uveo sam korekcije ovlasti i procesa (Task 76 i 80) oko dodjele mentora i završavanja
+prakse/ocjenjivanja. Također sam riješio ključne ispravke: dohvat korisničkih podataka
+iz JWT tokena (Task 97), zaključavanje uređivanja izvještaja nakon završetka prakse
+(Task 98) i ispravak automatskog broja sati prema studijskom programu (Task 99).
+
+\section{Sprint 7 (12.1 -- 16.1)}
+Sedmi sprint bio je najkraći i bez formalnog voditelja. U tom razdoblju nisu evidentirane
+nove funkcionalnosti završene u Trellu; aktivnosti su bile usmjerene na stabilizaciju i
+pripremu za testiranja koja su uslijedila nakon završetka sprinta.
+
+Moj doprinos u ovom sprintu nije bio vezan uz zasebne Trello taskove, već uz podršku
+stabilizaciji i pripremi za testiranja.

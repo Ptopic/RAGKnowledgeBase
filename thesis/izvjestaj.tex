@@ -1,0 +1,144 @@
+\documentclass[12pt, a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[croatian, english]{babel} % Croatian as main language
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{url}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{caption}
+% Start number of images from 1 by default (Slika 1, Slika 2, Slika 3, etc.)
+\usepackage{chngcntr}
+\renewcommand{\thefigure}{\arabic{figure}}
+\counterwithout{figure}{chapter}
+% Continuous numbering for tables (Tablica 1, 2, 3, etc.)
+\renewcommand{\thetable}{\arabic{table}}
+\counterwithout{table}{chapter}
+% Continuous numbering for code listings (Ispis 1, 2, 3, etc.)
+\AtBeginDocument{
+    \renewcommand{\thelstlisting}{\arabic{lstlisting}}
+    \counterwithout{lstlisting}{chapter}
+}
+\usepackage{tabularx}
+\usepackage{indentfirst} % Indent the first paragraph after a section header
+\usepackage{mathptmx} % Times New Roman font
+\usepackage{courier} % Monospace font similar to Courier New
+
+% Paragraph formatting: Indent first line, space between paragraphs
+\setlength{\parindent}{12.5mm}
+\setlength{\parskip}{1em}
+\onehalfspacing % 1.5 line spacing
+\sloppy % Helps with justification in narrow columns/long words
+
+% Page Geometry (Standard thesis margins)
+\geometry{
+    a4paper,
+    left=30mm,
+    right=25mm,
+    top=25mm,
+    bottom=30mm
+}
+
+% Code listing style
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{white},		
+    commentstyle=\color{codegray},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{red},
+    basicstyle=\fontfamily{pcr}\selectfont\small,
+    breakatwhitespace=false,		 
+    breaklines=true,				 
+    captionpos=b,					 
+    keepspaces=true,				 
+    numbers=none,					 
+    showspaces=false,				 
+    showstringspaces=false,
+    showtabs=false,				  
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{black},
+    framesep=5pt,
+    aboveskip=15pt
+}
+\lstset{style=mystyle}
+
+% Caption formatting: "Slika 1: Naziv" -> "Slika 1" is bold
+\DeclareCaptionLabelFormat{boldlabel}{\textbf{#1 #2}}
+\captionsetup{labelformat=boldlabel, labelsep=colon}
+
+% Customize Chapter formatting (Remove "Poglavlje X" line)
+\titleformat{\chapter}[hang]
+{\fontsize{18}{22}\selectfont\bfseries}
+{\thechapter.}
+{0.2em}
+{}
+\titlespacing*{\chapter}{0pt}{-50pt}{5pt}
+
+% Customize Section formatting (Remove "Poglavlje X" line)
+\titleformat{\section}[hang]
+{\fontsize{14}{17}\selectfont\bfseries}
+{\thesection.}
+{0.4em}
+{}
+\titlespacing*{\section}{0pt}{0pt}{0pt}
+
+% Customize Subsection formatting (Remove "Poglavlje X" line)
+\titleformat{\subsection}[hang]
+{\fontsize{12}{15}\selectfont\bfseries}
+{\thesubsection.}
+{0.4em}
+{}
+\titlespacing*{\subsection}{0pt}{0pt}{0pt}
+
+% Rename listings to "Ispis"
+\renewcommand{\lstlistingname}{Ispis}
+
+% ----------------------------------------------------------------
+% Document Starts Here
+% ----------------------------------------------------------------
+\begin{document}
+\pagenumbering{gobble}
+
+\selectlanguage{croatian}
+
+% ----------------------------------------------------------------
+% Title Page (Cover)
+% ----------------------------------------------------------------
+\include{cover}
+
+% ----------------------------------------------------------------
+% Table of Contents
+% ----------------------------------------------------------------
+\makeatletter
+\renewcommand{\numberline}[1]{#1.\ }
+\makeatother
+
+\include{table_of_contents}
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% ----------------------------------------------------------------
+% Main content
+% ----------------------------------------------------------------
+\include{main_content}
+
+% ----------------------------------------------------------------
+% Bibliography
+% ----------------------------------------------------------------
+\include{literatura}
+
+% ----------------------------------------------------------------
+% Appendices
+% ----------------------------------------------------------------
+\include{dodaci}
