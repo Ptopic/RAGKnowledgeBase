@@ -1,0 +1,22 @@
+\babel@toc {english}{}\relax 
+\babel@toc {croatian}{}\relax 
+\contentsline {chapter}{Sažetak}{1}{}%
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{Summary}{2}{}%
+\babel@toc {croatian}{}\relax 
+\contentsline {chapter}{\numberline {1}Uvod}{3}{}%
+\contentsline {chapter}{\numberline {2}Tehnologije/Teoretska podloga}{4}{}%
+\contentsline {section}{\numberline {2.1}Podpoglavlje 2.1}{4}{}%
+\contentsline {chapter}{\numberline {3}Prikaz praktičnog dijela}{5}{}%
+\contentsline {section}{\numberline {3.1}Podpoglavlje 3.1}{5}{}%
+\contentsline {section}{\numberline {3.2}Podpoglavlje 3.2}{5}{}%
+\contentsline {subsection}{\numberline {3.2.1}Podpoglavlje 3.2.1}{5}{}%
+\contentsline {section}{\numberline {3.3}Podpoglavlje 3.3}{5}{}%
+\contentsline {section}{\numberline {3.4}Podpoglavlje 3.4}{6}{}%
+\contentsline {section}{\numberline {3.5}Podpoglavlje 3.5}{6}{}%
+\contentsline {chapter}{\numberline {4}Još jedan dio o praktičnom radu}{7}{}%
+\contentsline {section}{\numberline {4.1}Podpoglavlje 4.1}{7}{}%
+\contentsline {subsection}{\numberline {4.1.1}Podpoglavlje 4.2.1}{7}{}%
+\contentsline {subsection}{\numberline {4.1.2}Podpoglavlje 4.2.2}{7}{}%
+\contentsline {chapter}{\numberline {5}Zaključak}{8}{}%
+\contentsline {chapter}{Literatura}{9}{}%
