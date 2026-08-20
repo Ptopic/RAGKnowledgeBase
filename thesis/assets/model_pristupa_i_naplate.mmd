@@ -1,0 +1,74 @@
+erDiagram
+    USER ||--o{ MEMBERSHIP : clan
+    USER ||--o{ INVITATION : salje
+    USER ||--o| SUBSCRIPTION : ima
+    USER ||--o{ USAGE_RECORD : trosi
+    USER ||--o{ PROVIDER_KEY : pohranjuje
+    USER ||--o{ OAUTH_ACCOUNT : povezuje
+    SEARCH_SPACE ||--o{ MEMBERSHIP : dodjeljuje
+    SEARCH_SPACE ||--o{ INVITATION : poziva
+    SEARCH_SPACE ||--o{ USAGE_RECORD : evidentira
+    PLAN_DEFINITION ||--o{ SUBSCRIPTION : odreduje_limit
+    PROVIDER_KEY ||--o{ LLM_CONFIG : koristi
+
+    USER {
+      uuid id PK
+      string email
+      boolean isActive
+      boolean isSuperuser
+    }
+    SEARCH_SPACE {
+      int id PK
+      uuid userId FK
+      string name
+    }
+    MEMBERSHIP {
+      uuid id PK
+      int searchSpaceId FK
+      uuid userId FK
+      string role
+      uuid invitedById FK
+    }
+    INVITATION {
+      int id PK
+      int searchSpaceId FK
+      uuid inviterId FK
+      string inviteeEmail
+      string status
+      datetime expiresAt
+    }
+    SUBSCRIPTION {
+      uuid id PK
+      uuid userId FK
+      string plan
+      int monthlyCreditLimit
+      int creditsUsed
+    }
+    PLAN_DEFINITION {
+      string plan PK
+      int monthlyCreditLimit
+    }
+    USAGE_RECORD {
+      int id PK
+      uuid userId FK
+      int searchSpaceId FK
+      string operationType
+      int credits
+    }
+    PROVIDER_KEY {
+      uuid id PK
+      uuid userId FK
+      string provider
+      string apiKey
+    }
+    OAUTH_ACCOUNT {
+      uuid id PK
+      uuid userId FK
+      string oauthName
+      string accountEmail
+    }
+    LLM_CONFIG {
+      int id PK
+      uuid userProviderKeyId FK
+      string modelName
+    }

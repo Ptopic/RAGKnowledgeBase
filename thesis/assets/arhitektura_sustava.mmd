@@ -1,0 +1,20 @@
+flowchart LR
+    U["Korisnik u pregledniku"] --> F["Klijentska aplikacija<br/>Next.js i React"]
+    F -->|"HTTP / JSON"| A["Poslužiteljska aplikacija<br/>NestJS"]
+    A --> AG["Agentski i RAG sloj<br/>LangChain / LangGraph"]
+    A --> Q["Redovi pozadinskih zadataka<br/>Bull"]
+    Q <--> R["Redis"]
+    Q --> W["Obrada dokumenata<br/>i indeksiranje poveznika"]
+    A --> DB[("PostgreSQL<br/>relacijski podaci + pgvector")]
+    W --> DB
+    AG --> DB
+    AG --> L["Vanjski jezični modeli"]
+    W --> X["Datoteke, mrežne stranice,<br/>videozapisi i vanjske usluge"]
+    A -->|"događaji SSE"| F
+
+    classDef primary fill:#e8f1f8,stroke:#21618c,color:#17202a;
+    classDef storage fill:#eaf5ee,stroke:#28734b,color:#17202a;
+    classDef external fill:#fff5e6,stroke:#b9770e,color:#17202a;
+    class F,A,AG,Q,W primary;
+    class DB,R storage;
+    class L,X external;

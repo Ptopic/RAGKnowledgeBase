@@ -1,0 +1,76 @@
+erDiagram
+    USER ||--o{ SEARCH_SPACE : posjeduje
+    USER ||--o{ CHAT : vodi
+    USER ||--o{ NOTEBOOK : autor
+    SEARCH_SPACE ||--o{ DOCUMENT : sadrzi
+    SEARCH_SPACE ||--o{ CHAT : grupira
+    SEARCH_SPACE ||--o{ NOTEBOOK : grupira
+    SEARCH_SPACE ||--o{ CONNECTOR : povezuje
+    SEARCH_SPACE ||--o{ LLM_CONFIG : konfigurira
+    SEARCH_SPACE ||--o{ LOG : biljezi
+    DOCUMENT ||--o{ CHUNK : dijeli_se_na
+    NOTEBOOK ||--o| DOCUMENT : indeksira_se_kao
+    CHAT ||--o{ CHAT_SHARE_LINK : dijeli
+
+    USER {
+      uuid id PK
+      string email
+      boolean isSuperuser
+    }
+    SEARCH_SPACE {
+      int id PK
+      uuid userId FK
+      string name
+    }
+    DOCUMENT {
+      int id PK
+      int searchSpaceId FK
+      int notebookId FK
+      string documentType
+      string processingStatus
+      vector embedding
+    }
+    CHUNK {
+      int id PK
+      int documentId FK
+      text content
+      vector embedding
+    }
+    CHAT {
+      int id PK
+      int searchSpaceId FK
+      uuid userId FK
+      json messages
+    }
+    CHAT_SHARE_LINK {
+      uuid id PK
+      int chatId FK
+      string slug
+      datetime expiresAt
+    }
+    NOTEBOOK {
+      int id PK
+      int searchSpaceId FK
+      uuid authorId FK
+      string slug
+      boolean isPublished
+    }
+    CONNECTOR {
+      int id PK
+      int searchSpaceId FK
+      uuid userId FK
+      string connectorType
+      json config
+    }
+    LLM_CONFIG {
+      int id PK
+      int searchSpaceId FK
+      string modelName
+      string apiKey
+    }
+    LOG {
+      int id PK
+      int searchSpaceId FK
+      string level
+      string status
+    }
