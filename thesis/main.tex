@@ -7,7 +7,8 @@
 \usepackage{graphicx}
 \usepackage{geometry}
 \usepackage{listings}
-\usepackage{color}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
 \usepackage{url}
 \usepackage{float}
 \usepackage{setspace}
@@ -29,6 +30,128 @@
 \usepackage{indentfirst} % Indent the first paragraph after a section header
 \usepackage{mathptmx} % Times New Roman font
 \usepackage{courier} % Monospace font similar to Courier New
+
+% Diff rendering support.
+% Normal build: \DiffReplace prints only the new text and \DiffAdd prints plain text.
+% Diff build: compile main-diff.tex to show removed text on red and added text on green.
+\newif\ifdiffversion
+\ifdefined\THESISDIFF
+    \diffversiontrue
+\else
+    \diffversionfalse
+\fi
+
+\definecolor{diffdeleted}{RGB}{255,199,206}
+\definecolor{diffadded}{RGB}{198,239,206}
+\definecolor{diffcomment}{RGB}{232,242,255}
+\definecolor{diffcommentframe}{RGB}{74,122,190}
+
+\newtcolorbox{diffdeletedbox}{
+    breakable,
+    enhanced,
+    colback=diffdeleted,
+    colframe=diffdeleted,
+    coltext=black,
+    boxrule=0pt,
+    arc=0pt,
+    left=1.5mm,
+    right=1.5mm,
+    top=1mm,
+    bottom=1mm,
+    before skip=0.6em,
+    after skip=0.6em
+}
+
+\newtcolorbox{diffaddedbox}{
+    breakable,
+    enhanced,
+    colback=diffadded,
+    colframe=diffadded,
+    coltext=black,
+    boxrule=0pt,
+    arc=0pt,
+    left=1.5mm,
+    right=1.5mm,
+    top=1mm,
+    bottom=1mm,
+    before skip=0.6em,
+    after skip=0.6em
+}
+
+\newtcolorbox{diffcommentbox}{
+    breakable,
+    enhanced,
+    colback=diffcomment,
+    colframe=diffcommentframe,
+    coltext=black,
+    boxrule=0.4pt,
+    arc=1.5pt,
+    left=1.5mm,
+    right=1.5mm,
+    top=0.8mm,
+    bottom=0.8mm,
+    before skip=0.8em,
+    after skip=0.2em,
+    fontupper=\small
+}
+
+\newcommand{\DiffCommentIcon}{%
+    \tikz[baseline=-0.55ex, x=1ex, y=1ex]{%
+        \draw[diffcommentframe, line width=0.35pt, rounded corners=0.25ex] (0,0) rectangle (1.55,1.05);
+        \draw[diffcommentframe, line width=0.35pt] (0.42,0) -- (0.22,-0.38) -- (0.75,0);
+    }%
+}
+
+\long\def\DiffComment#1{%
+    \ifdiffversion
+        \begin{diffcommentbox}\DiffCommentIcon\hspace{0.5em}\textbf{Komentar mentora:} #1\end{diffcommentbox}%
+    \fi
+}
+
+\long\def\DiffReplace#1#2{%
+    \ifdiffversion
+        \begin{diffdeletedbox}#1\end{diffdeletedbox}%
+        \begin{diffaddedbox}#2\end{diffaddedbox}%
+    \else
+        #2%
+    \fi
+}
+
+\long\def\DiffAdd#1{%
+    \ifdiffversion
+        \begin{diffaddedbox}#1\end{diffaddedbox}%
+    \else
+        #1%
+    \fi
+}
+
+\long\def\DiffDelete#1{%
+    \ifdiffversion
+        \begin{diffdeletedbox}#1\end{diffdeletedbox}%
+    \fi
+}
+
+\protected\def\DiffReplaceInline#1#2{%
+    \ifdiffversion
+        \colorbox{diffdeleted}{\strut #1}\ \colorbox{diffadded}{\strut #2}%
+    \else
+        #2%
+    \fi
+}
+
+\protected\def\DiffAddInline#1{%
+    \ifdiffversion
+        \colorbox{diffadded}{\strut #1}%
+    \else
+        #1%
+    \fi
+}
+
+\protected\def\DiffDeleteInline#1{%
+    \ifdiffversion
+        \colorbox{diffdeleted}{\strut #1}%
+    \fi
+}
 
 % Paragraph formatting: Indent first line, space between paragraphs
 \setlength{\parindent}{12.5mm}
@@ -125,7 +248,7 @@
 % Table of Contents
 % ----------------------------------------------------------------
 \makeatletter
-\renewcommand{\numberline}[1]{#1.\ }
+\def\numberline#1{#1.\ }
 \makeatother
 
 \include{table_of_contents}
@@ -136,9 +259,9 @@
 % ----------------------------------------------------------------
 % Abstracts
 % ----------------------------------------------------------------
-\include{sazetak_hrv}
+\input{sazetak_hrv}
 
-\include{sazetak_eng}
+\input{sazetak_eng}
 
 % ----------------------------------------------------------------
 % Main content
@@ -154,3 +277,5 @@
 % Appendices
 % ----------------------------------------------------------------
 \include{dodaci}
+
+\end{document}
