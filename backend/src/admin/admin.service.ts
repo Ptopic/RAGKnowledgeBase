@@ -322,14 +322,14 @@ export class AdminService {
 
 	/**
 	 * Sum the `unit_amount` (in the smallest currency unit, e.g. cents) of
-	 * every active paid subscription's Stripe price, then format as USD.
+	 * every active paid subscription's Stripe price, then format as EUR.
 	 * Returns "N/A" when Stripe isn't configured — the same contract the
 	 * dashboard had before this method existed.
 	 */
 	private async computeMrr(
 		activePaidSubs: Array<{ stripePriceId: string | null }>,
 	): Promise<string> {
-		if (activePaidSubs.length === 0) return "$0.00";
+		if (activePaidSubs.length === 0) return "€0.00";
 
 		const plans = await this.subscriptionService.getPlans();
 		if (plans.length === 0) return "N/A";
@@ -358,7 +358,7 @@ export class AdminService {
 
 		return new Intl.NumberFormat("en-US", {
 			style: "currency",
-			currency: "USD",
+			currency: "EUR",
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
 		}).format(totalCents / 100);

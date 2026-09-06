@@ -58,7 +58,7 @@ export function AvailablePlansCard({
 						<CardHeader className="pb-2">
 							<CardTitle className="text-base">Free</CardTitle>
 							<p className="text-2xl font-bold">
-								$0
+								{formatPrice(0, "eur")}
 								<span className="text-sm font-normal text-muted-foreground">
 									/month
 								</span>

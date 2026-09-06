@@ -22,8 +22,8 @@ ENV NEXT_PUBLIC_APP_NAME=PLACEHOLDER_APP_NAME
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=placeholder.google.client.id
 ENV NEXT_PUBLIC_ETL_SERVICE=PLACEHOLDER_ETL_SERVICE
 
-# Limit heap to 1536MB to avoid crashing the server
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+# The production Next.js build needs more headroom than the runtime process.
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN npm run build
 
