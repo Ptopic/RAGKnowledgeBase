@@ -64,7 +64,7 @@ Ispisi prikazuju podjelu sadržaja uz uvažavanje strukture Markdowna i prilagod
 \addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Semantičko i hibridno pretraživanje}
 \label{app:hibridno-pretrazivanje}
 
-Ispis prikazuje izradu ugradnje upita, zasebno rangiranje semantičkih i tekstualnih rezultata te njihovo spajanje postupkom recipročnog fuzioniranja rangova. Uvjeti prostora znanja i vrste dokumenta primjenjuju se prije rangiranja.
+Ispis prikazuje izradu ugradnje upita, zasebno rangiranje semantičkih i tekstualnih rezultata te njihovo spajanje metodom recipročnog fuzioniranja rangova (engl. \textit{reciprocal rank fusion}, RRF). Postupak za svaku cjelinu uzima njezin položaj \(r\) na semantičkom i tekstualnom popisu. Ako se cjelina nalazi na pojedinom popisu, taj joj popis daje doprinos \(1/(60+r)\); doprinosi se zatim zbrajaju. Zato cjelina koja je, primjerice, visoko rangirana na oba popisa dobiva dva velika doprinosa i prednost pred cjelinom koja se pojavljuje samo na jednom popisu. Uvjeti prostora znanja i vrste dokumenta primjenjuju se prije rangiranja.
 
 \lstinputlisting[
     firstline=113,
@@ -82,7 +82,7 @@ Ispis prikazuje izradu ugradnje upita, zasebno rangiranje semantičkih i tekstua
 \label{app:pozadinski-zadaci}
 
 \DiffComment{str 48\newline "Prvi ispis" ... "drugi ispis"\newline > referencirajte se točno na ispise, npr. Ispis 7, ispis 8.}
-\DiffReplace{Prvi ispis prikazuje predavanje različitih vrsta dokumenata u Bullov red. Drugi prikazuje radnika koji preuzima zadatak obrade datoteke, poziva odgovarajući procesor i zadržava privremenu datoteku za ponovni pokušaj, dok je nakon posljednjeg neuspjeha uklanja.}{Ispis~\ref{code:predavanje-u-red} prikazuje predavanje različitih vrsta dokumenata u Bullov red. Ispis~\ref{code:obrada-u-pozadini} prikazuje radnika koji preuzima zadatak obrade datoteke, poziva odgovarajući procesor i zadržava privremenu datoteku za ponovni pokušaj, dok je nakon posljednjeg neuspjeha uklanja.}
+\DiffReplace{Prvi ispis prikazuje predavanje različitih vrsta dokumenata u Bullov red. Drugi prikazuje radnika koji preuzima zadatak obrade datoteke, poziva odgovarajući procesor i zadržava privremenu datoteku za ponovni pokušaj, dok je nakon posljednjeg neuspjeha uklanja.}{Ispis~\ref{code:predavanje-u-red} prikazuje kako servis \texttt{QueueService} metodama \texttt{processUrlDocument}, \texttt{processYouTubeDocument} i \texttt{processFileDocument} predaje zadatke u red \texttt{documents}. Ispis~\ref{code:obrada-u-pozadini} prikazuje procesorsku klasu \texttt{DocumentsProcessor}, koja zadatak iz reda preuzima metodom \texttt{processFileDocument} i poziva odgovarajući servis za obradu datoteke. Pri neuspjehu se privremena datoteka zadržava za ponovni pokušaj, a uklanja tek nakon posljednjeg neuspješnog pokušaja.}
 
 \lstinputlisting[
     firstline=90,
