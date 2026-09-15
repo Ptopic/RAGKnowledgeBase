@@ -6,6 +6,7 @@
 		"dev": "next dev",
 		"dev:turbo": "next dev --turbopack",
 		"build": "next build",
+		"build:standalone": "next build && rm -rf .next/standalone/.next/static .next/standalone/public && cp -R .next/static .next/standalone/.next/static && cp -R public .next/standalone/public",
 		"start": "next start",
 		"lint": "next lint",
 		"test": "vitest run",

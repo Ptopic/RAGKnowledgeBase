@@ -23,6 +23,11 @@ function isSafeRedirect(url: string): boolean {
 	);
 }
 
+function getPublicUrl(path: string, request: NextRequest): URL {
+	const baseUrl = appConfig.websiteUrl || request.nextUrl.origin;
+	return new URL(path, baseUrl);
+}
+
 export const config = {
 	matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
@@ -36,7 +41,7 @@ export async function middleware(request: NextRequest) {
 	);
 
 	const buildLoginRedirectUrl = () => {
-		const loginUrl = new URL(AUTH_PUBLIC_ROUTES[0], request.url);
+		const loginUrl = getPublicUrl(AUTH_PUBLIC_ROUTES[0], request);
 		if (pathname !== AUTH_PUBLIC_ROUTES[0]) {
 			loginUrl.searchParams.set("redirect", pathname + search);
 		}
@@ -49,9 +54,9 @@ export async function middleware(request: NextRequest) {
 			if (isValid) {
 				const redirectUrl = request.nextUrl.searchParams.get("redirect");
 				if (redirectUrl && isSafeRedirect(redirectUrl)) {
-					return NextResponse.redirect(new URL(redirectUrl, request.url));
+					return NextResponse.redirect(getPublicUrl(redirectUrl, request));
 				}
-				return NextResponse.redirect(new URL(HOME_ROUTE, request.url));
+				return NextResponse.redirect(getPublicUrl(HOME_ROUTE, request));
 			}
 		}
 		return NextResponse.next();
