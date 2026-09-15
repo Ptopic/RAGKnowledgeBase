@@ -4,13 +4,15 @@
 
 \newcounter{dodatak}
 
+\DiffComment{- čini mi se da dodaci nisu spomenuti redom pojavljivanja. Možda sam propustio negdje, ali 3 ide iza 2 i 4 npr. Pretpostavljam da bi trebalo ići redom. Vidim da su u dodacima cijeli blokovi teksta koji pojašnjavaju dodatke, i neki imaju više elemenata, pa moguće da samo nisam dobro razumio kontekst.}
+\DiffComment{komentar mentora - istina, ni meni nije jasan ovakav pristup numeriranju i referenciranju na ispise. Možda je najlakše ukloniti podnaslove "Ispis X" u dodatcima ako se ne spominju u glavnom tekstu. Ako se spominju, treba ih prebaciti u glavni dio rada. Znači - u glavnom tekstu idu "ispis 1, ispis 2" i njih se referencira redoslijedom pojavljivanja u tekstu. Sve što nemammo u glavnom dijelu rada, u dodatcima gubi natpis i ostaje samo npr. "Ispis: Transakcijsko oduzimanje kredita i spremanje zapisa o korištenju". Numeraciju preuzima redni broj dodatka (dodatak 6).}
+
 \refstepcounter{dodatak}
 \section*{Dodatak \arabic{dodatak}: Sastavljanje i pokretanje agentskog sustava}
 \addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Sastavljanje i pokretanje agentskog sustava}
 \label{app:agentski-sustav}
 
-\DiffComment{str 48\newline "Prvi ispis" ... "drugi ispis"\newline > referencirajte se točno na ispise, npr. Ispis 7, ispis 8.}
-\DiffReplace{Prvi ispis prikazuje povezivanje jezičnog modela, dopuštenih alata, sistemske upute i spremnika stanja. Drugi ispis prikazuje stvaranje razgovora, pripremu ovisnosti alata te pokretanje agenta u kontekstu prijavljenog korisnika i odabranog prostora znanja.}{Ispis~\ref{code:agent-sastavljanje} prikazuje povezivanje jezičnog modela, dopuštenih alata, sistemske upute i spremnika stanja. Ispis~\ref{code:agent-pokretanje} prikazuje stvaranje razgovora, pripremu ovisnosti alata te pokretanje agenta u kontekstu prijavljenog korisnika i odabranog prostora znanja.}
+\DiffReplace{Prvi ispis prikazuje povezivanje jezičnog modela, dopuštenih alata, sistemske upute i spremnika stanja. Drugi ispis prikazuje stvaranje razgovora, pripremu ovisnosti alata te pokretanje agenta u kontekstu prijavljenog korisnika i odabranog prostora znanja.}{Kôd za sastavljanje agenta prikazuje povezivanje jezičnog modela, dopuštenih alata, sistemske upute i spremnika stanja. Kôd za pokretanje razgovora prikazuje stvaranje razgovora, pripremu ovisnosti alata te pokretanje agenta u kontekstu prijavljenog korisnika i odabranog prostora znanja.}
 
 \lstinputlisting[
     firstline=167,
@@ -18,8 +20,7 @@
     firstnumber=167,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Sastavljanje agenta i odabir konfiguracije jezičnog modela},
-    label={code:agent-sastavljanje}
+    title={\DiffReplaceInline{\textbf{Ispis 3:}}{\textbf{Ispis:}} Sastavljanje agenta i odabir konfiguracije jezičnog modela}
 ]{../backend/src/agent/services/deep-agent.service.ts}
 
 \lstinputlisting[
@@ -28,8 +29,7 @@
     firstnumber=219,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Priprema konteksta i pokretanje agentskog razgovora},
-    label={code:agent-pokretanje}
+    title={\DiffReplaceInline{\textbf{Ispis 4:}}{\textbf{Ispis:}} Priprema konteksta i pokretanje agentskog razgovora}
 ]{../backend/src/agent/services/deep-agent.service.ts}
 
 \refstepcounter{dodatak}
@@ -45,8 +45,7 @@ Ispisi prikazuju podjelu sadržaja uz uvažavanje strukture Markdowna i prilagod
     firstnumber=1,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Podjela sadržaja uz očuvanje strukture dokumenta},
-    label={code:podjela-sadrzaja}
+    title={\DiffReplaceInline{\textbf{Ispis 5:}}{\textbf{Ispis:}} Podjela sadržaja uz očuvanje strukture dokumenta}
 ]{../backend/src/utils/chunking.ts}
 
 \lstinputlisting[
@@ -55,12 +54,36 @@ Ispisi prikazuju podjelu sadržaja uz uvažavanje strukture Markdowna i prilagod
     firstnumber=53,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Izrada vektorskih ugradnji za cjeline dokumenta},
-    label={code:indeksiranje-cjelina}
+    title={\DiffReplaceInline{\textbf{Ispis 6:}}{\textbf{Ispis:}} Izrada vektorskih ugradnji za cjeline dokumenta}
 ]{../backend/src/tasks/document-processors/file-processors.service.ts}
 
 \refstepcounter{dodatak}
-\section*{Dodatak \arabic{dodatak}: Semantičko i hibridno pretraživanje}
+\section*{Dodatak \DiffReplaceInline{4}{\arabic{dodatak}}: Izvođenje obrade u pozadini}
+\addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Izvođenje obrade u pozadini}
+\label{app:pozadinski-zadaci}
+
+\DiffReplace{Prvi ispis prikazuje predavanje različitih vrsta dokumenata u Bullov red. Drugi prikazuje radnika koji preuzima zadatak obrade datoteke, poziva odgovarajući procesor i zadržava privremenu datoteku za ponovni pokušaj, dok je nakon posljednjeg neuspjeha uklanja.}{Kôd za predavanje zadataka prikazuje kako servis \texttt{QueueService} metodama \texttt{processUrlDocument}, \texttt{processYouTubeDocument} i \texttt{processFileDocument} predaje zadatke u red \texttt{documents}. Kôd za pozadinsku obradu prikazuje procesorsku klasu \texttt{DocumentsProcessor}, koja zadatak iz reda preuzima metodom \texttt{processFileDocument} i poziva odgovarajući servis za obradu datoteke. Pri neuspjehu se privremena datoteka zadržava za ponovni pokušaj, a uklanja tek nakon posljednjeg neuspješnog pokušaja.}
+
+\lstinputlisting[
+    firstline=90,
+    lastline=137,
+    firstnumber=90,
+    numbers=left,
+    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
+    title={\DiffReplaceInline{\textbf{Ispis 8:}}{\textbf{Ispis:}} Predavanje dokumenata u red za pozadinsku obradu}
+]{../backend/src/queue/queue.service.ts}
+
+\lstinputlisting[
+    firstline=108,
+    lastline=158,
+    firstnumber=108,
+    numbers=left,
+    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
+    title={\DiffReplaceInline{\textbf{Ispis 9:}}{\textbf{Ispis:}} Pozadinska obrada prenesene datoteke i postupanje pri pogrešci}
+]{../backend/src/queue/processors/documents.processor.ts}
+
+\refstepcounter{dodatak}
+\section*{Dodatak \DiffReplaceInline{3}{\arabic{dodatak}}: Semantičko i hibridno pretraživanje}
 \addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Semantičko i hibridno pretraživanje}
 \label{app:hibridno-pretrazivanje}
 
@@ -72,70 +95,11 @@ Ispis prikazuje izradu ugradnje upita, zasebno rangiranje semantičkih i tekstua
     firstnumber=113,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Hibridno pretraživanje cjelina dokumenata},
-    label={code:hibridno-pretrazivanje}
+    title={\DiffReplaceInline{\textbf{Ispis 7:}}{\textbf{Ispis:}} Hibridno pretraživanje cjelina dokumenata}
 ]{../backend/src/retriever/chunks-hybrid-search.retriever.ts}
 
 \refstepcounter{dodatak}
-\section*{Dodatak \arabic{dodatak}: Izvođenje obrade u pozadini}
-\addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Izvođenje obrade u pozadini}
-\label{app:pozadinski-zadaci}
-
-\DiffComment{str 48\newline "Prvi ispis" ... "drugi ispis"\newline > referencirajte se točno na ispise, npr. Ispis 7, ispis 8.}
-\DiffReplace{Prvi ispis prikazuje predavanje različitih vrsta dokumenata u Bullov red. Drugi prikazuje radnika koji preuzima zadatak obrade datoteke, poziva odgovarajući procesor i zadržava privremenu datoteku za ponovni pokušaj, dok je nakon posljednjeg neuspjeha uklanja.}{Ispis~\ref{code:predavanje-u-red} prikazuje kako servis \texttt{QueueService} metodama \texttt{processUrlDocument}, \texttt{processYouTubeDocument} i \texttt{processFileDocument} predaje zadatke u red \texttt{documents}. Ispis~\ref{code:obrada-u-pozadini} prikazuje procesorsku klasu \texttt{DocumentsProcessor}, koja zadatak iz reda preuzima metodom \texttt{processFileDocument} i poziva odgovarajući servis za obradu datoteke. Pri neuspjehu se privremena datoteka zadržava za ponovni pokušaj, a uklanja tek nakon posljednjeg neuspješnog pokušaja.}
-
-\lstinputlisting[
-    firstline=90,
-    lastline=137,
-    firstnumber=90,
-    numbers=left,
-    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Predavanje dokumenata u red za pozadinsku obradu},
-    label={code:predavanje-u-red}
-]{../backend/src/queue/queue.service.ts}
-
-\lstinputlisting[
-    firstline=108,
-    lastline=158,
-    firstnumber=108,
-    numbers=left,
-    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Pozadinska obrada prenesene datoteke i postupanje pri pogrešci},
-    label={code:obrada-u-pozadini}
-]{../backend/src/queue/processors/documents.processor.ts}
-
-\refstepcounter{dodatak}
-\section*{Dodatak \arabic{dodatak}: Integracija naplate putem Stripea}
-\addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Integracija naplate putem Stripea}
-\label{app:stripe-integracija}
-
-\DiffComment{str 48\newline "Prvi ispis" ... "drugi ispis"\newline > referencirajte se točno na ispise, npr. Ispis 7, ispis 8.}
-\DiffReplace{Prvi ispis prikazuje povezivanje lokalne pretplate sa Stripeovim korisnikom i stvaranje sesije za ugovaranje paketa. Drugi prikazuje provjeru potpisa webhook zahtjeva, zaštitu od višestruke obrade istog događaja i usmjeravanje podržanih događaja prema postupcima koji usklađuju lokalno stanje pretplate.}{Ispis~\ref{code:stripe-naplata} prikazuje povezivanje lokalne pretplate sa Stripeovim korisnikom i stvaranje sesije za ugovaranje paketa. Ispis~\ref{code:stripe-webhook} prikazuje provjeru potpisa webhook zahtjeva, zaštitu od višestruke obrade istog događaja i usmjeravanje podržanih događaja prema postupcima koji usklađuju lokalno stanje pretplate.}
-
-\lstinputlisting[
-    firstline=425,
-    lastline=484,
-    firstnumber=425,
-    numbers=left,
-    literate={→}{{$\rightarrow$}}1 {—}{{--}}1,
-    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Stvaranje Stripeove sesije za ugovaranje pretplate},
-    label={code:stripe-naplata}
-]{../backend/src/subscription/subscription.service.ts}
-
-\lstinputlisting[
-    firstline=644,
-    lastline=730,
-    firstnumber=644,
-    numbers=left,
-    literate={–}{{--}}1 {—}{{--}}1,
-    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Provjera i obrada Stripeovih webhook događaja},
-    label={code:stripe-webhook}
-]{../backend/src/subscription/subscription.service.ts}
-
-\refstepcounter{dodatak}
-\section*{Dodatak \arabic{dodatak}: Praćenje potrošnje i oduzimanje kredita}
+\section*{Dodatak \DiffReplaceInline{6}{\arabic{dodatak}}: Praćenje potrošnje i oduzimanje kredita}
 \addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Praćenje potrošnje i oduzimanje kredita}
 \label{app:pracenje-potrosnje}
 
@@ -147,8 +111,7 @@ Ispisi prikazuju četiri uzastopna dijela obračuna. Povratni poziv najprije zbr
     firstnumber=21,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Prikupljanje broja ulaznih i izlaznih tokena agentskog odgovora},
-    label={code:pracenje-tokena}
+    title={\DiffReplaceInline{\textbf{Ispis 12:}}{\textbf{Ispis:}} Prikupljanje broja ulaznih i izlaznih tokena agentskog odgovora}
 ]{../backend/src/subscription/credit-tracking.handler.ts}
 
 \lstinputlisting[
@@ -157,8 +120,7 @@ Ispisi prikazuju četiri uzastopna dijela obračuna. Povratni poziv najprije zbr
     firstnumber=341,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Predavanje podataka o potrošnji u red za obračun},
-    label={code:predavanje-potrosnje}
+    title={\DiffReplaceInline{\textbf{Ispis 13:}}{\textbf{Ispis:}} Predavanje podataka o potrošnji u red za obračun}
 ]{../backend/src/agent/agent.controller.ts}
 
 \lstinputlisting[
@@ -168,8 +130,7 @@ Ispisi prikazuju četiri uzastopna dijela obračuna. Povratni poziv najprije zbr
     numbers=left,
     literate={—}{{--}}1,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Izračun kredita i izuzeće administratora od naplate},
-    label={code:obracun-kredita}
+    title={\DiffReplaceInline{\textbf{Ispis 14:}}{\textbf{Ispis:}} Izračun kredita i izuzeće administratora od naplate}
 ]{../backend/src/queue/processors/credit-deductions.processor.ts}
 
 \lstinputlisting[
@@ -178,6 +139,31 @@ Ispisi prikazuju četiri uzastopna dijela obračuna. Povratni poziv najprije zbr
     firstnumber=195,
     numbers=left,
     basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
-    caption={Transakcijsko oduzimanje kredita i spremanje zapisa o korištenju},
-    label={code:oduzimanje-kredita}
+    title={\DiffReplaceInline{\textbf{Ispis 15:}}{\textbf{Ispis:}} Transakcijsko oduzimanje kredita i spremanje zapisa o korištenju}
+]{../backend/src/subscription/subscription.service.ts}
+\refstepcounter{dodatak}
+\section*{Dodatak \DiffReplaceInline{5}{\arabic{dodatak}}: Integracija naplate putem Stripea}
+\addcontentsline{toc}{section}{Dodatak \arabic{dodatak}: Integracija naplate putem Stripea}
+\label{app:stripe-integracija}
+
+\DiffReplace{Prvi ispis prikazuje povezivanje lokalne pretplate sa Stripeovim korisnikom i stvaranje sesije za ugovaranje paketa. Drugi prikazuje provjeru potpisa webhook zahtjeva, zaštitu od višestruke obrade istog događaja i usmjeravanje podržanih događaja prema postupcima koji usklađuju lokalno stanje pretplate.}{Kôd za ugovaranje pretplate prikazuje povezivanje lokalne pretplate sa Stripeovim korisnikom i stvaranje sesije za ugovaranje paketa. Kôd za obradu povratnih događaja prikazuje provjeru potpisa webhook zahtjeva, zaštitu od višestruke obrade istog događaja i usmjeravanje podržanih događaja prema postupcima koji usklađuju lokalno stanje pretplate.}
+
+\lstinputlisting[
+    firstline=425,
+    lastline=484,
+    firstnumber=425,
+    numbers=left,
+    literate={→}{{$\rightarrow$}}1 {—}{{--}}1,
+    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
+    title={\DiffReplaceInline{\textbf{Ispis 10:}}{\textbf{Ispis:}} Stvaranje Stripeove sesije za ugovaranje pretplate}
+]{../backend/src/subscription/subscription.service.ts}
+
+\lstinputlisting[
+    firstline=644,
+    lastline=730,
+    firstnumber=644,
+    numbers=left,
+    literate={–}{{--}}1 {—}{{--}}1,
+    basicstyle=\fontfamily{pcr}\selectfont\footnotesize,
+    title={\DiffReplaceInline{\textbf{Ispis 11:}}{\textbf{Ispis:}} Provjera i obrada Stripeovih webhook događaja}
 ]{../backend/src/subscription/subscription.service.ts}

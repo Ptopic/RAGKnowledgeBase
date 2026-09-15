@@ -31,6 +31,18 @@
 \usepackage{mathptmx} % Times New Roman font
 \usepackage{courier} % Monospace font similar to Courier New
 
+% Keep the frame within the image's original width.
+\newsavebox{\thesisimagebox}
+\newcommand{\BorderedImage}[2][]{%
+    \DiffComment{- stavio bih neki obrub na slike koje imaju stapanje s bijelom pozadinom. Ima nekoliko slika takvog tipa.}%
+    \begingroup
+    \setlength{\fboxsep}{0pt}%
+    \setlength{\fboxrule}{0.4pt}%
+    \sbox{\thesisimagebox}{\includegraphics[#1]{#2}}%
+    \resizebox{\wd\thesisimagebox}{!}{\fcolorbox{black!55}{white}{\usebox{\thesisimagebox}}}%
+    \endgroup
+}
+
 % Diff rendering support.
 % Normal build: \DiffReplace prints only the new text and \DiffAdd prints plain text.
 % Diff build: compile main-diff.tex to show removed text on red and added text on green.

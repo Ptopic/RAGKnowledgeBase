@@ -1,6 +1,9 @@
 \selectlanguage{english}
 \section*{\fontsize{18}{17}\selectfont Summary}
-\addcontentsline{toc}{chapter}{Summary}
+\ifdiffversion
+    \addtocontents{toc}{\protect\DiffComment{- red "Summary......1" u Kazalu/Sadržaju se po predlošku ne spominje}}
+    \addcontentsline{toc}{chapter}{\protect\DiffDeleteInline{Summary}}
+\fi
 \noindent\textbf{\fontsize{14}{17}\selectfont Web platform for knowledge base management and conversational search using LLM models}
 
 The objective of this thesis is to develop a web platform for working with distributed knowledge sources. In the platform, a user creates a knowledge space, adds documents, websites, and videos, and connects supported external sources. The system processes the added content, splits it into smaller parts, and indexes it so that an agent can search it during a conversation. Answers are generated with existing large language models, but they also include citations to the retrieved sources. This allows the user to check which content the answer was based on. The developed system also includes workspace collaboration, conversation sharing, and public notebook publishing.
